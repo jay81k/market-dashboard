@@ -160,7 +160,10 @@
         }
         .mc-cell-overlay {
             position: absolute; inset: 0; z-index: 4;
-            pointer-events: none; /* allows single clicks to pass to TV iframe */
+            pointer-events: none;
+        }
+        .mc-cell-overlay.armed {
+            pointer-events: all; cursor: pointer;
         }
         .mc-cell-hint {
             position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
@@ -715,18 +718,26 @@
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
-            // Track clicks to detect double-click without blocking single clicks
-            var lastClick = 0;
+            var armedTimer = null;
+
+            // First click on the cell (from outside the iframe): arm the overlay
+            cell.addEventListener('click', function() {
+                if (armedTimer) return; // already armed
+                overlay.classList.add('armed');
+                armedTimer = setTimeout(function() {
+                    overlay.classList.remove('armed');
+                    armedTimer = null;
+                }, 400);
+            });
+
+            // Second click lands on the now-armed overlay
             overlay.addEventListener('click', function(e) {
-                var now = Date.now();
-                if (now - lastClick < 350) {
-                    e.stopPropagation();
-                    openMcFullscreen(sym);
-                    lastClick = 0;
-                } else {
-                    lastClick = now;
-                }
-            }, true);
+                e.stopPropagation();
+                clearTimeout(armedTimer);
+                armedTimer = null;
+                overlay.classList.remove('armed');
+                openMcFullscreen(sym);
+            });
 
             cell.appendChild(label);
             cell.appendChild(hint);
