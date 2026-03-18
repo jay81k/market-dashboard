@@ -231,18 +231,20 @@
         .stocks-table-wrap { flex: 1; overflow-y: auto; }
         .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.88em; table-layout: fixed; }
 
-        .stocks-table th:nth-child(1)  { width: 90px; }
-        .stocks-table th:nth-child(2)  { width: 38px; }
-        .stocks-table th:nth-child(3)  { width: 72px; }
-        .stocks-table th:nth-child(4)  { width: 80px; }
-        .stocks-table th:nth-child(5)  { width: 80px; }
-        .stocks-table th:nth-child(6)  { width: 80px; }
-        .stocks-table th:nth-child(7)  { width: 80px; }
-        .stocks-table th:nth-child(8)  { width: 80px; }
-        .stocks-table th:nth-child(9)  { width: 80px; }
-        .stocks-table th:nth-child(10) { width: 90px; }
-        .stocks-table th:nth-child(11) { width: 56px; }
-        .stocks-table th:nth-child(12) { width: 44px; }
+        .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
+        .stocks-table th:nth-child(2)  { width: 42px; }   /* RS */
+        .stocks-table th:nth-child(3)  { width: 70px; }   /* Price */
+        .stocks-table th:nth-child(4)  { width: 72px; }   /* Day */
+        .stocks-table th:nth-child(5)  { width: 72px; }   /* 1W */
+        .stocks-table th:nth-child(6)  { width: 72px; }   /* 1M */
+        .stocks-table th:nth-child(7)  { width: 72px; }   /* 3M */
+        .stocks-table th:nth-child(8)  { width: 72px; }   /* YTD */
+        .stocks-table th:nth-child(9)  { width: 72px; }   /* vSPY */
+        .stocks-table th:nth-child(10) { width: 72px; }   /* v3M */
+        .stocks-table th:nth-child(11) { width: 90px; }   /* Dist/MA */
+        .stocks-table th:nth-child(12) { width: 80px; }   /* Avg Vol */
+        .stocks-table th:nth-child(13) { width: 56px; }   /* ADR% */
+        .stocks-table th:nth-child(14) { width: 44px; }   /* CR */
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
@@ -846,6 +848,7 @@
         var cols = [
             { key:'symbol',     label:'Ticker',   tip:'Ticker symbol' },
             { key:'rs',         label:'RS',        tip:'RS Percentile (1–99)' },
+            { key:'price',      label:'Price',     tip:'Last closing price' },
             { key:'daily',      label:'Day',       tip:'Daily return' },
             { key:'1w',         label:'1W',        tip:'5-day return' },
             { key:'1m',         label:'1M',        tip:'21-day return' },
@@ -854,6 +857,7 @@
             { key:'vs_spy',     label:'vSPY',      tip:'1M return vs SPY' },
             { key:'vs_spy_3m',  label:'v3M',       tip:'3M return vs SPY' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
+            { key:'avg_vol',    label:'Avg Vol',   tip:'10-day average volume' },
             { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
@@ -889,6 +893,7 @@
                     ' data-symbol="' + esc(row.ticker) + '"' +
                     ' data-index="' + i + '"' +
                     ' data-rs="'      + (row.Percentile != null ? row.Percentile : '')  + '"' +
+                    ' data-price="'   + (row.price      != null ? row.price      : '')  + '"' +
                     ' data-daily="'   + (row.daily      != null ? row.daily      : '')  + '"' +
                     ' data-1w="'      + (row['1w']      != null ? row['1w']      : '')  + '"' +
                     ' data-1m="'      + (row['1m']      != null ? row['1m']      : '')  + '"' +
@@ -897,11 +902,15 @@
                     ' data-vs_spy="'  + (row.vs_spy     != null ? row.vs_spy     : '')  + '"' +
                     ' data-vs_spy_3m="'+(row.vs_spy_3m  != null ? row.vs_spy_3m  : '') + '"' +
                     ' data-dist_ma="' + (distVal        != null ? distVal        : '')  + '"' +
+                    ' data-avg_vol="' + (row.AvgVol10   != null ? row.AvgVol10   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
                     '>';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             html += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
+            // Price
+            var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
+            html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
             html += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
             html += '<td>' + valBar(row['1w'],  r1w[0],  r1w[1])  + '</td>';
             html += '<td>' + valBar(row['1m'],  r1m[0],  r1m[1])  + '</td>';
@@ -910,6 +919,13 @@
             html += '<td>' + valBar(row.vs_spy, rVs[0],  rVs[1])  + '</td>';
             html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
+            // Avg Vol (from CSV AvgVol10)
+            var volVal = '—';
+            if (row.AvgVol10 != null) {
+                var v = row.AvgVol10;
+                volVal = v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : v.toFixed(0);
+            }
+            html += '<td style="color:#8b949e;">' + volVal + '</td>';
             var adrColor = '#484f58';
             if (row.adr_pct != null) {
                 if (row.adr_pct < 4)      adrColor = '#3fb950';
