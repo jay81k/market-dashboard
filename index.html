@@ -92,20 +92,39 @@
         .industry-sector { font-size: 0.78em; color: #8b949e; white-space: nowrap; flex-shrink: 0; }
         .industry-count { font-size: 0.78em; color: #6e7681; white-space: nowrap; flex-shrink: 0; width: 40px; text-align: right; }
 
-        /* Performance columns */
-        .industry-perf-cols { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
-        .industry-perf-col { width: 72px; text-align: right; flex-shrink: 0; }
-        .industry-perf-col-hdr { width: 72px; text-align: right; flex-shrink: 0; font-size: 0.72em; font-weight: 500; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
-        .industry-perf-num { font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .industry-perf-num.up   { color: #3fb950; }
-        .industry-perf-num.down { color: #f85149; }
-        .industry-perf-num.neutral { color: #484f58; }
+        /* Industries column headers */
+        .ind-hdr-row {
+            border-bottom: 1px solid #21262d; padding: 6px 16px;
+            display: flex; align-items: center; gap: 16px;
+            position: sticky; top: 0; background: #0d1117; z-index: 1;
+        }
+        .ind-hdr-rank  { width: 28px; flex-shrink: 0; }
+        .ind-hdr-name  { flex: 1; min-width: 0; }
+        .ind-hdr-sector { width: 130px; flex-shrink: 0; }
+        .ind-hdr-count { width: 40px; flex-shrink: 0; }
+        .ind-col-hdr {
+            width: 68px; flex-shrink: 0; text-align: right;
+            font-size: 0.72em; font-weight: 500; color: #484f58;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            cursor: pointer; user-select: none; transition: color 0.1s;
+        }
+        .ind-col-hdr:hover { color: #8b949e; }
+        .ind-col-hdr.sorted { color: #388bfd; }
+        .ind-col-hdr.sorted.asc::after  { content: ' ↑'; }
+        .ind-col-hdr.sorted.desc::after { content: ' ↓'; }
 
-        /* RS score — number only */
-        .industry-rs-score { font-size: 0.85em; font-weight: 600; width: 28px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-        .industry-rs-score.positive { color: #3fb950; }
-        .industry-rs-score.negative { color: #f85149; }
-        .industry-rs-score.neutral  { color: #484f58; }
+        /* Performance & RS columns */
+        .industry-perf-cols { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+        .industry-perf-col  { width: 68px; text-align: right; flex-shrink: 0; }
+        .industry-perf-num  { font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .industry-perf-num.up      { color: #3fb950; }
+        .industry-perf-num.down    { color: #f85149; }
+        .industry-perf-num.neutral { color: #484f58; }
+        .industry-rs-cols { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+        .industry-rs-col  { width: 68px; text-align: right; flex-shrink: 0; font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .industry-rs-col.positive { color: #3fb950; }
+        .industry-rs-col.negative { color: #f85149; }
+        .industry-rs-col.neutral  { color: #484f58; }
 
         .industry-arrow { color: #484f58; font-size: 0.7em; flex-shrink: 0; opacity: 0; transition: opacity 0.1s; }
 
@@ -252,12 +271,6 @@
         <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
     </div>
     <div class="toolbar-right">
-        <div class="tf-group" id="tf-group">
-            <button class="tf-btn active" data-tf="1m" onclick="setTimeframe('1m')">1M RS</button>
-            <button class="tf-btn" data-tf="3m" onclick="setTimeframe('3m')">3M RS</button>
-            <button class="tf-btn" data-tf="6m" onclick="setTimeframe('6m')">6M RS</button>
-        </div>
-        <div class="toolbar-divider"></div>
         <span style="font-size:0.72em;color:#484f58;white-space:nowrap;" id="built-at"></span>
     </div>
 </div>
@@ -268,19 +281,19 @@
 
     <!-- Industries view -->
     <div id="view-industries" style="display:none;">
-        <div class="industry-list" id="industry-list-header" style="border-bottom:1px solid #21262d;padding:6px 16px;display:flex;align-items:center;gap:16px;position:sticky;top:0;background:#0d1117;z-index:1;">
-            <span style="width:28px;flex-shrink:0;"></span>
-            <span style="flex:1;"></span>
-            <span style="width:100px;flex-shrink:0;"></span>
-            <span style="width:40px;flex-shrink:0;"></span>
-            <div style="display:flex;align-items:center;gap:0;flex-shrink:0;">
-                <span class="industry-perf-col-hdr">Day</span>
-                <span class="industry-perf-col-hdr">1W</span>
-                <span class="industry-perf-col-hdr">1M</span>
-                <span class="industry-perf-col-hdr">3M</span>
-                <span class="industry-perf-col-hdr">YTD</span>
-            </div>
-            <span style="width:28px;flex-shrink:0;text-align:right;font-size:0.72em;font-weight:500;color:#484f58;text-transform:uppercase;letter-spacing:0.06em;" id="rs-col-hdr">RS</span>
+        <div class="industry-list ind-hdr-row" id="industry-list-header">
+            <span class="ind-hdr-rank"></span>
+            <span class="ind-hdr-name"></span>
+            <span class="ind-hdr-sector"></span>
+            <span class="ind-hdr-count"></span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_daily"  onclick="setIndSort('avg_daily')">Day</span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_1w"     onclick="setIndSort('avg_1w')">1W</span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_1m"     onclick="setIndSort('avg_1m')">1M</span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_3m"     onclick="setIndSort('avg_3m')">3M</span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_ytd"    onclick="setIndSort('avg_ytd')">YTD</span>
+            <span class="ind-col-hdr sortable-ind" data-col="rs_1m"      onclick="setIndSort('rs_1m')">1M RS</span>
+            <span class="ind-col-hdr sortable-ind" data-col="rs_3m"      onclick="setIndSort('rs_3m')">3M RS</span>
+            <span class="ind-col-hdr sortable-ind" data-col="rs_6m"      onclick="setIndSort('rs_6m')">6M RS</span>
             <span style="width:8px;flex-shrink:0;"></span>
         </div>
         <div class="industry-list" id="industry-list"></div>
@@ -357,9 +370,8 @@
     var snapshot      = null;
     var industriesData= null;
     var currentView   = 'industries';
-    var activeTimeframe = '1m';
-    var activePerfTimeframe = 'daily';
     var activeSort    = 'rank';
+    var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
     var chartWidget   = null;
     var currentStockSort = { by: null, dir: 1, count: 0 };
@@ -399,8 +411,7 @@
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
         document.getElementById('tab-stocks').classList.toggle('active', view === 'stocks-all');
 
-        // Show/hide timeframe buttons (only for industries view)
-        document.getElementById('tf-group').style.display = (view === 'industries') ? 'flex' : 'none';
+        // Show/hide toolbar elements (only for industries view)
         document.getElementById('sort-group').style.display = (view === 'industries') ? 'flex' : 'none';
         document.querySelector('.toolbar-right').style.display = (view === 'industries') ? 'flex' : 'none';
         document.getElementById('industry-list-header').style.display = (view === 'industries') ? 'flex' : 'none';
@@ -425,31 +436,46 @@
     });
 
     // ── Timeframe / sort ──────────────────────────────────────────────────
-    window.setPerfTimeframe = function(tf) {
-        activePerfTimeframe = tf;
-        document.querySelectorAll('.perf-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-perf') === tf); });
-        renderIndustries();
-    };
-
-    window.setTimeframe = function(tf) {
-        activeTimeframe = tf;
-        document.querySelectorAll('.tf-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tf') === tf); });
+    window.setIndSort = function(col) {
+        if (indSort.col === col) {
+            indSort.dir *= -1;
+        } else {
+            indSort.col = col;
+            indSort.dir = -1; // default desc (best performers first)
+        }
+        // Update header indicators
+        document.querySelectorAll('.ind-col-hdr').forEach(function(el) {
+            el.classList.remove('sorted','asc','desc');
+            if (el.getAttribute('data-col') === col) {
+                el.classList.add('sorted', indSort.dir === 1 ? 'asc' : 'desc');
+            }
+        });
         renderIndustries();
     };
 
     window.setSort = function(s) {
         activeSort = s;
+        indSort = { col: null, dir: -1 }; // reset column sort when switching preset sort
         document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sort') === s); });
+        document.querySelectorAll('.ind-col-hdr').forEach(function(el){ el.classList.remove('sorted','asc','desc'); });
         renderIndustries();
     };
 
     // ── Industries render ─────────────────────────────────────────────────
-    function getIndustryPct(ind) {
-        if (activeTimeframe === '1m') return ind['1m_rs_pct'];
-        if (activeTimeframe === '3m') return ind['3m_rs_pct'];
-        if (activeTimeframe === '6m') return ind['6m_rs_pct'];
-        return ind['percentile'];
+    function getIndSortVal(ind, summary, col) {
+        if (!col) return null;
+        if (col === 'avg_daily') return summary ? summary.avg_daily : null;
+        if (col === 'avg_1w')    return summary ? summary.avg_1w    : null;
+        if (col === 'avg_1m')    return summary ? summary.avg_1m    : null;
+        if (col === 'avg_3m')    return summary ? summary.avg_3m    : null;
+        if (col === 'avg_ytd')   return summary ? summary.avg_ytd   : null;
+        if (col === 'rs_1m')     return ind['1m_rs_pct'] != null ? ind['1m_rs_pct'] : null;
+        if (col === 'rs_3m')     return ind['3m_rs_pct'] != null ? ind['3m_rs_pct'] : null;
+        if (col === 'rs_6m')     return ind['6m_rs_pct'] != null ? ind['6m_rs_pct'] : null;
+        return null;
     }
+
+    function rsColClass(v) { return v == null ? 'neutral' : v >= 50 ? 'positive' : 'negative'; }
 
     function perfCol(val) {
         if (val == null) return '<span class="industry-perf-num neutral">—</span>';
@@ -467,25 +493,39 @@
         var q = searchQuery.toLowerCase();
         if (q) industries = industries.filter(function(i){ return i.industry.toLowerCase().includes(q) || i.sector.toLowerCase().includes(q); });
 
-        if (activeSort === 'rank') industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
-        else if (activeSort === 'name') industries.sort(function(a,b){ return a.industry.localeCompare(b.industry); });
-        else if (activeSort === 'sector') industries.sort(function(a,b){ return a.sector.localeCompare(b.sector) || (a.rank||999) - (b.rank||999); });
+        // Sort by column if active, else by preset
+        if (indSort.col) {
+            industries.sort(function(a, b) {
+                var sumA = snapshot && snapshot.industry_summary && snapshot.industry_summary[a.industry];
+                var sumB = snapshot && snapshot.industry_summary && snapshot.industry_summary[b.industry];
+                var va = getIndSortVal(a, sumA, indSort.col);
+                var vb = getIndSortVal(b, sumB, indSort.col);
+                if (va == null && vb == null) return 0;
+                if (va == null) return 1;
+                if (vb == null) return -1;
+                return (va - vb) * indSort.dir * -1;
+            });
+        } else {
+            if (activeSort === 'rank')   industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
+            else if (activeSort === 'name')   industries.sort(function(a,b){ return a.industry.localeCompare(b.industry); });
+            else if (activeSort === 'sector') industries.sort(function(a,b){ return a.sector.localeCompare(b.sector) || (a.rank||999) - (b.rank||999); });
+        }
 
         document.getElementById('result-count').textContent = industries.length + ' industries';
 
         var html = '';
         industries.forEach(function(ind) {
-            var pct = getIndustryPct(ind);
-            var pctClass = pct == null ? 'neutral' : pct >= 50 ? 'positive' : 'negative';
             var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
                 ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
+            var rs1m = ind['1m_rs_pct']; var rs3m = ind['3m_rs_pct']; var rs6m = ind['6m_rs_pct'];
 
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
             html += '<span class="industry-sector">' + esc(ind.sector) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
+            // Perf columns
             html += '<div class="industry-perf-cols">';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_daily : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1w    : null) + '</span>';
@@ -493,7 +533,12 @@
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_3m    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_ytd   : null) + '</span>';
             html += '</div>';
-            html += '<span class="industry-rs-score ' + pctClass + '">' + (pct != null ? pct : '—') + '</span>';
+            // RS columns
+            html += '<div class="industry-rs-cols">';
+            html += '<span class="industry-rs-col ' + rsColClass(rs1m) + '">' + (rs1m != null ? rs1m : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs3m) + '">' + (rs3m != null ? rs3m : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs6m) + '">' + (rs6m != null ? rs6m : '—') + '</span>';
+            html += '</div>';
             html += '<span class="industry-arrow">›</span>';
             html += '</div>';
         });
