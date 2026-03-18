@@ -150,7 +150,6 @@
         }
         .mc-tf-btn:hover  { background: #161b22; color: #c8d0dc; }
         .mc-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
-        .mc-label { font-size: 0.75em; color: #484f58; margin-right: 4px; }
 
         .multichart-grid {
             flex: 1; overflow-y: auto; min-height: 0;
@@ -392,10 +391,9 @@
         <!-- Multichart view -->
         <div id="stocks-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
             <div class="multichart-toolbar">
-                <span class="mc-label">Timeframe</span>
-                <button class="mc-tf-btn" data-tf="1" onclick="setMcTf('1')">1D</button>
-                <button class="mc-tf-btn" data-tf="W" onclick="setMcTf('W')">1W</button>
+                <button class="mc-tf-btn" data-tf="5" onclick="setMcTf('5')">5m</button>
                 <button class="mc-tf-btn active" data-tf="D" onclick="setMcTf('D')">Daily</button>
+                <button class="mc-tf-btn" data-tf="W" onclick="setMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setMcTf('M')">Monthly</button>
             </div>
             <div class="multichart-grid" id="multichart-grid"></div>
