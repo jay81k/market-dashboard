@@ -414,7 +414,7 @@
 
             html += '<div class="group-container" id="grp-' + safeId_ + '">';
             // Header
-            html += '<div class="group-header" id="hdr-' + safeId_ + '" onclick="toggleGroup(' + JSON.stringify(industry) + ')">';
+            html += '<div class="group-header" id="hdr-' + safeId_ + '" data-industry="' + esc(industry) + '">';
             html += '<span class="chevron">▶</span>';
             html += '<span class="industry-name">' + esc(industry) + '</span>';
             html += '<div class="header-stats">' + stat1m + stat3m + statRS + '</div>';
@@ -439,19 +439,19 @@
         var distmaTooltip = '% distance from ' + activeMAType + activeMALength + '. Click ⋯ to change.';
         var html = '<table class="ticker-table" data-group="' + esc(industry) + '">';
         html += '<thead><tr>';
-        html += '<th data-sort-by="symbol" data-tooltip="Ticker symbol" onclick="sortGroup(' + JSON.stringify(industry) + ',\'symbol\')">Ticker</th>';
-        html += '<th data-sort-by="rank" data-tooltip="RS rank — lower is stronger" onclick="sortGroup(' + JSON.stringify(industry) + ',\'rank\')">#</th>';
-        html += '<th data-sort-by="daily" data-tooltip="Day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'daily\')">Day</th>';
-        html += '<th data-sort-by="1w" data-tooltip="5-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'1w\')">1W</th>';
-        html += '<th data-sort-by="1m" data-tooltip="21-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'1m\')">1M</th>';
-        html += '<th data-sort-by="3m" data-tooltip="63-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'3m\')">3M</th>';
-        html += '<th data-sort-by="ytd" data-tooltip="Year-to-date return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'ytd\')">YTD</th>';
-        html += '<th data-sort-by="vs_spy" data-tooltip="1M return vs SPY" onclick="sortGroup(' + JSON.stringify(industry) + ',\'vs_spy\')">vSPY</th>';
-        html += '<th data-sort-by="vs_spy_3m" data-tooltip="3M return vs SPY" onclick="sortGroup(' + JSON.stringify(industry) + ',\'vs_spy_3m\')">v3M</th>';
-        html += '<th data-sort-by="dist_ma" data-tooltip="' + esc(distmaTooltip) + '" onclick="sortGroup(' + JSON.stringify(industry) + ',\'dist_ma\')">' +
+        html += '<th class="sortable" data-sort-by="symbol" data-tooltip="Ticker symbol">Ticker</th>';
+        html += '<th class="sortable" data-sort-by="rank" data-tooltip="RS rank — lower is stronger">#</th>';
+        html += '<th class="sortable" data-sort-by="daily" data-tooltip="Day return">Day</th>';
+        html += '<th class="sortable" data-sort-by="1w" data-tooltip="5-day return">1W</th>';
+        html += '<th class="sortable" data-sort-by="1m" data-tooltip="21-day return">1M</th>';
+        html += '<th class="sortable" data-sort-by="3m" data-tooltip="63-day return">3M</th>';
+        html += '<th class="sortable" data-sort-by="ytd" data-tooltip="Year-to-date return">YTD</th>';
+        html += '<th class="sortable" data-sort-by="vs_spy" data-tooltip="1M return vs SPY">vSPY</th>';
+        html += '<th class="sortable" data-sort-by="vs_spy_3m" data-tooltip="3M return vs SPY">v3M</th>';
+        html += '<th class="sortable" data-sort-by="dist_ma" data-tooltip="' + esc(distmaTooltip) + '">' +
                 'Dist/MA<span class="dist-ma-settings-btn" onclick="event.stopPropagation();toggleDistMASettings(this)">⋯</span></th>';
-        html += '<th data-sort-by="adr_pct" data-tooltip="Avg Daily Range % — volatility proxy" onclick="sortGroup(' + JSON.stringify(industry) + ',\'adr_pct\')">ADR%</th>';
-        html += '<th data-sort-by="cr" data-tooltip="Closing range — where price closed in today\'s range (100=high, 0=low)" onclick="sortGroup(' + JSON.stringify(industry) + ',\'cr\')">CR</th>';
+        html += '<th class="sortable" data-sort-by="adr_pct" data-tooltip="Avg Daily Range % — volatility proxy">ADR%</th>';
+        html += '<th class="sortable" data-sort-by="cr" data-tooltip="Closing range — where price closed in today\'s range (100=high, 0=low)">CR</th>';
         html += '</tr></thead><tbody>';
 
         var r1w   = ranges['1w']        || [-20, 20];
@@ -680,6 +680,26 @@
             });
         });
     }
+
+    // ── Event delegation for group headers + sort headers ───────────────
+    document.getElementById('groups-container').addEventListener('click', function(e) {
+        // Sort column click
+        var th = e.target.closest('th.sortable');
+        if (th && !e.target.closest('.dist-ma-settings-btn')) {
+            var table = th.closest('table.ticker-table');
+            if (table) {
+                var grp = table.getAttribute('data-group');
+                var sortBy = th.getAttribute('data-sort-by');
+                if (grp && sortBy) { window.sortGroup(grp, sortBy); return; }
+            }
+        }
+        // Group header toggle
+        var hdr = e.target.closest('.group-header');
+        if (!hdr) return;
+        if (e.target.closest('.dist-ma-settings-btn')) return;
+        var industry = hdr.getAttribute('data-industry');
+        if (industry) toggleGroup(industry);
+    });
 
     loadData();
 })();
