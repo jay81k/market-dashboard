@@ -494,7 +494,7 @@
         var html = '<table class="ticker-table" data-group="' + esc(industry) + '">';
         html += '<thead><tr>';
         html += '<th class="sortable" data-sort-by="symbol" data-tooltip="Ticker symbol">Ticker</th>';
-        html += '<th class="sortable" data-sort-by="rank" data-tooltip="RS rank — lower is stronger">#</th>';
+        html += '<th class="sortable" data-sort-by="rank" data-tooltip="RS Percentile ranking (1-99)">RS</th>';
         html += '<th class="sortable" data-sort-by="daily" data-tooltip="Day return">Day</th>';
         html += '<th class="sortable" data-sort-by="1w" data-tooltip="5-day return">1W</th>';
         html += '<th class="sortable" data-sort-by="1m" data-tooltip="21-day return">1M</th>';
@@ -526,7 +526,7 @@
 
             html += '<tr class="ticker-row" data-symbol="' + esc(row.ticker) + '"' +
                     ' data-index="' + ri + '"' +
-                    ' data-rank="'    + (row.Rank      != null ? row.Rank      : '') + '"' +
+                    ' data-rank="'    + (row.Percentile != null ? row.Percentile : '') + '"' +
                     ' data-daily="'   + (row.daily     != null ? row.daily     : '') + '"' +
                     ' data-1w="'      + (row['1w']     != null ? row['1w']     : '') + '"' +
                     ' data-1m="'      + (row['1m']     != null ? row['1m']     : '') + '"' +
@@ -541,8 +541,9 @@
 
             // Ticker
             html += '<td><span class="ticker-label">' + esc(row.ticker) + '</span></td>';
-            // Rank
-            html += '<td class="rank-badge">' + rankVal + '</td>';
+            // RS Rating (Percentile)
+            var rsVal = row.Percentile != null ? Math.round(row.Percentile) : '—';
+            html += '<td class="rank-badge">' + rsVal + '</td>';
             // Daily
             html += '<td class="' + colorClass(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
             // 1W
