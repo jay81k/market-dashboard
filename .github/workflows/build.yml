@@ -1,0 +1,32 @@
+name: Build Dashboard Data
+
+on:
+  schedule:
+    - cron: '30 20 * * 1-5'  # weekdays 8:30 PM UTC (after US market close)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build data
+        run: python scripts/build_data.py --out-dir data --csv-url "${{ secrets.CSV_URL }}"
+        # Add CSV_URL as a repository secret in Settings → Secrets → Actions
+
+      - name: Commit and push data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "refresh data"
+          git push

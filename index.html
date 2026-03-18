@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Industry Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #111318; color: #c8d0dc; }
+
+        /* ── Left panel ── */
+        .ticker-list { width: 860px; background-color: #111318; padding: 0; overflow-y: auto; border-right: 1px solid #22272f; flex-shrink: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111318; }
+        ::-webkit-scrollbar-thumb { background: #22272f; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2e3744; }
+
+        /* ── Right panel ── */
+        .chart-container { flex: 1; display: flex; flex-direction: column; padding: 10px; background-color: #111318; min-height: 0; min-width: 0; }
+        .tradingview-widget-container { flex: 1; min-height: 0; }
+
+        /* ── Industry group ── */
+        .group-container { margin-bottom: 0; border-bottom: 1px solid #22272f; }
+        .group-header {
+            background-color: #13171e; padding: 7px 12px;
+            font-weight: 600; font-size: 0.78em;
+            display: flex; align-items: center; gap: 8px;
+            position: sticky; top: 0; z-index: 3; cursor: pointer; color: #c8d0dc;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            border-bottom: 1px solid #22272f; user-select: none;
+        }
+        .group-header:hover { background-color: #1a1f28; }
+        .group-header .industry-name { flex: 1; }
+        .group-header .sector-badge {
+            font-size: 0.78em; font-weight: 400; color: #4a5a6e;
+            padding: 1px 6px; border-radius: 4px; background: #191d24;
+            border: 1px solid #22272f; letter-spacing: 0.04em; white-space: nowrap;
+        }
+        .group-header .stock-count { color: #4a5a6e; font-size: 0.82em; font-weight: 400; }
+        .group-header .chevron { color: #4a5a6e; font-size: 0.8em; transition: transform 0.15s; margin-left: 2px; }
+        .group-header.open .chevron { transform: rotate(90deg); }
+
+        /* Industry summary stats in header */
+        .group-header .header-stats { display: flex; gap: 10px; align-items: center; font-size: 0.82em; font-weight: 400; }
+        .header-stat { white-space: nowrap; }
+        .header-stat.up   { color: #34d4a4; }
+        .header-stat.down { color: #e05c5c; }
+        .header-stat.neutral { color: #5a6a7e; }
+
+        /* ── Collapsible body ── */
+        .group-body { display: none; }
+        .group-body.open { display: block; }
+
+        /* ── Table ── */
+        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.84em; table-layout: fixed; }
+
+        /* Column widths — ticker(90) rank(42) daily(56) 1w(56) 1m(56) 3m(56) ytd(56) vspy(60) vspy3m(60) distma(64) adr(50) cr(50) */
+        .ticker-table th:nth-child(1),  .ticker-table td:nth-child(1)  { width: 90px;  padding: 5px 6px; }
+        .ticker-table th:nth-child(2),  .ticker-table td:nth-child(2)  { width: 42px;  padding: 5px 4px; text-align: right; }
+        .ticker-table th:nth-child(3),  .ticker-table td:nth-child(3)  { width: 58px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(4),  .ticker-table td:nth-child(4)  { width: 58px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(5),  .ticker-table td:nth-child(5)  { width: 58px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(6),  .ticker-table td:nth-child(6)  { width: 58px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(7),  .ticker-table td:nth-child(7)  { width: 58px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(8),  .ticker-table td:nth-child(8)  { width: 62px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(9),  .ticker-table td:nth-child(9)  { width: 62px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(10), .ticker-table td:nth-child(10) { width: 66px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(11), .ticker-table td:nth-child(11) { width: 50px;  padding: 5px 4px; }
+        .ticker-table th:nth-child(12), .ticker-table td:nth-child(12) { width: 48px;  padding: 5px 4px; }
+
+        .ticker-table thead { position: sticky; z-index: 2; top: 29px; }
+        .ticker-table th {
+            text-align: left; padding: 5px 6px; background-color: #111318;
+            cursor: pointer; user-select: none;
+            font-weight: 500; font-size: 0.76em; letter-spacing: 0.06em; text-transform: uppercase;
+            border-bottom: 1px solid #22272f; color: #4a5a6e;
+        }
+        .ticker-table th:hover { color: #c8d0dc; }
+        .ticker-table th.sort-asc::after  { content: " ↑"; color: #5aabf0; }
+        .ticker-table th.sort-desc::after { content: " ↓"; color: #5aabf0; }
+        .ticker-table th.sorted-col { color: #a8bdd4; background-color: #13171e; }
+        .ticker-table td { padding: 4px 4px; border-bottom: 1px solid #191d24; vertical-align: middle; color: #7a8a9a; overflow: hidden; }
+        .ticker-row { cursor: pointer; transition: background 0.1s; }
+        .ticker-row:hover { background-color: #161a21; }
+        .ticker-row.active { background-color: #1a2333; }
+
+        /* ── Price coloring ── */
+        .price-up   { color: #34d4a4 !important; font-weight: 500; }
+        .price-down { color: #e05c5c !important; font-weight: 500; }
+
+        /* ── Ticker cell ── */
+        .ticker-label {
+            display: inline-flex; align-items: center; padding: 2px 6px;
+            border-radius: 4px; background-color: #1e242c;
+            color: #7ab0d8; font-size: 0.9em; font-weight: 600;
+        }
+
+        /* ── Value bar visualization ── */
+        .value-visualization { position: relative; display: inline-block; padding: 2px 4px; border-radius: 3px; min-width: 45px; max-width: 100%; text-align: right; }
+        .value-bar { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: 0.15; z-index: 0; max-width: 100%; }
+        .value-bar.positive { background-color: #34d4a4; left: 0; }
+        .value-bar.negative { background-color: #e05c5c; right: 0; }
+        .value-text { position: relative; z-index: 1; }
+
+        /* ── RS rank badge ── */
+        .rank-badge { color: #5a6a7e; font-size: 0.85em; font-variant-numeric: tabular-nums; }
+
+        /* ── Key hint ── */
+        .key-hint { font-size: 11px; color: #4a5a6e; margin: 12px 10px; padding: 5px 10px; background-color: #191d24; border-radius: 4px; border: 1px solid #22272f; }
+
+        /* ── Column tooltip ── */
+        #col-tooltip {
+            position: fixed; background-color: #191d24; color: #9aaab8;
+            padding: 6px 10px; border-radius: 5px; font-size: 0.75em;
+            white-space: normal; width: 190px; line-height: 1.4;
+            border: 1px solid #2e3744; pointer-events: none;
+            opacity: 0; transition: opacity 0.15s ease; z-index: 9999;
+        }
+        #col-tooltip.visible { opacity: 1; }
+
+        /* ── Dist/MA dropdown ── */
+        .dist-ma-settings-btn {
+            display: inline-block; cursor: pointer; padding: 1px 6px; border-radius: 4px;
+            color: #4a5a6e; font-size: 0.85em; vertical-align: middle;
+            background: #1e242c; letter-spacing: 1px; margin-left: 3px;
+        }
+        .dist-ma-settings-btn:hover { color: #c8d0dc; background: #252d38; }
+        .dist-ma-dropdown {
+            display: none; position: fixed; background: #191d24; border: 1px solid #2e3744;
+            border-radius: 7px; padding: 10px 12px; z-index: 10000; min-width: 185px;
+            font-size: 0.82em; color: #c8d0dc; cursor: default;
+        }
+        .dist-ma-dropdown.open { display: block; }
+        .dist-ma-row { margin-bottom: 8px; }
+        .dist-ma-row:last-child { margin-bottom: 0; }
+        .dist-ma-row > label { display: block; color: #4a5a6e; font-size: 0.78em; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .dist-ma-btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+        .dist-ma-btn {
+            padding: 3px 9px; border-radius: 4px; border: 1px solid #2e3744;
+            background: #111318; color: #9aaab8; cursor: pointer;
+            font-size: 0.9em; font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .dist-ma-btn:hover { background: #1e242c; color: #c8d0dc; }
+        .dist-ma-btn.active { background: #185fa5; border-color: #378add; color: #fff; }
+
+        /* ── Search / filter bar ── */
+        .search-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; border-bottom: 1px solid #22272f;
+            background: #111318; position: sticky; top: 0; z-index: 10;
+        }
+        .search-input {
+            flex: 1; background: #191d24; border: 1px solid #22272f; border-radius: 5px;
+            color: #c8d0dc; padding: 4px 10px; font-size: 0.82em; outline: none;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .search-input::placeholder { color: #4a5a6e; }
+        .search-input:focus { border-color: #2e3744; }
+        .search-clear { color: #4a5a6e; cursor: pointer; font-size: 1em; padding: 0 3px; display: none; }
+        .search-clear.visible { display: block; }
+        .search-clear:hover { color: #c8d0dc; }
+        .built-at { font-size: 0.72em; color: #2e3744; white-space: nowrap; }
+
+        /* ── Loading ── */
+        .loading-msg { padding: 30px; text-align: center; color: #4a5a6e; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+
+<div class="ticker-list">
+    <div class="search-bar">
+        <input type="text" class="search-input" id="search-input" placeholder="Search ticker or industry…" autocomplete="off" spellcheck="false">
+        <span class="search-clear" id="search-clear">✕</span>
+        <span class="built-at" id="built-at"></span>
+    </div>
+    <div id="groups-container"></div>
+    <div class="key-hint">↑ ↓ Arrow keys to navigate stocks · Click industry header to expand · Data refreshed nightly via GitHub Actions</div>
+</div>
+
+<div class="chart-container">
+    <div id="single-chart-panel" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+        <div class="tradingview-widget-container">
+            <div id="tradingview-chart" style="height:100%;width:100%;"></div>
+            <div style="color:#4a5a6e;font-size:11px;margin-top:4px;">
+                <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:#4a5a6e;">TradingView</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dist/MA dropdown -->
+<div id="dist-ma-dropdown" class="dist-ma-dropdown">
+    <div class="dist-ma-row">
+        <label>Type</label>
+        <div class="dist-ma-btn-group">
+            <button class="dist-ma-btn dist-ma-type-btn active" data-type="SMA" onclick="setDistMAType('SMA')">SMA</button>
+            <button class="dist-ma-btn dist-ma-type-btn" data-type="EMA" onclick="setDistMAType('EMA')">EMA</button>
+        </div>
+    </div>
+    <div class="dist-ma-row">
+        <label>Period</label>
+        <div class="dist-ma-btn-group">
+            <button class="dist-ma-btn dist-ma-len-btn" data-len="5"   onclick="setDistMALength(5)">5</button>
+            <button class="dist-ma-btn dist-ma-len-btn" data-len="10"  onclick="setDistMALength(10)">10</button>
+            <button class="dist-ma-btn dist-ma-len-btn" data-len="21"  onclick="setDistMALength(21)">21</button>
+            <button class="dist-ma-btn dist-ma-len-btn active" data-len="50"  onclick="setDistMALength(50)">50</button>
+            <button class="dist-ma-btn dist-ma-len-btn" data-len="200" onclick="setDistMALength(200)">200</button>
+        </div>
+    </div>
+</div>
+
+<div id="col-tooltip"></div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+(function () {
+    // ── State ──────────────────────────────────────────────────────────────
+    let snapshot     = null;
+    let meta         = null;
+    let chartWidget  = null;
+    let currentIndex = 0;
+    let allTickerRows = [];
+    let sortStates   = {};  // { industry: { sortBy, direction, count } }
+    let activeMAType   = localStorage.getItem('distMAType')   || 'SMA';
+    let activeMALength = parseInt(localStorage.getItem('distMALength') || '50');
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function safeId(s) {
+        return s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+    function fmt(v, decimals, suffix) {
+        if (v == null) return '<span style="color:#2e3744">—</span>';
+        return (v >= 0 ? '+' : '') + v.toFixed(decimals) + (suffix || '');
+    }
+    function colorClass(v) {
+        if (v == null) return '';
+        return v > 0 ? 'price-up' : (v < 0 ? 'price-down' : '');
+    }
+    function vizBar(value, minVal, maxVal) {
+        if (value == null) return '<span style="color:#2e3744">—</span>';
+        var range = value >= 0 ? Math.abs(maxVal || 1) : Math.abs(minVal || 1);
+        var w = Math.min(100, Math.max(0, (Math.abs(value) / (range || 1)) * 100));
+        var barCl = value >= 0 ? 'positive' : 'negative';
+        var textCl = colorClass(value);
+        return '<div class="value-visualization"><div class="value-bar ' + barCl + '" style="width:' + w + '%"></div>' +
+               '<span class="value-text ' + textCl + '">' + fmt(value, 2, '%') + '</span></div>';
+    }
+
+    // ── Chart ─────────────────────────────────────────────────────────────
+    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX' };
+    function initChart(symbol) {
+        var sym = TV_MAP[symbol] || symbol;
+        if (chartWidget) { try { chartWidget.remove(); } catch(e){} chartWidget = null; }
+        chartWidget = new TradingView.widget({
+            symbol: sym, interval: 'D', locale: 'en', style: '1',
+            theme: 'dark', timezone: 'America/Toronto',
+            toolbar_bg: '#111318', backgroundColor: '#111318',
+            hide_side_toolbar: false, hide_top_toolbar: false,
+            save_image: false, enable_publishing: false,
+            autosize: true, container_id: 'tradingview-chart',
+        });
+    }
+    window.updateChart = function(symbol, rowEl) {
+        document.querySelectorAll('.ticker-row.active').forEach(function(r){ r.classList.remove('active'); });
+        if (rowEl) {
+            rowEl.classList.add('active');
+            currentIndex = allTickerRows.indexOf(rowEl);
+        } else {
+            var found = document.querySelector('.ticker-row[data-symbol="' + esc(symbol) + '"]');
+            if (found) { found.classList.add('active'); currentIndex = allTickerRows.indexOf(found); }
+        }
+        initChart(symbol);
+    };
+
+    // ── Dist/MA ───────────────────────────────────────────────────────────
+    function maKey() { return activeMAType + activeMALength; }
+
+    function applyDistMASettings() {
+        var key = maKey();
+        document.querySelectorAll('.dist-ma-cell').forEach(function(cell) {
+            var raw = cell.getAttribute('data-dist-all');
+            var val = null;
+            try { val = JSON.parse(raw.replace(/&quot;/g, '"'))[key]; } catch(e) {}
+            if (val == null) { cell.innerHTML = '<span style="color:#2e3744">—</span>'; cell.className = 'dist-ma-cell'; return; }
+            var ranges = cell.getAttribute('data-ranges');
+            var r = [-20, 20];
+            try { r = JSON.parse(ranges.replace(/&quot;/g, '"')); } catch(e) {}
+            cell.className = 'dist-ma-cell';
+            var w = Math.min(100, Math.max(0, (Math.abs(val) / 20) * 100));
+            var barCl = val >= 0 ? 'positive' : 'negative';
+            var textCl = val > 0 ? 'price-up' : (val < 0 ? 'price-down' : '');
+            cell.innerHTML = '<div class="value-visualization"><div class="value-bar ' + barCl + '" style="width:' + w + '%"></div>' +
+                             '<span class="value-text ' + textCl + '">' + fmt(val, 2, '%') + '</span></div>';
+            var row = cell.closest('tr');
+            if (row) row.setAttribute('data-dist_ma', val);
+        });
+        document.querySelectorAll('th[data-sort-by="dist_ma"]').forEach(function(th) {
+            th.setAttribute('data-tooltip', '% distance from ' + activeMAType + activeMALength + '. Click ⋯ to change.');
+        });
+    }
+
+    window.toggleDistMASettings = function(btn) {
+        var dd = document.getElementById('dist-ma-dropdown');
+        if (!dd) return;
+        if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
+        var rect = btn.getBoundingClientRect();
+        dd.style.top  = (rect.bottom + 4) + 'px';
+        dd.style.left = Math.max(4, rect.right - 195) + 'px';
+        dd.classList.add('open');
+    };
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('dist-ma-dropdown');
+        if (!dd || !dd.classList.contains('open')) return;
+        if (!dd.contains(e.target) && !e.target.classList.contains('dist-ma-settings-btn')) dd.classList.remove('open');
+    });
+    window.setDistMAType = function(type) {
+        activeMAType = type;
+        localStorage.setItem('distMAType', type);
+        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === type); });
+        applyDistMASettings();
+    };
+    window.setDistMALength = function(len) {
+        activeMALength = len;
+        localStorage.setItem('distMALength', String(len));
+        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === len); });
+        applyDistMASettings();
+    };
+
+    // ── Sorting ───────────────────────────────────────────────────────────
+    var COL_MAP = { symbol:0, rank:1, daily:2, '1w':3, '1m':4, '3m':5, ytd:6, vs_spy:7, vs_spy_3m:8, dist_ma:9, adr_pct:10, cr:11 };
+
+    window.sortGroup = function(industry, sortBy) {
+        var table = document.querySelector('.ticker-table[data-group="' + industry.replace(/"/g,'&quot;') + '"]');
+        if (!table) return;
+        var tbody = table.querySelector('tbody');
+        var rows  = Array.from(tbody.querySelectorAll('.ticker-row'));
+        var state = sortStates[industry] || { sortBy: null, direction: 1, count: 0 };
+        sortStates[industry] = state;
+
+        table.querySelectorAll('th, td').forEach(function(el){ el.classList.remove('sort-asc','sort-desc','sorted-col'); });
+
+        if (state.sortBy === sortBy) {
+            state.count++;
+            if (state.count >= 3) {
+                state.sortBy = null; state.direction = 1; state.count = 0;
+                rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
+                tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+                updateAllTickerRows(); return;
+            }
+        } else { state.count = 1; }
+        state.sortBy = sortBy;
+        if (state.count === 2) state.direction *= -1; else state.direction = 1;
+
+        var hi = COL_MAP[sortBy] !== undefined ? COL_MAP[sortBy] : 0;
+        var th = table.querySelectorAll('th')[hi];
+        if (th) th.classList.add(state.direction === 1 ? 'sort-desc' : 'sort-asc', 'sorted-col');
+        rows.forEach(function(row){ var td = row.querySelectorAll('td')[hi]; if(td) td.classList.add('sorted-col'); });
+
+        rows.sort(function(a, b) {
+            var aV, bV;
+            if (sortBy === 'symbol') {
+                return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * state.direction;
+            } else if (sortBy === 'rank') {
+                aV = parseFloat(a.getAttribute('data-rank') || '9999');
+                bV = parseFloat(b.getAttribute('data-rank') || '9999');
+            } else {
+                aV = parseFloat(a.getAttribute('data-' + sortBy) || 'NaN');
+                bV = parseFloat(b.getAttribute('data-' + sortBy) || 'NaN');
+                if (isNaN(aV)) return 1; if (isNaN(bV)) return -1;
+            }
+            return (aV - bV) * state.direction;
+        });
+        tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+        updateAllTickerRows();
+        var ar = document.querySelector('.ticker-row.active');
+        if (ar) currentIndex = allTickerRows.indexOf(ar);
+    };
+
+    // ── Render ────────────────────────────────────────────────────────────
+    function renderGroups(industriesToShow) {
+        var container = document.getElementById('groups-container');
+        if (!snapshot || !snapshot.by_industry) {
+            container.innerHTML = '<div class="loading-msg">No data found. Run the build script first.</div>';
+            return;
+        }
+
+        // All industries sorted alphabetically (or by sector then name)
+        var industries = industriesToShow || Object.keys(snapshot.by_industry).sort();
+        var html = '';
+
+        industries.forEach(function(industry, gi) {
+            var rows   = snapshot.by_industry[industry];
+            if (!rows || rows.length === 0) return;
+            var safeId_ = safeId(industry);
+            var ranges  = (snapshot.column_ranges && snapshot.column_ranges[industry]) || {};
+            var summary = snapshot.industry_summary && snapshot.industry_summary[industry];
+            var sector  = (meta && meta.industry_to_sector && meta.industry_to_sector[industry]) || '';
+
+            // Header summary stats
+            var avg1m    = summary && summary.avg_1m    != null ? summary.avg_1m    : null;
+            var avg3m    = summary && summary.avg_3m    != null ? summary.avg_3m    : null;
+            var medianRS = summary && summary.median_rs_pct != null ? summary.median_rs_pct : null;
+
+            var stat1m = avg1m != null
+                ? '<span class="header-stat ' + (avg1m>=0?'up':'down') + '">' + fmt(avg1m,1,'%') + ' 1M</span>' : '';
+            var stat3m = avg3m != null
+                ? '<span class="header-stat ' + (avg3m>=0?'up':'down') + '">' + fmt(avg3m,1,'%') + ' 3M</span>' : '';
+            var statRS = medianRS != null
+                ? '<span class="header-stat neutral">RS ' + medianRS.toFixed(0) + '</span>' : '';
+
+            html += '<div class="group-container" id="grp-' + safeId_ + '">';
+            // Header
+            html += '<div class="group-header" id="hdr-' + safeId_ + '" onclick="toggleGroup(' + JSON.stringify(industry) + ')">';
+            html += '<span class="chevron">▶</span>';
+            html += '<span class="industry-name">' + esc(industry) + '</span>';
+            html += '<div class="header-stats">' + stat1m + stat3m + statRS + '</div>';
+            html += '<span class="stock-count">' + rows.length + '</span>';
+            html += '<span class="sector-badge">' + esc(sector) + '</span>';
+            html += '</div>'; // end header
+
+            // Body (collapsed by default)
+            html += '<div class="group-body" id="body-' + safeId_ + '">';
+            html += buildTable(industry, rows, ranges, gi);
+            html += '</div>';
+            html += '</div>'; // end group-container
+        });
+
+        container.innerHTML = html || '<div class="loading-msg">No industries match.</div>';
+        syncDistMAButtons();
+        applyDistMASettings();
+        updateAllTickerRows();
+    }
+
+    function buildTable(industry, rows, ranges, gi) {
+        var distmaTooltip = '% distance from ' + activeMAType + activeMALength + '. Click ⋯ to change.';
+        var html = '<table class="ticker-table" data-group="' + esc(industry) + '">';
+        html += '<thead><tr>';
+        html += '<th data-sort-by="symbol" data-tooltip="Ticker symbol" onclick="sortGroup(' + JSON.stringify(industry) + ',\'symbol\')">Ticker</th>';
+        html += '<th data-sort-by="rank" data-tooltip="RS rank — lower is stronger" onclick="sortGroup(' + JSON.stringify(industry) + ',\'rank\')">#</th>';
+        html += '<th data-sort-by="daily" data-tooltip="Day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'daily\')">Day</th>';
+        html += '<th data-sort-by="1w" data-tooltip="5-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'1w\')">1W</th>';
+        html += '<th data-sort-by="1m" data-tooltip="21-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'1m\')">1M</th>';
+        html += '<th data-sort-by="3m" data-tooltip="63-day return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'3m\')">3M</th>';
+        html += '<th data-sort-by="ytd" data-tooltip="Year-to-date return" onclick="sortGroup(' + JSON.stringify(industry) + ',\'ytd\')">YTD</th>';
+        html += '<th data-sort-by="vs_spy" data-tooltip="1M return vs SPY" onclick="sortGroup(' + JSON.stringify(industry) + ',\'vs_spy\')">vSPY</th>';
+        html += '<th data-sort-by="vs_spy_3m" data-tooltip="3M return vs SPY" onclick="sortGroup(' + JSON.stringify(industry) + ',\'vs_spy_3m\')">v3M</th>';
+        html += '<th data-sort-by="dist_ma" data-tooltip="' + esc(distmaTooltip) + '" onclick="sortGroup(' + JSON.stringify(industry) + ',\'dist_ma\')">' +
+                'Dist/MA<span class="dist-ma-settings-btn" onclick="event.stopPropagation();toggleDistMASettings(this)">⋯</span></th>';
+        html += '<th data-sort-by="adr_pct" data-tooltip="Avg Daily Range % — volatility proxy" onclick="sortGroup(' + JSON.stringify(industry) + ',\'adr_pct\')">ADR%</th>';
+        html += '<th data-sort-by="cr" data-tooltip="Closing range — where price closed in today\'s range (100=high, 0=low)" onclick="sortGroup(' + JSON.stringify(industry) + ',\'cr\')">CR</th>';
+        html += '</tr></thead><tbody>';
+
+        var r1w   = ranges['1w']        || [-20, 20];
+        var r1m   = ranges['1m']        || [-30, 30];
+        var r3m   = ranges['3m']        || [-40, 40];
+        var rYtd  = ranges['ytd']       || [-50, 50];
+        var rVspy = ranges['vs_spy']    || [-20, 20];
+        var rV3m  = ranges['vs_spy_3m'] || [-30, 30];
+        var rDay  = ranges['daily']     || [-10, 10];
+
+        rows.forEach(function(row, ri) {
+            var distAllJson = esc(JSON.stringify(row.dist_ma || {}));
+            var distVal = (row.dist_ma || {})[activeMAType + activeMALength];
+
+            var crVal  = row.cr   != null ? row.cr.toFixed(0) + '%'   : '—';
+            var adrVal = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
+            var rankVal= row.Rank != null ? Math.round(row.Rank) : '—';
+
+            html += '<tr class="ticker-row" data-symbol="' + esc(row.ticker) + '"' +
+                    ' data-index="' + ri + '"' +
+                    ' data-rank="'    + (row.Rank      != null ? row.Rank      : '') + '"' +
+                    ' data-daily="'   + (row.daily     != null ? row.daily     : '') + '"' +
+                    ' data-1w="'      + (row['1w']     != null ? row['1w']     : '') + '"' +
+                    ' data-1m="'      + (row['1m']     != null ? row['1m']     : '') + '"' +
+                    ' data-3m="'      + (row['3m']     != null ? row['3m']     : '') + '"' +
+                    ' data-ytd="'     + (row.ytd       != null ? row.ytd       : '') + '"' +
+                    ' data-vs_spy="'  + (row.vs_spy    != null ? row.vs_spy    : '') + '"' +
+                    ' data-vs_spy_3m="'+(row.vs_spy_3m != null ? row.vs_spy_3m : '') + '"' +
+                    ' data-dist_ma="' + (distVal       != null ? distVal       : '') + '"' +
+                    ' data-adr_pct="' + (row.adr_pct   != null ? row.adr_pct   : '') + '"' +
+                    ' data-cr="'      + (row.cr        != null ? row.cr        : '') + '"' +
+                    ' onclick="updateChart(\'' + esc(row.ticker) + '\', this)">';
+
+            // Ticker
+            html += '<td><span class="ticker-label">' + esc(row.ticker) + '</span></td>';
+            // Rank
+            html += '<td class="rank-badge">' + rankVal + '</td>';
+            // Daily
+            html += '<td class="' + colorClass(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
+            // 1W
+            html += '<td>' + vizBar(row['1w'], r1w[0], r1w[1]) + '</td>';
+            // 1M
+            html += '<td>' + vizBar(row['1m'], r1m[0], r1m[1]) + '</td>';
+            // 3M
+            html += '<td>' + vizBar(row['3m'], r3m[0], r3m[1]) + '</td>';
+            // YTD
+            html += '<td>' + vizBar(row.ytd, rYtd[0], rYtd[1]) + '</td>';
+            // vs SPY 1m
+            html += '<td>' + vizBar(row.vs_spy, rVspy[0], rVspy[1]) + '</td>';
+            // vs SPY 3m
+            html += '<td>' + vizBar(row.vs_spy_3m, rV3m[0], rV3m[1]) + '</td>';
+            // Dist/MA
+            html += '<td class="dist-ma-cell" data-dist-all="' + distAllJson + '" data-ranges="' + esc(JSON.stringify([-20,20])) + '"></td>';
+            // ADR%
+            html += '<td style="color:#5a6a7e">' + adrVal + '</td>';
+            // CR
+            html += '<td style="color:#5a6a7e">' + crVal + '</td>';
+
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        return html;
+    }
+
+    // ── Toggle industry open/close ─────────────────────────────────────────
+    window.toggleGroup = function(industry) {
+        var sid  = safeId(industry);
+        var hdr  = document.getElementById('hdr-'  + sid);
+        var body = document.getElementById('body-' + sid);
+        if (!hdr || !body) return;
+        var isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        hdr.classList.toggle('open', !isOpen);
+        if (!isOpen) updateAllTickerRows();
+    };
+
+    // ── allTickerRows (only from expanded groups) ──────────────────────────
+    function updateAllTickerRows() {
+        allTickerRows = [];
+        document.querySelectorAll('.group-body.open .ticker-row').forEach(function(r){ allTickerRows.push(r); });
+    }
+
+    // ── Search / filter ────────────────────────────────────────────────────
+    function applySearch(query) {
+        query = (query || '').trim().toLowerCase();
+        var clearBtn = document.getElementById('search-clear');
+        if (clearBtn) clearBtn.classList.toggle('visible', query.length > 0);
+
+        if (!query) { renderGroups(); return; }
+
+        // Two modes: if query matches an industry name → show that industry expanded
+        // Otherwise filter by ticker across all industries
+        var matchedIndustries = Object.keys(snapshot.by_industry).filter(function(ind){
+            return ind.toLowerCase().includes(query);
+        }).sort();
+
+        if (matchedIndustries.length > 0) {
+            renderGroups(matchedIndustries);
+            // Auto-expand matched industries
+            matchedIndustries.forEach(function(ind){ openGroup(ind); });
+            return;
+        }
+
+        // Ticker search — filter rows within all industries
+        var filtered = {};
+        Object.keys(snapshot.by_industry).forEach(function(ind) {
+            var rows = snapshot.by_industry[ind].filter(function(r){
+                return r.ticker && r.ticker.toLowerCase().includes(query);
+            });
+            if (rows.length > 0) filtered[ind] = rows;
+        });
+
+        var origByIndustry = snapshot.by_industry;
+        snapshot.by_industry = filtered;
+        renderGroups(Object.keys(filtered).sort());
+        // Auto-expand all results when searching by ticker
+        Object.keys(filtered).forEach(function(ind){ openGroup(ind); });
+        snapshot.by_industry = origByIndustry;
+    }
+
+    function openGroup(industry) {
+        var sid  = safeId(industry);
+        var hdr  = document.getElementById('hdr-'  + sid);
+        var body = document.getElementById('body-' + sid);
+        if (hdr && body) { body.classList.add('open'); hdr.classList.add('open'); }
+    }
+
+    // ── Sync button states ─────────────────────────────────────────────────
+    function syncDistMAButtons() {
+        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){
+            b.classList.toggle('active', b.getAttribute('data-type') === activeMAType);
+        });
+        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){
+            b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength);
+        });
+    }
+
+    // ── Keyboard navigation ───────────────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        if (e.target === document.getElementById('search-input')) return;
+        updateAllTickerRows();
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < allTickerRows.length - 1) {
+                currentIndex++;
+                var r = allTickerRows[currentIndex];
+                updateChart(r.getAttribute('data-symbol'), r);
+                r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                currentIndex--;
+                var r = allTickerRows[currentIndex];
+                updateChart(r.getAttribute('data-symbol'), r);
+                r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    });
+
+    // ── Column tooltips ───────────────────────────────────────────────────
+    (function() {
+        var tip = document.getElementById('col-tooltip');
+        var hideTimer;
+        document.addEventListener('mouseover', function(e) {
+            var el = e.target.closest('[data-tooltip]');
+            if (!el) return;
+            clearTimeout(hideTimer);
+            var rect = el.getBoundingClientRect();
+            tip.textContent = el.getAttribute('data-tooltip');
+            tip.style.left  = Math.min(rect.left + rect.width / 2 - 95, window.innerWidth - 210) + 'px';
+            tip.style.top   = (rect.bottom + 5) + 'px';
+            tip.classList.add('visible');
+        });
+        document.addEventListener('mouseout', function(e) {
+            if (!e.target.closest('[data-tooltip]')) return;
+            hideTimer = setTimeout(function(){ tip.classList.remove('visible'); }, 100);
+        });
+    })();
+
+    // ── Load data ─────────────────────────────────────────────────────────
+    function loadData() {
+        document.getElementById('groups-container').innerHTML =
+            '<div class="loading-msg">Loading data…</div>';
+
+        Promise.all([
+            fetch('data/snapshot.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+            fetch('data/meta.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+        ]).then(function(res) {
+            snapshot = res[0];
+            meta     = res[1];
+
+            if (!snapshot || !snapshot.by_industry) {
+                document.getElementById('groups-container').innerHTML =
+                    '<div class="loading-msg">No data yet — run <code>scripts/build_data.py</code> or wait for GitHub Actions.</div>';
+                return;
+            }
+
+            // Built-at timestamp
+            if (snapshot.built_at) {
+                var d = new Date(snapshot.built_at);
+                document.getElementById('built-at').textContent =
+                    'Built ' + d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) +
+                    ' ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+            }
+
+            renderGroups();
+
+            // Load the default chart
+            var defaultIndustry = meta && meta.default_industry;
+            var defaultTicker   = defaultIndustry && snapshot.by_industry[defaultIndustry] &&
+                                  snapshot.by_industry[defaultIndustry][0] &&
+                                  snapshot.by_industry[defaultIndustry][0].ticker;
+            if (defaultTicker) initChart(defaultTicker);
+
+            // Wire up search
+            var searchEl = document.getElementById('search-input');
+            var clearEl  = document.getElementById('search-clear');
+            searchEl.addEventListener('input', function(){ applySearch(this.value); });
+            clearEl.addEventListener('click', function(){
+                searchEl.value = '';
+                applySearch('');
+                searchEl.focus();
+            });
+        });
+    }
+
+    loadData();
+})();
+</script>
+</body>
+</html>
