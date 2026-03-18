@@ -254,7 +254,10 @@
     var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX' };
     function initChart(symbol) {
         var sym = TV_MAP[symbol] || symbol;
-        if (chartWidget) { try { chartWidget.remove(); } catch(e){} chartWidget = null; }
+        if (chartWidget) {
+            // Swap symbol only — preserves all user settings (interval, indicators, etc.)
+            try { chartWidget.setSymbol(sym, null, function(){}); return; } catch(e) {}
+        }
         chartWidget = new TradingView.widget({
             symbol: sym, interval: 'D', locale: 'en', style: '1',
             theme: 'dark', timezone: 'America/Toronto',
