@@ -92,27 +92,19 @@
         .industry-sector { font-size: 0.78em; color: #8b949e; white-space: nowrap; flex-shrink: 0; }
         .industry-count { font-size: 0.78em; color: #6e7681; white-space: nowrap; flex-shrink: 0; width: 40px; text-align: right; }
 
-        /* Bar area - RS badge (compact, right side) */
-        .industry-bar-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
-        .industry-bar-track { width: 80px; height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; }
-        .industry-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-        .industry-bar-fill.positive { background: #2ea043; }
-        .industry-bar-fill.negative { background: #da3633; }
-        .industry-pct { font-size: 0.82em; font-weight: 600; width: 26px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-        .industry-pct.positive { color: #3fb950; }
-        .industry-pct.negative { color: #f85149; }
-        .industry-pct.neutral  { color: #484f58; }
-
         /* Performance bar (large, prominent) */
-        .industry-perf-wrap { width: 340px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
-        .industry-perf-track { flex: 1; height: 7px; background: #161b22; border-radius: 4px; overflow: hidden; }
+        .industry-perf-wrap { width: 360px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
+        .industry-perf-track { flex: 1; height: 7px; background: #1c2128; border-radius: 4px; overflow: hidden; }
         .industry-perf-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
         .industry-perf-fill.pos { background: #2979c8; }
         .industry-perf-fill.neg { background: #c0392b; }
-        .industry-perf-val { font-size: 0.95em; font-weight: 700; width: 62px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+        .industry-perf-val { font-size: 0.95em; font-weight: 700; width: 64px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .industry-perf-val.up   { color: #4fa3e8; }
         .industry-perf-val.down { color: #f85149; }
         .industry-perf-val.neutral { color: #484f58; }
+
+        /* RS score — number only, no bar */
+        .industry-rs-score { font-size: 0.85em; font-weight: 600; width: 28px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; color: #3fb950; }
 
         .industry-arrow { color: #484f58; font-size: 0.7em; flex-shrink: 0; opacity: 0; transition: opacity 0.1s; }
 
@@ -509,11 +501,8 @@
             html += '<div class="industry-perf-track"><div class="industry-perf-fill ' + (perfPos?'pos':'neg') + '" style="width:' + perfW + '%"></div></div>';
             html += '<span class="industry-perf-val ' + perfValClass + '">' + perfLabel + '</span>';
             html += '</div>';
-            // RS bar
-            html += '<div class="industry-bar-wrap">';
-            html += '<div class="industry-bar-track"><div class="industry-bar-fill ' + pctClass + '" style="width:' + barW + '%"></div></div>';
-            html += '<span class="industry-pct ' + pctClass + '">' + (pct != null ? pct : '—') + '</span>';
-            html += '</div>';
+            // RS score (number only)
+            html += '<span class="industry-rs-score">' + (pct != null ? pct : '—') + '</span>';
             html += '<span class="industry-arrow">›</span>';
             html += '</div>';
         });
