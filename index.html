@@ -760,45 +760,26 @@
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
         overlay.classList.add('open');
 
-        // Try native fullscreen API, then init widget after transition
-        var initWidget = function() {
-            var body = document.getElementById('mc-fullscreen-body');
-            var w = body.offsetWidth || window.screen.width;
-            var h = body.offsetHeight || (window.screen.height - 44);
-            document.getElementById('mc-fullscreen-chart').innerHTML = '';
-            var mappedSym = TV_MAP[sym] || sym;
-            try {
-                mcFullscreenWidget = new TradingView.widget({
-                    symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
-                    theme: 'dark', timezone: 'America/Toronto',
-                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                    gridColor: 'rgba(255,255,255,0.06)',
-                    hide_side_toolbar: false, hide_top_toolbar: false,
-                    hide_legend: false, hide_volume: true,
-                    withdateranges: true, allow_symbol_change: true,
-                    save_image: false, enable_publishing: false,
-                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                    width: w, height: h,
-                    container_id: 'mc-fullscreen-chart',
-                });
-            } catch(e) {}
-        };
-
-        if (overlay.requestFullscreen) {
-            overlay.requestFullscreen().then(function(){ setTimeout(initWidget, 150); }).catch(initWidget);
-        } else if (overlay.webkitRequestFullscreen) {
-            overlay.webkitRequestFullscreen();
-            setTimeout(initWidget, 150);
-        } else {
-            initWidget();
-        }
+        var mappedSym = TV_MAP[sym] || sym;
+        try {
+            mcFullscreenWidget = new TradingView.widget({
+                symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
+                theme: 'dark', timezone: 'America/Toronto',
+                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                gridColor: 'rgba(255,255,255,0.06)',
+                hide_side_toolbar: false, hide_top_toolbar: false,
+                hide_legend: false, hide_volume: true,
+                withdateranges: true, allow_symbol_change: true,
+                save_image: false, enable_publishing: false,
+                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                autosize: true,
+                container_id: 'mc-fullscreen-chart',
+            });
+        } catch(e) {}
     };
 
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
-        if (document.fullscreenElement || document.webkitFullscreenElement) {
-            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        }
         mcFullscreenWidget = null;
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
     };
