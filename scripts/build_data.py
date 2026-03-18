@@ -412,6 +412,7 @@ def main():
             "stock_count":     len(rows),
             "median_rs_pct":   median_rs(rows),
             "avg_daily":       avg(rows, "daily"),
+            "avg_1w":          avg(rows, "1w"),
             "avg_1m":          avg(rows, "1m"),
             "avg_3m":          avg(rows, "3m"),
             "avg_ytd":         avg(rows, "ytd"),
