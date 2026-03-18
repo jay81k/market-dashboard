@@ -68,7 +68,6 @@
         .sort-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
 
         .result-count { font-size: 0.75em; color: #484f58; margin-left: 4px; }
-        .toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .toolbar-divider { width: 1px; height: 16px; background: #21262d; flex-shrink: 0; }
 
         /* ── Main content ── */
@@ -331,14 +330,6 @@
 <div class="toolbar">
     <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
     <span class="result-count" id="result-count"></span>
-    <div class="sort-group" id="sort-group">
-        <button class="sort-btn active" data-sort="rank" onclick="setSort('rank')">Rank</button>
-        <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
-        <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
-    </div>
-    <div class="toolbar-right">
-        <span style="font-size:0.72em;color:#484f58;white-space:nowrap;" id="built-at"></span>
-    </div>
 </div>
 
 <!-- Main scrollable area -->
@@ -348,10 +339,12 @@
     <!-- Industries view -->
     <div id="view-industries" style="display:none;">
         <div class="industry-list ind-hdr-row" id="industry-list-header">
-            <span class="ind-hdr-rank"></span>
-            <span class="ind-hdr-name"></span>
-            <span class="ind-hdr-sector"></span>
-            <span class="ind-hdr-count"></span>
+            <div class="sort-group" id="sort-group">
+                <button class="sort-btn active" data-sort="rank" onclick="setSort('rank')">Rank</button>
+                <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
+                <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
+            </div>
+            <span style="flex:1;min-width:0;"></span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_daily"  onclick="setIndSort('avg_daily')">Day</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_1w"     onclick="setIndSort('avg_1w')">1W</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_1m"     onclick="setIndSort('avg_1m')">1M</span>
@@ -518,8 +511,6 @@
         }
 
         // Show/hide toolbar elements (only for industries view)
-        document.getElementById('sort-group').style.display = (view === 'industries') ? 'flex' : 'none';
-        document.querySelector('.toolbar-right').style.display = (view === 'industries') ? 'flex' : 'none';
         document.getElementById('industry-list-header').style.display = (view === 'industries') ? 'flex' : 'none';
 
         if (view === 'industries') {
@@ -1119,13 +1110,6 @@
         industriesData = res[1];
 
         document.getElementById('loading-msg').style.display = 'none';
-
-        if (industriesData && industriesData.built_at) {
-            var d = new Date(industriesData.built_at);
-            document.getElementById('built-at').textContent =
-                'Built ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) +
-                ' ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-        }
 
         // Sync DistMA buttons
         document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === activeMAType); });
