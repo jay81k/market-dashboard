@@ -150,7 +150,7 @@
         }
         .mc-cell {
             background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
-            overflow: hidden; position: relative; height: 260px;
+            overflow: hidden; position: relative; height: 420px;
         }
         .mc-cell-label {
             position: absolute; top: 6px; left: 8px; z-index: 2;
@@ -678,9 +678,10 @@
                         toolbar_bg: '#161b22', backgroundColor: '#0d1117',
                         gridColor: 'rgba(255,255,255,0.04)',
                         hide_side_toolbar: true, hide_top_toolbar: true,
-                        hide_legend: true, hide_volume: true,
+                        hide_legend: true, hide_volume: false,
                         withdateranges: false, allow_symbol_change: false,
                         save_image: false, enable_publishing: false,
+                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
                         autosize: true, container_id: chartDiv.id,
                     });
                 } catch(e) {}
