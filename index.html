@@ -151,7 +151,9 @@
         .mc-cell {
             background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
             overflow: hidden; position: relative; height: 420px;
+            cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
         }
+        .mc-cell:hover { border-color: #388bfd; box-shadow: 0 0 0 1px #388bfd; }
         .mc-cell-label {
             position: absolute; top: 6px; left: 8px; z-index: 2;
             font-size: 0.78em; font-weight: 700; color: #58a6ff;
@@ -160,16 +162,14 @@
         }
         .mc-cell-overlay {
             position: absolute; inset: 0; z-index: 4;
-            pointer-events: none;
-        }
-        .mc-cell-overlay.armed {
             pointer-events: all; cursor: pointer;
         }
         .mc-cell-hint {
             position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-            z-index: 3; font-size: 0.68em; color: #484f58;
+            z-index: 5; font-size: 0.68em; color: #8b949e;
             opacity: 0; transition: opacity 0.15s; pointer-events: none;
-            white-space: nowrap;
+            white-space: nowrap; background: rgba(13,17,23,0.8);
+            padding: 2px 7px; border-radius: 3px;
         }
         .mc-cell:hover .mc-cell-hint { opacity: 1; }
 
@@ -710,7 +710,7 @@
 
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
-            hint.textContent = 'double-click to expand';
+            hint.textContent = 'click to expand';
 
             var chartDiv = document.createElement('div');
             chartDiv.id = 'mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g,'_');
@@ -718,24 +718,8 @@
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
-            var armedTimer = null;
-
-            // First click on the cell (from outside the iframe): arm the overlay
-            cell.addEventListener('click', function() {
-                if (armedTimer) return; // already armed
-                overlay.classList.add('armed');
-                armedTimer = setTimeout(function() {
-                    overlay.classList.remove('armed');
-                    armedTimer = null;
-                }, 400);
-            });
-
-            // Second click lands on the now-armed overlay
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
-                clearTimeout(armedTimer);
-                armedTimer = null;
-                overlay.classList.remove('armed');
                 openMcFullscreen(sym);
             });
 
