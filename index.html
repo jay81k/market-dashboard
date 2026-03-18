@@ -219,35 +219,35 @@
 
         /* Stocks table */
         .stocks-table-wrap { flex: 1; overflow-y: auto; }
-        .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.95em; table-layout: fixed; }
+        .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.88em; table-layout: fixed; }
 
-        .stocks-table th:nth-child(1)  { width: 100px; }
-        .stocks-table th:nth-child(2)  { width: 46px; }
-        .stocks-table th:nth-child(3)  { width: 60px; }
-        .stocks-table th:nth-child(4)  { width: 60px; }
-        .stocks-table th:nth-child(5)  { width: 60px; }
-        .stocks-table th:nth-child(6)  { width: 60px; }
-        .stocks-table th:nth-child(7)  { width: 60px; }
-        .stocks-table th:nth-child(8)  { width: 64px; }
-        .stocks-table th:nth-child(9)  { width: 64px; }
-        .stocks-table th:nth-child(10) { width: 70px; }
-        .stocks-table th:nth-child(11) { width: 52px; }
-        .stocks-table th:nth-child(12) { width: 48px; }
+        .stocks-table th:nth-child(1)  { width: 90px; }
+        .stocks-table th:nth-child(2)  { width: 38px; }
+        .stocks-table th:nth-child(3)  { width: 72px; }
+        .stocks-table th:nth-child(4)  { width: 80px; }
+        .stocks-table th:nth-child(5)  { width: 80px; }
+        .stocks-table th:nth-child(6)  { width: 80px; }
+        .stocks-table th:nth-child(7)  { width: 80px; }
+        .stocks-table th:nth-child(8)  { width: 80px; }
+        .stocks-table th:nth-child(9)  { width: 80px; }
+        .stocks-table th:nth-child(10) { width: 90px; }
+        .stocks-table th:nth-child(11) { width: 56px; }
+        .stocks-table th:nth-child(12) { width: 44px; }
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
-            text-align: left; padding: 8px 8px;
+            text-align: left; padding: 7px 10px;
             background: #0d1117; border-bottom: 1px solid #21262d;
-            font-size: 0.85em; font-weight: 500; letter-spacing: 0.04em;
-            text-transform: uppercase; color: #8b949e; cursor: pointer;
+            font-size: 0.82em; font-weight: 600; letter-spacing: 0.04em;
+            text-transform: uppercase; color: #6e7681; cursor: pointer;
             user-select: none; white-space: nowrap;
         }
-        .stocks-table th:hover { color: #8b949e; }
+        .stocks-table th:hover { color: #c8d0dc; }
         .stocks-table th.sort-desc::after { content: " ↓"; color: #388bfd; }
         .stocks-table th.sort-asc::after  { content: " ↑"; color: #388bfd; }
-        .stocks-table th.sorted { color: #8b949e; }
+        .stocks-table th.sorted { color: #c8d0dc; }
 
-        .stocks-table td { padding: 9px 8px; border-bottom: 1px solid #161b22; color: #8b949e; vertical-align: middle; overflow: hidden; }
+        .stocks-table td { padding: 8px 10px; border-bottom: 1px solid #161b22; color: #8b949e; vertical-align: middle; overflow: hidden; }
         .stock-row { cursor: pointer; transition: background 0.1s; }
         .stock-row:hover { background: #161b22; }
         .stock-row.active { background: #1c2128; }
@@ -369,12 +369,15 @@
     <div id="view-industry-stocks" class="stocks-view">
         <div class="stocks-header">
             <button class="back-btn" onclick="backToIndustries()">← Back</button>
-            <div>
-                <div class="stocks-industry-name" id="si-name"></div>
-                <div class="stocks-industry-meta" id="si-meta"></div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div>
+                    <div class="stocks-industry-name" id="si-name"></div>
+                    <div class="stocks-industry-meta" id="si-meta"></div>
+                </div>
+                <div class="stocks-rs-badge" id="si-rs"></div>
             </div>
-            <div class="stocks-rs-badge" id="si-rs"></div>
-            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="margin-left:auto;">⊞ Multichart</button>
+            <input type="text" class="search-input" id="stocks-search-input" placeholder="Filter stocks…" autocomplete="off" spellcheck="false" style="margin-left:auto;width:160px;" oninput="filterStocksTable(this.value)">
+            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()">⊞ Multichart</button>
         </div>
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -659,6 +662,8 @@
         document.getElementById('multichart-toggle-btn').style.borderColor = '';
         document.getElementById('multichart-toggle-btn').style.color       = '';
         document.getElementById('multichart-grid').innerHTML = '';
+        var ssi = document.getElementById('stocks-search-input');
+        if (ssi) ssi.value = '';
 
         currentStockSort = { by: null, dir: 1, count: 0 };
 
@@ -784,6 +789,14 @@
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
         mcFullscreenWidget = null;
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
+    };
+
+    window.filterStocksTable = function(q) {
+        q = q.toLowerCase();
+        document.querySelectorAll('#stocks-tbody .stock-row').forEach(function(row) {
+            var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
+            row.style.display = (!q || sym.includes(q)) ? '' : 'none';
+        });
     };
 
     window.backToIndustries = function() {
