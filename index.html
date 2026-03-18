@@ -549,7 +549,13 @@
             html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
             html += '<td style="color:#484f58">' + adrVal + '</td>';
-            html += '<td style="color:#484f58">' + crVal  + '</td>';
+            var crColor = '#484f58';
+            if (row.cr != null) {
+                if (row.cr >= 60) crColor = '#3fb950';
+                else if (row.cr >= 30) crColor = '#e3852b';
+                else crColor = '#f85149';
+            }
+            html += '<td style="color:' + crColor + ';font-weight:500;">' + crVal + '</td>';
             html += '</tr>';
         });
         var tbody = document.getElementById(tbodyId);
