@@ -38,7 +38,7 @@
         .search-input::placeholder { color: #484f58; }
         .search-input:focus { border-color: #388bfd44; }
 
-        .tf-group { display: flex; gap: 3px; margin-left: auto; }
+        .tf-group { display: flex; gap: 3px; }
         .tf-btn {
             padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
             background: transparent; color: #6e7681; font-size: 0.78em;
@@ -68,6 +68,8 @@
         .sort-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
 
         .result-count { font-size: 0.75em; color: #484f58; margin-left: 4px; }
+        .toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .toolbar-divider { width: 1px; height: 16px; background: #21262d; flex-shrink: 0; }
 
         /* ── Main content ── */
         .main { flex: 1; overflow-y: auto; min-height: 0; }
@@ -90,25 +92,25 @@
         .industry-sector { font-size: 0.78em; color: #8b949e; white-space: nowrap; flex-shrink: 0; }
         .industry-count { font-size: 0.78em; color: #6e7681; white-space: nowrap; flex-shrink: 0; width: 40px; text-align: right; }
 
-        /* Bar area */
-        .industry-bar-wrap { width: 280px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
-        .industry-bar-track { flex: 1; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; }
+        /* Bar area - RS badge (compact, right side) */
+        .industry-bar-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+        .industry-bar-track { width: 80px; height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; }
         .industry-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
         .industry-bar-fill.positive { background: #2ea043; }
         .industry-bar-fill.negative { background: #da3633; }
-        .industry-pct { font-size: 0.88em; font-weight: 600; width: 42px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .industry-pct { font-size: 0.82em; font-weight: 600; width: 26px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .industry-pct.positive { color: #3fb950; }
         .industry-pct.negative { color: #f85149; }
         .industry-pct.neutral  { color: #484f58; }
 
-        /* Performance bar */
-        .industry-perf-wrap { width: 200px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
-        .industry-perf-track { flex: 1; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; position: relative; }
-        .industry-perf-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        /* Performance bar (large, prominent) */
+        .industry-perf-wrap { width: 340px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
+        .industry-perf-track { flex: 1; height: 7px; background: #161b22; border-radius: 4px; overflow: hidden; }
+        .industry-perf-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
         .industry-perf-fill.pos { background: #2979c8; }
-        .industry-perf-fill.neg { background: #da3633; }
-        .industry-perf-val { font-size: 0.88em; font-weight: 600; width: 52px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-        .industry-perf-val.up   { color: #58a6ff; }
+        .industry-perf-fill.neg { background: #c0392b; }
+        .industry-perf-val { font-size: 0.95em; font-weight: 700; width: 62px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+        .industry-perf-val.up   { color: #4fa3e8; }
         .industry-perf-val.down { color: #f85149; }
         .industry-perf-val.neutral { color: #484f58; }
 
@@ -251,24 +253,28 @@
 <div class="toolbar">
     <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
     <span class="result-count" id="result-count"></span>
-    <div class="tf-group" id="tf-group">
-        <button class="tf-btn active" data-tf="1m" onclick="setTimeframe('1m')">1M RS</button>
-        <button class="tf-btn" data-tf="3m" onclick="setTimeframe('3m')">3M RS</button>
-        <button class="tf-btn" data-tf="6m" onclick="setTimeframe('6m')">6M RS</button>
-    </div>
-    <div class="tf-group" id="perf-group" style="margin-left:4px;border-left:1px solid #21262d;padding-left:8px;">
-        <button class="perf-btn active" data-perf="daily" onclick="setPerfTimeframe('daily')">Day</button>
-        <button class="perf-btn" data-perf="1w" onclick="setPerfTimeframe('1w')">1W</button>
-        <button class="perf-btn" data-perf="1m" onclick="setPerfTimeframe('1m')">1M</button>
-        <button class="perf-btn" data-perf="3m" onclick="setPerfTimeframe('3m')">3M</button>
-        <button class="perf-btn" data-perf="ytd" onclick="setPerfTimeframe('ytd')">YTD</button>
-    </div>
     <div class="sort-group" id="sort-group">
         <button class="sort-btn active" data-sort="rank" onclick="setSort('rank')">Rank</button>
         <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
         <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
     </div>
-    <span style="font-size:0.72em;color:#484f58;margin-left:8px;" id="built-at"></span>
+    <div class="toolbar-right">
+        <div class="tf-group" id="perf-group">
+            <button class="perf-btn active" data-perf="daily" onclick="setPerfTimeframe('daily')">Day</button>
+            <button class="perf-btn" data-perf="1w" onclick="setPerfTimeframe('1w')">1W</button>
+            <button class="perf-btn" data-perf="1m" onclick="setPerfTimeframe('1m')">1M</button>
+            <button class="perf-btn" data-perf="3m" onclick="setPerfTimeframe('3m')">3M</button>
+            <button class="perf-btn" data-perf="ytd" onclick="setPerfTimeframe('ytd')">YTD</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="tf-group" id="tf-group">
+            <button class="tf-btn active" data-tf="1m" onclick="setTimeframe('1m')">1M RS</button>
+            <button class="tf-btn" data-tf="3m" onclick="setTimeframe('3m')">3M RS</button>
+            <button class="tf-btn" data-tf="6m" onclick="setTimeframe('6m')">6M RS</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <span style="font-size:0.72em;color:#484f58;white-space:nowrap;" id="built-at"></span>
+    </div>
 </div>
 
 <!-- Main scrollable area -->
@@ -397,6 +403,7 @@
         document.getElementById('tf-group').style.display = (view === 'industries') ? 'flex' : 'none';
         document.getElementById('perf-group').style.display = (view === 'industries') ? 'flex' : 'none';
         document.getElementById('sort-group').style.display = (view === 'industries') ? 'flex' : 'none';
+        document.querySelector('.toolbar-right').style.display = (view === 'industries') ? 'flex' : 'none';
 
         if (view === 'industries') {
             document.getElementById('view-industries').style.display = 'block';
