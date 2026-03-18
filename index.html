@@ -331,7 +331,7 @@
 <!-- Top nav -->
 <div class="topnav">
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab-industries" onclick="showView('industries')">Industries</div>
+        <div class="nav-tab active" id="tab-industries" onclick="currentView==='industry-stocks'?backToIndustries():showView('industries')">Industries</div>
         <div class="nav-tab" id="tab-stocks" onclick="showView('stocks-all')">Stocks</div>
     </div>
 </div>
@@ -371,7 +371,6 @@
     <!-- Stocks for a specific industry -->
     <div id="view-industry-stocks" class="stocks-view">
         <div class="stocks-header">
-            <button class="back-btn" onclick="backToIndustries()">← Back</button>
             <div style="display:flex;align-items:center;gap:10px;">
                 <div>
                     <div class="stocks-industry-name" id="si-name"></div>
