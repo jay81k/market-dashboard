@@ -330,7 +330,7 @@
 <!-- Top nav -->
 <div class="topnav">
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab-industries" onclick="currentView==='industry-stocks'?backToIndustries():showView('industries')">Industries</div>
+        <div class="nav-tab active" id="tab-industries" onclick="navToIndustries()">Industries</div>
         <div class="nav-tab" id="tab-stocks" onclick="showView('stocks-all')">Stocks</div>
     </div>
 </div>
@@ -819,6 +819,11 @@
             var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
             row.style.display = (!q || sym.includes(q)) ? '' : 'none';
         });
+    };
+
+    window.navToIndustries = function() {
+        if (currentView === 'industry-stocks') backToIndustries();
+        else showView('industries');
     };
 
     window.backToIndustries = function() {
