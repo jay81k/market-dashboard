@@ -382,6 +382,14 @@
         }
     };
 
+    // ── Industry list click delegation ──────────────────────────────────
+    document.getElementById('industry-list').addEventListener('click', function(e) {
+        var row = e.target.closest('.industry-row');
+        if (!row) return;
+        var industry = row.getAttribute('data-industry');
+        if (industry) openIndustry(industry);
+    });
+
     // ── Timeframe / sort ──────────────────────────────────────────────────
     window.setTimeframe = function(tf) {
         activeTimeframe = tf;
@@ -429,7 +437,7 @@
             var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
                 ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
 
-            html += '<div class="industry-row" onclick="openIndustry(' + JSON.stringify(ind.industry) + ')">';
+            html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
             html += '<span class="industry-sector">' + esc(ind.sector) + '</span>';
@@ -446,15 +454,25 @@
 
     // ── Open industry → stocks ────────────────────────────────────────────
     window.openIndustry = function(industryName) {
-        var ind = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
+        var ind  = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
         var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
 
         document.getElementById('si-name').textContent = industryName;
-        document.getElementById('si-meta').textContent = ind ? ind.sector + ' · ' + (rows ? rows.length : '?') + ' stocks' : '';
-        document.getElementById('si-rs').textContent   = ind ? 'RS ' + (ind.percentile || '—') : '';
+        document.getElementById('si-meta').textContent = ind
+            ? ind.sector + ' · ' + (rows ? rows.length : 0) + ' stocks'
+            : '0 stocks';
+        document.getElementById('si-rs').textContent = ind ? 'RS ' + (ind.percentile || '—') : '';
 
         currentStockSort = { by: null, dir: 1, count: 0 };
-        renderStocksTable(rows || [], industryName, 'stocks-thead', 'stocks-tbody');
+
+        if (!rows || rows.length === 0) {
+            document.getElementById('stocks-thead').innerHTML = '';
+            document.getElementById('stocks-tbody').innerHTML =
+                '<tr><td colspan="12" style="padding:30px;text-align:center;color:#484f58;">' +
+                'No stock data for this industry yet — run the build script to populate.</td></tr>';
+        } else {
+            renderStocksTable(rows, industryName, 'stocks-thead', 'stocks-tbody');
+        }
         showView('industry-stocks');
     };
 
