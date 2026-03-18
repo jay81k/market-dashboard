@@ -6,17 +6,17 @@
     <title>Stock Industry Dashboard</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #111318; color: #c8d0dc; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; background-color: #111318; color: #c8d0dc; }
 
         /* ── Left panel ── */
-        .ticker-list { width: 50vw; background-color: #111318; padding: 0; overflow-y: auto; border-right: 1px solid #22272f; flex-shrink: 0; }
+        .ticker-list { width: 100%; background-color: #111318; padding: 0; overflow-y: auto; border-right: none; border-bottom: 2px solid #22272f; flex: 0 0 60vh; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111318; }
         ::-webkit-scrollbar-thumb { background: #22272f; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #2e3744; }
 
         /* ── Right panel ── */
-        .chart-container { flex: 1; display: flex; flex-direction: column; padding: 10px; background-color: #111318; min-height: 0; min-width: 0; }
+        .chart-container { width: 100%; flex: 0 0 40vh; display: flex; flex-direction: column; padding: 6px 10px; background-color: #111318; min-height: 0; }
         .tradingview-widget-container { flex: 1; min-height: 0; }
 
         /* ── Industry group ── */
