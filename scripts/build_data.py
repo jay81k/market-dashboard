@@ -37,6 +37,7 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 
 DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
+DEFAULT_INDUSTRIES_CSV_URL = os.environ.get("INDUSTRIES_CSV_URL", "")
 
 MIN_AVG_VOLUME = 100_000  # AvgVol10 filter — anything below gets dropped
 
@@ -270,11 +271,39 @@ def sanitize(obj):
 # Main
 # ---------------------------------------------------------------------------
 
+def load_industries(csv_url: str) -> list:
+    """Download and parse the industries RS CSV."""
+    print(f"Fetching industries CSV: {csv_url}")
+    df = pd.read_csv(csv_url)
+    required = {"Industry", "Sector", "Percentile", "Tickers"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Industries CSV missing columns: {missing}")
+
+    industries = []
+    for _, row in df.iterrows():
+        tickers = [t.strip() for t in str(row.get("Tickers", "")).split(",") if t.strip()]
+        industries.append({
+            "rank":          int(row["Rank"])             if pd.notna(row.get("Rank"))             else None,
+            "industry":      str(row["Industry"]).strip(),
+            "sector":        str(row["Sector"]).strip(),
+            "rs":            round(float(row["Relative Strength"]), 2) if pd.notna(row.get("Relative Strength")) else None,
+            "percentile":    int(row["Percentile"])       if pd.notna(row.get("Percentile"))       else None,
+            "1m_rs_pct":     int(row["1M_RS_Percentile"]) if pd.notna(row.get("1M_RS_Percentile")) else None,
+            "3m_rs_pct":     int(row["3M_RS_Percentile"]) if pd.notna(row.get("3M_RS_Percentile")) else None,
+            "6m_rs_pct":     int(row["6M_RS_Percentile"]) if pd.notna(row.get("6M_RS_Percentile")) else None,
+            "tickers":       tickers,
+        })
+    print(f"Loaded {len(industries)} industries")
+    return industries
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out-dir", default="data",            help="Output directory")
-    parser.add_argument("--csv-url", default=DEFAULT_CSV_URL,   help="URL of RS stock universe CSV")
-    parser.add_argument("--workers", type=int, default=10,      help="Threads for fallback fetches")
+    parser.add_argument("--out-dir",           default="data",                      help="Output directory")
+    parser.add_argument("--csv-url",           default=DEFAULT_CSV_URL,             help="URL of RS stock universe CSV")
+    parser.add_argument("--industries-csv-url",default=DEFAULT_INDUSTRIES_CSV_URL,  help="URL of RS industries CSV")
+    parser.add_argument("--workers",           type=int, default=10,                help="Threads for fallback fetches")
     args = parser.parse_args()
 
     if not args.csv_url:
@@ -416,6 +445,13 @@ def main():
         "min_avg_volume":       MIN_AVG_VOLUME,
     }
 
+    # Fetch industries if URL provided
+    industries_list = []
+    if args.industries_csv_url:
+        industries_list = load_industries(args.industries_csv_url)
+    else:
+        print("Warning: --industries-csv-url not set, skipping industries data")
+
     def write_json(filename, obj):
         path = os.path.join(args.out_dir, filename)
         with open(path, "w", encoding="utf-8") as f:
@@ -425,6 +461,7 @@ def main():
 
     write_json("snapshot.json", snapshot)
     write_json("meta.json", meta)
+    write_json("industries.json", {"built_at": datetime.utcnow().isoformat() + "Z", "industries": industries_list})
     print("\nAll done.")
 
 

@@ -3,210 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Industry Dashboard</title>
+    <title>Stock Dashboard</title>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; height: 100vh; background-color: #111318; color: #c8d0dc; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c8d0dc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* ── Left panel ── */
-        .ticker-list { width: 100%; height: 100vh; background-color: #111318; padding: 0; overflow-y: auto; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111318; }
-        ::-webkit-scrollbar-thumb { background: #22272f; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #2e3744; }
+        /* ── Top nav ── */
+        .topnav {
+            display: flex; align-items: center; gap: 0;
+            background: #0d1117; border-bottom: 1px solid #21262d;
+            padding: 0 16px; height: 44px; flex-shrink: 0;
+        }
+        .nav-logo { font-size: 0.85em; font-weight: 700; color: #c8d0dc; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 24px; }
+        .nav-tabs { display: flex; gap: 2px; }
+        .nav-tab {
+            padding: 0 16px; height: 44px; display: flex; align-items: center;
+            font-size: 0.8em; font-weight: 500; color: #6e7681; cursor: pointer;
+            border-bottom: 2px solid transparent; letter-spacing: 0.04em;
+            transition: color 0.15s; user-select: none;
+        }
+        .nav-tab:hover { color: #c8d0dc; }
+        .nav-tab.active { color: #c8d0dc; border-bottom-color: #378add; }
 
-        /* ── Chart modal ── */
+        /* ── Toolbar ── */
+        .toolbar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px; background: #0d1117;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .search-input {
+            background: #161b22; border: 1px solid #21262d; border-radius: 6px;
+            color: #c8d0dc; padding: 5px 12px; font-size: 0.82em; outline: none;
+            font-family: inherit; width: 220px;
+        }
+        .search-input::placeholder { color: #484f58; }
+        .search-input:focus { border-color: #388bfd44; }
+
+        .tf-group { display: flex; gap: 3px; margin-left: auto; }
+        .tf-btn {
+            padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.78em;
+            font-family: inherit; cursor: pointer; font-weight: 500; letter-spacing: 0.04em;
+            transition: all 0.12s;
+        }
+        .tf-btn:hover { background: #161b22; color: #c8d0dc; }
+        .tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+
+        .sort-group { display: flex; gap: 3px; }
+        .sort-btn {
+            padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.78em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s;
+        }
+        .sort-btn:hover { background: #161b22; color: #c8d0dc; }
+        .sort-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
+
+        .result-count { font-size: 0.75em; color: #484f58; margin-left: 4px; }
+
+        /* ── Main content ── */
+        .main { flex: 1; overflow-y: auto; min-height: 0; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+
+        /* ── Industries list ── */
+        .industry-list { width: 100%; }
+        .industry-row {
+            display: flex; align-items: center; gap: 16px;
+            padding: 10px 16px; border-bottom: 1px solid #161b22;
+            cursor: pointer; transition: background 0.1s;
+        }
+        .industry-row:hover { background: #161b22; }
+        .industry-row:hover .industry-arrow { opacity: 1; }
+
+        .industry-rank { font-size: 0.75em; color: #484f58; width: 28px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .industry-name { font-size: 0.88em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .industry-sector { font-size: 0.72em; color: #484f58; white-space: nowrap; flex-shrink: 0; }
+        .industry-count { font-size: 0.72em; color: #484f58; white-space: nowrap; flex-shrink: 0; width: 40px; text-align: right; }
+
+        /* Bar area */
+        .industry-bar-wrap { width: 280px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
+        .industry-bar-track { flex: 1; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; }
+        .industry-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        .industry-bar-fill.positive { background: #2ea043; }
+        .industry-bar-fill.negative { background: #da3633; }
+        .industry-pct { font-size: 0.82em; font-weight: 500; width: 42px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .industry-pct.positive { color: #3fb950; }
+        .industry-pct.negative { color: #f85149; }
+        .industry-pct.neutral  { color: #484f58; }
+
+        .industry-arrow { color: #484f58; font-size: 0.7em; flex-shrink: 0; opacity: 0; transition: opacity 0.1s; }
+
+        /* ── Stocks view ── */
+        .stocks-view { display: none; flex-direction: column; height: 100%; }
+        .stocks-view.active { display: flex; }
+
+        .stocks-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 16px; border-bottom: 1px solid #21262d;
+            background: #0d1117; flex-shrink: 0;
+        }
+        .back-btn {
+            background: transparent; border: 1px solid #21262d; border-radius: 5px;
+            color: #6e7681; font-size: 0.78em; padding: 4px 10px; cursor: pointer;
+            font-family: inherit; transition: all 0.12s; display: flex; align-items: center; gap: 5px;
+        }
+        .back-btn:hover { background: #161b22; color: #c8d0dc; }
+        .stocks-industry-name { font-size: 0.9em; font-weight: 600; color: #c8d0dc; }
+        .stocks-industry-meta { font-size: 0.75em; color: #484f58; }
+        .stocks-rs-badge {
+            margin-left: auto; font-size: 0.75em; font-weight: 600;
+            background: #1f6feb22; color: #388bfd; border: 1px solid #1f6feb44;
+            padding: 3px 8px; border-radius: 4px;
+        }
+
+        /* Stocks table */
+        .stocks-table-wrap { flex: 1; overflow-y: auto; }
+        .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.84em; table-layout: fixed; }
+
+        .stocks-table th:nth-child(1)  { width: 100px; }
+        .stocks-table th:nth-child(2)  { width: 46px; }
+        .stocks-table th:nth-child(3)  { width: 60px; }
+        .stocks-table th:nth-child(4)  { width: 60px; }
+        .stocks-table th:nth-child(5)  { width: 60px; }
+        .stocks-table th:nth-child(6)  { width: 60px; }
+        .stocks-table th:nth-child(7)  { width: 60px; }
+        .stocks-table th:nth-child(8)  { width: 64px; }
+        .stocks-table th:nth-child(9)  { width: 64px; }
+        .stocks-table th:nth-child(10) { width: 70px; }
+        .stocks-table th:nth-child(11) { width: 52px; }
+        .stocks-table th:nth-child(12) { width: 48px; }
+
+        .stocks-table thead { position: sticky; top: 0; z-index: 2; }
+        .stocks-table th {
+            text-align: left; padding: 6px 8px;
+            background: #0d1117; border-bottom: 1px solid #21262d;
+            font-size: 0.76em; font-weight: 500; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #484f58; cursor: pointer;
+            user-select: none; white-space: nowrap;
+        }
+        .stocks-table th:hover { color: #8b949e; }
+        .stocks-table th.sort-desc::after { content: " ↓"; color: #388bfd; }
+        .stocks-table th.sort-asc::after  { content: " ↑"; color: #388bfd; }
+        .stocks-table th.sorted { color: #8b949e; }
+
+        .stocks-table td { padding: 5px 8px; border-bottom: 1px solid #161b22; color: #6e7681; vertical-align: middle; overflow: hidden; }
+        .stock-row { cursor: pointer; transition: background 0.1s; }
+        .stock-row:hover { background: #161b22; }
+        .stock-row.active { background: #1c2128; }
+
+        .ticker-badge { display: inline-flex; padding: 2px 7px; border-radius: 4px; background: #161b22; color: #58a6ff; font-size: 0.9em; font-weight: 600; border: 1px solid #21262d; }
+        .up   { color: #3fb950 !important; font-weight: 500; }
+        .down { color: #f85149 !important; font-weight: 500; }
+
+        .val-bar { position: relative; display: inline-block; padding: 2px 4px; border-radius: 3px; min-width: 48px; text-align: right; }
+        .val-bar-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: 0.13; z-index: 0; }
+        .val-bar-fill.pos { background: #2ea043; left: 0; }
+        .val-bar-fill.neg { background: #da3633; right: 0; }
+        .val-bar-text { position: relative; z-index: 1; }
+
+        /* Dist/MA dropdown */
+        .dist-ma-btn {
+            display: inline-block; cursor: pointer; padding: 1px 5px; border-radius: 3px;
+            color: #484f58; font-size: 0.85em; background: #161b22; margin-left: 2px; letter-spacing: 1px;
+        }
+        .dist-ma-btn:hover { color: #c8d0dc; }
+        .dist-ma-dropdown {
+            display: none; position: fixed; background: #161b22; border: 1px solid #30363d;
+            border-radius: 7px; padding: 10px 12px; z-index: 10000; min-width: 180px;
+            font-size: 0.82em; color: #c8d0dc;
+        }
+        .dist-ma-dropdown.open { display: block; }
+        .dma-row { margin-bottom: 8px; }
+        .dma-row:last-child { margin-bottom: 0; }
+        .dma-row label { display: block; color: #484f58; font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .dma-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+        .dma-opt { padding: 3px 8px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #8b949e; cursor: pointer; font-size: 0.9em; font-family: inherit; }
+        .dma-opt:hover { background: #161b22; color: #c8d0dc; }
+        .dma-opt.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+
+        /* Column tooltip */
+        #col-tooltip {
+            position: fixed; background: #161b22; color: #8b949e;
+            padding: 5px 9px; border-radius: 5px; font-size: 0.74em;
+            width: 180px; line-height: 1.4; border: 1px solid #30363d;
+            pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 9999;
+        }
+        #col-tooltip.visible { opacity: 1; }
+
+        /* Chart modal */
         .chart-modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
             z-index: 9990; display: none; align-items: center; justify-content: center;
         }
         .chart-modal-overlay.open { display: flex; }
         .chart-modal {
-            width: 90vw; height: 88vh; background: #111318;
-            border-radius: 8px; border: 1px solid #2e3744;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            width: 92vw; height: 90vh; background: #0d1117;
+            border-radius: 8px; border: 1px solid #30363d;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
             display: flex; flex-direction: column; overflow: hidden;
         }
         .chart-modal-header {
             display: flex; align-items: center; gap: 10px;
-            padding: 7px 12px; background: #13171e;
-            border-bottom: 1px solid #22272f; flex-shrink: 0;
+            padding: 7px 14px; background: #161b22;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .chart-modal-symbol { font-size: 0.9em; font-weight: 600; color: #7ab0d8; }
-        .chart-modal-name   { font-size: 0.8em; color: #4a5a6e; flex: 1; }
-        .chart-modal-close  {
-            background: transparent; border: none; color: #4a5a6e;
-            cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 0 4px;
-        }
+        .chart-modal-sym { font-size: 0.9em; font-weight: 700; color: #58a6ff; }
+        .chart-modal-hint { font-size: 0.72em; color: #484f58; margin-left: auto; }
+        .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.2rem; padding: 0 4px; }
         .chart-modal-close:hover { color: #c8d0dc; }
         .chart-modal-body { flex: 1; min-height: 0; }
 
-        /* ── Industry group ── */
-        .group-container { margin-bottom: 0; border-bottom: 1px solid #22272f; }
-        .group-header {
-            background-color: #13171e; padding: 7px 12px;
-            font-weight: 600; font-size: 0.78em;
-            display: flex; align-items: center; gap: 8px;
-            position: sticky; top: 0; z-index: 3; cursor: pointer; color: #c8d0dc;
-            letter-spacing: 0.06em; text-transform: uppercase;
-            border-bottom: 1px solid #22272f; user-select: none;
-        }
-        .group-header:hover { background-color: #1a1f28; }
-        .group-header .industry-name { flex: 1; }
-        .group-header .sector-badge {
-            font-size: 0.78em; font-weight: 400; color: #4a5a6e;
-            padding: 1px 6px; border-radius: 4px; background: #191d24;
-            border: 1px solid #22272f; letter-spacing: 0.04em; white-space: nowrap;
-        }
-        .group-header .stock-count { color: #4a5a6e; font-size: 0.82em; font-weight: 400; }
-        .group-header .chevron { color: #4a5a6e; font-size: 0.8em; transition: transform 0.15s; margin-left: 2px; }
-        .group-header.open .chevron { transform: rotate(90deg); }
-
-        /* Industry summary stats in header */
-        .group-header .header-stats { display: flex; gap: 10px; align-items: center; font-size: 0.82em; font-weight: 400; }
-        .header-stat { white-space: nowrap; }
-        .header-stat.up   { color: #34d4a4; }
-        .header-stat.down { color: #e05c5c; }
-        .header-stat.neutral { color: #5a6a7e; }
-
-        /* ── Collapsible body ── */
-        .group-body { display: none; }
-        .group-body.open { display: block; }
-
-        /* ── Table ── */
-        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.84em; table-layout: fixed; }
-
-        /* Column widths — ticker(90) rank(42) daily(56) 1w(56) 1m(56) 3m(56) ytd(56) vspy(60) vspy3m(60) distma(64) adr(50) cr(50) */
-        .ticker-table th:nth-child(1),  .ticker-table td:nth-child(1)  { width: 90px;  padding: 5px 6px; }
-        .ticker-table th:nth-child(2),  .ticker-table td:nth-child(2)  { width: 42px;  padding: 5px 4px; text-align: right; }
-        .ticker-table th:nth-child(3),  .ticker-table td:nth-child(3)  { width: 58px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(4),  .ticker-table td:nth-child(4)  { width: 58px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(5),  .ticker-table td:nth-child(5)  { width: 58px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(6),  .ticker-table td:nth-child(6)  { width: 58px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(7),  .ticker-table td:nth-child(7)  { width: 58px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(8),  .ticker-table td:nth-child(8)  { width: 62px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(9),  .ticker-table td:nth-child(9)  { width: 62px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(10), .ticker-table td:nth-child(10) { width: 66px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(11), .ticker-table td:nth-child(11) { width: 50px;  padding: 5px 4px; }
-        .ticker-table th:nth-child(12), .ticker-table td:nth-child(12) { width: 48px;  padding: 5px 4px; }
-
-        .ticker-table thead { position: sticky; z-index: 2; top: 29px; }
-        .ticker-table th {
-            text-align: left; padding: 5px 6px; background-color: #111318;
-            cursor: pointer; user-select: none;
-            font-weight: 500; font-size: 0.76em; letter-spacing: 0.06em; text-transform: uppercase;
-            border-bottom: 1px solid #22272f; color: #4a5a6e;
-        }
-        .ticker-table th:hover { color: #c8d0dc; }
-        .ticker-table th.sort-asc::after  { content: " ↑"; color: #5aabf0; }
-        .ticker-table th.sort-desc::after { content: " ↓"; color: #5aabf0; }
-        .ticker-table th.sorted-col { color: #a8bdd4; background-color: #13171e; }
-        .ticker-table td { padding: 4px 4px; border-bottom: 1px solid #191d24; vertical-align: middle; color: #7a8a9a; overflow: hidden; }
-        .ticker-row { cursor: pointer; transition: background 0.1s; }
-        .ticker-row:hover { background-color: #161a21; }
-        .ticker-row.active { background-color: #1a2333; }
-
-        /* ── Price coloring ── */
-        .price-up   { color: #34d4a4 !important; font-weight: 500; }
-        .price-down { color: #e05c5c !important; font-weight: 500; }
-
-        /* ── Ticker cell ── */
-        .ticker-label {
-            display: inline-flex; align-items: center; padding: 2px 6px;
-            border-radius: 4px; background-color: #1e242c;
-            color: #7ab0d8; font-size: 0.9em; font-weight: 600;
-        }
-
-        /* ── Value bar visualization ── */
-        .value-visualization { position: relative; display: inline-block; padding: 2px 4px; border-radius: 3px; min-width: 45px; max-width: 100%; text-align: right; }
-        .value-bar { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: 0.15; z-index: 0; max-width: 100%; }
-        .value-bar.positive { background-color: #34d4a4; left: 0; }
-        .value-bar.negative { background-color: #e05c5c; right: 0; }
-        .value-text { position: relative; z-index: 1; }
-
-        /* ── RS rank badge ── */
-        .rank-badge { color: #5a6a7e; font-size: 0.85em; font-variant-numeric: tabular-nums; }
-
-        /* ── Key hint ── */
-        .key-hint { font-size: 11px; color: #4a5a6e; margin: 12px 10px; padding: 5px 10px; background-color: #191d24; border-radius: 4px; border: 1px solid #22272f; }
-
-        /* ── Column tooltip ── */
-        #col-tooltip {
-            position: fixed; background-color: #191d24; color: #9aaab8;
-            padding: 6px 10px; border-radius: 5px; font-size: 0.75em;
-            white-space: normal; width: 190px; line-height: 1.4;
-            border: 1px solid #2e3744; pointer-events: none;
-            opacity: 0; transition: opacity 0.15s ease; z-index: 9999;
-        }
-        #col-tooltip.visible { opacity: 1; }
-
-        /* ── Dist/MA dropdown ── */
-        .dist-ma-settings-btn {
-            display: inline-block; cursor: pointer; padding: 1px 6px; border-radius: 4px;
-            color: #4a5a6e; font-size: 0.85em; vertical-align: middle;
-            background: #1e242c; letter-spacing: 1px; margin-left: 3px;
-        }
-        .dist-ma-settings-btn:hover { color: #c8d0dc; background: #252d38; }
-        .dist-ma-dropdown {
-            display: none; position: fixed; background: #191d24; border: 1px solid #2e3744;
-            border-radius: 7px; padding: 10px 12px; z-index: 10000; min-width: 185px;
-            font-size: 0.82em; color: #c8d0dc; cursor: default;
-        }
-        .dist-ma-dropdown.open { display: block; }
-        .dist-ma-row { margin-bottom: 8px; }
-        .dist-ma-row:last-child { margin-bottom: 0; }
-        .dist-ma-row > label { display: block; color: #4a5a6e; font-size: 0.78em; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.08em; }
-        .dist-ma-btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
-        .dist-ma-btn {
-            padding: 3px 9px; border-radius: 4px; border: 1px solid #2e3744;
-            background: #111318; color: #9aaab8; cursor: pointer;
-            font-size: 0.9em; font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-        .dist-ma-btn:hover { background: #1e242c; color: #c8d0dc; }
-        .dist-ma-btn.active { background: #185fa5; border-color: #378add; color: #fff; }
-
-
-        /* ── Search / filter bar ── */
-        .search-bar {
-            display: flex; align-items: center; gap: 8px;
-            padding: 7px 10px; border-bottom: 1px solid #22272f;
-            background: #111318; position: sticky; top: 0; z-index: 10;
-        }
-        .search-input {
-            flex: 1; background: #191d24; border: 1px solid #22272f; border-radius: 5px;
-            color: #c8d0dc; padding: 4px 10px; font-size: 0.82em; outline: none;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-        .search-input::placeholder { color: #4a5a6e; }
-        .search-input:focus { border-color: #2e3744; }
-        .search-clear { color: #4a5a6e; cursor: pointer; font-size: 1em; padding: 0 3px; display: none; }
-        .search-clear.visible { display: block; }
-        .search-clear:hover { color: #c8d0dc; }
-        .built-at { font-size: 0.72em; color: #2e3744; white-space: nowrap; }
-
-        /* ── Loading ── */
-        .loading-msg { padding: 30px; text-align: center; color: #4a5a6e; font-size: 0.85em; }
+        .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.85em; }
     </style>
 </head>
 <body>
 
-<div class="ticker-list">
-    <div class="search-bar">
-        <input type="text" class="search-input" id="search-input" placeholder="Search ticker or industry…" autocomplete="off" spellcheck="false">
-        <span class="search-clear" id="search-clear">✕</span>
-        <span class="built-at" id="built-at"></span>
+<!-- Top nav -->
+<div class="topnav">
+    <span class="nav-logo">StockDash</span>
+    <div class="nav-tabs">
+        <div class="nav-tab active" id="tab-industries" onclick="showView('industries')">Industries</div>
+        <div class="nav-tab" id="tab-stocks" onclick="showView('stocks-all')">Stocks</div>
     </div>
-    <div id="groups-container"></div>
-    <div class="key-hint">↑ ↓ Arrow keys to navigate stocks · Click industry header to expand · Data refreshed nightly via GitHub Actions</div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+    <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
+    <span class="result-count" id="result-count"></span>
+    <div class="tf-group" id="tf-group">
+        <button class="tf-btn active" data-tf="1m" onclick="setTimeframe('1m')">1M</button>
+        <button class="tf-btn" data-tf="3m" onclick="setTimeframe('3m')">3M</button>
+        <button class="tf-btn" data-tf="6m" onclick="setTimeframe('6m')">6M</button>
+    </div>
+    <div class="sort-group" id="sort-group">
+        <button class="sort-btn active" data-sort="rank" onclick="setSort('rank')">Rank</button>
+        <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
+        <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
+    </div>
+    <span style="font-size:0.72em;color:#484f58;margin-left:8px;" id="built-at"></span>
+</div>
+
+<!-- Main scrollable area -->
+<div class="main" id="main-area">
+    <div id="loading-msg" class="loading-msg">Loading data…</div>
+
+    <!-- Industries view -->
+    <div id="view-industries" style="display:none;">
+        <div class="industry-list" id="industry-list"></div>
+    </div>
+
+    <!-- Stocks for a specific industry -->
+    <div id="view-industry-stocks" class="stocks-view">
+        <div class="stocks-header">
+            <button class="back-btn" onclick="backToIndustries()">← Back</button>
+            <div>
+                <div class="stocks-industry-name" id="si-name"></div>
+                <div class="stocks-industry-meta" id="si-meta"></div>
+            </div>
+            <div class="stocks-rs-badge" id="si-rs"></div>
+        </div>
+        <div class="stocks-table-wrap">
+            <table class="stocks-table" id="stocks-table">
+                <thead id="stocks-thead"></thead>
+                <tbody id="stocks-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- All stocks view -->
+    <div id="view-stocks-all" style="display:none;">
+        <table class="stocks-table" id="all-stocks-table">
+            <thead id="all-stocks-thead"></thead>
+            <tbody id="all-stocks-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Dist/MA dropdown -->
+<div id="dist-ma-dropdown" class="dist-ma-dropdown">
+    <div class="dma-row">
+        <label>Type</label>
+        <div class="dma-btns">
+            <button class="dma-opt dist-ma-type-btn active" data-type="SMA" onclick="setDistMAType('SMA')">SMA</button>
+            <button class="dma-opt dist-ma-type-btn" data-type="EMA" onclick="setDistMAType('EMA')">EMA</button>
+        </div>
+    </div>
+    <div class="dma-row">
+        <label>Period</label>
+        <div class="dma-btns">
+            <button class="dma-opt dist-ma-len-btn" data-len="5"   onclick="setDistMALength(5)">5</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="10"  onclick="setDistMALength(10)">10</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="21"  onclick="setDistMALength(21)">21</button>
+            <button class="dma-opt dist-ma-len-btn active" data-len="50"  onclick="setDistMALength(50)">50</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="200" onclick="setDistMALength(200)">200</button>
+        </div>
+    </div>
 </div>
 
 <!-- Chart modal -->
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
         <div class="chart-modal-header">
-            <span class="chart-modal-symbol" id="chart-modal-symbol"></span>
-            <span class="chart-modal-name" id="chart-modal-name"></span>
-            <span style="font-size:0.72em;color:#4a5a6e;">ESC to close · double-click another stock to switch</span>
+            <span class="chart-modal-sym" id="chart-modal-sym"></span>
+            <span class="chart-modal-hint">ESC to close · double-click to switch</span>
             <button class="chart-modal-close" onclick="closeChartModal()">×</button>
         </div>
         <div class="chart-modal-body">
@@ -215,85 +317,353 @@
     </div>
 </div>
 
-<!-- Dist/MA dropdown -->
-<div id="dist-ma-dropdown" class="dist-ma-dropdown">
-    <div class="dist-ma-row">
-        <label>Type</label>
-        <div class="dist-ma-btn-group">
-            <button class="dist-ma-btn dist-ma-type-btn active" data-type="SMA" onclick="setDistMAType('SMA')">SMA</button>
-            <button class="dist-ma-btn dist-ma-type-btn" data-type="EMA" onclick="setDistMAType('EMA')">EMA</button>
-        </div>
-    </div>
-    <div class="dist-ma-row">
-        <label>Period</label>
-        <div class="dist-ma-btn-group">
-            <button class="dist-ma-btn dist-ma-len-btn" data-len="5"   onclick="setDistMALength(5)">5</button>
-            <button class="dist-ma-btn dist-ma-len-btn" data-len="10"  onclick="setDistMALength(10)">10</button>
-            <button class="dist-ma-btn dist-ma-len-btn" data-len="21"  onclick="setDistMALength(21)">21</button>
-            <button class="dist-ma-btn dist-ma-len-btn active" data-len="50"  onclick="setDistMALength(50)">50</button>
-            <button class="dist-ma-btn dist-ma-len-btn" data-len="200" onclick="setDistMALength(200)">200</button>
-        </div>
-    </div>
-</div>
-
 <div id="col-tooltip"></div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
-(function () {
+(function() {
     // ── State ──────────────────────────────────────────────────────────────
-    let snapshot     = null;
-    let meta         = null;
-    let chartWidget  = null;
-    let currentIndex = 0;
-    let allTickerRows = [];
-    let sortStates   = {};  // { industry: { sortBy, direction, count } }
-    let activeMAType   = localStorage.getItem('distMAType')   || 'SMA';
-    let activeMALength = parseInt(localStorage.getItem('distMALength') || '50');
+    var snapshot      = null;
+    var industriesData= null;
+    var currentView   = 'industries';
+    var activeTimeframe = '1m';
+    var activeSort    = 'rank';
+    var searchQuery   = '';
+    var chartWidget   = null;
+    var currentStockSort = { by: null, dir: 1, count: 0 };
+    var activeMAType   = localStorage.getItem('distMAType')   || 'SMA';
+    var activeMALength = parseInt(localStorage.getItem('distMALength') || '50');
+    var allStockRows   = [];
+    var currentStockIndex = -1;
+    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX' };
 
     // ── Helpers ───────────────────────────────────────────────────────────
     function esc(s) {
         if (s == null) return '';
         return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
-    function safeId(s) {
-        return s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    function fmt(v, d, sfx) {
+        if (v == null) return '<span style="color:#30363d">—</span>';
+        return (v >= 0 ? '+' : '') + v.toFixed(d) + (sfx || '');
     }
-    function fmt(v, decimals, suffix) {
-        if (v == null) return '<span style="color:#2e3744">—</span>';
-        return (v >= 0 ? '+' : '') + v.toFixed(decimals) + (suffix || '');
-    }
-    function colorClass(v) {
-        if (v == null) return '';
-        return v > 0 ? 'price-up' : (v < 0 ? 'price-down' : '');
-    }
-    function vizBar(value, minVal, maxVal) {
-        if (value == null) return '<span style="color:#2e3744">—</span>';
+    function cc(v) { return v == null ? '' : v > 0 ? 'up' : v < 0 ? 'down' : ''; }
+
+    function valBar(value, minVal, maxVal) {
+        if (value == null) return '<span style="color:#30363d">—</span>';
         var range = value >= 0 ? Math.abs(maxVal || 1) : Math.abs(minVal || 1);
         var w = Math.min(100, Math.max(0, (Math.abs(value) / (range || 1)) * 100));
-        var barCl = value >= 0 ? 'positive' : 'negative';
-        var textCl = colorClass(value);
-        return '<div class="value-visualization"><div class="value-bar ' + barCl + '" style="width:' + w + '%"></div>' +
-               '<span class="value-text ' + textCl + '">' + fmt(value, 2, '%') + '</span></div>';
+        var pos = value >= 0;
+        return '<div class="val-bar"><div class="val-bar-fill ' + (pos?'pos':'neg') + '" style="width:' + w + '%"></div>' +
+               '<span class="val-bar-text ' + cc(value) + '">' + fmt(value,2,'%') + '</span></div>';
     }
 
-    // ── Chart modal ───────────────────────────────────────────────────────
-    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX' };
+    // ── View switching ─────────────────────────────────────────────────────
+    window.showView = function(view) {
+        currentView = view;
+        document.getElementById('view-industries').style.display      = 'none';
+        document.getElementById('view-industry-stocks').classList.remove('active');
+        document.getElementById('view-stocks-all').style.display      = 'none';
 
+        document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
+        document.getElementById('tab-stocks').classList.toggle('active', view === 'stocks-all');
+
+        // Show/hide timeframe buttons (only for industries view)
+        document.getElementById('tf-group').style.display = (view === 'industries') ? 'flex' : 'none';
+        document.getElementById('sort-group').style.display = (view === 'industries') ? 'flex' : 'none';
+
+        if (view === 'industries') {
+            document.getElementById('view-industries').style.display = 'block';
+            renderIndustries();
+        } else if (view === 'industry-stocks') {
+            document.getElementById('view-industry-stocks').classList.add('active');
+        } else if (view === 'stocks-all') {
+            document.getElementById('view-stocks-all').style.display = 'block';
+            renderAllStocks();
+        }
+    };
+
+    // ── Timeframe / sort ──────────────────────────────────────────────────
+    window.setTimeframe = function(tf) {
+        activeTimeframe = tf;
+        document.querySelectorAll('.tf-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tf') === tf); });
+        renderIndustries();
+    };
+
+    window.setSort = function(s) {
+        activeSort = s;
+        document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sort') === s); });
+        renderIndustries();
+    };
+
+    // ── Industries render ─────────────────────────────────────────────────
+    function getIndustryPct(ind) {
+        if (activeTimeframe === '1m') return ind['1m_rs_pct'];
+        if (activeTimeframe === '3m') return ind['3m_rs_pct'];
+        if (activeTimeframe === '6m') return ind['6m_rs_pct'];
+        return ind['percentile'];
+    }
+
+    function renderIndustries() {
+        var list = document.getElementById('industry-list');
+        if (!industriesData || !industriesData.industries) {
+            list.innerHTML = '<div class="loading-msg">No industry data.</div>';
+            return;
+        }
+        var industries = industriesData.industries.slice();
+        var q = searchQuery.toLowerCase();
+        if (q) industries = industries.filter(function(i){ return i.industry.toLowerCase().includes(q) || i.sector.toLowerCase().includes(q); });
+
+        // Sort
+        if (activeSort === 'rank') industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
+        else if (activeSort === 'name') industries.sort(function(a,b){ return a.industry.localeCompare(b.industry); });
+        else if (activeSort === 'sector') industries.sort(function(a,b){ return a.sector.localeCompare(b.sector) || (a.rank||999) - (b.rank||999); });
+
+        document.getElementById('result-count').textContent = industries.length + ' industries';
+
+        var html = '';
+        industries.forEach(function(ind) {
+            var pct = getIndustryPct(ind);
+            var barW = pct != null ? Math.min(100, pct) : 0;
+            var pos  = pct != null ? pct >= 50 : true;
+            var pctClass = pct == null ? 'neutral' : pct >= 50 ? 'positive' : 'negative';
+            var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
+                ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
+
+            html += '<div class="industry-row" onclick="openIndustry(' + JSON.stringify(ind.industry) + ')">';
+            html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
+            html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
+            html += '<span class="industry-sector">' + esc(ind.sector) + '</span>';
+            html += '<span class="industry-count">' + stockCount + '</span>';
+            html += '<div class="industry-bar-wrap">';
+            html += '<div class="industry-bar-track"><div class="industry-bar-fill ' + pctClass + '" style="width:' + barW + '%"></div></div>';
+            html += '<span class="industry-pct ' + pctClass + '">' + (pct != null ? pct : '—') + '</span>';
+            html += '</div>';
+            html += '<span class="industry-arrow">›</span>';
+            html += '</div>';
+        });
+        list.innerHTML = html || '<div class="loading-msg">No results.</div>';
+    }
+
+    // ── Open industry → stocks ────────────────────────────────────────────
+    window.openIndustry = function(industryName) {
+        var ind = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
+        var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
+
+        document.getElementById('si-name').textContent = industryName;
+        document.getElementById('si-meta').textContent = ind ? ind.sector + ' · ' + (rows ? rows.length : '?') + ' stocks' : '';
+        document.getElementById('si-rs').textContent   = ind ? 'RS ' + (ind.percentile || '—') : '';
+
+        currentStockSort = { by: null, dir: 1, count: 0 };
+        renderStocksTable(rows || [], industryName, 'stocks-thead', 'stocks-tbody');
+        showView('industry-stocks');
+    };
+
+    window.backToIndustries = function() {
+        showView('industries');
+    };
+
+    // ── Render stocks table ───────────────────────────────────────────────
+    function buildTableHeader(theadId, industryName) {
+        var dmaTooltip = '% distance from ' + activeMAType + activeMALength;
+        var cols = [
+            { key:'symbol',     label:'Ticker',   tip:'Ticker symbol' },
+            { key:'rs',         label:'RS',        tip:'RS Percentile (1–99)' },
+            { key:'daily',      label:'Day',       tip:'Daily return' },
+            { key:'1w',         label:'1W',        tip:'5-day return' },
+            { key:'1m',         label:'1M',        tip:'21-day return' },
+            { key:'3m',         label:'3M',        tip:'63-day return' },
+            { key:'ytd',        label:'YTD',       tip:'Year-to-date return' },
+            { key:'vs_spy',     label:'vSPY',      tip:'1M return vs SPY' },
+            { key:'vs_spy_3m',  label:'v3M',       tip:'3M return vs SPY' },
+            { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
+            { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
+            { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
+        ];
+        var html = '<tr>';
+        cols.forEach(function(c) {
+            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
+            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
+        });
+        html += '</tr>';
+        document.getElementById(theadId).innerHTML = html;
+    }
+
+    function renderStocksTable(rows, industryName, theadId, tbodyId) {
+        buildTableHeader(theadId, industryName);
+        var ranges = (snapshot && snapshot.column_ranges && snapshot.column_ranges[industryName]) || {};
+        var r1w  = ranges['1w']        || [-20,20];
+        var r1m  = ranges['1m']        || [-30,30];
+        var r3m  = ranges['3m']        || [-40,40];
+        var rYtd = ranges['ytd']       || [-50,50];
+        var rVs  = ranges['vs_spy']    || [-20,20];
+        var rV3  = ranges['vs_spy_3m'] || [-30,30];
+        var maKey = activeMAType + activeMALength;
+
+        var html = '';
+        rows.forEach(function(row, i) {
+            var distAll = row.dist_ma || {};
+            var distVal = distAll[maKey];
+            var rsVal   = row.Percentile != null ? Math.round(row.Percentile) : '—';
+            var crVal   = row.cr  != null ? row.cr.toFixed(0)  + '%' : '—';
+            var adrVal  = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
+
+            html += '<tr class="stock-row"' +
+                    ' data-symbol="' + esc(row.ticker) + '"' +
+                    ' data-index="' + i + '"' +
+                    ' data-rs="'      + (row.Percentile != null ? row.Percentile : '')  + '"' +
+                    ' data-daily="'   + (row.daily      != null ? row.daily      : '')  + '"' +
+                    ' data-1w="'      + (row['1w']      != null ? row['1w']      : '')  + '"' +
+                    ' data-1m="'      + (row['1m']      != null ? row['1m']      : '')  + '"' +
+                    ' data-3m="'      + (row['3m']      != null ? row['3m']      : '')  + '"' +
+                    ' data-ytd="'     + (row.ytd        != null ? row.ytd        : '')  + '"' +
+                    ' data-vs_spy="'  + (row.vs_spy     != null ? row.vs_spy     : '')  + '"' +
+                    ' data-vs_spy_3m="'+(row.vs_spy_3m  != null ? row.vs_spy_3m  : '') + '"' +
+                    ' data-dist_ma="' + (distVal        != null ? distVal        : '')  + '"' +
+                    ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
+                    ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
+                    '>';
+            html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
+            html += '<td style="color:#484f58;font-size:0.85em;">' + rsVal + '</td>';
+            html += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
+            html += '<td>' + valBar(row['1w'],  r1w[0],  r1w[1])  + '</td>';
+            html += '<td>' + valBar(row['1m'],  r1m[0],  r1m[1])  + '</td>';
+            html += '<td>' + valBar(row['3m'],  r3m[0],  r3m[1])  + '</td>';
+            html += '<td>' + valBar(row.ytd,    rYtd[0], rYtd[1]) + '</td>';
+            html += '<td>' + valBar(row.vs_spy, rVs[0],  rVs[1])  + '</td>';
+            html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
+            html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
+            html += '<td style="color:#484f58">' + adrVal + '</td>';
+            html += '<td style="color:#484f58">' + crVal  + '</td>';
+            html += '</tr>';
+        });
+        var tbody = document.getElementById(tbodyId);
+        tbody.innerHTML = html;
+        applyDistMA(tbody);
+
+        // Attach click/dblclick via delegation
+        tbody.onclick = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
+            row.classList.add('active');
+            allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
+            currentStockIndex = allStockRows.indexOf(row);
+        };
+        tbody.ondblclick = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            openChartModal(row.getAttribute('data-symbol'));
+        };
+
+        allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
+        currentStockIndex = -1;
+    }
+
+    function renderAllStocks() {
+        if (!snapshot || !snapshot.by_industry) return;
+        var allRows = [];
+        Object.keys(snapshot.by_industry).forEach(function(ind) {
+            snapshot.by_industry[ind].forEach(function(r) { allRows.push(r); });
+        });
+        allRows.sort(function(a,b){ return (a.Rank||9999) - (b.Rank||9999); });
+        buildTableHeader('all-stocks-thead', null);
+        renderStocksTable(allRows, null, 'all-stocks-thead', 'all-stocks-tbody');
+    }
+
+    // ── Stock table sorting ───────────────────────────────────────────────
+    document.getElementById('main-area').addEventListener('click', function(e) {
+        var th = e.target.closest('th.sortable');
+        if (!th || e.target.closest('.dist-ma-btn')) return;
+        var sortBy = th.getAttribute('data-sort-by');
+        var tbody  = th.closest('table').querySelector('tbody');
+        var thead  = th.closest('thead');
+
+        if (currentStockSort.by === sortBy) {
+            currentStockSort.count++;
+            if (currentStockSort.count >= 3) {
+                currentStockSort = { by: null, dir: 1, count: 0 };
+                var rows = Array.from(tbody.querySelectorAll('.stock-row'));
+                rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
+                tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+                thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
+                allStockRows = rows; return;
+            }
+        } else { currentStockSort.count = 1; }
+        currentStockSort.by = sortBy;
+        if (currentStockSort.count === 2) currentStockSort.dir *= -1; else currentStockSort.dir = 1;
+
+        thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
+        th.classList.add(currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc', 'sorted');
+
+        var rows = Array.from(tbody.querySelectorAll('.stock-row'));
+        rows.sort(function(a,b) {
+            if (sortBy === 'symbol') return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * currentStockSort.dir;
+            var av = parseFloat(a.getAttribute('data-' + sortBy));
+            var bv = parseFloat(b.getAttribute('data-' + sortBy));
+            if (isNaN(av)) return 1; if (isNaN(bv)) return -1;
+            return (av - bv) * currentStockSort.dir;
+        });
+        tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+        allStockRows = rows;
+    });
+
+    // ── Dist/MA ───────────────────────────────────────────────────────────
+    function maKey() { return activeMAType + activeMALength; }
+
+    function applyDistMA(container) {
+        var key = maKey();
+        (container || document).querySelectorAll('.dist-ma-cell').forEach(function(cell) {
+            var raw = cell.getAttribute('data-dist-all');
+            var val = null;
+            try { val = JSON.parse(raw.replace(/&quot;/g,'"'))[key]; } catch(e) {}
+            if (val == null) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
+            var w = Math.min(100, Math.max(0, Math.abs(val) / 20 * 100));
+            var pos = val >= 0;
+            var cl = val > 0 ? 'up' : val < 0 ? 'down' : '';
+            cell.innerHTML = '<div class="val-bar"><div class="val-bar-fill ' + (pos?'pos':'neg') + '" style="width:' + w + '%"></div>' +
+                             '<span class="val-bar-text ' + cl + '">' + fmt(val,2,'%') + '</span></div>';
+            var row = cell.closest('tr');
+            if (row) row.setAttribute('data-dist_ma', val);
+        });
+    }
+
+    window.toggleDistMA = function(btn) {
+        var dd = document.getElementById('dist-ma-dropdown');
+        if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
+        var rect = btn.getBoundingClientRect();
+        dd.style.top  = (rect.bottom + 4) + 'px';
+        dd.style.left = Math.max(4, rect.right - 190) + 'px';
+        dd.classList.add('open');
+    };
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('dist-ma-dropdown');
+        if (!dd.classList.contains('open')) return;
+        if (!dd.contains(e.target) && !e.target.classList.contains('dist-ma-btn')) dd.classList.remove('open');
+    });
+    window.setDistMAType = function(t) {
+        activeMAType = t; localStorage.setItem('distMAType', t);
+        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === t); });
+        applyDistMA();
+    };
+    window.setDistMALength = function(l) {
+        activeMALength = l; localStorage.setItem('distMALength', String(l));
+        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === l); });
+        applyDistMA();
+    };
+
+    // ── Chart modal ───────────────────────────────────────────────────────
     function openChartModal(symbol) {
         var sym = TV_MAP[symbol] || symbol;
-        document.getElementById('chart-modal-symbol').textContent = symbol;
-        document.getElementById('chart-modal-name').textContent = '';
+        document.getElementById('chart-modal-sym').textContent = symbol;
         document.getElementById('chart-modal-overlay').classList.add('open');
-
         if (chartWidget) {
             try { chartWidget.setSymbol(sym, null, function(){}); return; } catch(e) {}
         }
         chartWidget = new TradingView.widget({
             symbol: sym, interval: 'D', locale: 'en', style: '1',
             theme: 'dark', timezone: 'America/Toronto',
-            toolbar_bg: '#1a1a1a', backgroundColor: '#1a1a1a',
-            gridColor: 'rgba(255,255,255,0.1)',
+            toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+            gridColor: 'rgba(255,255,255,0.06)',
             hide_side_toolbar: false, hide_top_toolbar: false,
             hide_legend: false, hide_volume: true,
             details: true, hotlist: false, calendar: false,
@@ -303,465 +673,83 @@
             autosize: true, container_id: 'tradingview-chart',
         });
     }
-
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
     };
-
-    // Single click = highlight row only, double click = open chart
-    window.updateChart = function(symbol, rowEl) {
-        document.querySelectorAll('.ticker-row.active').forEach(function(r){ r.classList.remove('active'); });
-        if (rowEl) {
-            rowEl.classList.add('active');
-            currentIndex = allTickerRows.indexOf(rowEl);
-        } else {
-            var found = document.querySelector('.ticker-row[data-symbol="' + esc(symbol) + '"]');
-            if (found) { found.classList.add('active'); currentIndex = allTickerRows.indexOf(found); }
-        }
-    };
-
-    window.openChartForSymbol = function(symbol, rowEl) {
-        window.updateChart(symbol, rowEl);
-        openChartModal(symbol);
-    };
-
-    // ESC closes modal
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeChartModal();
-    });
-
-    // ── Dist/MA ───────────────────────────────────────────────────────────
-    function maKey() { return activeMAType + activeMALength; }
-
-    function applyDistMASettings() {
-        var key = maKey();
-        document.querySelectorAll('.dist-ma-cell').forEach(function(cell) {
-            var raw = cell.getAttribute('data-dist-all');
-            var val = null;
-            try { val = JSON.parse(raw.replace(/&quot;/g, '"'))[key]; } catch(e) {}
-            if (val == null) { cell.innerHTML = '<span style="color:#2e3744">—</span>'; cell.className = 'dist-ma-cell'; return; }
-            var ranges = cell.getAttribute('data-ranges');
-            var r = [-20, 20];
-            try { r = JSON.parse(ranges.replace(/&quot;/g, '"')); } catch(e) {}
-            cell.className = 'dist-ma-cell';
-            var w = Math.min(100, Math.max(0, (Math.abs(val) / 20) * 100));
-            var barCl = val >= 0 ? 'positive' : 'negative';
-            var textCl = val > 0 ? 'price-up' : (val < 0 ? 'price-down' : '');
-            cell.innerHTML = '<div class="value-visualization"><div class="value-bar ' + barCl + '" style="width:' + w + '%"></div>' +
-                             '<span class="value-text ' + textCl + '">' + fmt(val, 2, '%') + '</span></div>';
-            var row = cell.closest('tr');
-            if (row) row.setAttribute('data-dist_ma', val);
-        });
-        document.querySelectorAll('th[data-sort-by="dist_ma"]').forEach(function(th) {
-            th.setAttribute('data-tooltip', '% distance from ' + activeMAType + activeMALength + '. Click ⋯ to change.');
-        });
-    }
-
-    window.toggleDistMASettings = function(btn) {
-        var dd = document.getElementById('dist-ma-dropdown');
-        if (!dd) return;
-        if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
-        var rect = btn.getBoundingClientRect();
-        dd.style.top  = (rect.bottom + 4) + 'px';
-        dd.style.left = Math.max(4, rect.right - 195) + 'px';
-        dd.classList.add('open');
-    };
-    document.addEventListener('click', function(e) {
-        var dd = document.getElementById('dist-ma-dropdown');
-        if (!dd || !dd.classList.contains('open')) return;
-        if (!dd.contains(e.target) && !e.target.classList.contains('dist-ma-settings-btn')) dd.classList.remove('open');
-    });
-    window.setDistMAType = function(type) {
-        activeMAType = type;
-        localStorage.setItem('distMAType', type);
-        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === type); });
-        applyDistMASettings();
-    };
-    window.setDistMALength = function(len) {
-        activeMALength = len;
-        localStorage.setItem('distMALength', String(len));
-        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === len); });
-        applyDistMASettings();
-    };
-
-    // ── Sorting ───────────────────────────────────────────────────────────
-    var COL_MAP = { symbol:0, rank:1, daily:2, '1w':3, '1m':4, '3m':5, ytd:6, vs_spy:7, vs_spy_3m:8, dist_ma:9, adr_pct:10, cr:11 };
-
-    window.sortGroup = function(industry, sortBy) {
-        var table = document.querySelector('.ticker-table[data-group="' + industry.replace(/"/g,'&quot;') + '"]');
-        if (!table) return;
-        var tbody = table.querySelector('tbody');
-        var rows  = Array.from(tbody.querySelectorAll('.ticker-row'));
-        var state = sortStates[industry] || { sortBy: null, direction: 1, count: 0 };
-        sortStates[industry] = state;
-
-        table.querySelectorAll('th, td').forEach(function(el){ el.classList.remove('sort-asc','sort-desc','sorted-col'); });
-
-        if (state.sortBy === sortBy) {
-            state.count++;
-            if (state.count >= 3) {
-                state.sortBy = null; state.direction = 1; state.count = 0;
-                rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
-                tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
-                updateAllTickerRows(); return;
-            }
-        } else { state.count = 1; }
-        state.sortBy = sortBy;
-        if (state.count === 2) state.direction *= -1; else state.direction = 1;
-
-        var hi = COL_MAP[sortBy] !== undefined ? COL_MAP[sortBy] : 0;
-        var th = table.querySelectorAll('th')[hi];
-        if (th) th.classList.add(state.direction === 1 ? 'sort-desc' : 'sort-asc', 'sorted-col');
-        rows.forEach(function(row){ var td = row.querySelectorAll('td')[hi]; if(td) td.classList.add('sorted-col'); });
-
-        rows.sort(function(a, b) {
-            var aV, bV;
-            if (sortBy === 'symbol') {
-                return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * state.direction;
-            } else if (sortBy === 'rank') {
-                aV = parseFloat(a.getAttribute('data-rank') || '9999');
-                bV = parseFloat(b.getAttribute('data-rank') || '9999');
-            } else {
-                aV = parseFloat(a.getAttribute('data-' + sortBy) || 'NaN');
-                bV = parseFloat(b.getAttribute('data-' + sortBy) || 'NaN');
-                if (isNaN(aV)) return 1; if (isNaN(bV)) return -1;
-            }
-            return (aV - bV) * state.direction;
-        });
-        tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
-        updateAllTickerRows();
-        var ar = document.querySelector('.ticker-row.active');
-        if (ar) currentIndex = allTickerRows.indexOf(ar);
-    };
-
-    // ── Render ────────────────────────────────────────────────────────────
-    function renderGroups(industriesToShow) {
-        var container = document.getElementById('groups-container');
-        if (!snapshot || !snapshot.by_industry) {
-            container.innerHTML = '<div class="loading-msg">No data found. Run the build script first.</div>';
-            return;
-        }
-
-        // All industries sorted alphabetically (or by sector then name)
-        var industries = industriesToShow || Object.keys(snapshot.by_industry).sort();
-        var html = '';
-
-        industries.forEach(function(industry, gi) {
-            var rows   = snapshot.by_industry[industry];
-            if (!rows || rows.length === 0) return;
-            var safeId_ = safeId(industry);
-            var ranges  = (snapshot.column_ranges && snapshot.column_ranges[industry]) || {};
-            var summary = snapshot.industry_summary && snapshot.industry_summary[industry];
-            var sector  = (meta && meta.industry_to_sector && meta.industry_to_sector[industry]) || '';
-
-            // Header summary stats
-            var avg1m    = summary && summary.avg_1m    != null ? summary.avg_1m    : null;
-            var avg3m    = summary && summary.avg_3m    != null ? summary.avg_3m    : null;
-            var medianRS = summary && summary.median_rs_pct != null ? summary.median_rs_pct : null;
-
-            var stat1m = avg1m != null
-                ? '<span class="header-stat ' + (avg1m>=0?'up':'down') + '">' + fmt(avg1m,1,'%') + ' 1M</span>' : '';
-            var stat3m = avg3m != null
-                ? '<span class="header-stat ' + (avg3m>=0?'up':'down') + '">' + fmt(avg3m,1,'%') + ' 3M</span>' : '';
-            var statRS = medianRS != null
-                ? '<span class="header-stat neutral">RS ' + medianRS.toFixed(0) + '</span>' : '';
-
-            html += '<div class="group-container" id="grp-' + safeId_ + '">';
-            // Header
-            html += '<div class="group-header" id="hdr-' + safeId_ + '" data-industry="' + esc(industry) + '">';
-            html += '<span class="chevron">▶</span>';
-            html += '<span class="industry-name">' + esc(industry) + '</span>';
-            html += '<div class="header-stats">' + stat1m + stat3m + statRS + '</div>';
-            html += '<span class="stock-count">' + rows.length + '</span>';
-            html += '<span class="sector-badge">' + esc(sector) + '</span>';
-            html += '</div>'; // end header
-
-            // Body (collapsed by default)
-            html += '<div class="group-body" id="body-' + safeId_ + '">';
-            html += buildTable(industry, rows, ranges, gi);
-            html += '</div>';
-            html += '</div>'; // end group-container
-        });
-
-        container.innerHTML = html || '<div class="loading-msg">No industries match.</div>';
-        syncDistMAButtons();
-        applyDistMASettings();
-        updateAllTickerRows();
-    }
-
-    function buildTable(industry, rows, ranges, gi) {
-        var distmaTooltip = '% distance from ' + activeMAType + activeMALength + '. Click ⋯ to change.';
-        var html = '<table class="ticker-table" data-group="' + esc(industry) + '">';
-        html += '<thead><tr>';
-        html += '<th class="sortable" data-sort-by="symbol" data-tooltip="Ticker symbol">Ticker</th>';
-        html += '<th class="sortable" data-sort-by="rank" data-tooltip="RS Percentile ranking (1-99)">RS</th>';
-        html += '<th class="sortable" data-sort-by="daily" data-tooltip="Day return">Day</th>';
-        html += '<th class="sortable" data-sort-by="1w" data-tooltip="5-day return">1W</th>';
-        html += '<th class="sortable" data-sort-by="1m" data-tooltip="21-day return">1M</th>';
-        html += '<th class="sortable" data-sort-by="3m" data-tooltip="63-day return">3M</th>';
-        html += '<th class="sortable" data-sort-by="ytd" data-tooltip="Year-to-date return">YTD</th>';
-        html += '<th class="sortable" data-sort-by="vs_spy" data-tooltip="1M return vs SPY">vSPY</th>';
-        html += '<th class="sortable" data-sort-by="vs_spy_3m" data-tooltip="3M return vs SPY">v3M</th>';
-        html += '<th class="sortable" data-sort-by="dist_ma" data-tooltip="' + esc(distmaTooltip) + '">' +
-                'Dist/MA<span class="dist-ma-settings-btn" onclick="event.stopPropagation();toggleDistMASettings(this)">⋯</span></th>';
-        html += '<th class="sortable" data-sort-by="adr_pct" data-tooltip="Avg Daily Range % — volatility proxy">ADR%</th>';
-        html += '<th class="sortable" data-sort-by="cr" data-tooltip="Closing range — where price closed in today\'s range (100=high, 0=low)">CR</th>';
-        html += '</tr></thead><tbody>';
-
-        var r1w   = ranges['1w']        || [-20, 20];
-        var r1m   = ranges['1m']        || [-30, 30];
-        var r3m   = ranges['3m']        || [-40, 40];
-        var rYtd  = ranges['ytd']       || [-50, 50];
-        var rVspy = ranges['vs_spy']    || [-20, 20];
-        var rV3m  = ranges['vs_spy_3m'] || [-30, 30];
-        var rDay  = ranges['daily']     || [-10, 10];
-
-        rows.forEach(function(row, ri) {
-            var distAllJson = esc(JSON.stringify(row.dist_ma || {}));
-            var distVal = (row.dist_ma || {})[activeMAType + activeMALength];
-
-            var crVal  = row.cr   != null ? row.cr.toFixed(0) + '%'   : '—';
-            var adrVal = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
-            var rankVal= row.Rank != null ? Math.round(row.Rank) : '—';
-
-            html += '<tr class="ticker-row" data-symbol="' + esc(row.ticker) + '"' +
-                    ' data-index="' + ri + '"' +
-                    ' data-rank="'    + (row.Percentile != null ? row.Percentile : '') + '"' +
-                    ' data-daily="'   + (row.daily     != null ? row.daily     : '') + '"' +
-                    ' data-1w="'      + (row['1w']     != null ? row['1w']     : '') + '"' +
-                    ' data-1m="'      + (row['1m']     != null ? row['1m']     : '') + '"' +
-                    ' data-3m="'      + (row['3m']     != null ? row['3m']     : '') + '"' +
-                    ' data-ytd="'     + (row.ytd       != null ? row.ytd       : '') + '"' +
-                    ' data-vs_spy="'  + (row.vs_spy    != null ? row.vs_spy    : '') + '"' +
-                    ' data-vs_spy_3m="'+(row.vs_spy_3m != null ? row.vs_spy_3m : '') + '"' +
-                    ' data-dist_ma="' + (distVal       != null ? distVal       : '') + '"' +
-                    ' data-adr_pct="' + (row.adr_pct   != null ? row.adr_pct   : '') + '"' +
-                    ' data-cr="'      + (row.cr        != null ? row.cr        : '') + '"' +
-                    ' onclick="updateChart(\'' + esc(row.ticker) + '\', this)" ondblclick="openChartForSymbol(\'' + esc(row.ticker) + '\', this)">';
-
-            // Ticker
-            html += '<td><span class="ticker-label">' + esc(row.ticker) + '</span></td>';
-            // RS Rating (Percentile)
-            var rsVal = row.Percentile != null ? Math.round(row.Percentile) : '—';
-            html += '<td class="rank-badge">' + rsVal + '</td>';
-            // Daily
-            html += '<td class="' + colorClass(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
-            // 1W
-            html += '<td>' + vizBar(row['1w'], r1w[0], r1w[1]) + '</td>';
-            // 1M
-            html += '<td>' + vizBar(row['1m'], r1m[0], r1m[1]) + '</td>';
-            // 3M
-            html += '<td>' + vizBar(row['3m'], r3m[0], r3m[1]) + '</td>';
-            // YTD
-            html += '<td>' + vizBar(row.ytd, rYtd[0], rYtd[1]) + '</td>';
-            // vs SPY 1m
-            html += '<td>' + vizBar(row.vs_spy, rVspy[0], rVspy[1]) + '</td>';
-            // vs SPY 3m
-            html += '<td>' + vizBar(row.vs_spy_3m, rV3m[0], rV3m[1]) + '</td>';
-            // Dist/MA
-            html += '<td class="dist-ma-cell" data-dist-all="' + distAllJson + '" data-ranges="' + esc(JSON.stringify([-20,20])) + '"></td>';
-            // ADR%
-            html += '<td style="color:#5a6a7e">' + adrVal + '</td>';
-            // CR
-            html += '<td style="color:#5a6a7e">' + crVal + '</td>';
-
-            html += '</tr>';
-        });
-
-        html += '</tbody></table>';
-        return html;
-    }
-
-    // ── Toggle industry open/close ─────────────────────────────────────────
-    window.toggleGroup = function(industry) {
-        var sid  = safeId(industry);
-        var hdr  = document.getElementById('hdr-'  + sid);
-        var body = document.getElementById('body-' + sid);
-        if (!hdr || !body) return;
-        var isOpen = body.classList.contains('open');
-        body.classList.toggle('open', !isOpen);
-        hdr.classList.toggle('open', !isOpen);
-        if (!isOpen) updateAllTickerRows();
-    };
-
-    // ── allTickerRows (only from expanded groups) ──────────────────────────
-    function updateAllTickerRows() {
-        allTickerRows = [];
-        document.querySelectorAll('.group-body.open .ticker-row').forEach(function(r){ allTickerRows.push(r); });
-    }
-
-    // ── Search / filter ────────────────────────────────────────────────────
-    function applySearch(query) {
-        query = (query || '').trim().toLowerCase();
-        var clearBtn = document.getElementById('search-clear');
-        if (clearBtn) clearBtn.classList.toggle('visible', query.length > 0);
-
-        if (!query) { renderGroups(); return; }
-
-        // Two modes: if query matches an industry name → show that industry expanded
-        // Otherwise filter by ticker across all industries
-        var matchedIndustries = Object.keys(snapshot.by_industry).filter(function(ind){
-            return ind.toLowerCase().includes(query);
-        }).sort();
-
-        if (matchedIndustries.length > 0) {
-            renderGroups(matchedIndustries);
-            // Auto-expand matched industries
-            matchedIndustries.forEach(function(ind){ openGroup(ind); });
-            return;
-        }
-
-        // Ticker search — filter rows within all industries
-        var filtered = {};
-        Object.keys(snapshot.by_industry).forEach(function(ind) {
-            var rows = snapshot.by_industry[ind].filter(function(r){
-                return r.ticker && r.ticker.toLowerCase().includes(query);
-            });
-            if (rows.length > 0) filtered[ind] = rows;
-        });
-
-        var origByIndustry = snapshot.by_industry;
-        snapshot.by_industry = filtered;
-        renderGroups(Object.keys(filtered).sort());
-        // Auto-expand all results when searching by ticker
-        Object.keys(filtered).forEach(function(ind){ openGroup(ind); });
-        snapshot.by_industry = origByIndustry;
-    }
-
-    function openGroup(industry) {
-        var sid  = safeId(industry);
-        var hdr  = document.getElementById('hdr-'  + sid);
-        var body = document.getElementById('body-' + sid);
-        if (hdr && body) { body.classList.add('open'); hdr.classList.add('open'); }
-    }
-
-    // ── Sync button states ─────────────────────────────────────────────────
-    function syncDistMAButtons() {
-        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){
-            b.classList.toggle('active', b.getAttribute('data-type') === activeMAType);
-        });
-        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){
-            b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength);
-        });
-    }
-
-    // ── Keyboard navigation ───────────────────────────────────────────────
-    document.addEventListener('keydown', function(e) {
-        if (e.target === document.getElementById('search-input')) return;
-        updateAllTickerRows();
+        if (e.target.tagName === 'INPUT') return;
+        var modal = document.getElementById('chart-modal-overlay');
+        if (!modal.classList.contains('open') || allStockRows.length === 0) return;
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            if (currentIndex < allTickerRows.length - 1) {
-                currentIndex++;
-                var r = allTickerRows[currentIndex];
-                var sym = r.getAttribute('data-symbol');
-                updateChart(sym, r);
-                r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                // If modal is open, update the chart symbol too
-                if (document.getElementById('chart-modal-overlay').classList.contains('open')) openChartModal(sym);
-            }
+            currentStockIndex = Math.min(currentStockIndex + 1, allStockRows.length - 1);
+            var r = allStockRows[currentStockIndex];
+            allStockRows.forEach(function(x){ x.classList.remove('active'); });
+            r.classList.add('active');
+            r.scrollIntoView({ block: 'nearest' });
+            openChartModal(r.getAttribute('data-symbol'));
         }
         if (e.key === 'ArrowUp') {
             e.preventDefault();
-            if (currentIndex > 0) {
-                currentIndex--;
-                var r = allTickerRows[currentIndex];
-                var sym = r.getAttribute('data-symbol');
-                updateChart(sym, r);
-                r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                if (document.getElementById('chart-modal-overlay').classList.contains('open')) openChartModal(sym);
-            }
+            currentStockIndex = Math.max(currentStockIndex - 1, 0);
+            var r = allStockRows[currentStockIndex];
+            allStockRows.forEach(function(x){ x.classList.remove('active'); });
+            r.classList.add('active');
+            r.scrollIntoView({ block: 'nearest' });
+            openChartModal(r.getAttribute('data-symbol'));
         }
+    });
+
+    // ── Search ────────────────────────────────────────────────────────────
+    document.getElementById('search-input').addEventListener('input', function() {
+        searchQuery = this.value;
+        if (currentView === 'industries') renderIndustries();
     });
 
     // ── Column tooltips ───────────────────────────────────────────────────
     (function() {
         var tip = document.getElementById('col-tooltip');
-        var hideTimer;
+        var timer;
         document.addEventListener('mouseover', function(e) {
             var el = e.target.closest('[data-tooltip]');
             if (!el) return;
-            clearTimeout(hideTimer);
+            clearTimeout(timer);
             var rect = el.getBoundingClientRect();
             tip.textContent = el.getAttribute('data-tooltip');
-            tip.style.left  = Math.min(rect.left + rect.width / 2 - 95, window.innerWidth - 210) + 'px';
-            tip.style.top   = (rect.bottom + 5) + 'px';
+            tip.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+            tip.style.top  = (rect.bottom + 4) + 'px';
             tip.classList.add('visible');
         });
         document.addEventListener('mouseout', function(e) {
             if (!e.target.closest('[data-tooltip]')) return;
-            hideTimer = setTimeout(function(){ tip.classList.remove('visible'); }, 100);
+            timer = setTimeout(function(){ tip.classList.remove('visible'); }, 80);
         });
     })();
 
     // ── Load data ─────────────────────────────────────────────────────────
-    function loadData() {
-        document.getElementById('groups-container').innerHTML =
-            '<div class="loading-msg">Loading data…</div>';
+    Promise.all([
+        fetch('data/snapshot.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+        fetch('data/industries.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+    ]).then(function(res) {
+        snapshot       = res[0];
+        industriesData = res[1];
 
-        Promise.all([
-            fetch('data/snapshot.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
-            fetch('data/meta.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
-        ]).then(function(res) {
-            snapshot = res[0];
-            meta     = res[1];
+        document.getElementById('loading-msg').style.display = 'none';
 
-            if (!snapshot || !snapshot.by_industry) {
-                document.getElementById('groups-container').innerHTML =
-                    '<div class="loading-msg">No data yet — run <code>scripts/build_data.py</code> or wait for GitHub Actions.</div>';
-                return;
-            }
-
-            // Built-at timestamp
-            if (snapshot.built_at) {
-                var d = new Date(snapshot.built_at);
-                document.getElementById('built-at').textContent =
-                    'Built ' + d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) +
-                    ' ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
-            }
-
-            renderGroups();
-
-            // Load the default chart
-            var defaultIndustry = meta && meta.default_industry;
-            var defaultTicker   = defaultIndustry && snapshot.by_industry[defaultIndustry] &&
-                                  snapshot.by_industry[defaultIndustry][0] &&
-                                  snapshot.by_industry[defaultIndustry][0].ticker;
-            if (defaultTicker) initChart(defaultTicker);
-
-            // Wire up search
-            var searchEl = document.getElementById('search-input');
-            var clearEl  = document.getElementById('search-clear');
-            searchEl.addEventListener('input', function(){ applySearch(this.value); });
-            clearEl.addEventListener('click', function(){
-                searchEl.value = '';
-                applySearch('');
-                searchEl.focus();
-            });
-        });
-    }
-
-    // ── Event delegation for group headers + sort headers ───────────────
-    document.getElementById('groups-container').addEventListener('click', function(e) {
-        // Sort column click
-        var th = e.target.closest('th.sortable');
-        if (th && !e.target.closest('.dist-ma-settings-btn')) {
-            var table = th.closest('table.ticker-table');
-            if (table) {
-                var grp = table.getAttribute('data-group');
-                var sortBy = th.getAttribute('data-sort-by');
-                if (grp && sortBy) { window.sortGroup(grp, sortBy); return; }
-            }
+        if (industriesData && industriesData.built_at) {
+            var d = new Date(industriesData.built_at);
+            document.getElementById('built-at').textContent =
+                'Built ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) +
+                ' ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
         }
-        // Group header toggle
-        var hdr = e.target.closest('.group-header');
-        if (!hdr) return;
-        if (e.target.closest('.dist-ma-settings-btn')) return;
-        var industry = hdr.getAttribute('data-industry');
-        if (industry) toggleGroup(industry);
-    });
 
-    loadData();
+        // Sync DistMA buttons
+        document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === activeMAType); });
+        document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength); });
+
+        showView('industries');
+    });
 })();
 </script>
 </body>
