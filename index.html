@@ -901,7 +901,13 @@
             html += '<td>' + valBar(row.vs_spy, rVs[0],  rVs[1])  + '</td>';
             html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
-            html += '<td><span style="color:#8b949e">' + adrVal + '</span></td>';
+            var adrColor = '#484f58';
+            if (row.adr_pct != null) {
+                if (row.adr_pct < 4)      adrColor = '#3fb950';
+                else if (row.adr_pct < 8) adrColor = '#e3852b';
+                else                       adrColor = '#f85149';
+            }
+            html += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
             var crColor = '#484f58';
             if (row.cr != null) {
                 if (row.cr >= 60) crColor = '#3fb950';
