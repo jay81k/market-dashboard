@@ -39,7 +39,12 @@ warnings.filterwarnings("ignore")
 DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
 DEFAULT_INDUSTRIES_CSV_URL = os.environ.get("INDUSTRIES_CSV_URL", "")
 
-MIN_AVG_VOLUME = 100_000  # AvgVol10 filter — anything below gets dropped
+MIN_AVG_VOLUME  = 100_000    # AvgVol10 filter — anything below gets dropped
+MIN_PRICE       = 1.0        # last close must be >= $1
+MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
+
+# Ticker suffixes that indicate ETFs/funds — drop these
+ETF_SUFFIXES = ()  # yfinance universe shouldn't have ETFs, but just in case
 
 # Columns to pass through from CSV into snapshot as-is (if present)
 CSV_PASSTHROUGH = [
@@ -79,6 +84,29 @@ def load_universe(csv_url: str) -> pd.DataFrame:
               f"{total_before} → {len(df)} stocks ({removed} removed)")
     else:
         print("Warning: AvgVol10 column not found, skipping volume filter")
+
+    if "MarketCap" in df.columns:
+        before = len(df)
+        df["MarketCap"] = pd.to_numeric(df["MarketCap"], errors="coerce")
+        df = df[df["MarketCap"] >= MIN_MARKET_CAP].copy()
+        print(f"MarketCap filter (>= ${MIN_MARKET_CAP/1e6:.0f}M): "
+              f"{before} → {len(df)} stocks ({before - len(df)} removed)")
+    else:
+        print("Warning: MarketCap column not found, skipping market cap filter")
+
+    # Drop ETFs — identified by Exchange value or common ETF ticker patterns
+    if "Exchange" in df.columns:
+        before = len(df)
+        etf_mask = df["Exchange"].astype(str).str.upper().isin(["ETF", "FUND"])
+        df = df[~etf_mask].copy()
+        removed = before - len(df)
+        if removed:
+            print(f"ETF filter: {before} → {len(df)} stocks ({removed} removed)")
+    # Also drop tickers with common ETF suffixes just in case
+    before = len(df)
+    df = df[~df["Ticker"].str.match(r'^[A-Z]{4,5}$.*', na=False) | df["Ticker"].apply(
+        lambda t: not any(t.endswith(s) for s in ['ETF','ETN','ETP'])
+    )].copy()
 
     df["Ticker"] = df["Ticker"].astype(str).str.strip()
     df = df[df["Ticker"] != ""].reset_index(drop=True)
@@ -126,6 +154,9 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
 
         close   = hist["Close"]
         current = close.iloc[-1]
+
+        if current < MIN_PRICE:
+            return None  # below minimum price threshold
         prev    = close.iloc[-2]
 
         daily       = (current / prev - 1) * 100
