@@ -84,12 +84,22 @@
             cursor: pointer; transition: background 0.1s;
         }
         .industry-row:hover { background: #161b22; }
-        .industry-row:hover .industry-arrow { opacity: 1; }
 
         /* Fixed column widths — must match .ind-hdr-* exactly */
         .industry-rank   { font-size: 0.8em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
         .industry-name   { font-size: 0.95em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
         .industry-sector { font-size: 0.78em; color: #8b949e; width: 160px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+        .sector-basic-materials        { color: #c8922a; }
+        .sector-technology             { color: #58a6ff; }
+        .sector-energy                 { color: #e8854a; }
+        .sector-financial-services     { color: #a5d6a7; }
+        .sector-healthcare             { color: #f48fb1; }
+        .sector-industrials            { color: #9e86c8; }
+        .sector-consumer-cyclical      { color: #f9c74f; }
+        .sector-consumer-defensive     { color: #80cbc4; }
+        .sector-real-estate            { color: #bcaaa4; }
+        .sector-utilities              { color: #90caf9; }
+        .sector-communication-services { color: #ce93d8; }
         .industry-count  { font-size: 0.78em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
 
         /* Industries column headers */
@@ -480,6 +490,12 @@
     }
     function cc(v) { return v == null ? '' : v > 0 ? 'up' : v < 0 ? 'down' : ''; }
 
+    function sectorClass(sector) {
+        if (!sector) return '';
+        var s = sector.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        return 'sector-' + s;
+    }
+
     function valBar(value, minVal, maxVal) {
         if (value == null) return '<span style="color:#30363d">—</span>';
         var range = value >= 0 ? Math.abs(maxVal || 1) : Math.abs(minVal || 1);
@@ -620,7 +636,7 @@
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
-            html += '<span class="industry-sector">' + esc(ind.sector) + '</span>';
+            html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             // Perf columns
             html += '<div class="industry-perf-cols">';
@@ -636,7 +652,7 @@
             html += '<span class="industry-rs-col ' + rsColClass(rs3m) + '">' + (rs3m != null ? rs3m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs6m) + '">' + (rs6m != null ? rs6m : '—') + '</span>';
             html += '</div>';
-            html += '<span class="industry-arrow">›</span>';
+
             html += '</div>';
         });
         list.innerHTML = html || '<div class="loading-msg">No results.</div>';
