@@ -14,7 +14,6 @@
             background: #0d1117; border-bottom: 1px solid #21262d;
             padding: 0 16px; height: 44px; flex-shrink: 0;
         }
-        .nav-logo { font-size: 0.85em; font-weight: 700; color: #c8d0dc; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 24px; }
         .nav-tabs { display: flex; gap: 2px; }
         .nav-tab {
             padding: 0 20px; height: 44px; display: flex; align-items: center;
@@ -110,8 +109,8 @@
             font-family: inherit; transition: all 0.12s; display: flex; align-items: center; gap: 5px;
         }
         .back-btn:hover { background: #161b22; color: #c8d0dc; }
-        .stocks-industry-name { font-size: 0.9em; font-weight: 600; color: #c8d0dc; }
-        .stocks-industry-meta { font-size: 0.75em; color: #484f58; }
+        .stocks-industry-name { font-size: 1.0em; font-weight: 600; color: #c8d0dc; }
+        .stocks-industry-meta { font-size: 0.82em; color: #8b949e; }
         .stocks-rs-badge {
             margin-left: auto; font-size: 0.75em; font-weight: 600;
             background: #1f6feb22; color: #388bfd; border: 1px solid #1f6feb44;
@@ -137,10 +136,10 @@
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
-            text-align: left; padding: 6px 8px;
+            text-align: left; padding: 7px 8px;
             background: #0d1117; border-bottom: 1px solid #21262d;
-            font-size: 0.76em; font-weight: 500; letter-spacing: 0.06em;
-            text-transform: uppercase; color: #484f58; cursor: pointer;
+            font-size: 0.82em; font-weight: 500; letter-spacing: 0.05em;
+            text-transform: uppercase; color: #6e7681; cursor: pointer;
             user-select: none; white-space: nowrap;
         }
         .stocks-table th:hover { color: #8b949e; }
@@ -148,12 +147,12 @@
         .stocks-table th.sort-asc::after  { content: " ↑"; color: #388bfd; }
         .stocks-table th.sorted { color: #8b949e; }
 
-        .stocks-table td { padding: 5px 8px; border-bottom: 1px solid #161b22; color: #6e7681; vertical-align: middle; overflow: hidden; }
+        .stocks-table td { padding: 7px 8px; border-bottom: 1px solid #161b22; color: #6e7681; vertical-align: middle; overflow: hidden; font-size: 0.92em; }
         .stock-row { cursor: pointer; transition: background 0.1s; }
         .stock-row:hover { background: #161b22; }
         .stock-row.active { background: #1c2128; }
 
-        .ticker-badge { display: inline-flex; padding: 2px 7px; border-radius: 4px; background: #161b22; color: #58a6ff; font-size: 0.9em; font-weight: 600; border: 1px solid #21262d; }
+        .ticker-badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; background: #161b22; color: #58a6ff; font-size: 0.95em; font-weight: 600; border: 1px solid #21262d; }
         .up   { color: #3fb950 !important; font-weight: 500; }
         .down { color: #f85149 !important; font-weight: 500; }
 
@@ -222,7 +221,6 @@
 
 <!-- Top nav -->
 <div class="topnav">
-    <span class="nav-logo">StockDash</span>
     <div class="nav-tabs">
         <div class="nav-tab active" id="tab-industries" onclick="showView('industries')">Industries</div>
         <div class="nav-tab" id="tab-stocks" onclick="showView('stocks-all')">Stocks</div>
