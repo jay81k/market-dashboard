@@ -376,8 +376,7 @@
                 </div>
                 <div class="stocks-rs-badge" id="si-rs"></div>
             </div>
-            <input type="text" class="search-input" id="stocks-search-input" placeholder="Filter stocks…" autocomplete="off" spellcheck="false" style="margin-left:auto;width:160px;" oninput="filterStocksTable(this.value)">
-            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()">⊞ Multichart</button>
+            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="margin-left:auto;">⊞ Multichart</button>
         </div>
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -506,6 +505,17 @@
 
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
         document.getElementById('tab-stocks').classList.toggle('active', view === 'stocks-all');
+
+        var searchEl = document.getElementById('search-input');
+        searchEl.value = '';
+        searchQuery = '';
+        if (view === 'industries') {
+            searchEl.placeholder = 'Search industries…';
+        } else if (view === 'industry-stocks') {
+            searchEl.placeholder = 'Filter stocks…';
+        } else if (view === 'stocks-all') {
+            searchEl.placeholder = 'Filter stocks…';
+        }
 
         // Show/hide toolbar elements (only for industries view)
         document.getElementById('sort-group').style.display = (view === 'industries') ? 'flex' : 'none';
@@ -662,8 +672,6 @@
         document.getElementById('multichart-toggle-btn').style.borderColor = '';
         document.getElementById('multichart-toggle-btn').style.color       = '';
         document.getElementById('multichart-grid').innerHTML = '';
-        var ssi = document.getElementById('stocks-search-input');
-        if (ssi) ssi.value = '';
 
         currentStockSort = { by: null, dir: 1, count: 0 };
 
@@ -792,8 +800,16 @@
     };
 
     window.filterStocksTable = function(q) {
-        q = q.toLowerCase();
+        q = (q || '').toLowerCase();
         document.querySelectorAll('#stocks-tbody .stock-row').forEach(function(row) {
+            var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
+            row.style.display = (!q || sym.includes(q)) ? '' : 'none';
+        });
+    };
+
+    window.filterAllStocksTable = function(q) {
+        q = (q || '').toLowerCase();
+        document.querySelectorAll('#all-stocks-tbody .stock-row').forEach(function(row) {
             var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
             row.style.display = (!q || sym.includes(q)) ? '' : 'none';
         });
@@ -1063,8 +1079,15 @@
 
     // ── Search ────────────────────────────────────────────────────────────
     document.getElementById('search-input').addEventListener('input', function() {
-        searchQuery = this.value;
-        if (currentView === 'industries') renderIndustries();
+        var q = this.value;
+        if (currentView === 'industries') {
+            searchQuery = q;
+            renderIndustries();
+        } else if (currentView === 'industry-stocks') {
+            filterStocksTable(q);
+        } else if (currentView === 'stocks-all') {
+            filterAllStocksTable(q);
+        }
     });
 
     // ── Column tooltips ───────────────────────────────────────────────────
