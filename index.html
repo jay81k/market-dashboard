@@ -640,9 +640,11 @@
         <label>Period</label>
         <div class="dma-btns">
             <button class="dma-opt dist-ma-len-btn" data-len="5"   onclick="setDistMALength(5)">5</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="8"   onclick="setDistMALength(8)">8</button>
             <button class="dma-opt dist-ma-len-btn" data-len="10"  onclick="setDistMALength(10)">10</button>
             <button class="dma-opt dist-ma-len-btn" data-len="21"  onclick="setDistMALength(21)">21</button>
             <button class="dma-opt dist-ma-len-btn active" data-len="50"  onclick="setDistMALength(50)">50</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="150" onclick="setDistMALength(150)">150</button>
             <button class="dma-opt dist-ma-len-btn" data-len="200" onclick="setDistMALength(200)">200</button>
         </div>
     </div>
@@ -1804,7 +1806,7 @@
         if (row.type === 'ma') {
             var dirOpts = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Above</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Below</option>';
             var maTypes = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
-            var maPeriods = ['5','10','21','50','200'].map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            var maPeriods = ['5','8','10','21','50','150','200'].map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+maTypes+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select></div>';
