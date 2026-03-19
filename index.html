@@ -2038,7 +2038,7 @@
             var crVal = row.cr != null ? Math.round(row.cr)+'%' : '—';
             var secCl = sectorClass(row.sector);
 
-            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '" onclick="openChartModal(\'' + esc(row.ticker) + '\')">';
+            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">'; 
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             html += '<td style="font-size:0.858em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
             html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
@@ -2059,8 +2059,15 @@
             html += '</tr>';
         });
 
-        document.getElementById('scans-tbody').innerHTML = html;
+        var scansTbody = document.getElementById('scans-tbody');
+        scansTbody.innerHTML = html;
         applyDistMA(document.getElementById('scans-table'));
+
+        scansTbody.ondblclick = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
+        };
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
