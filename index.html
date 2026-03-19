@@ -338,6 +338,10 @@
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
         .chart-modal-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
+        .chart-modal-meta { font-size: 0.825em; color: #6e7681; margin-left: 10px; white-space: nowrap; }
+        .chart-modal-meta .meta-sep { margin: 0 5px; color: #30363d; }
+        .chart-modal-meta .meta-sector { color: #8b949e; }
+        .chart-modal-meta .meta-industry { color: #6e7681; }
         .chart-modal-hint { font-size: 0.792em; color: #484f58; margin-left: auto; }
         .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.32rem; padding: 0 4px; }
         .chart-modal-close:hover { color: #c8d0dc; }
@@ -640,6 +644,7 @@
     <div class="chart-modal">
         <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
+            <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-modal-hint">ESC to close · double-click to switch</span>
             <button class="chart-modal-close" onclick="closeChartModal()">×</button>
         </div>
@@ -1272,6 +1277,8 @@
                     ' data-avg_vol="' + (row.AvgVol50   != null ? row.AvgVol50   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
+                    ' data-sector="'  + esc(row.sector   || '') + '"' +
+                    ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
@@ -1325,7 +1332,7 @@
         tbody.ondblclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
-            openChartModal(row.getAttribute('data-symbol'));
+            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         };
 
         allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
@@ -1405,7 +1412,7 @@
             distHtml = '<div class="val-bar"><div class="val-bar-fill '+(pos?'pos':'neg')+'" style="width:'+w+'%"></div>'+
                        '<span class="val-bar-text '+cl+'">'+fmt(distVal,2,'%')+'</span></div>';
         }
-        var h = '<tr class="stock-row" style="content-visibility:auto;contain-intrinsic-size:0 47px;" data-symbol="'+esc(row.ticker)+'">';
+        var h = '<tr class="stock-row" style="content-visibility:auto;contain-intrinsic-size:0 47px;" data-symbol="'+esc(row.ticker)+'" data-sector="'+esc(row.sector||'')+'" data-industry="'+esc(row.industry||'')+'">'; 
         h += '<td><span class="ticker-badge">'+esc(row.ticker)+'</span></td>';
         h += '<td style="color:#c8d0dc;font-weight:500;">'+priceVal+'</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'+rsVal+'</td>';
@@ -1440,7 +1447,7 @@
             row.classList.add('active');
             allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
             currentStockIndex = allStockRows.indexOf(row);
-            openChartModal(row.getAttribute('data-symbol'));
+            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         };
     }
 
@@ -1567,9 +1574,41 @@
     };
 
     // ── Chart modal ───────────────────────────────────────────────────────
-    function openChartModal(symbol) {
+    function openChartModal(symbol, sector, industry) {
         var sym = TV_MAP[symbol] || symbol;
         document.getElementById('chart-modal-sym').textContent = symbol;
+
+        // Resolve sector/industry: prefer args, fall back to clicked row data attrs, then snapshot
+        if (!sector || !industry) {
+            var clickedRow = document.querySelector('.stock-row[data-symbol="' + symbol + '"]');
+            if (clickedRow) {
+                sector   = sector   || clickedRow.getAttribute('data-sector')   || '';
+                industry = industry || clickedRow.getAttribute('data-industry') || '';
+            }
+        }
+        if ((!sector || !industry) && snapshot) {
+            outer: for (var ind in snapshot.by_industry) {
+                var rows = snapshot.by_industry[ind];
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].ticker === symbol) {
+                        sector   = sector   || rows[i].sector   || '';
+                        industry = industry || rows[i].industry || '';
+                        break outer;
+                    }
+                }
+            }
+        }
+        var metaEl = document.getElementById('chart-modal-meta');
+        if (metaEl) {
+            if (sector || industry) {
+                metaEl.innerHTML = '<span class="meta-sector">' + esc(sector) + '</span>' +
+                    (sector && industry ? '<span class="meta-sep">·</span>' : '') +
+                    '<span class="meta-industry">' + esc(industry) + '</span>';
+            } else {
+                metaEl.innerHTML = '';
+            }
+        }
+
         document.getElementById('chart-modal-overlay').classList.add('open');
         if (chartWidget) {
             try { chartWidget.setSymbol(sym, null, function(){}); return; } catch(e) {}
@@ -1961,7 +2000,7 @@
             var crVal = row.cr != null ? Math.round(row.cr)+'%' : '—';
             var secCl = sectorClass(row.sector);
 
-            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" onclick="openChartModal(\'' + esc(row.ticker) + '\')">';
+            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '" onclick="openChartModal(\'' + esc(row.ticker) + '\')">';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             html += '<td style="font-size:0.858em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
             html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
