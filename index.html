@@ -1601,9 +1601,23 @@
         var metaEl = document.getElementById('chart-modal-meta');
         if (metaEl) {
             if (sector || industry) {
+                var indRankHtml = '';
+                if (industry && industriesData && industriesData.industries) {
+                    var indData = industriesData.industries.find(function(i){ return i.industry === industry; });
+                    var total   = industriesData.industries.length;
+                    if (indData && indData.rank != null) {
+                        var pct = indData.percentile != null ? indData.percentile : null;
+                        var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                        indRankHtml = '<span class="meta-sep">·</span>' +
+                            '<span class="meta-ind-rank" style="color:' + rankColor + '">' +
+                            '(' + indData.rank + '/' + total + ')' +
+                            '</span>';
+                    }
+                }
                 metaEl.innerHTML = '<span class="meta-sector">' + esc(sector) + '</span>' +
                     (sector && industry ? '<span class="meta-sep">·</span>' : '') +
-                    '<span class="meta-industry">' + esc(industry) + '</span>';
+                    '<span class="meta-industry">' + esc(industry) + '</span>' +
+                    indRankHtml;
             } else {
                 metaEl.innerHTML = '';
             }
