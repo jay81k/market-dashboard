@@ -950,9 +950,13 @@
             '(' + rank + '/' + totalIndustries + ')</span>';
         var sector = ind ? ind.sector : '';
         var secCl  = sectorClass(sector);
-        document.getElementById('si-meta').innerHTML = sector
-            ? '<span class="' + secCl + '" style="cursor:pointer;font-weight:600;" onclick="openSector(' + JSON.stringify(sector) + ')">' + esc(sector) + '</span>'
-            : '';
+        var metaEl = document.getElementById('si-meta');
+        if (sector) {
+            metaEl.innerHTML = '<span id="si-sector-link" class="' + secCl + '" style="cursor:pointer;font-weight:600;">' + esc(sector) + '</span>';
+            document.getElementById('si-sector-link').onclick = function() { openSector(sector); };
+        } else {
+            metaEl.innerHTML = '';
+        }
         document.getElementById('si-rs').textContent = ind ? 'RS ' + (ind.percentile || '—') : '';
 
         // Reset multichart state
