@@ -450,14 +450,15 @@
     <!-- Stocks for a specific industry -->
     <div id="view-industry-stocks" class="stocks-view">
         <div class="stocks-header">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div>
+            <button class="back-btn" onclick="backToIndustries()" style="flex-shrink:0;">&#8249; Back</button>
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <div style="min-width:0;">
                     <div class="stocks-industry-name" id="si-name"></div>
                     <div class="stocks-industry-meta" id="si-meta"></div>
                 </div>
                 <div class="stocks-rs-badge" id="si-rs"></div>
             </div>
-            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="margin-left:auto;">⊞ Multichart</button>
+            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="margin-left:auto;flex-shrink:0;">⊞ Multichart</button>
         </div>
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -880,7 +881,12 @@
         var ind  = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
         var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
 
-        document.getElementById('si-name').textContent = industryName;
+        var totalIndustries = (industriesData && industriesData.industries) ? industriesData.industries.length : 0;
+        var rank = ind ? (ind.rank || '—') : '—';
+        document.getElementById('si-name').innerHTML =
+            esc(industryName) +
+            '<span style="font-size:0.78em;font-weight:400;color:#6e7681;margin-left:10px;">' +
+            '(' + rank + '/' + totalIndustries + ')</span>';
         document.getElementById('si-meta').textContent = ind
             ? ind.sector + ' · ' + (rows ? rows.length : 0) + ' stocks'
             : '0 stocks';
