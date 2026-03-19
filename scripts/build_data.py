@@ -133,6 +133,19 @@ def calculate_dist_ma(close: pd.Series, ma_type: str, period: int) -> float | No
         return None
 
 
+def calculate_ma_value(close: pd.Series, ma_type: str, period: int) -> float | None:
+    if len(close) < period:
+        return None
+    try:
+        if ma_type == "EMA":
+            ma = close.ewm(span=period, adjust=False).mean().iloc[-1]
+        else:
+            ma = close.rolling(window=period).mean().iloc[-1]
+        return round(float(ma), 4)
+    except Exception:
+        return None
+
+
 def calculate_adr_pct(hist: pd.DataFrame, period: int = 20) -> float | None:
     try:
         capped = min(period, len(hist))
@@ -194,6 +207,12 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             for ma_type, period in DIST_MA_COMBOS
         }
 
+        # Raw MA values (for MA vs MA cross comparisons)
+        ma_val = {
+            ma_type + str(period): calculate_ma_value(close, ma_type, period)
+            for ma_type, period in DIST_MA_COMBOS
+        }
+
         # Inside day: today's high < prev high AND today's low > prev low
         inside_day = bool(
             hist["High"].iloc[-1] < hist["High"].iloc[-2] and
@@ -213,6 +232,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "cr":        round(cr, 1)          if cr          is not None else None,
             "adr_pct":   adr_pct,
             "dist_ma":   dist_ma,
+            "ma_val":    ma_val,
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
