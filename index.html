@@ -371,6 +371,32 @@
         .heatmap-card-null { background: #161b22 !important; border-color: #21262d !important; }
         .heatmap-card-null .heatmap-card-name { color: #484f58; }
         .heatmap-card-null .heatmap-card-val  { color: #484f58; }
+        /* ── Scans filter bar ── */
+        .scans-filter-bar {
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            padding: 6px 16px; background: #0a0f15;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .sf-label { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+        .sf-divider { width: 1px; height: 14px; background: #21262d; flex-shrink: 0; }
+        .sf-seg { display: flex; border-radius: 4px; overflow: hidden; border: 1px solid #21262d; flex-shrink: 0; }
+        .sf-seg-btn { padding: 3px 8px; background: transparent; color: #6e7681; font-size: 0.748em; border: none; cursor: pointer; font-family: inherit; border-right: 1px solid #21262d; transition: all 0.1s; }
+        .sf-seg-btn:last-child { border-right: none; }
+        .sf-seg-btn:hover { background: #161b22; color: #c8d0dc; }
+        .sf-seg-btn.active { background: #1f6feb; color: #fff; }
+        .sf-select { background: #161b22; border: 1px solid #21262d; border-radius: 4px; color: #c8d0dc; font-size: 0.748em; padding: 3px 6px; outline: none; font-family: inherit; cursor: pointer; flex-shrink: 0; }
+        .sf-input { background: #161b22; border: 1px solid #21262d; border-radius: 4px; color: #c8d0dc; font-size: 0.748em; padding: 3px 7px; outline: none; font-family: inherit; width: 72px; flex-shrink: 0; }
+        .sf-input:focus { border-color: #388bfd44; }
+        .sf-input::placeholder { color: #484f58; }
+        .sf-active-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #1a3a5c33; border: 1px solid #2979c844;
+            border-radius: 4px; padding: 2px 7px;
+            font-size: 0.748em; color: #58a6ff; flex-shrink: 0;
+        }
+        .sf-pill-x { color: #484f58; cursor: pointer; font-size: 0.9em; line-height:1; margin-left:2px; }
+        .sf-pill-x:hover { color: #c8d0dc; }
+
         .scan-filter-btn {
             padding: 4px 12px; border-radius: 5px; border: 1px solid #21262d;
             background: transparent; color: #6e7681; font-size: 0.858em;
@@ -514,6 +540,59 @@
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
             <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
+        </div>
+        <!-- Filter bar -->
+        <div class="scans-filter-bar" id="scans-filter-bar">
+            <span class="sf-label">MA</span>
+            <div class="sf-seg" id="sf-ma-dir">
+                <button class="sf-seg-btn active" data-dir="above" onclick="sfSetMaDir('above')">Above</button>
+                <button class="sf-seg-btn" data-dir="below" onclick="sfSetMaDir('below')">Below</button>
+                <button class="sf-seg-btn" data-dir="off" onclick="sfSetMaDir('off')">Off</button>
+            </div>
+            <select class="sf-select" id="sf-ma-type" onchange="sfApply()">
+                <option value="SMA">SMA</option>
+                <option value="EMA">EMA</option>
+            </select>
+            <select class="sf-select" id="sf-ma-period" onchange="sfApply()">
+                <option value="200">200</option>
+                <option value="50">50</option>
+                <option value="21">21</option>
+                <option value="10">10</option>
+                <option value="5">5</option>
+            </select>
+
+            <div class="sf-divider"></div>
+            <span class="sf-label">RS</span>
+            <div class="sf-seg" id="sf-rs-dir">
+                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetRsDir('gt')">&gt;</button>
+                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetRsDir('lt')">&lt;</button>
+                <button class="sf-seg-btn" data-dir="off" onclick="sfSetRsDir('off')">Off</button>
+            </div>
+            <input class="sf-input" id="sf-rs-val" type="number" min="1" max="99" value="70" placeholder="70" oninput="sfApply()">
+
+            <div class="sf-divider"></div>
+            <span class="sf-label">Price</span>
+            <div class="sf-seg" id="sf-price-dir">
+                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetPriceDir('gt')">&gt;</button>
+                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetPriceDir('lt')">&lt;</button>
+                <button class="sf-seg-btn" data-dir="off" onclick="sfSetPriceDir('off')">Off</button>
+            </div>
+            <input class="sf-input" id="sf-price-val" type="number" min="0" value="5" placeholder="5" oninput="sfApply()">
+
+            <div class="sf-divider"></div>
+            <span class="sf-label">Avg Vol</span>
+            <div class="sf-seg" id="sf-vol-dir">
+                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetVolDir('gt')">&gt;</button>
+                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetVolDir('lt')">&lt;</button>
+                <button class="sf-seg-btn" data-dir="off" onclick="sfSetVolDir('off')">Off</button>
+            </div>
+            <input class="sf-input" id="sf-vol-val" type="text" value="100K" placeholder="100K" oninput="sfApply()">
+
+            <div class="sf-divider"></div>
+            <span class="sf-label">ADR%</span>
+            <input class="sf-input" id="sf-adr-min" type="number" min="0" value="" placeholder="min" oninput="sfApply()" style="width:52px;">
+            <span style="color:#484f58;font-size:0.748em;">–</span>
+            <input class="sf-input" id="sf-adr-max" type="number" min="0" value="" placeholder="max" oninput="sfApply()" style="width:52px;">
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap">
@@ -1594,7 +1673,91 @@
         return all;
     }
 
-    function filterByScan(stocks, scan) {
+    // ── Scan filters ──────────────────────────────────────────────────────
+    var sfState = {
+        maDir:    'off',   // 'above' | 'below' | 'off'
+        maType:   'SMA',
+        maPeriod: 200,
+        rsDir:    'off',   // 'gt' | 'lt' | 'off'
+        rsVal:    70,
+        priceDir: 'off',   // 'gt' | 'lt' | 'off'
+        priceVal: 5,
+        volDir:   'off',   // 'gt' | 'lt' | 'off'
+        volVal:   100000,
+        adrMin:   null,
+        adrMax:   null,
+    };
+
+    function sfParseVol(str) {
+        str = String(str).trim().toUpperCase().replace(/,/g,'');
+        if (str.endsWith('M')) return parseFloat(str) * 1e6;
+        if (str.endsWith('K')) return parseFloat(str) * 1e3;
+        return parseFloat(str);
+    }
+
+    function sfSetSeg(groupId, dir) {
+        document.querySelectorAll('#' + groupId + ' .sf-seg-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-dir') === dir);
+        });
+    }
+
+    window.sfSetMaDir    = function(d) { sfState.maDir    = d; sfSetSeg('sf-ma-dir',    d); sfApply(); };
+    window.sfSetRsDir    = function(d) { sfState.rsDir    = d; sfSetSeg('sf-rs-dir',    d); sfApply(); };
+    window.sfSetPriceDir = function(d) { sfState.priceDir = d; sfSetSeg('sf-price-dir', d); sfApply(); };
+    window.sfSetVolDir   = function(d) { sfState.volDir   = d; sfSetSeg('sf-vol-dir',   d); sfApply(); };
+
+    window.sfApply = function() {
+        sfState.maType   = document.getElementById('sf-ma-type').value;
+        sfState.maPeriod = parseInt(document.getElementById('sf-ma-period').value);
+        sfState.rsVal    = parseFloat(document.getElementById('sf-rs-val').value)   || 0;
+        sfState.priceVal = parseFloat(document.getElementById('sf-price-val').value) || 0;
+        sfState.volVal   = sfParseVol(document.getElementById('sf-vol-val').value);
+        var adrMinRaw = document.getElementById('sf-adr-min').value;
+        var adrMaxRaw = document.getElementById('sf-adr-max').value;
+        sfState.adrMin = adrMinRaw !== '' ? parseFloat(adrMinRaw) : null;
+        sfState.adrMax = adrMaxRaw !== '' ? parseFloat(adrMaxRaw) : null;
+        renderScans();
+    };
+
+    function applyFilters(stocks) {
+        return stocks.filter(function(r) {
+            // MA filter
+            if (sfState.maDir !== 'off') {
+                var key = sfState.maType + sfState.maPeriod;
+                var dist = r.dist_ma ? r.dist_ma[key] : null;
+                if (dist == null) return false;
+                if (sfState.maDir === 'above' && dist <= 0) return false;
+                if (sfState.maDir === 'below' && dist >= 0) return false;
+            }
+            // RS filter
+            if (sfState.rsDir !== 'off') {
+                var rs = r.Percentile;
+                if (rs == null) return false;
+                if (sfState.rsDir === 'gt' && rs <= sfState.rsVal) return false;
+                if (sfState.rsDir === 'lt' && rs >= sfState.rsVal) return false;
+            }
+            // Price filter
+            if (sfState.priceDir !== 'off') {
+                var pr = r.price;
+                if (pr == null) return false;
+                if (sfState.priceDir === 'gt' && pr <= sfState.priceVal) return false;
+                if (sfState.priceDir === 'lt' && pr >= sfState.priceVal) return false;
+            }
+            // Vol filter
+            if (sfState.volDir !== 'off' && !isNaN(sfState.volVal)) {
+                var vol = r.AvgVol50;
+                if (vol == null) return false;
+                if (sfState.volDir === 'gt' && vol <= sfState.volVal) return false;
+                if (sfState.volDir === 'lt' && vol >= sfState.volVal) return false;
+            }
+            // ADR% filter
+            if (sfState.adrMin != null && (r.adr_pct == null || r.adr_pct < sfState.adrMin)) return false;
+            if (sfState.adrMax != null && (r.adr_pct == null || r.adr_pct > sfState.adrMax)) return false;
+            return true;
+        });
+    }
+
+        function filterByScan(stocks, scan) {
         if (scan === 'inside_day') return stocks.filter(function(r) { return r.inside_day === true; });
         return stocks;
     }
@@ -1648,6 +1811,7 @@
     function renderScans() {
         var stocks = getAllStocks();
         var filtered = filterByScan(stocks, activeScan);
+        filtered = applyFilters(filtered);
 
         // Sort
         filtered.sort(function(a, b) {
