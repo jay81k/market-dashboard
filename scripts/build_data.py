@@ -76,14 +76,14 @@ def load_universe(csv_url: str) -> pd.DataFrame:
 
     total_before = len(df)
 
-    if "AvgVol10" in df.columns:
-        df["AvgVol10"] = pd.to_numeric(df["AvgVol10"], errors="coerce")
-        df = df[df["AvgVol10"] >= MIN_AVG_VOLUME].copy()
+    if "AvgVol50" in df.columns:
+        df["AvgVol50"] = pd.to_numeric(df["AvgVol50"], errors="coerce")
+        df = df[df["AvgVol50"] >= MIN_AVG_VOLUME].copy()
         removed = total_before - len(df)
-        print(f"Volume filter (AvgVol10 >= {MIN_AVG_VOLUME:,}): "
+        print(f"Volume filter (AvgVol50 >= {MIN_AVG_VOLUME:,}): "
               f"{total_before} → {len(df)} stocks ({removed} removed)")
     else:
-        print("Warning: AvgVol10 column not found, skipping volume filter")
+        print("Warning: AvgVol50 column not found, skipping volume filter")
 
     if "MarketCap" in df.columns:
         before = len(df)
