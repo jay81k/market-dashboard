@@ -246,6 +246,23 @@
         .stocks-table th:nth-child(13) { width: 56px; }   /* ADR% */
         .stocks-table th:nth-child(14) { width: 44px; }   /* CR */
 
+        /* Scans table has extra Sector + Industry columns */
+        #scans-table th:nth-child(1)  { width: 80px; }   /* Ticker */
+        #scans-table th:nth-child(2)  { width: 90px; }   /* Sector */
+        #scans-table th:nth-child(3)  { width: 130px; }  /* Industry */
+        #scans-table th:nth-child(4)  { width: 70px; }   /* Price */
+        #scans-table th:nth-child(5)  { width: 42px; }   /* RS */
+        #scans-table th:nth-child(6)  { width: 72px; }   /* Day */
+        #scans-table th:nth-child(7)  { width: 72px; }   /* 1W */
+        #scans-table th:nth-child(8)  { width: 72px; }   /* 1M */
+        #scans-table th:nth-child(9)  { width: 72px; }   /* 3M */
+        #scans-table th:nth-child(10) { width: 72px; }   /* YTD */
+        #scans-table th:nth-child(11) { width: 72px; }   /* vs 1M */
+        #scans-table th:nth-child(12) { width: 90px; }   /* Dist/MA */
+        #scans-table th:nth-child(13) { width: 72px; }   /* Avg Vol */
+        #scans-table th:nth-child(14) { width: 56px; }   /* ADR% */
+        #scans-table th:nth-child(15) { width: 44px; }   /* CR */
+
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
             text-align: left; padding: 7px 10px;
@@ -373,10 +390,26 @@
         .heatmap-card-null .heatmap-card-val  { color: #484f58; }
         /* ── Scans filter bar ── */
         .scans-filter-bar {
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            display: flex; align-items: flex-start; gap: 8px;
             padding: 6px 16px; background: #0a0f15;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
+        .sf-row {
+            display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+        }
+        .sf-add-btn {
+            padding: 4px 10px; border-radius: 4px; border: 1px dashed #30363d;
+            background: transparent; color: #484f58; font-size: 0.748em;
+            font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .sf-add-btn:hover { border-color: #6e7681; color: #6e7681; }
+        .sf-remove-btn {
+            background: transparent; border: none; color: #484f58;
+            cursor: pointer; font-size: 1em; padding: 0 2px; line-height: 1;
+            flex-shrink: 0;
+        }
+        .sf-remove-btn:hover { color: #f85149; }
         .sf-label { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
         .sf-divider { width: 1px; height: 14px; background: #21262d; flex-shrink: 0; }
         .sf-seg { display: flex; border-radius: 4px; overflow: hidden; border: 1px solid #21262d; flex-shrink: 0; }
@@ -543,60 +576,12 @@
         </div>
         <!-- Filter bar -->
         <div class="scans-filter-bar" id="scans-filter-bar">
-            <span class="sf-label">MA</span>
-            <div class="sf-seg" id="sf-ma-dir">
-                <button class="sf-seg-btn active" data-dir="above" onclick="sfSetMaDir('above')">Above</button>
-                <button class="sf-seg-btn" data-dir="below" onclick="sfSetMaDir('below')">Below</button>
-                <button class="sf-seg-btn" data-dir="off" onclick="sfSetMaDir('off')">Off</button>
-            </div>
-            <select class="sf-select" id="sf-ma-type" onchange="sfApply()">
-                <option value="SMA">SMA</option>
-                <option value="EMA">EMA</option>
-            </select>
-            <select class="sf-select" id="sf-ma-period" onchange="sfApply()">
-                <option value="200">200</option>
-                <option value="50">50</option>
-                <option value="21">21</option>
-                <option value="10">10</option>
-                <option value="5">5</option>
-            </select>
-
-            <div class="sf-divider"></div>
-            <span class="sf-label">RS</span>
-            <div class="sf-seg" id="sf-rs-dir">
-                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetRsDir('gt')">&gt;</button>
-                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetRsDir('lt')">&lt;</button>
-                <button class="sf-seg-btn" data-dir="off" onclick="sfSetRsDir('off')">Off</button>
-            </div>
-            <input class="sf-input" id="sf-rs-val" type="number" min="1" max="99" value="70" placeholder="70" oninput="sfApply()">
-
-            <div class="sf-divider"></div>
-            <span class="sf-label">Price</span>
-            <div class="sf-seg" id="sf-price-dir">
-                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetPriceDir('gt')">&gt;</button>
-                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetPriceDir('lt')">&lt;</button>
-                <button class="sf-seg-btn" data-dir="off" onclick="sfSetPriceDir('off')">Off</button>
-            </div>
-            <input class="sf-input" id="sf-price-val" type="number" min="0" value="5" placeholder="5" oninput="sfApply()">
-
-            <div class="sf-divider"></div>
-            <span class="sf-label">Avg Vol</span>
-            <div class="sf-seg" id="sf-vol-dir">
-                <button class="sf-seg-btn active" data-dir="gt" onclick="sfSetVolDir('gt')">&gt;</button>
-                <button class="sf-seg-btn" data-dir="lt" onclick="sfSetVolDir('lt')">&lt;</button>
-                <button class="sf-seg-btn" data-dir="off" onclick="sfSetVolDir('off')">Off</button>
-            </div>
-            <input class="sf-input" id="sf-vol-val" type="text" value="100K" placeholder="100K" oninput="sfApply()">
-
-            <div class="sf-divider"></div>
-            <span class="sf-label">ADR%</span>
-            <input class="sf-input" id="sf-adr-min" type="number" min="0" value="" placeholder="min" oninput="sfApply()" style="width:52px;">
-            <span style="color:#484f58;font-size:0.748em;">–</span>
-            <input class="sf-input" id="sf-adr-max" type="number" min="0" value="" placeholder="max" oninput="sfApply()" style="width:52px;">
+            <div id="sf-rows-container" style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;"></div>
+            <button class="sf-add-btn" onclick="sfAddRow()">+ Add Filter</button>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-            <div class="stocks-table-wrap">
-                <table class="stocks-table" id="scans-table">
+            <div class="stocks-table-wrap" style="overflow-x:auto;">
+                <table class="stocks-table" id="scans-table" style="min-width:1100px;">
                     <thead id="scans-thead"></thead>
                     <tbody id="scans-tbody"></tbody>
                 </table>
@@ -1673,86 +1658,151 @@
         return all;
     }
 
-    // ── Scan filters ──────────────────────────────────────────────────────
-    var sfState = {
-        maDir:    'off',   // 'above' | 'below' | 'off'
-        maType:   'SMA',
-        maPeriod: 200,
-        rsDir:    'off',   // 'gt' | 'lt' | 'off'
-        rsVal:    70,
-        priceDir: 'off',   // 'gt' | 'lt' | 'off'
-        priceVal: 5,
-        volDir:   'off',   // 'gt' | 'lt' | 'off'
-        volVal:   100000,
-        adrMin:   null,
-        adrMax:   null,
-    };
+    // ── Scan filters (dynamic rows) ───────────────────────────────────────
+    var sfRows  = [];   // array of filter rule objects
+    var sfRowId = 0;
+
+    var SF_TYPES = [
+        { value: 'ma',    label: 'MA' },
+        { value: 'rs',    label: 'RS' },
+        { value: 'price', label: 'Price' },
+        { value: 'vol',   label: 'Avg Vol' },
+        { value: 'adr',   label: 'ADR%' },
+    ];
 
     function sfParseVol(str) {
-        str = String(str).trim().toUpperCase().replace(/,/g,'');
+        str = String(str || '').trim().toUpperCase().replace(/,/g,'');
         if (str.endsWith('M')) return parseFloat(str) * 1e6;
         if (str.endsWith('K')) return parseFloat(str) * 1e3;
         return parseFloat(str);
     }
 
-    function sfSetSeg(groupId, dir) {
-        document.querySelectorAll('#' + groupId + ' .sf-seg-btn').forEach(function(b) {
-            b.classList.toggle('active', b.getAttribute('data-dir') === dir);
-        });
+    function sfRowHtml(row) {
+        var id = row.id;
+        var typeOpts = SF_TYPES.map(function(t) {
+            return '<option value="' + t.value + '"' + (row.type === t.value ? ' selected' : '') + '>' + t.label + '</option>';
+        }).join('');
+
+        var dirOpts = '';
+        var valueHtml = '';
+
+        if (row.type === 'ma') {
+            dirOpts = '<option value="above"' + (row.dir==='above'?' selected':'') + '>Above</option>' +
+                      '<option value="below"' + (row.dir==='below'?' selected':'') + '>Below</option>';
+            var maTypes = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
+            var maPeriods = ['5','10','21','50','200'].map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            valueHtml = '<select class="sf-select" onchange="sfRowChange('+id+',\'maType\',this.value)">'+maTypes+'</select>' +
+                        '<select class="sf-select" onchange="sfRowChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select>';
+        } else if (row.type === 'rs') {
+            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
+                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            valueHtml = '<input class="sf-input" type="number" min="1" max="99" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">';
+        } else if (row.type === 'price') {
+            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
+                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            valueHtml = '<input class="sf-input" type="number" min="0" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">';
+        } else if (row.type === 'vol') {
+            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
+                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            valueHtml = '<input class="sf-input" type="text" value="'+row.val+'" placeholder="e.g. 500K" oninput="sfRowChange('+id+',\'val\',this.value)">';
+        } else if (row.type === 'adr') {
+            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
+                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            valueHtml = '<input class="sf-input" type="number" min="0" step="0.1" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">' +
+                        '<span style="color:#484f58;font-size:0.748em;">%</span>';
+        }
+
+        return '<div class="sf-row" id="sf-row-'+id+'">' +
+            '<select class="sf-select" onchange="sfRowChangeType('+id+',this.value)">'+typeOpts+'</select>' +
+            '<select class="sf-select" onchange="sfRowChange('+id+',\'dir\',this.value)">'+dirOpts+'</select>' +
+            valueHtml +
+            '<button class="sf-remove-btn" onclick="sfRemoveRow('+id+')">×</button>' +
+            '</div>';
     }
 
-    window.sfSetMaDir    = function(d) { sfState.maDir    = d; sfSetSeg('sf-ma-dir',    d); sfApply(); };
-    window.sfSetRsDir    = function(d) { sfState.rsDir    = d; sfSetSeg('sf-rs-dir',    d); sfApply(); };
-    window.sfSetPriceDir = function(d) { sfState.priceDir = d; sfSetSeg('sf-price-dir', d); sfApply(); };
-    window.sfSetVolDir   = function(d) { sfState.volDir   = d; sfSetSeg('sf-vol-dir',   d); sfApply(); };
+    function sfRenderRows() {
+        var container = document.getElementById('sf-rows-container');
+        if (!container) return;
+        container.innerHTML = sfRows.map(sfRowHtml).join('');
+    }
 
-    window.sfApply = function() {
-        sfState.maType   = document.getElementById('sf-ma-type').value;
-        sfState.maPeriod = parseInt(document.getElementById('sf-ma-period').value);
-        sfState.rsVal    = parseFloat(document.getElementById('sf-rs-val').value)   || 0;
-        sfState.priceVal = parseFloat(document.getElementById('sf-price-val').value) || 0;
-        sfState.volVal   = sfParseVol(document.getElementById('sf-vol-val').value);
-        var adrMinRaw = document.getElementById('sf-adr-min').value;
-        var adrMaxRaw = document.getElementById('sf-adr-max').value;
-        sfState.adrMin = adrMinRaw !== '' ? parseFloat(adrMinRaw) : null;
-        sfState.adrMax = adrMaxRaw !== '' ? parseFloat(adrMaxRaw) : null;
+    window.sfAddRow = function() {
+        sfRowId++;
+        sfRows.push({ id: sfRowId, type: 'ma', dir: 'above', maType: 'SMA', maPeriod: 200, val: '' });
+        sfRenderRows();
+        renderScans();
+    };
+
+    window.sfRemoveRow = function(id) {
+        sfRows = sfRows.filter(function(r) { return r.id !== id; });
+        sfRenderRows();
+        renderScans();
+    };
+
+    window.sfRowChange = function(id, field, value) {
+        var row = sfRows.find(function(r) { return r.id === id; });
+        if (!row) return;
+        if (field === 'maPeriod') value = parseInt(value);
+        row[field] = value;
+        renderScans();
+    };
+
+    window.sfRowChangeType = function(id, newType) {
+        var row = sfRows.find(function(r) { return r.id === id; });
+        if (!row) return;
+        row.type = newType;
+        row.dir  = (newType === 'ma') ? 'above' : 'gt';
+        row.val  = (newType === 'rs') ? 70 : (newType === 'price') ? 5 : (newType === 'vol') ? '500K' : (newType === 'adr') ? 3 : '';
+        row.maType   = 'SMA';
+        row.maPeriod = 200;
+        sfRenderRows();
         renderScans();
     };
 
     function applyFilters(stocks) {
         return stocks.filter(function(r) {
-            // MA filter
-            if (sfState.maDir !== 'off') {
-                var key = sfState.maType + sfState.maPeriod;
-                var dist = r.dist_ma ? r.dist_ma[key] : null;
-                if (dist == null) return false;
-                if (sfState.maDir === 'above' && dist <= 0) return false;
-                if (sfState.maDir === 'below' && dist >= 0) return false;
+            for (var i = 0; i < sfRows.length; i++) {
+                var f = sfRows[i];
+                if (f.type === 'ma') {
+                    var key  = f.maType + f.maPeriod;
+                    var dist = r.dist_ma ? r.dist_ma[key] : null;
+                    if (dist == null) return false;
+                    if (f.dir === 'above' && dist <= 0) return false;
+                    if (f.dir === 'below' && dist >= 0) return false;
+                } else if (f.type === 'rs') {
+                    var rs = r.Percentile;
+                    if (rs == null) return false;
+                    var rv = parseFloat(f.val);
+                    if (!isNaN(rv)) {
+                        if (f.dir === 'gt' && rs <= rv) return false;
+                        if (f.dir === 'lt' && rs >= rv) return false;
+                    }
+                } else if (f.type === 'price') {
+                    var pr = r.price;
+                    if (pr == null) return false;
+                    var pv = parseFloat(f.val);
+                    if (!isNaN(pv)) {
+                        if (f.dir === 'gt' && pr <= pv) return false;
+                        if (f.dir === 'lt' && pr >= pv) return false;
+                    }
+                } else if (f.type === 'vol') {
+                    var vol = r.AvgVol50;
+                    if (vol == null) return false;
+                    var vv = sfParseVol(f.val);
+                    if (!isNaN(vv)) {
+                        if (f.dir === 'gt' && vol <= vv) return false;
+                        if (f.dir === 'lt' && vol >= vv) return false;
+                    }
+                } else if (f.type === 'adr') {
+                    var adr = r.adr_pct;
+                    if (adr == null) return false;
+                    var av = parseFloat(f.val);
+                    if (!isNaN(av)) {
+                        if (f.dir === 'gt' && adr <= av) return false;
+                        if (f.dir === 'lt' && adr >= av) return false;
+                    }
+                }
             }
-            // RS filter
-            if (sfState.rsDir !== 'off') {
-                var rs = r.Percentile;
-                if (rs == null) return false;
-                if (sfState.rsDir === 'gt' && rs <= sfState.rsVal) return false;
-                if (sfState.rsDir === 'lt' && rs >= sfState.rsVal) return false;
-            }
-            // Price filter
-            if (sfState.priceDir !== 'off') {
-                var pr = r.price;
-                if (pr == null) return false;
-                if (sfState.priceDir === 'gt' && pr <= sfState.priceVal) return false;
-                if (sfState.priceDir === 'lt' && pr >= sfState.priceVal) return false;
-            }
-            // Vol filter
-            if (sfState.volDir !== 'off' && !isNaN(sfState.volVal)) {
-                var vol = r.AvgVol50;
-                if (vol == null) return false;
-                if (sfState.volDir === 'gt' && vol <= sfState.volVal) return false;
-                if (sfState.volDir === 'lt' && vol >= sfState.volVal) return false;
-            }
-            // ADR% filter
-            if (sfState.adrMin != null && (r.adr_pct == null || r.adr_pct < sfState.adrMin)) return false;
-            if (sfState.adrMax != null && (r.adr_pct == null || r.adr_pct > sfState.adrMax)) return false;
             return true;
         });
     }
@@ -1867,20 +1917,22 @@
 
             html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" onclick="openChartModal(\'' + esc(row.ticker) + '\')">';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
-            html += '<td style="font-size:0.78em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
-            html += '<td style="font-size:0.78em;color:#8b949e;">' + esc(row.industry||'—') + '</td>';
+            html += '<td style="font-size:0.858em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
+            html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
             html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
             html += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
-            html += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
-            html += '<td>' + (row['1w']  != null ? fmt(row['1w'],2,'%')  : '—') + '</td>';
-            html += '<td>' + (row['1m']  != null ? fmt(row['1m'],2,'%')  : '—') + '</td>';
-            html += '<td>' + (row['3m']  != null ? fmt(row['3m'],2,'%')  : '—') + '</td>';
-            html += '<td>' + (row.ytd    != null ? fmt(row.ytd,2,'%')    : '—') + '</td>';
-            html += '<td>' + (row.vs_spy != null ? fmt(row.vs_spy,2,'%') : '—') + '</td>';
+            html += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row['1m'])     + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row.ytd)       + '">' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
+            html += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
             html += '<td style="color:#8b949e;">' + volVal + '</td>';
             html += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
-            html += '<td style="color:#8b949e;">' + crVal + '</td>';
+            var crColor = '#484f58';
+            if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
+            html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
             html += '</tr>';
         });
 
