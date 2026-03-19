@@ -1134,7 +1134,6 @@
                         withdateranges: false, allow_symbol_change: false,
                         save_image: false, enable_publishing: false,
                         studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        range: mcTimeframe === 'D' ? '6M' : mcTimeframe === 'W' ? '2Y' : mcTimeframe === 'M' ? '5Y' : '5D',
                         right_bar_margin: 3,
                         autosize: true, container_id: chartDiv.id,
                     });
@@ -1165,7 +1164,6 @@
                 withdateranges: true, allow_symbol_change: true,
                 save_image: false, enable_publishing: false,
                 studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                range: mcTimeframe === 'D' ? '6M' : mcTimeframe === 'W' ? '2Y' : mcTimeframe === 'M' ? '5Y' : '5D',
                 right_bar_margin: 3,
                 autosize: true,
                 container_id: 'mc-fullscreen-chart',
@@ -1587,7 +1585,7 @@
             withdateranges: true, allow_symbol_change: true,
             studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
             save_image: false, enable_publishing: false,
-            range: '6M', right_bar_margin: 3,
+            right_bar_margin: 3,
             autosize: true, container_id: 'tradingview-chart',
         });
     }
@@ -2069,7 +2067,6 @@
                         withdateranges: false, allow_symbol_change: false,
                         save_image: false, enable_publishing: false,
                         studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        range: scansMcTimeframe === 'D' ? '6M' : scansMcTimeframe === 'W' ? '2Y' : scansMcTimeframe === 'M' ? '5Y' : '5D',
                         right_bar_margin: 3,
                         autosize: true, container_id: chartDiv.id,
                     });
