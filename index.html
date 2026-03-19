@@ -1817,7 +1817,7 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select></div>';
         } else if (row.type === 'ma_cross') {
             var MA_PERIODS = ['5','8','10','21','50','150','200'];
-            var crossDir = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Greater than</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Less than</option>';
+            var crossDir = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Above</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Below</option>';
             var mt1 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
             var mt2 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType2===t?' selected':'')+'>'+t+'</option>'; }).join('');
             var mp1 = MA_PERIODS.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod1)===p?' selected':'')+'>'+p+'</option>'; }).join('');
@@ -1864,7 +1864,7 @@
         if (!row) return;
         if (field === 'type') {
             row.type     = value;
-            row.dir      = value === 'ma' ? 'above' : 'gt';
+            row.dir      = (value === 'ma' || value === 'ma_cross') ? 'above' : 'gt';
             row.val      = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : '';
             row.maType   = 'SMA';
             row.maPeriod = 200;
@@ -1873,7 +1873,7 @@
             row.maPeriod2 = 200;
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         } else {
-            if (field === 'maPeriod') value = parseInt(value);
+            if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
             row[field] = value;
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         }
@@ -1913,8 +1913,8 @@
                 } else if (f.type === 'ma_cross') {
                     var k1   = f.maType  + f.maPeriod1;
                     var k2   = f.maType2 + f.maPeriod2;
-                    var d1   = r.dist_ma ? r.dist_ma[k1] : null;
-                    var d2   = r.dist_ma ? r.dist_ma[k2] : null;
+                    var d1   = r.ma_val ? r.ma_val[k1] : null;
+                    var d2   = r.ma_val ? r.ma_val[k2] : null;
                     if (d1 == null || d2 == null) return false;
                     if (f.dir === 'above' && d1 <= d2) return false;
                     if (f.dir === 'below' && d1 >= d2) return false;
