@@ -857,7 +857,7 @@
             { key:'vs_spy',     label:'vSPY',      tip:'1M return vs SPY' },
             { key:'vs_spy_3m',  label:'v3M',       tip:'3M return vs SPY' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
-            { key:'avg_vol',    label:'Avg Vol',   tip:'10-day average volume' },
+            { key:'avg_vol',    label:'Avg Vol',   tip:'50-day average volume' },
             { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
@@ -902,7 +902,7 @@
                     ' data-vs_spy="'  + (row.vs_spy     != null ? row.vs_spy     : '')  + '"' +
                     ' data-vs_spy_3m="'+(row.vs_spy_3m  != null ? row.vs_spy_3m  : '') + '"' +
                     ' data-dist_ma="' + (distVal        != null ? distVal        : '')  + '"' +
-                    ' data-avg_vol="' + (row.AvgVol10   != null ? row.AvgVol10   : '')  + '"' +
+                    ' data-avg_vol="' + (row.AvgVol50   != null ? row.AvgVol50   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
                     '>';
@@ -919,10 +919,10 @@
             html += '<td>' + valBar(row.vs_spy, rVs[0],  rVs[1])  + '</td>';
             html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
-            // Avg Vol (from CSV AvgVol10)
+            // Avg Vol (from CSV AvgVol50)
             var volVal = '—';
-            if (row.AvgVol10 != null) {
-                var v = row.AvgVol10;
+            if (row.AvgVol50 != null) {
+                var v = row.AvgVol50;
                 volVal = v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : v.toFixed(0);
             }
             html += '<td style="color:#8b949e;">' + volVal + '</td>';
