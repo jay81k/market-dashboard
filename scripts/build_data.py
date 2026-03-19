@@ -194,11 +194,18 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             for ma_type, period in DIST_MA_COMBOS
         }
 
+        # Inside day: today's high < prev high AND today's low > prev low
+        inside_day = bool(
+            hist["High"].iloc[-1] < hist["High"].iloc[-2] and
+            hist["Low"].iloc[-1]  > hist["Low"].iloc[-2]
+        ) if len(hist) >= 2 else False
+
         return {
-            "price":     round(float(current), 2),
-            "daily":     round(daily, 2),
-            "1w":        round(one_week, 2)    if one_week    is not None else None,
-            "1m":        round(one_month, 2)   if one_month   is not None else None,
+            "price":      round(float(current), 2),
+            "inside_day": inside_day,
+            "daily":      round(daily, 2),
+            "1w":         round(one_week, 2)    if one_week    is not None else None,
+            "1m":         round(one_month, 2)   if one_month   is not None else None,
             "3m":        round(three_month, 2) if three_month is not None else None,
             "ytd":       round(ytd, 2)         if ytd         is not None else None,
             "vs_spy":    vs_spy_1m,
