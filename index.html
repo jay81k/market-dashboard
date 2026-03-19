@@ -1317,7 +1317,7 @@
             var crVal = row.cr != null ? Math.round(row.cr)+'%' : '—';
             var secCl = sectorClass(row.sector);
 
-            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" onclick="openChartModal('' + esc(row.ticker) + '')">';
+            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" onclick="openChartModal(\'' + esc(row.ticker) + '\')">';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             html += '<td style="font-size:0.78em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
             html += '<td style="font-size:0.78em;color:#8b949e;">' + esc(row.industry||'—') + '</td>';
