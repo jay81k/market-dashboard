@@ -481,6 +481,20 @@
         </div>
     </div>
 
+    <!-- Sector drill-down view -->
+    <div id="view-sector" style="display:none;flex-direction:column;height:100%;">
+        <div class="stocks-header">
+            <button class="back-btn" onclick="backFromSector()" style="flex-shrink:0;">&#8249; Back</button>
+            <div style="min-width:0;">
+                <div class="stocks-industry-name" id="sector-name"></div>
+                <div class="stocks-industry-meta" id="sector-meta"></div>
+            </div>
+        </div>
+        <div class="main" style="flex:1;overflow-y:auto;">
+            <div class="industry-list" id="sector-industry-list"></div>
+        </div>
+    </div>
+
     <!-- All stocks view -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
         <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;min-height:0;overflow-y:auto;">
@@ -621,6 +635,7 @@
         document.getElementById('view-industry-stocks').classList.remove('active');
         document.getElementById('view-stocks-all').style.display      = 'none';
         document.getElementById('view-scans').style.display           = 'none';
+        document.getElementById('view-sector').style.display          = 'none';
 
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
         document.getElementById('tab-stocks').classList.toggle('active', view === 'stocks-all');
@@ -653,6 +668,8 @@
         } else if (view === 'scans') {
             document.getElementById('view-scans').style.display = 'flex';
             renderScans();
+        } else if (view === 'sector') {
+            document.getElementById('view-sector').style.display = 'flex';
         }
     };
 
@@ -664,7 +681,51 @@
         if (industry) openIndustry(industry);
     });
 
-    // ── Timeframe / sort ──────────────────────────────────────────────────
+    // ── Sector drill-down ────────────────────────────────────────────────
+    var currentSector = '';
+
+    window.openSector = function(sectorName) {
+        currentSector = sectorName;
+        var secCl = sectorClass(sectorName);
+
+        // Get all industries in this sector from industriesData
+        var industries = (industriesData && industriesData.industries)
+            ? industriesData.industries.filter(function(i){ return i.sector === sectorName; })
+            : [];
+        industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
+
+        document.getElementById('sector-name').innerHTML =
+            '<span class="' + secCl + '">' + esc(sectorName) + '</span>';
+        document.getElementById('sector-meta').textContent =
+            industries.length + ' industries';
+
+        var html = '';
+        industries.forEach(function(ind) {
+            var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
+            var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
+                ? snapshot.by_industry[ind.industry].length : 0;
+            html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '" onclick="openIndustry(\'' + esc(ind.industry) + '\')">';
+            html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
+            html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
+            html += '<span class="industry-count">' + stockCount + '</span>';
+            html += '<div class="industry-perf-cols">';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_daily : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1w    : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1m    : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_3m    : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_ytd   : null) + '</span>';
+            html += '</div>';
+            html += '</div>';
+        });
+        document.getElementById('sector-industry-list').innerHTML = html || '<div class="loading-msg">No industries.</div>';
+        showView('sector');
+    };
+
+    window.backFromSector = function() {
+        showView('industries');
+    };
+
+        // ── Timeframe / sort ──────────────────────────────────────────────────
     window.setIndSort = function(col) {
         if (indSort.col === col) {
             indSort.dir *= -1;
@@ -887,9 +948,11 @@
             esc(industryName) +
             '<span style="font-size:0.78em;font-weight:400;color:#6e7681;margin-left:10px;">' +
             '(' + rank + '/' + totalIndustries + ')</span>';
-        document.getElementById('si-meta').textContent = ind
-            ? ind.sector + ' · ' + (rows ? rows.length : 0) + ' stocks'
-            : '0 stocks';
+        var sector = ind ? ind.sector : '';
+        var secCl  = sectorClass(sector);
+        document.getElementById('si-meta').innerHTML = sector
+            ? '<span class="' + secCl + '" style="cursor:pointer;font-weight:600;" onclick="openSector(' + JSON.stringify(sector) + ')">' + esc(sector) + '</span>'
+            : '';
         document.getElementById('si-rs').textContent = ind ? 'RS ' + (ind.percentile || '—') : '';
 
         // Reset multichart state
