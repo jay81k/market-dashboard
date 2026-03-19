@@ -415,7 +415,7 @@
 
     <!-- All stocks view (virtual scroll) -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
-        <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;overflow-y:auto;position:relative;">
+        <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;overflow-y:auto;position:relative;min-height:0;">
             <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
                 <thead id="all-stocks-thead" style="position:sticky;top:0;z-index:2;"></thead>
                 <tbody id="vs-spacer-top-row"><tr><td colspan="14" style="padding:0;border:none;height:0px;" id="vs-spacer-top-td"></td></tr></tbody>
@@ -900,8 +900,8 @@
             { key:'1m',         label:'1M',        tip:'21-day return' },
             { key:'3m',         label:'3M',        tip:'63-day return' },
             { key:'ytd',        label:'YTD',       tip:'Year-to-date return' },
-            { key:'vs_spy',     label:'vSPY',      tip:'1M return vs SPY' },
-            { key:'vs_spy_3m',  label:'v3M',       tip:'3M return vs SPY' },
+            { key:'vs_spy',     label:'vs 1M',     tip:'1M return vs SPY' },
+            { key:'vs_spy_3m',  label:'vs 3M',     tip:'3M return vs SPY' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',    label:'Avg Vol',   tip:'50-day average volume' },
             { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
@@ -1170,7 +1170,12 @@
 
         vsScrollEl = document.getElementById('vs-scroll-container');
         vsScrollEl.scrollTop = 0;
-        vsScrollEl.onscroll = function() { vsRenderWindow(); };
+        var vsScrollRaf = false;
+        vsScrollEl.onscroll = function() {
+            if (vsScrollRaf) return;
+            vsScrollRaf = true;
+            requestAnimationFrame(function() { vsScrollRaf = false; vsRenderWindow(); });
+        };
 
         vsRenderWindow();
         setTimeout(vsMeasureRowHeight, 50);
@@ -1421,7 +1426,7 @@
             { key:'1m',        label:'1M',      tip:'21-day return' },
             { key:'3m',        label:'3M',      tip:'63-day return' },
             { key:'ytd',       label:'YTD',     tip:'Year-to-date return' },
-            { key:'vs_spy',    label:'vSPY',    tip:'1M return vs SPY' },
+            { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPY' },
             { key:'dist_ma',   label:'Dist/MA', tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',   label:'Avg Vol', tip:'50-day average volume' },
             { key:'adr_pct',   label:'ADR%',    tip:'Avg Daily Range %' },
