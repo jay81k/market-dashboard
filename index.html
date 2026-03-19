@@ -415,13 +415,22 @@
 
     <!-- All stocks view (virtual scroll) -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
-        <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;overflow-y:auto;position:relative;min-height:0;">
-            <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
-                <thead id="all-stocks-thead" style="position:sticky;top:0;z-index:2;"></thead>
-                <tbody id="vs-spacer-top-row"><tr><td colspan="14" style="padding:0;border:none;height:0px;" id="vs-spacer-top-td"></td></tr></tbody>
-                <tbody id="all-stocks-tbody"></tbody>
-                <tbody id="vs-spacer-bottom-row"><tr><td colspan="14" style="padding:0;border:none;height:0px;" id="vs-spacer-bottom-td"></td></tr></tbody>
+        <!-- sticky header -->
+        <div style="flex-shrink:0;overflow:hidden;border-bottom:1px solid #21262d;">
+            <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;margin-bottom:-1px;">
+                <thead id="all-stocks-thead"></thead>
             </table>
+        </div>
+        <!-- scroll viewport — fixed height, native scroll -->
+        <div id="vs-scroll-container" style="flex:1;overflow-y:scroll;position:relative;min-height:0;">
+            <!-- total height sizer -->
+            <div id="vs-height-sizer" style="position:absolute;top:0;left:0;width:1px;"></div>
+            <!-- visible rows pinned to scroll position -->
+            <div id="vs-rows-wrapper" style="position:sticky;top:0;left:0;right:0;">
+                <table class="stocks-table" style="table-layout:fixed;width:100%;">
+                    <tbody id="all-stocks-tbody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -867,8 +876,10 @@
     window.filterAllStocksTable = function(q) {
         vsFilterQuery = (q || '').toLowerCase();
         vsLastStart = -1; vsLastEnd = 0;
-        if (vsScrollEl) vsScrollEl.scrollTop = 0;
-        vsRenderWindow();
+        if (vsScrollEl) {
+            vsScrollEl.scrollTop = 0;
+            vsRenderWindow();
+        }
     };
 
     window.navToIndustries = function() {
@@ -1107,17 +1118,27 @@
         return h;
     }
 
+    var vsVisible   = [];  // filtered subset
+
+    function vsGetVisible() {
+        if (!vsFilterQuery) return vsData;
+        return vsData.filter(function(r) {
+            return (r.ticker || '').toLowerCase().includes(vsFilterQuery);
+        });
+    }
+
     function vsRenderWindow() {
         var el = vsScrollEl;
         if (!el) return;
-        var visible = vsData.filter(function(r) {
-            if (!vsFilterQuery) return true;
-            return (r.ticker || '').toLowerCase().includes(vsFilterQuery);
-        });
-        var total    = visible.length;
+        vsVisible = vsGetVisible();
+        var total    = vsVisible.length;
+        var rowH     = vsRowHeight;
         var scrollTop = el.scrollTop;
         var viewH    = el.clientHeight;
-        var rowH     = vsRowHeight;
+
+        // Set total height so native scrollbar is correct size
+        document.getElementById('vs-height-sizer').style.height = (total * rowH) + 'px';
+
         var startIdx = Math.max(0, Math.floor(scrollTop / rowH) - vsBuffer);
         var endIdx   = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + vsBuffer);
 
@@ -1125,15 +1146,15 @@
         vsLastStart = startIdx;
         vsLastEnd   = endIdx;
 
-        document.getElementById('vs-spacer-top-td').style.height    = (startIdx * rowH) + 'px';
-        document.getElementById('vs-spacer-bottom-td').style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
+        // Offset the sticky wrapper to match scroll position
+        document.getElementById('vs-rows-wrapper').style.transform =
+            'translateY(' + (startIdx * rowH) + 'px)';
 
         var html = '';
-        for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(visible[i]);
+        for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(vsVisible[i]);
         var tbody = document.getElementById('all-stocks-tbody');
         tbody.innerHTML = html;
 
-        // click delegation
         tbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
