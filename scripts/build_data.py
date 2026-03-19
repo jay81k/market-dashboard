@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore")
 DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
 DEFAULT_INDUSTRIES_CSV_URL = os.environ.get("INDUSTRIES_CSV_URL", "")
 
-MIN_AVG_VOLUME  = 100_000    # AvgVol10 filter — anything below gets dropped
+MIN_AVG_VOLUME  = 100_000    # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
 
@@ -104,8 +104,8 @@ def load_universe(csv_url: str) -> pd.DataFrame:
             print(f"ETF filter: {before} → {len(df)} stocks ({removed} removed)")
     # Also drop tickers with common ETF suffixes just in case
     before = len(df)
-    df = df[~df["Ticker"].str.match(r'^[A-Z]{4,5}$.*', na=False) | df["Ticker"].apply(
-        lambda t: not any(t.endswith(s) for s in ['ETF','ETN','ETP'])
+    df = df[~df["Ticker"].apply(
+        lambda t: any(t.endswith(s) for s in ['ETF', 'ETN', 'ETP'])
     )].copy()
 
     df["Ticker"] = df["Ticker"].astype(str).str.strip()
