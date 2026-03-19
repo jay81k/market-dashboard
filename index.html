@@ -342,7 +342,6 @@
         .chart-modal-meta .meta-sep { margin: 0 5px; color: #30363d; }
         .chart-modal-meta .meta-sector { color: #8b949e; }
         .chart-modal-meta .meta-industry { color: #6e7681; }
-        .chart-modal-hint { font-size: 0.792em; color: #484f58; margin-left: auto; }
         .chart-modal-ext-btn {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 10px; border-radius: 5px; border: 1px solid #30363d;
@@ -655,16 +654,17 @@
         <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
-            <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
-                Fundamentals
-            </a>
-            <a id="chart-modal-news-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1V3zm0 4h10v2H1V7zm0 4h14v2H1v-2z"/></svg>
-                News
-            </a>
-            <span class="chart-modal-hint">ESC to close · double-click to switch</span>
-            <button class="chart-modal-close" onclick="closeChartModal()">×</button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+                <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
+                    Fundamentals
+                </a>
+                <a id="chart-modal-news-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1V3zm0 4h10v2H1V7zm0 4h14v2H1v-2z"/></svg>
+                    News
+                </a>
+                <button class="chart-modal-close" onclick="closeChartModal()">×</button>
+            </div>
         </div>
         <div class="chart-modal-body">
             <div id="tradingview-chart" style="height:100%;width:100%;"></div>
