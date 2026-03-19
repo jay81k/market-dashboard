@@ -394,22 +394,30 @@
             padding: 6px 16px; background: #0a0f15;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .sf-row {
-            display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+        .sf-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: #1a3a5c33; border: 1px solid #2979c855;
+            border-radius: 5px; padding: 3px 8px 3px 10px;
+            font-size: 0.792em; color: #58a6ff; cursor: pointer;
+            white-space: nowrap; flex-shrink: 0; user-select: none;
+            transition: background 0.1s, border-color 0.1s;
         }
+        .sf-pill:hover { background: #1a3a5c55; border-color: #2979c8aa; }
+        .sf-pill-x {
+            background: transparent; border: none; color: #484f58;
+            cursor: pointer; font-size: 1em; padding: 0; line-height: 1;
+            flex-shrink: 0; font-family: inherit;
+        }
+        .sf-pill-x:hover { color: #f85149; }
         .sf-add-btn {
-            padding: 4px 10px; border-radius: 4px; border: 1px dashed #30363d;
+            padding: 3px 10px; border-radius: 4px; border: 1px dashed #30363d;
             background: transparent; color: #484f58; font-size: 0.748em;
             font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-            margin-top: 2px;
         }
         .sf-add-btn:hover { border-color: #6e7681; color: #6e7681; }
-        .sf-remove-btn {
-            background: transparent; border: none; color: #484f58;
-            cursor: pointer; font-size: 1em; padding: 0 2px; line-height: 1;
-            flex-shrink: 0;
-        }
-        .sf-remove-btn:hover { color: #f85149; }
+        .sf-popover-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        .sf-popover-row:last-child { margin-bottom: 0; }
+        .sf-popover-label { font-size: 0.748em; color: #6e7681; width: 56px; flex-shrink: 0; }
         .sf-label { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
         .sf-divider { width: 1px; height: 14px; background: #21262d; flex-shrink: 0; }
         .sf-seg { display: flex; border-radius: 4px; overflow: hidden; border: 1px solid #21262d; flex-shrink: 0; }
@@ -576,8 +584,15 @@
         </div>
         <!-- Filter bar -->
         <div class="scans-filter-bar" id="scans-filter-bar">
-            <div id="sf-rows-container" style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;"></div>
+            <div id="sf-pills-container" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0;"></div>
             <button class="sf-add-btn" onclick="sfAddRow()">+ Add Filter</button>
+        </div>
+        <!-- Filter edit popover (shared) -->
+        <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:12px 14px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+            <div id="sf-popover-content"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:6px;">
+                <button class="sf-add-btn" style="border-style:solid;color:#6e7681;" onclick="sfClosePopover()">Done</button>
+            </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap" style="overflow-x:auto;">
@@ -1679,87 +1694,116 @@
         return parseFloat(str);
     }
 
-    function sfRowHtml(row) {
-        var id = row.id;
-        var typeOpts = SF_TYPES.map(function(t) {
-            return '<option value="' + t.value + '"' + (row.type === t.value ? ' selected' : '') + '>' + t.label + '</option>';
-        }).join('');
-
-        var dirOpts = '';
-        var valueHtml = '';
-
+    function sfPillLabel(row) {
+        var type = SF_TYPES.find(function(t){ return t.value === row.type; });
+        var typeLabel = type ? type.label : row.type;
         if (row.type === 'ma') {
-            dirOpts = '<option value="above"' + (row.dir==='above'?' selected':'') + '>Above</option>' +
-                      '<option value="below"' + (row.dir==='below'?' selected':'') + '>Below</option>';
+            return (row.dir === 'above' ? 'Above' : 'Below') + ' ' + row.maType + ' ' + row.maPeriod;
+        }
+        var dirLabel = row.dir === 'gt' ? '>' : '<';
+        var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
+        if (row.type === 'adr') valLabel += '%';
+        return typeLabel + ' ' + dirLabel + valLabel;
+    }
+
+    function sfRenderPills() {
+        var container = document.getElementById('sf-pills-container');
+        if (!container) return;
+        container.innerHTML = sfRows.map(function(row) {
+            return '<span class="sf-pill" onclick="sfOpenPopover(' + row.id + ',this)">' +
+                esc(sfPillLabel(row)) +
+                '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">\u00d7</button>' +
+                '</span>';
+        }).join('');
+    }
+
+    function sfPopoverHtml(row) {
+        var id = row.id;
+        var typeOpts = SF_TYPES.map(function(t){
+            return '<option value="'+t.value+'"'+(row.type===t.value?' selected':'')+'>'+t.label+'</option>';
+        }).join('');
+        var html = '<div class="sf-popover-row">' +
+            '<span class="sf-popover-label">Type</span>' +
+            '<select class="sf-select" onchange="sfPopChange('+id+',\'type\',this.value)">'+typeOpts+'</select>' +
+            '</div>';
+        if (row.type === 'ma') {
+            var dirOpts = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Above</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Below</option>';
             var maTypes = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
             var maPeriods = ['5','10','21','50','200'].map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
-            valueHtml = '<select class="sf-select" onchange="sfRowChange('+id+',\'maType\',this.value)">'+maTypes+'</select>' +
-                        '<select class="sf-select" onchange="sfRowChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select>';
-        } else if (row.type === 'rs') {
-            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
-                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
-            valueHtml = '<input class="sf-input" type="number" min="1" max="99" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">';
-        } else if (row.type === 'price') {
-            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
-                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
-            valueHtml = '<input class="sf-input" type="number" min="0" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">';
-        } else if (row.type === 'vol') {
-            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
-                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
-            valueHtml = '<input class="sf-input" type="text" value="'+row.val+'" placeholder="e.g. 500K" oninput="sfRowChange('+id+',\'val\',this.value)">';
-        } else if (row.type === 'adr') {
-            dirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option>' +
-                      '<option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
-            valueHtml = '<input class="sf-input" type="number" min="0" step="0.1" value="'+row.val+'" oninput="sfRowChange('+id+',\'val\',this.value)">' +
-                        '<span style="color:#484f58;font-size:0.748em;">%</span>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+maTypes+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select></div>';
+        } else {
+            var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
+            var inputType = (row.type === 'vol') ? 'text' : 'number';
+            var suffix = row.type === 'adr' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : '';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'" value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
         }
-
-        return '<div class="sf-row" id="sf-row-'+id+'">' +
-            '<select class="sf-select" onchange="sfRowChangeType('+id+',this.value)">'+typeOpts+'</select>' +
-            '<select class="sf-select" onchange="sfRowChange('+id+',\'dir\',this.value)">'+dirOpts+'</select>' +
-            valueHtml +
-            '<button class="sf-remove-btn" onclick="sfRemoveRow('+id+')">×</button>' +
-            '</div>';
+        return html;
     }
 
-    function sfRenderRows() {
-        var container = document.getElementById('sf-rows-container');
-        if (!container) return;
-        container.innerHTML = sfRows.map(sfRowHtml).join('');
-    }
+    var sfActivePopoverId = null;
+    window.sfOpenPopover = function(id, pillEl) {
+        sfActivePopoverId = id;
+        var pop = document.getElementById('sf-popover');
+        var row = sfRows.find(function(r){ return r.id === id; });
+        if (!row) return;
+        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+        var rect = pillEl.getBoundingClientRect();
+        pop.style.top  = (rect.bottom + 6) + 'px';
+        pop.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
+        pop.style.display = 'block';
+    };
+
+    window.sfClosePopover = function() {
+        document.getElementById('sf-popover').style.display = 'none';
+        sfActivePopoverId = null;
+    };
+
+    document.addEventListener('click', function(e) {
+        var pop = document.getElementById('sf-popover');
+        if (!pop || pop.style.display === 'none') return;
+        if (!pop.contains(e.target) && !e.target.closest('.sf-pill')) sfClosePopover();
+    });
+
+    window.sfPopChange = function(id, field, value) {
+        var row = sfRows.find(function(r){ return r.id === id; });
+        if (!row) return;
+        if (field === 'type') {
+            row.type     = value;
+            row.dir      = value === 'ma' ? 'above' : 'gt';
+            row.val      = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : '';
+            row.maType   = 'SMA';
+            row.maPeriod = 200;
+            document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+        } else {
+            if (field === 'maPeriod') value = parseInt(value);
+            row[field] = value;
+            document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+        }
+        sfRenderPills();
+        renderScans();
+    };
 
     window.sfAddRow = function() {
         sfRowId++;
         sfRows.push({ id: sfRowId, type: 'ma', dir: 'above', maType: 'SMA', maPeriod: 200, val: '' });
-        sfRenderRows();
+        sfRenderPills();
         renderScans();
+        setTimeout(function() {
+            var pill = document.querySelector('.sf-pill:last-child');
+            if (pill) sfOpenPopover(sfRowId, pill);
+        }, 30);
     };
 
     window.sfRemoveRow = function(id) {
-        sfRows = sfRows.filter(function(r) { return r.id !== id; });
-        sfRenderRows();
+        sfRows = sfRows.filter(function(r){ return r.id !== id; });
+        if (sfActivePopoverId === id) sfClosePopover();
+        sfRenderPills();
         renderScans();
     };
 
-    window.sfRowChange = function(id, field, value) {
-        var row = sfRows.find(function(r) { return r.id === id; });
-        if (!row) return;
-        if (field === 'maPeriod') value = parseInt(value);
-        row[field] = value;
-        renderScans();
-    };
-
-    window.sfRowChangeType = function(id, newType) {
-        var row = sfRows.find(function(r) { return r.id === id; });
-        if (!row) return;
-        row.type = newType;
-        row.dir  = (newType === 'ma') ? 'above' : 'gt';
-        row.val  = (newType === 'rs') ? 70 : (newType === 'price') ? 5 : (newType === 'vol') ? '500K' : (newType === 'adr') ? 3 : '';
-        row.maType   = 'SMA';
-        row.maPeriod = 200;
-        sfRenderRows();
-        renderScans();
-    };
 
     function applyFilters(stocks) {
         return stocks.filter(function(r) {
