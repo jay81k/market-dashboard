@@ -1757,7 +1757,8 @@
     var sfRowId = 0;
 
     var SF_TYPES = [
-        { value: 'ma',    label: 'MA' },
+        { value: 'ma',    label: 'MA vs Price' },
+        { value: 'ma_cross', label: 'MA Cross' },
         { value: 'rs',    label: 'RS' },
         { value: 'price', label: 'Price' },
         { value: 'vol',   label: 'Avg Vol' },
@@ -1776,6 +1777,10 @@
         var typeLabel = type ? type.label : row.type;
         if (row.type === 'ma') {
             return (row.dir === 'above' ? 'Above' : 'Below') + ' ' + row.maType + ' ' + row.maPeriod;
+        }
+        if (row.type === 'ma_cross') {
+            var sym = row.dir === 'above' ? 'above' : 'below';
+            return row.maType + ' ' + row.maPeriod1 + ' ' + sym + ' ' + row.maType2 + ' ' + row.maPeriod2;
         }
         var dirLabel = row.dir === 'gt' ? '>' : '<';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
@@ -1810,6 +1815,16 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+maTypes+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select></div>';
+        } else if (row.type === 'ma_cross') {
+            var MA_PERIODS = ['5','8','10','21','50','150','200'];
+            var crossDir = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Greater than</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Less than</option>';
+            var mt1 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
+            var mt2 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType2===t?' selected':'')+'>'+t+'</option>'; }).join('');
+            var mp1 = MA_PERIODS.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod1)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            var mp2 = MA_PERIODS.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod2)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Fast MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt1+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod1\',this.value)">'+mp1+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+crossDir+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
@@ -1853,6 +1868,9 @@
             row.val      = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : '';
             row.maType   = 'SMA';
             row.maPeriod = 200;
+            row.maType2  = 'SMA';
+            row.maPeriod1 = 50;
+            row.maPeriod2 = 200;
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         } else {
             if (field === 'maPeriod') value = parseInt(value);
@@ -1865,7 +1883,7 @@
 
     window.sfAddRow = function() {
         sfRowId++;
-        sfRows.push({ id: sfRowId, type: 'ma', dir: 'above', maType: 'SMA', maPeriod: 200, val: '' });
+        sfRows.push({ id: sfRowId, type: 'ma', dir: 'above', maType: 'SMA', maPeriod: 200, maType2: 'SMA', maPeriod1: 50, maPeriod2: 200, val: '' });
         sfRenderPills();
         renderScans();
         setTimeout(function() {
@@ -1892,6 +1910,14 @@
                     if (dist == null) return false;
                     if (f.dir === 'above' && dist <= 0) return false;
                     if (f.dir === 'below' && dist >= 0) return false;
+                } else if (f.type === 'ma_cross') {
+                    var k1   = f.maType  + f.maPeriod1;
+                    var k2   = f.maType2 + f.maPeriod2;
+                    var d1   = r.dist_ma ? r.dist_ma[k1] : null;
+                    var d2   = r.dist_ma ? r.dist_ma[k2] : null;
+                    if (d1 == null || d2 == null) return false;
+                    if (f.dir === 'above' && d1 <= d2) return false;
+                    if (f.dir === 'below' && d1 >= d2) return false;
                 } else if (f.type === 'rs') {
                     var rs = r.Percentile;
                     if (rs == null) return false;
