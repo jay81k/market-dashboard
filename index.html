@@ -413,13 +413,19 @@
         </div>
     </div>
 
-    <!-- All stocks view -->
-    <div id="view-stocks-all" style="display:none;">
-        <div style="overflow-y:auto;">
-            <table class="stocks-table" id="all-stocks-table">
+    <!-- All stocks view (virtual scroll) -->
+    <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
+        <div style="flex-shrink:0;overflow:hidden;">
+            <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
                 <thead id="all-stocks-thead"></thead>
+            </table>
+        </div>
+        <div id="vs-scroll-container" style="flex:1;overflow-y:auto;position:relative;">
+            <div id="vs-spacer-top" style="height:0px;"></div>
+            <table class="stocks-table" style="table-layout:fixed;width:100%;">
                 <tbody id="all-stocks-tbody"></tbody>
             </table>
+            <div id="vs-spacer-bottom" style="height:0px;"></div>
         </div>
     </div>
 
@@ -580,7 +586,7 @@
         } else if (view === 'industry-stocks') {
             document.getElementById('view-industry-stocks').classList.add('active');
         } else if (view === 'stocks-all') {
-            document.getElementById('view-stocks-all').style.display = 'block';
+            document.getElementById('view-stocks-all').style.display = 'flex';
             renderAllStocks();
         } else if (view === 'scans') {
             document.getElementById('view-scans').style.display = 'flex';
@@ -863,11 +869,10 @@
     };
 
     window.filterAllStocksTable = function(q) {
-        q = (q || '').toLowerCase();
-        document.querySelectorAll('#all-stocks-tbody .stock-row').forEach(function(row) {
-            var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
-            row.style.display = (!q || sym.includes(q)) ? '' : 'none';
-        });
+        vsFilterQuery = (q || '').toLowerCase();
+        vsLastStart = -1; vsLastEnd = 0;
+        if (vsScrollEl) vsScrollEl.scrollTop = 0;
+        vsRenderWindow();
     };
 
     window.navToIndustries = function() {
@@ -1010,6 +1015,147 @@
         currentStockIndex = -1;
     }
 
+    // ── Virtual scroll engine ─────────────────────────────────────────────
+    var vsData        = [];   // full sorted dataset
+    var vsDataOrig    = [];   // original order (for reset)
+    var vsRowHeight   = 38;   // px per row — measured after first render
+    var vsBuffer      = 5;    // extra rows above/below viewport
+    var vsScrollEl    = null;
+    var vsLastStart   = -1;
+    var vsFilterQuery = '';
+
+    function vsGetSortVal(row, key) {
+        if (key === 'symbol')    return row.ticker || '';
+        if (key === 'rs')        return row.Percentile;
+        if (key === 'price')     return row.price;
+        if (key === 'daily')     return row.daily;
+        if (key === '1w')        return row['1w'];
+        if (key === '1m')        return row['1m'];
+        if (key === '3m')        return row['3m'];
+        if (key === 'ytd')       return row.ytd;
+        if (key === 'vs_spy')    return row.vs_spy;
+        if (key === 'vs_spy_3m') return row.vs_spy_3m;
+        if (key === 'avg_vol')   return row.AvgVol50;
+        if (key === 'adr_pct')   return row.adr_pct;
+        if (key === 'cr')        return row.cr;
+        if (key === 'dist_ma')   return row.dist_ma ? (row.dist_ma[activeMAType + activeMALength] || null) : null;
+        return null;
+    }
+
+    function vsSortData(key, dir) {
+        vsData.sort(function(a, b) {
+            if (key === 'symbol') {
+                var at = a.ticker || ''; var bt = b.ticker || '';
+                return at < bt ? -dir : at > bt ? dir : 0;
+            }
+            var av = vsGetSortVal(a, key);
+            var bv = vsGetSortVal(b, key);
+            if (av == null && bv == null) return 0;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            return (av - bv) * dir;
+        });
+    }
+
+    function vsRowHtml(row) {
+        var maKey  = activeMAType + activeMALength;
+        var distAll = row.dist_ma || {};
+        var distVal = distAll[maKey];
+        var rsVal   = row.Percentile != null ? Math.round(row.Percentile) : '—';
+        var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
+        var crVal   = row.cr != null ? Math.round(row.cr) + '%' : '—';
+        var adrVal  = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
+        var volVal  = '—';
+        if (row.AvgVol50 != null) {
+            var v = row.AvgVol50;
+            volVal = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
+        }
+        var adrColor = '#484f58';
+        if (row.adr_pct != null) {
+            if (row.adr_pct < 4) adrColor = '#3fb950';
+            else if (row.adr_pct < 8) adrColor = '#e3852b';
+            else adrColor = '#f85149';
+        }
+        var crColor = '#484f58';
+        if (row.cr != null) {
+            if (row.cr >= 60) crColor = '#3fb950';
+            else if (row.cr >= 30) crColor = '#e3852b';
+            else crColor = '#f85149';
+        }
+        var distHtml;
+        if (distVal == null) {
+            distHtml = '<span style="color:#30363d">—</span>';
+        } else {
+            var w = Math.min(100, Math.max(0, Math.abs(distVal) / 20 * 100));
+            var pos = distVal >= 0;
+            var cl = distVal > 0 ? 'up' : distVal < 0 ? 'down' : '';
+            distHtml = '<div class="val-bar"><div class="val-bar-fill ' + (pos?'pos':'neg') + '" style="width:' + w + '%"></div>' +
+                       '<span class="val-bar-text ' + cl + '">' + fmt(distVal,2,'%') + '</span></div>';
+        }
+        var h = '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '">';
+        h += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
+        h += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
+        h += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
+        h += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
+        h += '<td>' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
+        h += '<td>' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
+        h += '<td>' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
+        h += '<td>' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
+        h += '<td>' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
+        h += '<td>' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%'): '—') + '</td>';
+        h += '<td>' + distHtml + '</td>';
+        h += '<td style="color:#8b949e;">' + volVal + '</td>';
+        h += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
+        h += '<td><span style="color:' + crColor  + ';font-weight:600;">' + crVal  + '</span></td>';
+        h += '</tr>';
+        return h;
+    }
+
+    function vsRenderWindow() {
+        var el = vsScrollEl;
+        if (!el) return;
+        var visible = vsData.filter(function(r) {
+            if (!vsFilterQuery) return true;
+            return (r.ticker || '').toLowerCase().includes(vsFilterQuery);
+        });
+        var total   = visible.length;
+        var scrollTop = el.scrollTop;
+        var viewH   = el.clientHeight;
+        var rowH    = vsRowHeight;
+        var startIdx = Math.max(0, Math.floor(scrollTop / rowH) - vsBuffer);
+        var endIdx   = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + vsBuffer);
+
+        if (startIdx === vsLastStart && endIdx === vsLastEnd) return;
+        vsLastStart = startIdx;
+        vsLastEnd   = endIdx;
+
+        document.getElementById('vs-spacer-top').style.height    = (startIdx * rowH) + 'px';
+        document.getElementById('vs-spacer-bottom').style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
+
+        var html = '';
+        for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(visible[i]);
+        var tbody = document.getElementById('all-stocks-tbody');
+        tbody.innerHTML = html;
+
+        // click delegation
+        tbody.onclick = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
+            row.classList.add('active');
+            allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
+            currentStockIndex = allStockRows.indexOf(row);
+            openChartModal(row.getAttribute('data-symbol'));
+        };
+    }
+    var vsLastEnd = 0;
+
+    function vsMeasureRowHeight() {
+        var tbody = document.getElementById('all-stocks-tbody');
+        var first = tbody.querySelector('tr');
+        if (first) vsRowHeight = Math.max(30, first.getBoundingClientRect().height) || 38;
+    }
+
     function renderAllStocks() {
         if (!snapshot || !snapshot.by_industry) return;
         var allRows = [];
@@ -1017,27 +1163,76 @@
             snapshot.by_industry[ind].forEach(function(r) { allRows.push(r); });
         });
         allRows.sort(function(a,b){ return (a.Rank||9999) - (b.Rank||9999); });
+        vsData     = allRows;
+        vsDataOrig = allRows.slice();
+        vsLastStart = -1;
+        vsLastEnd   = 0;
+        vsFilterQuery = '';
+        currentStockSort = { by: null, dir: 1, count: 0 };
+
         buildTableHeader('all-stocks-thead', null);
-        renderStocksTable(allRows, null, 'all-stocks-thead', 'all-stocks-tbody');
+
+        vsScrollEl = document.getElementById('vs-scroll-container');
+        vsScrollEl.scrollTop = 0;
+        vsScrollEl.onscroll = function() { vsRenderWindow(); };
+
+        vsRenderWindow();
+        setTimeout(vsMeasureRowHeight, 50);
     }
 
-    // ── Stock table sorting ───────────────────────────────────────────────
+    // ── Stock table sorting (virtual scroll aware) ────────────────────────
     document.getElementById('main-area').addEventListener('click', function(e) {
         var th = e.target.closest('th.sortable');
         if (!th || e.target.closest('.dist-ma-btn')) return;
+        var thead = th.closest('thead');
+
+        // Industry-drill stocks table — keep existing DOM sort
+        var table = th.closest('table');
+        if (table && table.id !== 'all-stocks-table') {
+            var sortBy = th.getAttribute('data-sort-by');
+            var tbody  = document.getElementById('stocks-tbody');
+
+            if (currentStockSort.by === sortBy) {
+                currentStockSort.count++;
+                if (currentStockSort.count >= 3) {
+                    currentStockSort = { by: null, dir: 1, count: 0 };
+                    var rows = Array.from(tbody.querySelectorAll('.stock-row'));
+                    rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
+                    tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+                    thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
+                    allStockRows = rows; return;
+                }
+            } else { currentStockSort.count = 1; }
+            currentStockSort.by = sortBy;
+            if (currentStockSort.count === 2) currentStockSort.dir *= -1; else currentStockSort.dir = 1;
+            thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
+            th.classList.add(currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc', 'sorted');
+            var rows = Array.from(tbody.querySelectorAll('.stock-row'));
+            rows.sort(function(a,b) {
+                if (sortBy === 'symbol') return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * currentStockSort.dir;
+                var av = parseFloat(a.getAttribute('data-' + sortBy));
+                var bv = parseFloat(b.getAttribute('data-' + sortBy));
+                if (isNaN(av)) return 1; if (isNaN(bv)) return -1;
+                return (av - bv) * currentStockSort.dir;
+            });
+            tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+            allStockRows = rows;
+            return;
+        }
+
+        // All-stocks virtual scroll sort
+        if (currentView !== 'stocks-all') return;
         var sortBy = th.getAttribute('data-sort-by');
-        var tbody  = th.closest('table').querySelector('tbody');
-        var thead  = th.closest('thead');
 
         if (currentStockSort.by === sortBy) {
             currentStockSort.count++;
             if (currentStockSort.count >= 3) {
                 currentStockSort = { by: null, dir: 1, count: 0 };
-                var rows = Array.from(tbody.querySelectorAll('.stock-row'));
-                rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
-                tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+                vsData = vsDataOrig.slice();
                 thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
-                allStockRows = rows; return;
+                vsLastStart = -1; vsLastEnd = 0;
+                vsScrollEl.scrollTop = 0;
+                vsRenderWindow(); return;
             }
         } else { currentStockSort.count = 1; }
         currentStockSort.by = sortBy;
@@ -1046,16 +1241,10 @@
         thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
         th.classList.add(currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc', 'sorted');
 
-        var rows = Array.from(tbody.querySelectorAll('.stock-row'));
-        rows.sort(function(a,b) {
-            if (sortBy === 'symbol') return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * currentStockSort.dir;
-            var av = parseFloat(a.getAttribute('data-' + sortBy));
-            var bv = parseFloat(b.getAttribute('data-' + sortBy));
-            if (isNaN(av)) return 1; if (isNaN(bv)) return -1;
-            return (av - bv) * currentStockSort.dir;
-        });
-        tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
-        allStockRows = rows;
+        vsSortData(sortBy, currentStockSort.dir);
+        vsLastStart = -1; vsLastEnd = 0;
+        vsScrollEl.scrollTop = 0;
+        vsRenderWindow();
     });
 
     // ── Dist/MA ───────────────────────────────────────────────────────────
