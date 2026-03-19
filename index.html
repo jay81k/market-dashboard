@@ -18,7 +18,7 @@
         .nav-tabs { display: flex; gap: 2px; }
         .nav-tab {
             padding: 0 20px; height: 44px; display: flex; align-items: center;
-            font-size: 0.95em; font-weight: 600; color: #6e7681; cursor: pointer;
+            font-size: 1.045em; font-weight: 600; color: #6e7681; cursor: pointer;
             border-bottom: 2px solid transparent; letter-spacing: 0.02em;
             transition: color 0.15s; user-select: none;
         }
@@ -34,7 +34,7 @@
         }
         .search-input {
             background: #161b22; border: 1px solid #21262d; border-radius: 6px;
-            color: #c8d0dc; padding: 5px 12px; font-size: 0.82em; outline: none;
+            color: #c8d0dc; padding: 5px 12px; font-size: 0.902em; outline: none;
             font-family: inherit; width: 220px;
         }
         .search-input::placeholder { color: #484f58; }
@@ -43,7 +43,7 @@
         .tf-group { display: flex; gap: 3px; }
         .tf-btn {
             padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.78em;
+            background: transparent; color: #6e7681; font-size: 0.858em;
             font-family: inherit; cursor: pointer; font-weight: 500; letter-spacing: 0.04em;
             transition: all 0.12s;
         }
@@ -52,7 +52,7 @@
 
         .perf-btn {
             padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.78em;
+            background: transparent; color: #6e7681; font-size: 0.858em;
             font-family: inherit; cursor: pointer; font-weight: 500; letter-spacing: 0.04em;
             transition: all 0.12s;
         }
@@ -62,14 +62,14 @@
         .sort-group { display: flex; gap: 3px; }
         .sort-btn {
             padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.78em;
+            background: transparent; color: #6e7681; font-size: 0.858em;
             font-family: inherit; cursor: pointer; font-weight: 500;
             transition: all 0.12s;
         }
         .sort-btn:hover { background: #161b22; color: #c8d0dc; }
         .sort-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
 
-        .result-count { font-size: 0.75em; color: #484f58; margin-left: 4px; }
+        .result-count { font-size: 0.825em; color: #484f58; margin-left: 4px; }
         .toolbar-divider { width: 1px; height: 16px; background: #21262d; flex-shrink: 0; }
 
         /* ── Main content ── */
@@ -88,9 +88,9 @@
         .industry-row:hover { background: #161b22; }
 
         /* Fixed column widths — must match .ind-hdr-* exactly */
-        .industry-rank   { font-size: 0.8em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
-        .industry-name   { font-size: 0.95em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
-        .industry-sector { font-size: 0.78em; color: #8b949e; width: 160px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+        .industry-rank   { font-size: 0.88em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
+        .industry-name   { font-size: 1.045em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
+        .industry-sector { font-size: 0.858em; color: #8b949e; width: 160px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
         .sector-basic-materials        { color: #c8922a; }
         .sector-technology             { color: #58a6ff; }
         .sector-energy                 { color: #e8854a; }
@@ -102,7 +102,7 @@
         .sector-real-estate            { color: #bcaaa4; }
         .sector-utilities              { color: #90caf9; }
         .sector-communication-services { color: #ce93d8; }
-        .industry-count  { font-size: 0.78em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
+        .industry-count  { font-size: 0.858em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
 
         /* Industries column headers */
         .ind-hdr-row {
@@ -116,7 +116,7 @@
         .ind-hdr-count  { width: 36px; flex-shrink: 0; padding-right: 16px; }
         .ind-col-hdr {
             width: 76px; flex-shrink: 0; text-align: right;
-            font-size: 0.75em; font-weight: 600; color: #6e7681;
+            font-size: 0.825em; font-weight: 600; color: #6e7681;
             text-transform: uppercase; letter-spacing: 0.05em;
             cursor: pointer; user-select: none; transition: color 0.1s;
         }
@@ -128,12 +128,12 @@
         /* Performance & RS columns — width must match .ind-col-hdr */
         .industry-perf-cols { display: flex; align-items: center; flex-shrink: 0; }
         .industry-perf-col  { width: 76px; text-align: right; flex-shrink: 0; }
-        .industry-perf-num  { font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .industry-perf-num  { font-size: 0.968em; font-weight: 600; font-variant-numeric: tabular-nums; }
         .industry-perf-num.up      { color: #3fb950; }
         .industry-perf-num.down    { color: #f85149; }
         .industry-perf-num.neutral { color: #484f58; }
         .industry-rs-cols { display: flex; align-items: center; flex-shrink: 0; }
-        .industry-rs-col  { width: 76px; text-align: right; flex-shrink: 0; font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .industry-rs-col  { width: 76px; text-align: right; flex-shrink: 0; font-size: 0.968em; font-weight: 600; font-variant-numeric: tabular-nums; }
         .industry-rs-col.positive { color: #3fb950; }
         .industry-rs-col.negative { color: #f85149; }
         .industry-rs-col.neutral  { color: #484f58; }
@@ -146,7 +146,7 @@
         }
         .mc-tf-btn {
             padding: 3px 9px; border-radius: 4px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.78em;
+            background: transparent; color: #6e7681; font-size: 0.858em;
             font-family: inherit; cursor: pointer; font-weight: 500;
             transition: all 0.12s;
         }
@@ -167,7 +167,7 @@
         .mc-cell:hover { border-color: #388bfd; box-shadow: 0 0 0 1px #388bfd; }
         .mc-cell-label {
             position: absolute; top: 6px; left: 8px; z-index: 2;
-            font-size: 0.78em; font-weight: 700; color: #58a6ff;
+            font-size: 0.858em; font-weight: 700; color: #58a6ff;
             background: rgba(13,17,23,0.75); padding: 1px 5px; border-radius: 3px;
             pointer-events: none;
         }
@@ -177,7 +177,7 @@
         }
         .mc-cell-hint {
             position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-            z-index: 5; font-size: 0.68em; color: #8b949e;
+            z-index: 5; font-size: 0.748em; color: #8b949e;
             opacity: 0; transition: opacity 0.15s; pointer-events: none;
             white-space: nowrap; background: rgba(13,17,23,0.8);
             padding: 2px 7px; border-radius: 3px;
@@ -195,11 +195,11 @@
             padding: 7px 14px; background: #161b22;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .mc-fullscreen-sym { font-size: 0.9em; font-weight: 700; color: #58a6ff; }
-        .mc-fullscreen-hint { font-size: 0.72em; color: #484f58; margin-left: auto; }
+        .mc-fullscreen-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
+        .mc-fullscreen-hint { font-size: 0.792em; color: #484f58; margin-left: auto; }
         .mc-fullscreen-close {
             background: transparent; border: none; color: #484f58;
-            cursor: pointer; font-size: 1.2rem; padding: 0 4px;
+            cursor: pointer; font-size: 1.32rem; padding: 0 4px;
         }
         .mc-fullscreen-close:hover { color: #c8d0dc; }
         .mc-fullscreen-body { flex: 1; min-height: 0; overflow: hidden; }
@@ -215,21 +215,21 @@
         }
         .back-btn {
             background: transparent; border: 1px solid #21262d; border-radius: 5px;
-            color: #6e7681; font-size: 0.78em; padding: 4px 10px; cursor: pointer;
+            color: #6e7681; font-size: 0.858em; padding: 4px 10px; cursor: pointer;
             font-family: inherit; transition: all 0.12s; display: flex; align-items: center; gap: 5px;
         }
         .back-btn:hover { background: #161b22; color: #c8d0dc; }
-        .stocks-industry-name { font-size: 1.0em; font-weight: 600; color: #c8d0dc; }
-        .stocks-industry-meta { font-size: 0.82em; color: #8b949e; }
+        .stocks-industry-name { font-size: 1.1em; font-weight: 600; color: #c8d0dc; }
+        .stocks-industry-meta { font-size: 0.902em; color: #8b949e; }
         .stocks-rs-badge {
-            font-size: 0.92em; font-weight: 700;
+            font-size: 1.012em; font-weight: 700;
             background: #1f6feb22; color: #388bfd; border: 1px solid #1f6feb44;
             padding: 4px 12px; border-radius: 5px;
         }
 
         /* Stocks table */
         .stocks-table-wrap { flex: 1; overflow-y: auto; }
-        .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.88em; table-layout: fixed; }
+        .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.968em; table-layout: fixed; }
 
         .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
         .stocks-table th:nth-child(2)  { width: 42px; }   /* RS */
@@ -250,7 +250,7 @@
         .stocks-table th {
             text-align: left; padding: 7px 10px;
             background: #0d1117; border-bottom: 1px solid #21262d;
-            font-size: 0.82em; font-weight: 600; letter-spacing: 0.04em;
+            font-size: 0.902em; font-weight: 600; letter-spacing: 0.04em;
             text-transform: uppercase; color: #6e7681; cursor: pointer;
             user-select: none; white-space: nowrap;
         }
@@ -264,7 +264,7 @@
         .stock-row:hover { background: #161b22; }
         .stock-row.active { background: #1c2128; }
 
-        .ticker-badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; background: #161b22; color: #58a6ff; font-size: 0.95em; font-weight: 600; border: 1px solid #21262d; }
+        .ticker-badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; background: #161b22; color: #58a6ff; font-size: 1.045em; font-weight: 600; border: 1px solid #21262d; }
         .up   { color: #3fb950 !important; font-weight: 500; }
         .down { color: #f85149 !important; font-weight: 500; }
 
@@ -277,27 +277,27 @@
         /* Dist/MA dropdown */
         .dist-ma-btn {
             display: inline-block; cursor: pointer; padding: 1px 5px; border-radius: 3px;
-            color: #484f58; font-size: 0.85em; background: #161b22; margin-left: 2px; letter-spacing: 1px;
+            color: #484f58; font-size: 0.935em; background: #161b22; margin-left: 2px; letter-spacing: 1px;
         }
         .dist-ma-btn:hover { color: #c8d0dc; }
         .dist-ma-dropdown {
             display: none; position: fixed; background: #161b22; border: 1px solid #30363d;
             border-radius: 7px; padding: 10px 12px; z-index: 10000; min-width: 180px;
-            font-size: 0.82em; color: #c8d0dc;
+            font-size: 0.902em; color: #c8d0dc;
         }
         .dist-ma-dropdown.open { display: block; }
         .dma-row { margin-bottom: 8px; }
         .dma-row:last-child { margin-bottom: 0; }
-        .dma-row label { display: block; color: #484f58; font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .dma-row label { display: block; color: #484f58; font-size: 0.858em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
         .dma-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-        .dma-opt { padding: 3px 8px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #8b949e; cursor: pointer; font-size: 0.9em; font-family: inherit; }
+        .dma-opt { padding: 3px 8px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #8b949e; cursor: pointer; font-size: 0.99em; font-family: inherit; }
         .dma-opt:hover { background: #161b22; color: #c8d0dc; }
         .dma-opt.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
 
         /* Column tooltip */
         #col-tooltip {
             position: fixed; background: #161b22; color: #8b949e;
-            padding: 5px 9px; border-radius: 5px; font-size: 0.74em;
+            padding: 5px 9px; border-radius: 5px; font-size: 0.814em;
             width: 180px; line-height: 1.4; border: 1px solid #30363d;
             pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 9999;
         }
@@ -320,16 +320,16 @@
             padding: 7px 14px; background: #161b22;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .chart-modal-sym { font-size: 0.9em; font-weight: 700; color: #58a6ff; }
-        .chart-modal-hint { font-size: 0.72em; color: #484f58; margin-left: auto; }
-        .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.2rem; padding: 0 4px; }
+        .chart-modal-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
+        .chart-modal-hint { font-size: 0.792em; color: #484f58; margin-left: auto; }
+        .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.32rem; padding: 0 4px; }
         .chart-modal-close:hover { color: #c8d0dc; }
         .chart-modal-body { flex: 1; min-height: 0; }
 
-        .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.85em; }
+        .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.935em; }
         .scan-filter-btn {
             padding: 4px 12px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.78em;
+            background: transparent; color: #6e7681; font-size: 0.858em;
             font-family: inherit; cursor: pointer; font-weight: 500; letter-spacing: 0.04em;
             transition: all 0.12s;
         }
