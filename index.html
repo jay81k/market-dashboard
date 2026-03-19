@@ -413,14 +413,12 @@
         </div>
     </div>
 
-    <!-- All stocks view (virtual scroll) -->
+    <!-- All stocks view -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
         <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;min-height:0;overflow-y:auto;">
             <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
                 <thead id="all-stocks-thead"></thead>
-                <tbody id="vs-spacer-top"><tr id="vs-spacer-top-row"><td colspan="14" style="padding:0;border:none;"></td></tr></tbody>
                 <tbody id="all-stocks-tbody"></tbody>
-                <tbody id="vs-spacer-bottom"><tr id="vs-spacer-bottom-row"><td colspan="14" style="padding:0;border:none;"></td></tr></tbody>
             </table>
         </div>
     </div>
@@ -865,12 +863,10 @@
     };
 
     window.filterAllStocksTable = function(q) {
-        vsFilterQuery = (q || '').toLowerCase();
-        vsLastStart = -1; vsLastEnd = 0;
-        if (vsScrollEl) {
-            vsScrollEl.scrollTop = 0;
-            vsRenderWindow();
-        }
+        asFilter = (q || '').toLowerCase();
+        var sc = document.getElementById('vs-scroll-container');
+        if (sc) sc.scrollTop = 0;
+        asRender();
     };
 
     window.navToIndustries = function() {
@@ -1013,16 +1009,12 @@
         currentStockIndex = -1;
     }
 
-    // ── Virtual scroll engine ─────────────────────────────────────────────
-    var vsData        = [];   // full sorted dataset
-    var vsDataOrig    = [];   // original order (for reset)
-    var vsRowHeight   = 46;   // px per row — measured after first render
-    var vsBuffer      = 5;    // extra rows above/below viewport
-    var vsScrollEl    = null;
-    var vsLastStart   = -1;
-    var vsFilterQuery = '';
+    // ── All Stocks ────────────────────────────────────────────────────────
+    var asData     = [];   // full dataset
+    var asDataOrig = [];   // original order
+    var asFilter   = '';
 
-    function vsGetSortVal(row, key) {
+    function asGetSortVal(row, key) {
         if (key === 'symbol')    return row.ticker || '';
         if (key === 'rs')        return row.Percentile;
         if (key === 'price')     return row.price;
@@ -1040,14 +1032,14 @@
         return null;
     }
 
-    function vsSortData(key, dir) {
-        vsData.sort(function(a, b) {
+    function asSortData(key, dir) {
+        asData.sort(function(a, b) {
             if (key === 'symbol') {
                 var at = a.ticker || ''; var bt = b.ticker || '';
                 return at < bt ? -dir : at > bt ? dir : 0;
             }
-            var av = vsGetSortVal(a, key);
-            var bv = vsGetSortVal(b, key);
+            var av = asGetSortVal(a, key);
+            var bv = asGetSortVal(b, key);
             if (av == null && bv == null) return 0;
             if (av == null) return 1;
             if (bv == null) return -1;
@@ -1055,8 +1047,8 @@
         });
     }
 
-    function vsRowHtml(row) {
-        var maKey  = activeMAType + activeMALength;
+    function asRowHtml(row) {
+        var maKey   = activeMAType + activeMALength;
         var distAll = row.dist_ma || {};
         var distVal = distAll[maKey];
         var rsVal   = row.Percentile != null ? Math.round(row.Percentile) : '—';
@@ -1087,64 +1079,37 @@
             var w = Math.min(100, Math.max(0, Math.abs(distVal) / 20 * 100));
             var pos = distVal >= 0;
             var cl = distVal > 0 ? 'up' : distVal < 0 ? 'down' : '';
-            distHtml = '<div class="val-bar"><div class="val-bar-fill ' + (pos?'pos':'neg') + '" style="width:' + w + '%"></div>' +
-                       '<span class="val-bar-text ' + cl + '">' + fmt(distVal,2,'%') + '</span></div>';
+            distHtml = '<div class="val-bar"><div class="val-bar-fill '+(pos?'pos':'neg')+'" style="width:'+w+'%"></div>'+
+                       '<span class="val-bar-text '+cl+'">'+fmt(distVal,2,'%')+'</span></div>';
         }
-        var h = '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '">';
-        h += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
-        h += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
-        h += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
-        h += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '—') + '</td>';
-        h += '<td class="' + cc(row['1w'])    + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
-        h += '<td class="' + cc(row['1m'])    + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
-        h += '<td class="' + cc(row['3m'])    + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
-        h += '<td class="' + cc(row.ytd)      + '">' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
-        h += '<td class="' + cc(row.vs_spy)   + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
-        h += '<td class="' + cc(row.vs_spy_3m)+ '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%'): '—') + '</td>';
-        h += '<td>' + distHtml + '</td>';
-        h += '<td style="color:#8b949e;">' + volVal + '</td>';
-        h += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
-        h += '<td><span style="color:' + crColor  + ';font-weight:600;">' + crVal  + '</span></td>';
+        var h = '<tr class="stock-row" style="content-visibility:auto;contain-intrinsic-size:0 47px;" data-symbol="'+esc(row.ticker)+'">';
+        h += '<td><span class="ticker-badge">'+esc(row.ticker)+'</span></td>';
+        h += '<td style="color:#c8d0dc;font-weight:500;">'+priceVal+'</td>';
+        h += '<td style="color:#c8d0dc;font-weight:600;">'+rsVal+'</td>';
+        h += '<td class="'+cc(row.daily)+'">'+(row.daily!=null?fmt(row.daily,2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row['1w'])+'">'+(row['1w']!=null?fmt(row['1w'],2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row['1m'])+'">'+(row['1m']!=null?fmt(row['1m'],2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row['3m'])+'">'+(row['3m']!=null?fmt(row['3m'],2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row.ytd)+'">'+(row.ytd!=null?fmt(row.ytd,2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row.vs_spy)+'">'+(row.vs_spy!=null?fmt(row.vs_spy,2,'%'):'—')+'</td>';
+        h += '<td class="'+cc(row.vs_spy_3m)+'">'+(row.vs_spy_3m!=null?fmt(row.vs_spy_3m,2,'%'):'—')+'</td>';
+        h += '<td>'+distHtml+'</td>';
+        h += '<td style="color:#8b949e;">'+volVal+'</td>';
+        h += '<td><span style="color:'+adrColor+';font-weight:600;">'+adrVal+'</span></td>';
+        h += '<td><span style="color:'+crColor+';font-weight:600;">'+crVal+'</span></td>';
         h += '</tr>';
         return h;
     }
 
-    var vsVisible = [];
-
-    function vsGetVisible() {
-        if (!vsFilterQuery) return vsData;
-        return vsData.filter(function(r) {
-            return (r.ticker || '').toLowerCase().includes(vsFilterQuery);
-        });
-    }
-
-    function vsRenderWindow() {
-        var el = vsScrollEl;
-        if (!el) return;
-        vsVisible = vsGetVisible();
-        var total     = vsVisible.length;
-        var rowH      = vsRowHeight;
-        var scrollTop = el.scrollTop;
-        var viewH     = el.clientHeight;
-
-        var startIdx = Math.max(0, Math.floor(scrollTop / rowH) - vsBuffer);
-        var endIdx   = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + vsBuffer);
-
-        if (startIdx === vsLastStart && endIdx === vsLastEnd) return;
-        vsLastStart = startIdx;
-        vsLastEnd   = endIdx;
-
-        // Spacer rows fake the total table height
-        var topTd = document.querySelector('#vs-spacer-top-row td');
-        var botTd = document.querySelector('#vs-spacer-bottom-row td');
-        if (topTd) topTd.style.height = (startIdx * rowH) + 'px';
-        if (botTd) botTd.style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
-
+    function asRender() {
+        var visible = asFilter
+            ? asData.filter(function(r){ return (r.ticker||'').toLowerCase().includes(asFilter); })
+            : asData;
         var html = '';
-        for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(vsVisible[i]);
+        for (var i = 0; i < visible.length; i++) html += asRowHtml(visible[i]);
         var tbody = document.getElementById('all-stocks-tbody');
         tbody.innerHTML = html;
-
+        applyDistMA(tbody);
         tbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
@@ -1155,21 +1120,6 @@
             openChartModal(row.getAttribute('data-symbol'));
         };
     }
-    var vsLastEnd = 0;
-
-    function vsMeasureRowHeight() {
-        var tbody = document.getElementById('all-stocks-tbody');
-        var first = tbody.querySelector('tr');
-        if (first) {
-            var h = first.getBoundingClientRect().height;
-            if (h > 10) {
-                vsRowHeight = h;
-                // Re-render with correct height so spacers are accurate
-                vsLastStart = -1; vsLastEnd = 0;
-                vsRenderWindow();
-            }
-        }
-    }
 
     function renderAllStocks() {
         if (!snapshot || !snapshot.by_industry) return;
@@ -1178,40 +1128,27 @@
             snapshot.by_industry[ind].forEach(function(r) { allRows.push(r); });
         });
         allRows.sort(function(a,b){ return (a.Rank||9999) - (b.Rank||9999); });
-        vsData     = allRows;
-        vsDataOrig = allRows.slice();
-        vsLastStart = -1;
-        vsLastEnd   = 0;
-        vsFilterQuery = '';
+        asData     = allRows;
+        asDataOrig = allRows.slice();
+        asFilter   = '';
         currentStockSort = { by: null, dir: 1, count: 0 };
-
         buildTableHeader('all-stocks-thead', null);
-
-        vsScrollEl = document.getElementById('vs-scroll-container');
-        vsScrollEl.scrollTop = 0;
-        var vsScrollRaf = false;
-        vsScrollEl.onscroll = function() {
-            if (vsScrollRaf) return;
-            vsScrollRaf = true;
-            requestAnimationFrame(function() { vsScrollRaf = false; vsRenderWindow(); });
-        };
-
-        vsRenderWindow();
-        setTimeout(vsMeasureRowHeight, 50);
+        var sc = document.getElementById('vs-scroll-container');
+        if (sc) sc.scrollTop = 0;
+        asRender();
     }
 
-    // ── Stock table sorting (virtual scroll aware) ────────────────────────
+    // ── Stock table sorting ───────────────────────────────────────────────
     document.getElementById('main-area').addEventListener('click', function(e) {
         var th = e.target.closest('th.sortable');
         if (!th || e.target.closest('.dist-ma-btn')) return;
         var thead = th.closest('thead');
-
-        // Industry-drill stocks table — keep existing DOM sort
         var table = th.closest('table');
+
+        // Industry-drill stocks table — DOM sort
         if (table && table.id !== 'all-stocks-table') {
             var sortBy = th.getAttribute('data-sort-by');
             var tbody  = document.getElementById('stocks-tbody');
-
             if (currentStockSort.by === sortBy) {
                 currentStockSort.count++;
                 if (currentStockSort.count >= 3) {
@@ -1240,34 +1177,29 @@
             return;
         }
 
-        // All-stocks virtual scroll sort
+        // All-stocks sort
         if (currentView !== 'stocks-all') return;
         var sortBy = th.getAttribute('data-sort-by');
-
         if (currentStockSort.by === sortBy) {
             currentStockSort.count++;
             if (currentStockSort.count >= 3) {
                 currentStockSort = { by: null, dir: 1, count: 0 };
-                vsData = vsDataOrig.slice();
+                asData = asDataOrig.slice();
                 thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
-                vsLastStart = -1; vsLastEnd = 0;
-                vsScrollEl.scrollTop = 0;
-                vsRenderWindow(); return;
+                asRender(); return;
             }
         } else { currentStockSort.count = 1; }
         currentStockSort.by = sortBy;
         if (currentStockSort.count === 2) currentStockSort.dir *= -1; else currentStockSort.dir = 1;
-
         thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
         th.classList.add(currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc', 'sorted');
-
-        vsSortData(sortBy, currentStockSort.dir);
-        vsLastStart = -1; vsLastEnd = 0;
-        vsScrollEl.scrollTop = 0;
-        vsRenderWindow();
+        asSortData(sortBy, currentStockSort.dir);
+        var sc = document.getElementById('vs-scroll-container');
+        if (sc) sc.scrollTop = 0;
+        asRender();
     });
 
-    // ── Dist/MA ───────────────────────────────────────────────────────────
+        // ── Dist/MA ───────────────────────────────────────────────────────────
     function maKey() { return activeMAType + activeMALength; }
 
     function applyDistMA(container) {
