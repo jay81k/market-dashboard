@@ -415,17 +415,13 @@
 
     <!-- All stocks view (virtual scroll) -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
-        <div style="flex-shrink:0;overflow:hidden;">
+        <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;overflow-y:auto;position:relative;">
             <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
-                <thead id="all-stocks-thead"></thead>
-            </table>
-        </div>
-        <div id="vs-scroll-container" style="flex:1;overflow-y:auto;position:relative;">
-            <div id="vs-spacer-top" style="height:0px;"></div>
-            <table class="stocks-table" style="table-layout:fixed;width:100%;">
+                <thead id="all-stocks-thead" style="position:sticky;top:0;z-index:2;"></thead>
+                <tbody id="vs-spacer-top-row"><tr><td colspan="14" style="padding:0;border:none;height:0px;" id="vs-spacer-top-td"></td></tr></tbody>
                 <tbody id="all-stocks-tbody"></tbody>
+                <tbody id="vs-spacer-bottom-row"><tr><td colspan="14" style="padding:0;border:none;height:0px;" id="vs-spacer-bottom-td"></td></tr></tbody>
             </table>
-            <div id="vs-spacer-bottom" style="height:0px;"></div>
         </div>
     </div>
 
@@ -1096,13 +1092,13 @@
         h += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
         h += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
-        h += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
-        h += '<td>' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
-        h += '<td>' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
-        h += '<td>' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
-        h += '<td>' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
-        h += '<td>' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
-        h += '<td>' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%'): '—') + '</td>';
+        h += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '—') + '</td>';
+        h += '<td class="' + cc(row['1w'])    + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
+        h += '<td class="' + cc(row['1m'])    + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
+        h += '<td class="' + cc(row['3m'])    + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
+        h += '<td class="' + cc(row.ytd)      + '">' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
+        h += '<td class="' + cc(row.vs_spy)   + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
+        h += '<td class="' + cc(row.vs_spy_3m)+ '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%'): '—') + '</td>';
         h += '<td>' + distHtml + '</td>';
         h += '<td style="color:#8b949e;">' + volVal + '</td>';
         h += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
@@ -1118,10 +1114,10 @@
             if (!vsFilterQuery) return true;
             return (r.ticker || '').toLowerCase().includes(vsFilterQuery);
         });
-        var total   = visible.length;
+        var total    = visible.length;
         var scrollTop = el.scrollTop;
-        var viewH   = el.clientHeight;
-        var rowH    = vsRowHeight;
+        var viewH    = el.clientHeight;
+        var rowH     = vsRowHeight;
         var startIdx = Math.max(0, Math.floor(scrollTop / rowH) - vsBuffer);
         var endIdx   = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + vsBuffer);
 
@@ -1129,8 +1125,8 @@
         vsLastStart = startIdx;
         vsLastEnd   = endIdx;
 
-        document.getElementById('vs-spacer-top').style.height    = (startIdx * rowH) + 'px';
-        document.getElementById('vs-spacer-bottom').style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
+        document.getElementById('vs-spacer-top-td').style.height    = (startIdx * rowH) + 'px';
+        document.getElementById('vs-spacer-bottom-td').style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
 
         var html = '';
         for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(visible[i]);
