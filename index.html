@@ -415,22 +415,13 @@
 
     <!-- All stocks view (virtual scroll) -->
     <div id="view-stocks-all" style="display:none;flex-direction:column;height:100%;">
-        <!-- sticky header -->
-        <div style="flex-shrink:0;overflow:hidden;border-bottom:1px solid #21262d;">
-            <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;margin-bottom:-1px;">
+        <div id="vs-scroll-container" class="stocks-table-wrap" style="flex:1;min-height:0;overflow-y:auto;">
+            <table class="stocks-table" id="all-stocks-table" style="table-layout:fixed;">
                 <thead id="all-stocks-thead"></thead>
+                <tbody id="vs-spacer-top"><tr id="vs-spacer-top-row"><td colspan="14" style="padding:0;border:none;"></td></tr></tbody>
+                <tbody id="all-stocks-tbody"></tbody>
+                <tbody id="vs-spacer-bottom"><tr id="vs-spacer-bottom-row"><td colspan="14" style="padding:0;border:none;"></td></tr></tbody>
             </table>
-        </div>
-        <!-- scroll viewport — fixed height, native scroll -->
-        <div id="vs-scroll-container" style="flex:1;overflow-y:scroll;position:relative;min-height:0;">
-            <!-- total height sizer -->
-            <div id="vs-height-sizer" style="position:absolute;top:0;left:0;width:1px;"></div>
-            <!-- visible rows pinned to scroll position -->
-            <div id="vs-rows-wrapper" style="position:sticky;top:0;left:0;right:0;">
-                <table class="stocks-table" style="table-layout:fixed;width:100%;">
-                    <tbody id="all-stocks-tbody"></tbody>
-                </table>
-            </div>
         </div>
     </div>
 
@@ -1025,7 +1016,7 @@
     // ── Virtual scroll engine ─────────────────────────────────────────────
     var vsData        = [];   // full sorted dataset
     var vsDataOrig    = [];   // original order (for reset)
-    var vsRowHeight   = 38;   // px per row — measured after first render
+    var vsRowHeight   = 46;   // px per row — measured after first render
     var vsBuffer      = 5;    // extra rows above/below viewport
     var vsScrollEl    = null;
     var vsLastStart   = -1;
@@ -1118,7 +1109,7 @@
         return h;
     }
 
-    var vsVisible   = [];  // filtered subset
+    var vsVisible = [];
 
     function vsGetVisible() {
         if (!vsFilterQuery) return vsData;
@@ -1131,13 +1122,10 @@
         var el = vsScrollEl;
         if (!el) return;
         vsVisible = vsGetVisible();
-        var total    = vsVisible.length;
-        var rowH     = vsRowHeight;
+        var total     = vsVisible.length;
+        var rowH      = vsRowHeight;
         var scrollTop = el.scrollTop;
-        var viewH    = el.clientHeight;
-
-        // Set total height so native scrollbar is correct size
-        document.getElementById('vs-height-sizer').style.height = (total * rowH) + 'px';
+        var viewH     = el.clientHeight;
 
         var startIdx = Math.max(0, Math.floor(scrollTop / rowH) - vsBuffer);
         var endIdx   = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + vsBuffer);
@@ -1146,9 +1134,11 @@
         vsLastStart = startIdx;
         vsLastEnd   = endIdx;
 
-        // Offset the sticky wrapper to match scroll position
-        document.getElementById('vs-rows-wrapper').style.transform =
-            'translateY(' + (startIdx * rowH) + 'px)';
+        // Spacer rows fake the total table height
+        var topTd = document.querySelector('#vs-spacer-top-row td');
+        var botTd = document.querySelector('#vs-spacer-bottom-row td');
+        if (topTd) topTd.style.height = (startIdx * rowH) + 'px';
+        if (botTd) botTd.style.height = Math.max(0, (total - endIdx) * rowH) + 'px';
 
         var html = '';
         for (var i = startIdx; i < endIdx; i++) html += vsRowHtml(vsVisible[i]);
@@ -1170,7 +1160,15 @@
     function vsMeasureRowHeight() {
         var tbody = document.getElementById('all-stocks-tbody');
         var first = tbody.querySelector('tr');
-        if (first) vsRowHeight = Math.max(30, first.getBoundingClientRect().height) || 38;
+        if (first) {
+            var h = first.getBoundingClientRect().height;
+            if (h > 10) {
+                vsRowHeight = h;
+                // Re-render with correct height so spacers are accurate
+                vsLastStart = -1; vsLastEnd = 0;
+                vsRenderWindow();
+            }
+        }
     }
 
     function renderAllStocks() {
