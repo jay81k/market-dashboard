@@ -349,24 +349,24 @@
 
         .heatmap-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 3px; padding: 6px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 4px; padding: 8px;
         }
         .heatmap-card {
-            border-radius: 4px; padding: 8px 10px 10px;
+            border-radius: 5px; padding: 12px 14px 14px;
             cursor: pointer; display: flex; flex-direction: column;
-            justify-content: space-between; min-height: 72px;
-            transition: filter 0.1s, transform 0.1s;
+            justify-content: space-between; min-height: 90px;
+            transition: filter 0.1s;
             border: 1px solid transparent;
         }
         .heatmap-card:hover { filter: brightness(1.15); border-color: rgba(255,255,255,0.2); }
         .heatmap-card-name {
-            font-size: 0.792em; font-weight: 600; color: rgba(255,255,255,0.92);
-            line-height: 1.3; word-break: break-word;
+            font-size: 0.902em; font-weight: 600; color: rgba(255,255,255,0.92);
+            line-height: 1.35; word-break: break-word;
         }
         .heatmap-card-val {
-            font-size: 1.012em; font-weight: 700; color: rgba(255,255,255,0.95);
-            margin-top: 8px; font-variant-numeric: tabular-nums;
+            font-size: 1.1em; font-weight: 700; color: rgba(255,255,255,0.95);
+            margin-top: 10px; font-variant-numeric: tabular-nums;
         }
         .heatmap-card-null { background: #161b22 !important; border-color: #21262d !important; }
         .heatmap-card-null .heatmap-card-name { color: #484f58; }
@@ -411,6 +411,11 @@
                 <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
                 <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
             </div>
+            <div style="display:flex;align-items:center;gap:4px;margin-left:8px;flex-shrink:0;">
+                <div style="width:1px;height:14px;background:#21262d;margin-right:2px;"></div>
+                <button class="ind-view-btn active" id="ind-view-list-btn" onclick="setIndView('list')" title="List view">&#9776;</button>
+                <button class="ind-view-btn" id="ind-view-heat-btn" onclick="setIndView('heatmap')" title="Heatmap view">&#9632;&#9632;</button>
+            </div>
             <span style="flex:1;min-width:0;"></span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_daily"  onclick="setIndSort('avg_daily')">Day</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_1w"     onclick="setIndSort('avg_1w')">1W</span>
@@ -420,11 +425,7 @@
             <span class="ind-col-hdr sortable-ind" data-col="rs_1m"      onclick="setIndSort('rs_1m')">1M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_3m"      onclick="setIndSort('rs_3m')">3M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_6m"      onclick="setIndSort('rs_6m')">6M RS</span>
-            <div style="display:flex;align-items:center;gap:6px;margin-left:10px;flex-shrink:0;">
-                <div style="width:1px;height:16px;background:#21262d;"></div>
-                <button class="ind-view-btn active" id="ind-view-list-btn" onclick="setIndView('list')" title="List view">&#9776;</button>
-                <button class="ind-view-btn" id="ind-view-heat-btn" onclick="setIndView('heatmap')" title="Heatmap view">&#9632;&#9632;</button>
-            </div>
+            <span style="width:14px;flex-shrink:0;"></span>
         </div>
         <!-- Heatmap toolbar (hidden in list mode) -->
         <div id="heatmap-toolbar" style="display:none;align-items:center;gap:6px;padding:6px 16px;border-bottom:1px solid #21262d;flex-shrink:0;">
