@@ -2722,8 +2722,8 @@
 
     // Refresh star buttons across visible stock rows
     function wlRefreshStars() {
-        var last  = wlGetLastList();
-        var all   = wlGetAll();
+        var last   = wlGetLastList();
+        var all    = wlGetAll();
         var inLast = last && all[last] ? new Set(all[last]) : new Set();
         var inAny  = wlAllTickers();
         document.querySelectorAll('.wl-add-btn').forEach(function(btn) {
@@ -2731,14 +2731,28 @@
             var active = inLast.has(t);
             btn.classList.toggle('in-wl', active);
             btn.textContent = active ? '★' : '☆';
-            btn.title = active
-                ? 'Remove from "' + (last || '') + '"'
-                : (last ? 'Add to "' + last + '"' : 'Add to watchlist');
+            btn.title = active ? 'Remove from "' + (last||'') + '"' : (last ? 'Add to "' + last + '"' : 'Add to watchlist');
         });
-        // Dim the chevron if ticker is in any list (to show it has placements)
         document.querySelectorAll('.wl-pick-btn').forEach(function(btn) {
             var t = btn.getAttribute('data-ticker');
             btn.classList.toggle('in-wl', inAny.has(t));
+        });
+    }
+
+    // Update only buttons for one ticker — safe to call while picker is open
+    function wlRefreshTickerStar(ticker) {
+        var last   = wlGetLastList();
+        var all    = wlGetAll();
+        var inLast = last && all[last] ? all[last].indexOf(ticker) !== -1 : false;
+        var inAny  = false;
+        Object.values(all).forEach(function(arr){ if (arr.indexOf(ticker) !== -1) inAny = true; });
+        document.querySelectorAll('.wl-add-btn[data-ticker="' + ticker + '"]').forEach(function(btn) {
+            btn.classList.toggle('in-wl', inLast);
+            btn.textContent = inLast ? '★' : '☆';
+            btn.title = inLast ? 'Remove from "' + (last||'') + '"' : (last ? 'Add to "' + last + '"' : 'Add to watchlist');
+        });
+        document.querySelectorAll('.wl-pick-btn[data-ticker="' + ticker + '"]').forEach(function(btn) {
+            btn.classList.toggle('in-wl', inAny);
         });
     }
 
@@ -3018,16 +3032,19 @@
             all[name].splice(idx, 1);
         } else {
             all[name].push(ticker);
-            wlSetLastList(name);  // update default to whichever list was just added to
+            wlSetLastList(name);
         }
         wlSaveAll(all);
         if (currentView === 'watchlists') wlRender();
+        // Re-open picker using same btn reference — do NOT call wlRefreshStars here
+        // because it rebuilds innerHTML and destroys btn
         if (btn && document.contains(btn)) {
             wlOpenPicker(btn, { stopPropagation: function(){} }, true);
         } else {
             wlClosePicker();
         }
-        wlRefreshStars();
+        // Only update the star for this specific ticker — avoids rebuilding rows
+        wlRefreshTickerStar(ticker);
     };
 
     window.wlPickerNewList = function() {
