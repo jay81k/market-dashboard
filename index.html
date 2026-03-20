@@ -1793,7 +1793,7 @@
         (container || document).querySelectorAll('.dist-ma-cell').forEach(function(cell) {
             var raw = cell.getAttribute('data-dist-all');
             var val = null;
-            try { val = JSON.parse(raw.replace(/"/g,'"'))[key]; } catch(e) {}
+            try { val = JSON.parse(raw.replace(/&quot;/g, '"'))[key]; } catch(e) {}
             if (val == null) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
             var w = Math.min(100, Math.max(0, Math.abs(val) / 20 * 100));
             var pos = val >= 0;
