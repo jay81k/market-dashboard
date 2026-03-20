@@ -592,13 +592,13 @@
         .wl-group { border-bottom: 1px solid #161b22; }
         .wl-group-header {
             display: flex; align-items: center; gap: 6px;
-            padding: 7px 14px; cursor: pointer; user-select: none;
+            padding: 7px 10px 7px 10px; cursor: pointer; user-select: none;
             transition: background 0.1s; position: relative;
         }
         .wl-group-header:hover { background: #161b22; }
         .wl-group-caret { font-size: 0.7em; color: #484f58; transition: transform 0.15s; flex-shrink: 0; }
         .wl-group.open .wl-group-caret { transform: rotate(90deg); }
-        .wl-group-name { font-size: 0.925em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wl-group-name { font-size: 0.968em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .wl-group-count { font-size: 0.78em; color: #484f58; flex-shrink: 0; }
         .wl-group-del {
             opacity: 0; background: none; border: none; color: #484f58;
@@ -614,14 +614,14 @@
 
         .wl-ticker-row {
             display: flex; align-items: center;
-            padding: 5px 10px 5px 24px; cursor: pointer;
+            padding: 5px 8px 5px 14px; cursor: pointer;
             transition: background 0.1s; border-top: 1px solid #0d1117;
         }
         .wl-ticker-row:hover { background: #161b22; }
         .wl-ticker-row.active { background: #1a3a5c; }
         .wl-col-hdr {
             display: flex; align-items: center;
-            padding: 4px 10px 4px 24px;
+            padding: 4px 8px 4px 14px;
             background: #0d1117; border-bottom: 1px solid #21262d;
         }
         /* Single set of column widths shared by both header and data rows */
@@ -634,12 +634,12 @@
         .wl-col-hdr .wl-c-sym,
         .wl-col-hdr .wl-c-last,
         .wl-col-hdr .wl-c-chg,
-        .wl-col-hdr .wl-c-chgp { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; }
+        .wl-col-hdr .wl-c-chgp { font-size: 0.792em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; }
         /* Data row styling */
-        .wl-ticker-row .wl-c-sym  { font-size: 0.858em; font-weight: 600; color: #c8d0dc; }
-        .wl-ticker-row .wl-c-last { font-size: 0.825em; color: #c8d0dc; }
+        .wl-ticker-row .wl-c-sym  { font-size: 0.938em; font-weight: 600; color: #c8d0dc; }
+        .wl-ticker-row .wl-c-last { font-size: 0.902em; color: #c8d0dc; }
         .wl-ticker-row .wl-c-chg,
-        .wl-ticker-row .wl-c-chgp { font-size: 0.825em; font-weight: 500; }
+        .wl-ticker-row .wl-c-chgp { font-size: 0.902em; font-weight: 500; }
         .wl-c-chg.up,  .wl-c-chgp.up   { color: #3fb950; }
         .wl-c-chg.down,.wl-c-chgp.down { color: #f85149; }
         .wl-c-chg.neutral,.wl-c-chgp.neutral { color: #484f58; }
@@ -650,6 +650,7 @@
         }
         .wl-ticker-row:hover .wl-ticker-remove { opacity: 1; }
         .wl-ticker-remove:hover { color: #f85149; }
+        .wl-new-row {
             display: flex; align-items: center; gap: 6px;
             padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #161b22;
@@ -2824,6 +2825,13 @@
         }
 
         var html = '';
+        // Auto-open last-used list if nothing is explicitly open
+        var anyOpen = order.some(function(n){ return !!wlOpenGroups[n]; });
+        if (!anyOpen) {
+            var last = wlGetLastList();
+            if (last) wlOpenGroups[last] = true;
+            else if (order.length) wlOpenGroups[order[0]] = true;
+        }
         order.forEach(function(name) {
             var tickers  = all[name] || [];
             var isOpen   = !!wlOpenGroups[name];
@@ -2930,11 +2938,15 @@
                 wlRefreshStars();
                 return;
             }
-            // Toggle group open/closed  — also set as default on header click
+            // Toggle group open/closed — accordion: only one open at a time
             var hdr = e.target.closest('[data-wl-toggle]');
             if (hdr) {
                 var name = hdr.getAttribute('data-wl-toggle');
-                wlOpenGroups[name] = !wlOpenGroups[name];
+                var isOpen = !!wlOpenGroups[name];
+                // Close all
+                Object.keys(wlOpenGroups).forEach(function(k){ wlOpenGroups[k] = false; });
+                // Toggle the clicked one
+                wlOpenGroups[name] = !isOpen;
                 wlSetLastList(name);
                 wlRender();
                 wlRefreshStars();
@@ -2975,6 +2987,8 @@
         if (order.indexOf(name) === -1) order.push(name);
         wlSaveOrder(order);
         wlSetLastList(name);
+        // Open new list accordion-style (close all others)
+        Object.keys(wlOpenGroups).forEach(function(k){ wlOpenGroups[k] = false; });
         wlOpenGroups[name] = true;
         wlCancelNew();
         wlRender();
