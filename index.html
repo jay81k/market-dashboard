@@ -2955,7 +2955,7 @@
         wlRefreshStars();
     };
 
-    window.wlOpenPicker = function(btn, e) {
+    window.wlOpenPicker = function(btn, e, internal) {
         e.stopPropagation();
         // btn may be the ▾ button — get ticker from it directly (both star and chevron have data-ticker)
         var ticker = btn.getAttribute('data-ticker');
@@ -3004,7 +3004,7 @@
         picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
         picker.style.display = 'block';
         wlPickerOpen = true;
-        wlPickerJustOpened = true;
+        if (!internal) wlPickerJustOpened = true;
     };
 
     window.wlPickerToggle = function(name) {
@@ -3023,7 +3023,7 @@
         wlSaveAll(all);
         if (currentView === 'watchlists') wlRender();
         if (btn && document.contains(btn)) {
-            wlOpenPicker(btn, { stopPropagation: function(){} });
+            wlOpenPicker(btn, { stopPropagation: function(){} }, true);
         } else {
             wlClosePicker();
         }
@@ -3062,8 +3062,6 @@
             if (e.key === 'Escape') wlClosePicker();
         });
     };
-
-    var wlPickerJustOpened = false;
 
     function wlClosePicker() {
         document.getElementById('wl-picker').style.display = 'none';
