@@ -571,12 +571,12 @@
         }
 
         .wl-side-panel {
-            width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
+            width: 340px; flex-shrink: 0; display: flex; flex-direction: column;
             background: #0d1117; overflow: hidden;
         }
         .wl-side-header {
-            display: flex; align-items: center; gap: 8px;
-            padding: 8px 14px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
         .wl-side-title { font-size: 0.858em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
         .wl-new-btn {
@@ -612,17 +612,33 @@
         .wl-group.open .wl-tickers { display: block; }
 
         .wl-ticker-row {
-            display: flex; align-items: center; gap: 6px;
-            padding: 5px 14px 5px 28px; cursor: pointer;
+            display: flex; align-items: center; gap: 0;
+            padding: 5px 10px 5px 24px; cursor: pointer;
             transition: background 0.1s; border-top: 1px solid #0d1117;
         }
         .wl-ticker-row:hover { background: #161b22; }
         .wl-ticker-row.active { background: #1a3a5c; }
-        .wl-ticker-sym { font-size: 0.902em; font-weight: 600; color: #58a6ff; flex: 1; }
+        .wl-ticker-sym   { font-size: 0.858em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 6px; }
+        .wl-ticker-price { font-size: 0.825em; color: #c8d0dc; width: 52px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 8px; }
+        .wl-ticker-chg   { font-size: 0.792em; font-weight: 500; width: 42px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 6px; }
+        .wl-ticker-chgp  { font-size: 0.792em; font-weight: 600; width: 46px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+        .wl-ticker-chg.up, .wl-ticker-chgp.up   { color: #3fb950; }
+        .wl-ticker-chg.down, .wl-ticker-chgp.down { color: #f85149; }
+        .wl-ticker-chg.neutral, .wl-ticker-chgp.neutral { color: #484f58; }
+        .wl-col-hdr {
+            display: flex; align-items: center; gap: 0;
+            padding: 3px 10px 3px 24px; border-top: 1px solid #21262d;
+            background: #0d1117;
+        }
+        .wl-col-hdr-sym   { font-size: 0.715em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; flex: 1; padding-right: 6px; }
+        .wl-col-hdr-cell  { font-size: 0.715em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; flex-shrink: 0; }
+        .wl-col-hdr-price { width: 52px; padding-right: 8px; }
+        .wl-col-hdr-chg   { width: 42px; padding-right: 6px; }
+        .wl-col-hdr-chgp  { width: 46px; }
         .wl-ticker-remove {
             opacity: 0; background: none; border: none; color: #484f58;
-            cursor: pointer; font-size: 0.78em; padding: 1px 4px;
-            transition: opacity 0.1s, color 0.1s;
+            cursor: pointer; font-size: 0.78em; padding: 1px 0 1px 6px; margin-left: 4px;
+            transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
         }
         .wl-ticker-row:hover .wl-ticker-remove { opacity: 1; }
         .wl-ticker-remove:hover { color: #f85149; }
@@ -895,7 +911,6 @@
         <!-- Watchlists side panel -->
         <div class="wl-side-panel">
             <div class="wl-side-header">
-                <span class="wl-side-title">Watchlists</span>
                 <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
             </div>
             <div class="wl-list-scroll" id="wl-list-scroll"></div>
@@ -2766,29 +2781,44 @@
             return;
         }
 
-        var last = wlGetLastList();
         var html = '';
         order.forEach(function(name) {
             var tickers  = all[name] || [];
             var isOpen   = !!wlOpenGroups[name];
-            var isLast   = name === last;
             var nameAttr = esc(name);
             html += '<div class="wl-group' + (isOpen ? ' open' : '') + '">';
             html += '<div class="wl-group-header" data-wl-toggle="' + nameAttr + '">';
             html += '<span class="wl-group-caret">▶</span>';
             html += '<span class="wl-group-name">' + nameAttr + '</span>';
-            if (isLast) html += '<span style="font-size:0.7em;color:#388bfd;margin-left:5px;flex-shrink:0;">default</span>';
             html += '<span class="wl-group-count">' + tickers.length + '</span>';
             html += '<button class="wl-group-del" data-wl-del="' + nameAttr + '" title="Delete watchlist">✕</button>';
             html += '</div>';
             html += '<div class="wl-tickers">';
             if (!tickers.length) {
-                html += '<div style="padding:8px 14px 8px 28px;font-size:0.825em;color:#484f58;">Empty</div>';
+                html += '<div style="padding:8px 14px 8px 24px;font-size:0.825em;color:#484f58;">Empty</div>';
             } else {
+                html += '<div class="wl-col-hdr">';
+                html += '<span class="wl-col-hdr-sym wl-col-hdr-cell">Symbol</span>';
+                html += '<span class="wl-col-hdr-cell wl-col-hdr-price">Last</span>';
+                html += '<span class="wl-col-hdr-cell wl-col-hdr-chg">Chg</span>';
+                html += '<span class="wl-col-hdr-cell wl-col-hdr-chgp">Chg%</span>';
+                html += '</div>';
                 tickers.forEach(function(t) {
-                    var active = (wlChartTicker === t) ? ' active' : '';
+                    var active    = (wlChartTicker === t) ? ' active' : '';
+                    var sd        = wlLookupStock(t);
+                    var price     = sd && sd.price != null ? sd.price : null;
+                    var priceStr  = price != null ? price.toFixed(2) : '—';
+                    var dayVal    = sd ? sd.daily : null;
+                    // Chg = price * (daily% / 100)
+                    var chgAbs    = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
+                    var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
+                    var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
+                    var cl        = dayVal == null ? 'neutral' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : 'neutral';
                     html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" data-wl-list="' + nameAttr + '">';
                     html += '<span class="wl-ticker-sym">' + esc(t) + '</span>';
+                    html += '<span class="wl-ticker-price">' + priceStr + '</span>';
+                    html += '<span class="wl-ticker-chg ' + cl + '">' + chgStr + '</span>';
+                    html += '<span class="wl-ticker-chgp ' + cl + '">' + chgpStr + '</span>';
                     html += '<button class="wl-ticker-remove" data-wl-remove-ticker="' + esc(t) + '" data-wl-remove-list="' + nameAttr + '" title="Remove">✕</button>';
                     html += '</div>';
                 });
@@ -2797,6 +2827,19 @@
         });
         scroll.innerHTML = html;
     };
+
+    // Look up a stock's data from snapshot across all industries
+    function wlLookupStock(ticker) {
+        if (!snapshot || !snapshot.by_industry) return null;
+        var industries = snapshot.by_industry;
+        for (var ind in industries) {
+            var rows = industries[ind];
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].ticker === ticker) return rows[i];
+            }
+        }
+        return null;
+    }
 
     // Single delegated listener on the scroll container — registered once at startup
     function wlAttachListeners() {
@@ -2983,7 +3026,6 @@
 
         var all    = wlGetAll();
         var order  = wlGetOrder();
-        var last   = wlGetLastList();
         var picker = document.getElementById('wl-picker');
 
         var html = '<div class="wl-picker-title">Add to watchlist</div>';
@@ -2995,7 +3037,6 @@
                 html += '<div class="wl-picker-item' + (has ? ' checked' : '') + '" data-wl-pick="' + esc(name) + '">';
                 html += '<span class="wl-picker-check">' + (has ? '✓' : '') + '</span>';
                 html += esc(name);
-                if (isLast) html += '<span style="font-size:0.72em;color:#484f58;margin-left:6px;">default</span>';
                 html += '</div>';
             });
             html += '<div class="wl-picker-divider"></div>';
