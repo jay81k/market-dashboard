@@ -61,6 +61,19 @@ DIST_MA_COMBOS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Supplemental tickers — always included regardless of CSV contents.
+# Add any ticker missing from your nightly CSV feed here.
+# Required fields: Ticker, Sector, Industry
+# Optional: any CSV_PASSTHROUGH column (leave blank to use None)
+# ---------------------------------------------------------------------------
+SUPPLEMENTAL_TICKERS = [
+    {"Ticker": "SNDK", "Sector": "Technology", "Industry": "Data Storage"},
+    {"Ticker": "Q",    "Sector": "Technology", "Industry": "Software - Infrastructure"},
+    # Add more rows here as needed:
+    # {"Ticker": "XYZ", "Sector": "Healthcare", "Industry": "Biotechnology"},
+]
+
+# ---------------------------------------------------------------------------
 # Universe loading
 # ---------------------------------------------------------------------------
 
@@ -474,6 +487,23 @@ def main():
 
     # 1. Load & filter universe
     universe = load_universe(args.csv_url)
+
+    # Inject supplemental tickers (bypass all filters — manually curated)
+    if SUPPLEMENTAL_TICKERS:
+        existing = set(universe["Ticker"].tolist())
+        new_rows = [t for t in SUPPLEMENTAL_TICKERS if t["Ticker"] not in existing]
+        if new_rows:
+            supplement_df = pd.DataFrame(new_rows)
+            # Ensure all expected columns exist (fill missing with NaN)
+            for col in universe.columns:
+                if col not in supplement_df.columns:
+                    supplement_df[col] = None
+            supplement_df = supplement_df[universe.columns]  # align column order
+            universe = pd.concat([universe, supplement_df], ignore_index=True)
+            print(f"Supplemental tickers added: {[r['Ticker'] for r in new_rows]}")
+        else:
+            print("Supplemental tickers: all already present in CSV")
+
     tickers  = universe["Ticker"].tolist()
     print(f"Universe after filters: {len(tickers)} stocks\n")
 
@@ -530,6 +560,52 @@ def main():
         industry_to_sector[industry] = sector
 
     print(f"Done: {len(tickers) - skipped} computed, {skipped} skipped\n")
+
+    # Assign Rank to supplemental tickers based on where their Percentile
+    # falls relative to the full universe — CSV-sourced ranks are left untouched.
+    supplemental_set = {t["Ticker"] for t in SUPPLEMENTAL_TICKERS}
+    if supplemental_set:
+        # Collect all rows with a Percentile value
+        all_rows = [r for rows in by_industry.values() for r in rows]
+        ranked_rows = sorted(
+            [r for r in all_rows if r.get("Percentile") is not None],
+            key=lambda r: float(r["Percentile"]),
+            reverse=True,
+        )
+        # Build a percentile → rank mapping from CSV-sourced tickers only
+        # (use their actual assigned ranks to interpolate where supplementals fit)
+        csv_ranked = [(float(r["Percentile"]), float(r["Rank"]))
+                      for r in ranked_rows
+                      if r["ticker"] not in supplemental_set
+                      and r.get("Rank") is not None]
+        csv_ranked.sort(key=lambda x: x[1])  # sort by rank ascending
+
+        def interpolate_rank(percentile: float) -> int:
+            """Find the rank slot where this percentile would fall."""
+            if not csv_ranked:
+                return 9999
+            # Find neighbouring CSV rows by percentile (higher percentile = lower rank number)
+            above = [(pct, rnk) for pct, rnk in csv_ranked if pct >= percentile]
+            below = [(pct, rnk) for pct, rnk in csv_ranked if pct <  percentile]
+            if above and below:
+                # Interpolate between the two nearest neighbours
+                a_pct, a_rnk = min(above, key=lambda x: x[0])  # closest above
+                b_pct, b_rnk = max(below, key=lambda x: x[0])  # closest below
+                if a_pct == b_pct:
+                    return int(round(a_rnk))
+                t = (percentile - b_pct) / (a_pct - b_pct)
+                return int(round(b_rnk + t * (a_rnk - b_rnk)))
+            elif above:
+                return int(round(min(above, key=lambda x: x[0])[1]))
+            else:
+                return int(round(max(below, key=lambda x: x[0])[1]))
+
+        for row in all_rows:
+            if row["ticker"] in supplemental_set and row.get("Percentile") is not None:
+                computed_rank = interpolate_rank(float(row["Percentile"]))
+                row["Rank"] = computed_rank
+                print(f"  Supplemental {row['ticker']}: Percentile={row['Percentile']}, "
+                      f"computed Rank={computed_rank}")
 
     # Sort stocks within each industry by Rank (ascending)
     for rows in by_industry.values():
