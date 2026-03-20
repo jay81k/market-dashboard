@@ -613,31 +613,43 @@
         .wl-group.open .wl-tickers { display: block; }
 
         .wl-ticker-row {
-            display: flex; align-items: center; gap: 0;
+            display: flex; align-items: center;
             padding: 5px 10px 5px 24px; cursor: pointer;
             transition: background 0.1s; border-top: 1px solid #0d1117;
         }
         .wl-ticker-row:hover { background: #161b22; }
         .wl-ticker-row.active { background: #1a3a5c; }
-        .wl-ticker-sym   { font-size: 0.858em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .wl-ticker-price { font-size: 0.825em; color: #c8d0dc; width: 56px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
-        .wl-ticker-chg   { font-size: 0.792em; font-weight: 500; width: 48px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
-        .wl-ticker-chgp  { font-size: 0.792em; font-weight: 600; width: 50px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
-        .wl-ticker-chg.up, .wl-ticker-chgp.up   { color: #3fb950; }
-        .wl-ticker-chg.down, .wl-ticker-chgp.down { color: #f85149; }
-        .wl-ticker-chg.neutral, .wl-ticker-chgp.neutral { color: #484f58; }
         .wl-col-hdr {
-            display: flex; align-items: center; gap: 0;
+            display: flex; align-items: center;
             padding: 4px 10px 4px 24px;
             background: #0d1117; border-bottom: 1px solid #21262d;
         }
-        .wl-col-hdr-sym   { font-size: 0.715em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; flex: 1; }
-        .wl-col-hdr-cell  { font-size: 0.715em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; flex-shrink: 0; }
-        .wl-col-hdr-price { width: 56px; }
-        .wl-col-hdr-chg   { width: 48px; }
-        .wl-col-hdr-chgp  { width: 50px; }
-        .wl-col-hdr-spacer { width: 20px; flex-shrink: 0; }
-        .wl-new-row {
+        /* Single set of column widths shared by both header and data rows */
+        .wl-c-sym  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wl-c-last { width: 58px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+        .wl-c-chg  { width: 52px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+        .wl-c-chgp { width: 52px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+        .wl-c-del  { width: 20px; flex-shrink: 0; }
+        /* Header styling */
+        .wl-col-hdr .wl-c-sym,
+        .wl-col-hdr .wl-c-last,
+        .wl-col-hdr .wl-c-chg,
+        .wl-col-hdr .wl-c-chgp { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; }
+        /* Data row styling */
+        .wl-ticker-row .wl-c-sym  { font-size: 0.858em; font-weight: 600; color: #c8d0dc; }
+        .wl-ticker-row .wl-c-last { font-size: 0.825em; color: #c8d0dc; }
+        .wl-ticker-row .wl-c-chg,
+        .wl-ticker-row .wl-c-chgp { font-size: 0.825em; font-weight: 500; }
+        .wl-c-chg.up,  .wl-c-chgp.up   { color: #3fb950; }
+        .wl-c-chg.down,.wl-c-chgp.down { color: #f85149; }
+        .wl-c-chg.neutral,.wl-c-chgp.neutral { color: #484f58; }
+        .wl-ticker-remove {
+            opacity: 0; background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 0.78em; padding: 0; width: 20px;
+            text-align: center; transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+        }
+        .wl-ticker-row:hover .wl-ticker-remove { opacity: 1; }
+        .wl-ticker-remove:hover { color: #f85149; }
             display: flex; align-items: center; gap: 6px;
             padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #161b22;
@@ -2828,11 +2840,11 @@
                 html += '<div style="padding:8px 14px 8px 24px;font-size:0.825em;color:#484f58;">Empty</div>';
             } else {
                 html += '<div class="wl-col-hdr">';
-                html += '<span class="wl-col-hdr-sym wl-col-hdr-cell">Symbol</span>';
-                html += '<span class="wl-col-hdr-cell wl-col-hdr-price">Last</span>';
-                html += '<span class="wl-col-hdr-cell wl-col-hdr-chg">Chg</span>';
-                html += '<span class="wl-col-hdr-cell wl-col-hdr-chgp">Chg%</span>';
-                html += '<span class="wl-col-hdr-spacer"></span>';
+                html += '<span class="wl-c-sym">Symbol</span>';
+                html += '<span class="wl-c-last">Last</span>';
+                html += '<span class="wl-c-chg">Chg</span>';
+                html += '<span class="wl-c-chgp">Chg%</span>';
+                html += '<span class="wl-c-del"></span>';
                 html += '</div>';
                 tickers.forEach(function(t) {
                     var active    = (wlChartTicker === t) ? ' active' : '';
@@ -2840,16 +2852,15 @@
                     var price     = sd && sd.price != null ? sd.price : null;
                     var priceStr  = price != null ? price.toFixed(2) : '—';
                     var dayVal    = sd ? sd.daily : null;
-                    // Chg = price * (daily% / 100)
                     var chgAbs    = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
                     var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                     var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
                     var cl        = dayVal == null ? 'neutral' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : 'neutral';
                     html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" data-wl-list="' + nameAttr + '">';
-                    html += '<span class="wl-ticker-sym">' + esc(t) + '</span>';
-                    html += '<span class="wl-ticker-price">' + priceStr + '</span>';
-                    html += '<span class="wl-ticker-chg ' + cl + '">' + chgStr + '</span>';
-                    html += '<span class="wl-ticker-chgp ' + cl + '">' + chgpStr + '</span>';
+                    html += '<span class="wl-c-sym">' + esc(t) + '</span>';
+                    html += '<span class="wl-c-last">' + priceStr + '</span>';
+                    html += '<span class="wl-c-chg ' + cl + '">' + chgStr + '</span>';
+                    html += '<span class="wl-c-chgp ' + cl + '">' + chgpStr + '</span>';
                     html += '<button class="wl-ticker-remove" data-wl-remove-ticker="' + esc(t) + '" data-wl-remove-list="' + nameAttr + '" title="Remove">✕</button>';
                     html += '</div>';
                 });
