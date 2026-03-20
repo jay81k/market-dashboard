@@ -634,7 +634,8 @@
 
         /* Add-to-watchlist button on stock rows */
         .wl-add-btn {
-            width: 18px; height: 18px; border-radius: 3px; border: 1px solid transparent;
+            width: 18px; height: 18px; border-radius: 3px 0 0 3px;
+            border: 1px solid transparent; border-right: none;
             background: none; color: #484f58; cursor: pointer; font-size: 0.9em;
             display: inline-flex; align-items: center; justify-content: center;
             transition: all 0.1s; flex-shrink: 0; vertical-align: middle;
@@ -642,6 +643,20 @@
         }
         .wl-add-btn:hover { color: #f9c74f; border-color: #484f58; }
         .wl-add-btn.in-wl { color: #f9c74f; }
+
+        .wl-pick-btn {
+            width: 13px; height: 18px; border-radius: 0 3px 3px 0;
+            border: 1px solid transparent; border-left: none;
+            background: none; color: #484f58; cursor: pointer; font-size: 0.6em;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.1s; flex-shrink: 0; vertical-align: middle;
+            padding: 0; margin-right: 3px;
+        }
+        .wl-pick-btn:hover { color: #c8d0dc; border-color: #484f58; }
+        .wl-pick-btn.in-wl { color: #f9c74f; }
+        .wl-add-btn:hover + .wl-pick-btn,
+        .wl-add-btn:hover ~ .wl-pick-btn { border-color: #484f58; }
+        .wl-pick-btn:hover { border-color: #484f58; }
 
         /* Watchlist picker popover */
         .wl-picker {
@@ -1578,7 +1593,7 @@
                     ' data-sector="'  + esc(row.sector   || '') + '"' +
                     ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
-            html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Add to watchlist">☆</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
+            html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button><button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
             html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
@@ -1622,7 +1637,7 @@
         tbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
-            if (e.target.closest('.wl-add-btn')) return;
+            if (e.target.closest('.wl-add-btn') || e.target.closest('.wl-pick-btn')) return;
             tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
             row.classList.add('active');
             allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
@@ -2514,7 +2529,8 @@
                 : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
             html += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
                 '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)">' + addIcon + '</button>' +
-                '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Add to watchlist">☆</button>' +
+                '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button>' +
+                '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button>' +
                 '<span class="ticker-badge">' + esc(row.ticker) + '</span>' +
                 '</td>';
             html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
@@ -2655,6 +2671,7 @@
     // ── Watchlists ────────────────────────────────────────────────────────
     var LS_WL_KEY      = 'dashboard-watchlists';
     var LS_WL_ORD_KEY  = 'dashboard-watchlists-order';
+    var LS_WL_LAST_KEY = 'dashboard-watchlists-last';
     var wlChartTf      = 'D';
     var wlChartTicker  = null;
     var wlChartWidget  = null;
@@ -2663,6 +2680,19 @@
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
     var wlPickerJustOpened = false;
+
+    function wlGetLastList() {
+        var last = localStorage.getItem(LS_WL_LAST_KEY);
+        var all  = wlGetAll();
+        // Validate it still exists
+        if (last && all[last]) return last;
+        // Fall back to first list in order
+        var order = wlGetOrder();
+        return order.length ? order[0] : null;
+    }
+    function wlSetLastList(name) {
+        try { localStorage.setItem(LS_WL_LAST_KEY, name); } catch(e) {}
+    }
 
     function wlGetAll() {
         try { return JSON.parse(localStorage.getItem(LS_WL_KEY) || '{}'); } catch(e) { return {}; }
@@ -2692,11 +2722,23 @@
 
     // Refresh star buttons across visible stock rows
     function wlRefreshStars() {
-        var inWl = wlAllTickers();
+        var last  = wlGetLastList();
+        var all   = wlGetAll();
+        var inLast = last && all[last] ? new Set(all[last]) : new Set();
+        var inAny  = wlAllTickers();
         document.querySelectorAll('.wl-add-btn').forEach(function(btn) {
             var t = btn.getAttribute('data-ticker');
-            btn.classList.toggle('in-wl', inWl.has(t));
-            btn.textContent = inWl.has(t) ? '★' : '☆';
+            var active = inLast.has(t);
+            btn.classList.toggle('in-wl', active);
+            btn.textContent = active ? '★' : '☆';
+            btn.title = active
+                ? 'Remove from "' + (last || '') + '"'
+                : (last ? 'Add to "' + last + '"' : 'Add to watchlist');
+        });
+        // Dim the chevron if ticker is in any list (to show it has placements)
+        document.querySelectorAll('.wl-pick-btn').forEach(function(btn) {
+            var t = btn.getAttribute('data-ticker');
+            btn.classList.toggle('in-wl', inAny.has(t));
         });
     }
 
@@ -2710,15 +2752,18 @@
             return;
         }
 
+        var last = wlGetLastList();
         var html = '';
         order.forEach(function(name) {
-            var tickers = all[name] || [];
-            var isOpen  = !!wlOpenGroups[name];
+            var tickers  = all[name] || [];
+            var isOpen   = !!wlOpenGroups[name];
+            var isLast   = name === last;
             var nameAttr = esc(name);
             html += '<div class="wl-group' + (isOpen ? ' open' : '') + '">';
             html += '<div class="wl-group-header" data-wl-toggle="' + nameAttr + '">';
             html += '<span class="wl-group-caret">▶</span>';
             html += '<span class="wl-group-name">' + nameAttr + '</span>';
+            if (isLast) html += '<span style="font-size:0.7em;color:#388bfd;margin-left:5px;flex-shrink:0;">default</span>';
             html += '<span class="wl-group-count">' + tickers.length + '</span>';
             html += '<button class="wl-group-del" data-wl-del="' + nameAttr + '" title="Delete watchlist">✕</button>';
             html += '</div>';
@@ -2774,12 +2819,14 @@
                 wlRefreshStars();
                 return;
             }
-            // Toggle group open/closed
+            // Toggle group open/closed  — also set as default on header click
             var hdr = e.target.closest('[data-wl-toggle]');
             if (hdr) {
                 var name = hdr.getAttribute('data-wl-toggle');
                 wlOpenGroups[name] = !wlOpenGroups[name];
+                wlSetLastList(name);
                 wlRender();
+                wlRefreshStars();
                 return;
             }
             // Select ticker for chart
@@ -2806,6 +2853,7 @@
         order = order.filter(function(k){ return k in all; }); // clean stale entries
         if (order.indexOf(name) === -1) order.push(name);
         wlSaveOrder(order);
+        wlSetLastList(name);
         wlOpenGroups[name] = true;
         wlRender();
     };
@@ -2885,36 +2933,69 @@
 
     // ── Watchlist picker popover ──────────────────────────────────────────
 
+    // Quick-add: star click adds/removes from last-used list immediately
+    window.wlQuickToggle = function(btn) {
+        var ticker = btn.getAttribute('data-ticker');
+        var last   = wlGetLastList();
+        if (!last) {
+            // No list yet — fall through to picker
+            wlOpenPicker(btn, { stopPropagation: function(){} });
+            return;
+        }
+        var all = wlGetAll();
+        if (!all[last]) all[last] = [];
+        var idx = all[last].indexOf(ticker);
+        if (idx !== -1) {
+            all[last].splice(idx, 1);
+        } else {
+            all[last].push(ticker);
+        }
+        wlSaveAll(all);
+        if (currentView === 'watchlists') wlRender();
+        wlRefreshStars();
+    };
+
     window.wlOpenPicker = function(btn, e) {
         e.stopPropagation();
+        // btn may be the ▾ button — get ticker from it directly (both star and chevron have data-ticker)
         var ticker = btn.getAttribute('data-ticker');
         wlPickerTicker = ticker;
         wlPickerBtn    = btn;
 
         var all    = wlGetAll();
         var order  = wlGetOrder();
+        var last   = wlGetLastList();
         var picker = document.getElementById('wl-picker');
 
         var html = '<div class="wl-picker-title">Add to watchlist</div>';
 
         if (order.length) {
             order.forEach(function(name) {
-                var has = all[name] && all[name].indexOf(ticker) !== -1;
-                html += '<div class="wl-picker-item' + (has ? ' checked' : '') + '" onclick="wlPickerToggle(' + JSON.stringify(name) + ')">';
+                var has      = all[name] && all[name].indexOf(ticker) !== -1;
+                var isLast   = name === last;
+                html += '<div class="wl-picker-item' + (has ? ' checked' : '') + '" data-wl-pick="' + esc(name) + '">';
                 html += '<span class="wl-picker-check">' + (has ? '✓' : '') + '</span>';
                 html += esc(name);
+                if (isLast) html += '<span style="font-size:0.72em;color:#484f58;margin-left:6px;">default</span>';
                 html += '</div>';
             });
             html += '<div class="wl-picker-divider"></div>';
         }
 
-        html += '<div class="wl-picker-new" onclick="wlPickerNewList()">';
+        html += '<div class="wl-picker-new" id="wl-picker-new-btn">';
         html += '<span style="font-size:1em;color:#6e7681;">+</span> New watchlist…';
         html += '</div>';
 
         picker.innerHTML = html;
 
-        // Position near the button
+        picker.onclick = function(ev) {
+            ev.stopPropagation();
+            var item = ev.target.closest('[data-wl-pick]');
+            if (item) { wlPickerToggle(item.getAttribute('data-wl-pick')); return; }
+            var newBtn = ev.target.closest('#wl-picker-new-btn');
+            if (newBtn) { wlPickerNewList(); return; }
+        };
+
         var rect = btn.getBoundingClientRect();
         var ph = 200;
         var top = rect.bottom + 4;
@@ -2928,6 +3009,7 @@
 
     window.wlPickerToggle = function(name) {
         var ticker = wlPickerTicker;
+        var btn    = wlPickerBtn;
         if (!ticker) return;
         var all = wlGetAll();
         if (!all[name]) all[name] = [];
@@ -2936,16 +3018,16 @@
             all[name].splice(idx, 1);
         } else {
             all[name].push(ticker);
+            wlSetLastList(name);  // update default to whichever list was just added to
         }
         wlSaveAll(all);
-        wlRefreshStars();
         if (currentView === 'watchlists') wlRender();
-        // Re-render picker using the stored button reference
-        if (wlPickerBtn && document.contains(wlPickerBtn)) {
-            wlOpenPicker(wlPickerBtn, { stopPropagation: function(){} });
+        if (btn && document.contains(btn)) {
+            wlOpenPicker(btn, { stopPropagation: function(){} });
         } else {
             wlClosePicker();
         }
+        wlRefreshStars();
     };
 
     window.wlPickerNewList = function() {
@@ -2970,6 +3052,7 @@
                 }
                 if (wlPickerTicker && all[name].indexOf(wlPickerTicker) === -1) {
                     all[name].push(wlPickerTicker);
+                    wlSetLastList(name);
                 }
                 wlSaveAll(all);
                 wlRefreshStars();
