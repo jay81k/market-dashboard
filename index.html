@@ -607,6 +607,7 @@
         }
         .wl-group-header:hover .wl-group-del { opacity: 1; }
         .wl-group-del:hover { color: #f85149; }
+        .wl-group-del.confirming { color: #e3852b; opacity: 1; }
 
         .wl-tickers { display: none; }
         .wl-group.open .wl-tickers { display: block; }
@@ -635,7 +636,30 @@
         .wl-col-hdr-price { width: 56px; }
         .wl-col-hdr-chg   { width: 48px; }
         .wl-col-hdr-chgp  { width: 50px; }
-        .wl-col-hdr-spacer { width: 20px; flex-shrink: 0; } /* matches remove btn width */
+        .wl-col-hdr-spacer { width: 20px; flex-shrink: 0; }
+        .wl-new-row {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+            background: #161b22;
+        }
+        .wl-new-input {
+            flex: 1; background: transparent; border: none; border-bottom: 1px solid #388bfd;
+            color: #c8d0dc; font-size: 0.902em; font-family: inherit;
+            outline: none; padding: 2px 4px; min-width: 0;
+        }
+        .wl-new-input::placeholder { color: #484f58; }
+        .wl-new-confirm {
+            padding: 3px 10px; border-radius: 4px; border: 1px solid #388bfd;
+            background: #1f6feb; color: #fff; font-size: 0.792em;
+            font-family: inherit; cursor: pointer; font-weight: 500; flex-shrink: 0;
+        }
+        .wl-new-confirm:hover { background: #388bfd; }
+        .wl-new-cancel {
+            background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 1em; padding: 2px 4px; flex-shrink: 0;
+            transition: color 0.1s;
+        }
+        .wl-new-cancel:hover { color: #c8d0dc; } /* matches remove btn width */
         .wl-ticker-remove {
             opacity: 0; background: none; border: none; color: #484f58;
             cursor: pointer; font-size: 0.78em; padding: 1px 0; width: 20px;
@@ -913,6 +937,11 @@
         <div class="wl-side-panel">
             <div class="wl-side-header">
                 <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
+            </div>
+            <div id="wl-new-row" class="wl-new-row" style="display:none;">
+                <input id="wl-new-input" class="wl-new-input" type="text" placeholder="List name…" maxlength="40" autocomplete="off" spellcheck="false">
+                <button class="wl-new-confirm" onclick="wlConfirmNew()">Add</button>
+                <button class="wl-new-cancel" onclick="wlCancelNew()">✕</button>
             </div>
             <div class="wl-list-scroll" id="wl-list-scroll"></div>
         </div>
@@ -2853,7 +2882,19 @@
             if (delBtn) {
                 e.stopPropagation();
                 var name = delBtn.getAttribute('data-wl-del');
-                if (!confirm('Delete watchlist "' + name + '"?')) return;
+                // First click: show confirmation state on button
+                if (!delBtn.classList.contains('confirming')) {
+                    delBtn.classList.add('confirming');
+                    delBtn.textContent = '?';
+                    delBtn.title = 'Click again to delete';
+                    setTimeout(function() {
+                        delBtn.classList.remove('confirming');
+                        delBtn.textContent = '✕';
+                        delBtn.title = 'Delete watchlist';
+                    }, 2000);
+                    return;
+                }
+                // Second click: confirmed, delete
                 var all = wlGetAll();
                 delete all[name];
                 wlSaveAll(all);
@@ -2897,25 +2938,51 @@
     }
 
     window.wlCreateNew = function() {
-        var name = prompt('Watchlist name:');
-        if (!name) return;
-        name = name.trim();
-        if (!name) return;
+        var row   = document.getElementById('wl-new-row');
+        var input = document.getElementById('wl-new-input');
+        row.style.display = 'flex';
+        input.value = '';
+        input.focus();
+    };
+
+    window.wlConfirmNew = function() {
+        var input = document.getElementById('wl-new-input');
+        var name  = input.value.trim();
+        if (!name) { input.focus(); return; }
         var all = wlGetAll();
-        if (all[name]) { alert('A watchlist named "' + name + '" already exists.'); return; }
+        if (all[name]) {
+            input.style.borderBottomColor = '#f85149';
+            input.select();
+            setTimeout(function(){ input.style.borderBottomColor = '#388bfd'; }, 1200);
+            return;
+        }
         all[name] = [];
         wlSaveAll(all);
-        // Build order from existing saved order, then append new name — do NOT call wlGetOrder()
-        // here because it reads the already-updated storage and would include the name again.
         var order = [];
         try { order = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]'); } catch(e) {}
-        order = order.filter(function(k){ return k in all; }); // clean stale entries
+        order = order.filter(function(k){ return k in all; });
         if (order.indexOf(name) === -1) order.push(name);
         wlSaveOrder(order);
         wlSetLastList(name);
         wlOpenGroups[name] = true;
+        wlCancelNew();
         wlRender();
     };
+
+    window.wlCancelNew = function() {
+        var row = document.getElementById('wl-new-row');
+        row.style.display = 'none';
+    };
+
+    // Keyboard handling for the inline input
+    document.addEventListener('keydown', function(e) {
+        var row = document.getElementById('wl-new-row');
+        if (!row || row.style.display === 'none') return;
+        if (document.activeElement === document.getElementById('wl-new-input')) {
+            if (e.key === 'Enter')  { e.preventDefault(); wlConfirmNew(); }
+            if (e.key === 'Escape') { e.preventDefault(); wlCancelNew(); }
+        }
+    });
 
     window.wlDeleteList = function(name) {
         if (!confirm('Delete watchlist "' + name + '"?')) return;
