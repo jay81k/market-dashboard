@@ -74,6 +74,7 @@
 
         /* ── Main content ── */
         .main { flex: 1; overflow-y: auto; min-height: 0; }
+        #view-watchlists { height: 100%; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
@@ -539,6 +540,138 @@
         }
         .scan-filter-btn:hover { background: #161b22; color: #c8d0dc; }
         .scan-filter-btn.active { background: #1a3a5c; border-color: #2979c8; color: #58a6ff; }
+
+        /* ── Watchlists view ── */
+        #view-watchlists {
+            display: none; flex-direction: row; height: 100%; overflow: hidden;
+        }
+        .wl-chart-panel {
+            flex: 1; min-width: 0; border-right: 1px solid #21262d;
+            display: flex; flex-direction: column;
+        }
+        .wl-chart-panel-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 14px; background: #161b22; border-bottom: 1px solid #21262d;
+            flex-shrink: 0;
+        }
+        .wl-chart-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; min-width: 60px; }
+        .wl-chart-mc-group { display: flex; gap: 3px; }
+        .wl-chart-tf-btn {
+            padding: 3px 9px; border-radius: 4px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.825em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s;
+        }
+        .wl-chart-tf-btn:hover  { background: #161b22; color: #c8d0dc; }
+        .wl-chart-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+        .wl-chart-body { flex: 1; min-height: 0; }
+        .wl-chart-empty {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            color: #484f58; font-size: 0.902em;
+        }
+
+        .wl-side-panel {
+            width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
+            background: #0d1117; overflow: hidden;
+        }
+        .wl-side-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .wl-side-title { font-size: 0.858em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
+        .wl-new-btn {
+            padding: 3px 10px; border-radius: 4px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.825em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s;
+        }
+        .wl-new-btn:hover { background: #161b22; color: #c8d0dc; border-color: #30363d; }
+
+        .wl-list-scroll { flex: 1; overflow-y: auto; }
+
+        .wl-group { border-bottom: 1px solid #161b22; }
+        .wl-group-header {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 14px; cursor: pointer; user-select: none;
+            transition: background 0.1s; position: relative;
+        }
+        .wl-group-header:hover { background: #161b22; }
+        .wl-group-caret { font-size: 0.7em; color: #484f58; transition: transform 0.15s; flex-shrink: 0; }
+        .wl-group.open .wl-group-caret { transform: rotate(90deg); }
+        .wl-group-name { font-size: 0.925em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wl-group-count { font-size: 0.78em; color: #484f58; flex-shrink: 0; }
+        .wl-group-del {
+            opacity: 0; background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 0.88em; padding: 2px 4px; border-radius: 3px;
+            transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+        }
+        .wl-group-header:hover .wl-group-del { opacity: 1; }
+        .wl-group-del:hover { color: #f85149; }
+
+        .wl-tickers { display: none; }
+        .wl-group.open .wl-tickers { display: block; }
+
+        .wl-ticker-row {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 14px 5px 28px; cursor: pointer;
+            transition: background 0.1s; border-top: 1px solid #0d1117;
+        }
+        .wl-ticker-row:hover { background: #161b22; }
+        .wl-ticker-row.active { background: #1a3a5c; }
+        .wl-ticker-sym { font-size: 0.902em; font-weight: 600; color: #58a6ff; flex: 1; }
+        .wl-ticker-remove {
+            opacity: 0; background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 0.78em; padding: 1px 4px;
+            transition: opacity 0.1s, color 0.1s;
+        }
+        .wl-ticker-row:hover .wl-ticker-remove { opacity: 1; }
+        .wl-ticker-remove:hover { color: #f85149; }
+
+        .wl-empty-state {
+            padding: 24px 14px; text-align: center;
+            color: #484f58; font-size: 0.858em; line-height: 1.6;
+        }
+
+        /* Add-to-watchlist button on stock rows */
+        .wl-add-btn {
+            width: 18px; height: 18px; border-radius: 3px; border: 1px solid transparent;
+            background: none; color: #484f58; cursor: pointer; font-size: 0.9em;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.1s; flex-shrink: 0; vertical-align: middle;
+            padding: 0; margin-left: 2px;
+        }
+        .wl-add-btn:hover { color: #f9c74f; border-color: #484f58; }
+        .wl-add-btn.in-wl { color: #f9c74f; }
+
+        /* Watchlist picker popover */
+        .wl-picker {
+            position: fixed; z-index: 99998; background: #161b22;
+            border: 1px solid #30363d; border-radius: 7px;
+            padding: 8px; min-width: 180px; max-width: 240px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+        }
+        .wl-picker-title { font-size: 0.748em; color: #6e7681; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px 6px; }
+        .wl-picker-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 8px; border-radius: 4px; cursor: pointer;
+            font-size: 0.858em; color: #c8d0dc; transition: background 0.1s;
+        }
+        .wl-picker-item:hover { background: #21262d; }
+        .wl-picker-item.checked { color: #3fb950; }
+        .wl-picker-check { font-size: 0.78em; width: 14px; }
+        .wl-picker-divider { height: 1px; background: #21262d; margin: 4px 0; }
+        .wl-picker-new {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 8px; border-radius: 4px; cursor: pointer;
+            font-size: 0.858em; color: #6e7681; transition: all 0.1s;
+        }
+        .wl-picker-new:hover { background: #21262d; color: #c8d0dc; }
+        .wl-picker-input {
+            width: 100%; background: #0d1117; border: 1px solid #30363d;
+            border-radius: 4px; color: #c8d0dc; padding: 4px 8px;
+            font-size: 0.858em; font-family: inherit; outline: none; margin-top: 4px;
+        }
+        .wl-picker-input:focus { border-color: #388bfd44; }
     </style>
 </head>
 <body>
@@ -548,6 +681,7 @@
     <div class="nav-tabs">
         <div class="nav-tab active" id="tab-industries" onclick="navToIndustries()">Industries</div>
         <div class="nav-tab" id="tab-scans" onclick="showView('scans')">Stocks</div>
+        <div class="nav-tab" id="tab-watchlists" onclick="showView('watchlists')">Watchlists</div>
     </div>
 </div>
 
@@ -724,7 +858,38 @@
             <div class="multichart-grid" id="scans-multichart-grid"></div>
         </div>
     </div>
+
+    <!-- Watchlists view -->
+    <div id="view-watchlists" style="display:none;flex-direction:row;height:100%;overflow:hidden;">
+        <!-- Chart panel -->
+        <div class="wl-chart-panel">
+            <div class="wl-chart-panel-header">
+                <span class="wl-chart-sym" id="wl-chart-sym">—</span>
+                <div class="wl-chart-mc-group" id="wl-tf-group">
+                    <button class="wl-chart-tf-btn" data-tf="5"  onclick="setWlTf('5')">5m</button>
+                    <button class="wl-chart-tf-btn active" data-tf="D"  onclick="setWlTf('D')">Daily</button>
+                    <button class="wl-chart-tf-btn" data-tf="W"  onclick="setWlTf('W')">Weekly</button>
+                    <button class="wl-chart-tf-btn" data-tf="M"  onclick="setWlTf('M')">Monthly</button>
+                </div>
+            </div>
+            <div class="wl-chart-body" id="wl-chart-body">
+                <div class="wl-chart-empty" id="wl-chart-empty">Select a ticker from a watchlist to chart it</div>
+                <div id="wl-chart-widget" style="width:100%;height:100%;display:none;"></div>
+            </div>
+        </div>
+        <!-- Watchlists side panel -->
+        <div class="wl-side-panel">
+            <div class="wl-side-header">
+                <span class="wl-side-title">Watchlists</span>
+                <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
+            </div>
+            <div class="wl-list-scroll" id="wl-list-scroll"></div>
+        </div>
+    </div>
 </div>
+
+<!-- Watchlist picker popover -->
+<div id="wl-picker" class="wl-picker" style="display:none;"></div>
 
 <!-- Dist/MA dropdown -->
 <div id="dist-ma-dropdown" class="dist-ma-dropdown">
@@ -848,9 +1013,14 @@
         document.getElementById('view-industry-stocks').classList.remove('active');
         document.getElementById('view-scans').style.display           = 'none';
         document.getElementById('view-sector').style.display          = 'none';
+        document.getElementById('view-watchlists').style.display      = 'none';
+
+        // Watchlists needs overflow:hidden so its flex children fill height correctly
+        document.getElementById('main-area').style.overflow = (view === 'watchlists') ? 'hidden' : '';
 
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
         document.getElementById('tab-scans').classList.toggle('active', view === 'scans');
+        document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
 
         var searchEl = document.getElementById('search-input');
         searchEl.value = '';
@@ -861,6 +1031,8 @@
             searchEl.placeholder = 'Filter stocks…';
         } else if (view === 'scans') {
             searchEl.placeholder = 'Filter stocks…';
+        } else if (view === 'watchlists') {
+            searchEl.placeholder = 'Search…';
         }
 
         // Show/hide toolbar elements (only for industries view)
@@ -876,6 +1048,9 @@
             renderScans();
         } else if (view === 'sector') {
             document.getElementById('view-sector').style.display = 'flex';
+        } else if (view === 'watchlists') {
+            document.getElementById('view-watchlists').style.display = 'flex';
+            wlRender();
         }
     };
 
@@ -1403,7 +1578,7 @@
                     ' data-sector="'  + esc(row.sector   || '') + '"' +
                     ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
-            html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
+            html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Add to watchlist">☆</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
             html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
@@ -1447,6 +1622,7 @@
         tbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
+            if (e.target.closest('.wl-add-btn')) return;
             tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
             row.classList.add('active');
             allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
@@ -1460,6 +1636,7 @@
 
         allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
         currentStockIndex = -1;
+        wlRefreshStars();
     }
 
     // ── Industry-drill stocks table sorting ─────────────────────────────────
@@ -2337,6 +2514,7 @@
                 : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
             html += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
                 '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)">' + addIcon + '</button>' +
+                '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Add to watchlist">☆</button>' +
                 '<span class="ticker-badge">' + esc(row.ticker) + '</span>' +
                 '</td>';
             html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
@@ -2382,6 +2560,7 @@
         };
 
         if (scansMultichartActive) renderScansMc();
+        wlRefreshStars();
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
@@ -2472,6 +2651,286 @@
             observer.observe(cell);
         });
     }
+
+    // ── Watchlists ────────────────────────────────────────────────────────
+    var LS_WL_KEY      = 'dashboard-watchlists';   // { name: [ticker, ...], ... }
+    var LS_WL_ORD_KEY  = 'dashboard-watchlists-order'; // [name, ...]
+    var wlChartTf      = 'D';
+    var wlChartTicker  = null;
+    var wlChartWidget  = null;
+    var wlOpenGroups   = {};   // name → bool
+    var wlPickerTicker = null;
+    var wlPickerOpen   = false;
+
+    function wlGetAll() {
+        try { return JSON.parse(localStorage.getItem(LS_WL_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function wlGetOrder() {
+        try {
+            var all = wlGetAll();
+            var ord = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]');
+            // Add any missing keys
+            Object.keys(all).forEach(function(k){ if (ord.indexOf(k) === -1) ord.push(k); });
+            return ord.filter(function(k){ return k in all; });
+        } catch(e) { return Object.keys(wlGetAll()); }
+    }
+    function wlSaveAll(obj) {
+        try { localStorage.setItem(LS_WL_KEY, JSON.stringify(obj)); } catch(e) {}
+    }
+    function wlSaveOrder(arr) {
+        try { localStorage.setItem(LS_WL_ORD_KEY, JSON.stringify(arr)); } catch(e) {}
+    }
+
+    function wlAllTickers() {
+        var all = wlGetAll();
+        var set = new Set();
+        Object.values(all).forEach(function(tickers){ tickers.forEach(function(t){ set.add(t); }); });
+        return set;
+    }
+
+    // Refresh star buttons across visible stock rows
+    function wlRefreshStars() {
+        var inWl = wlAllTickers();
+        document.querySelectorAll('.wl-add-btn').forEach(function(btn) {
+            var t = btn.getAttribute('data-ticker');
+            btn.classList.toggle('in-wl', inWl.has(t));
+            btn.textContent = inWl.has(t) ? '★' : '☆';
+        });
+    }
+
+    window.wlRender = function() {
+        var scroll = document.getElementById('wl-list-scroll');
+        var all    = wlGetAll();
+        var order  = wlGetOrder();
+
+        if (!order.length) {
+            scroll.innerHTML = '<div class="wl-empty-state">No watchlists yet.<br>Add stocks using the ☆ button<br>on any stock row.</div>';
+            return;
+        }
+
+        var html = '';
+        order.forEach(function(name) {
+            var tickers = all[name] || [];
+            var isOpen  = !!wlOpenGroups[name];
+            html += '<div class="wl-group' + (isOpen ? ' open' : '') + '" data-wl-name="' + esc(name) + '">';
+            html += '<div class="wl-group-header" onclick="wlToggleGroup(' + JSON.stringify(name) + ')">';
+            html += '<span class="wl-group-caret">▶</span>';
+            html += '<span class="wl-group-name">' + esc(name) + '</span>';
+            html += '<span class="wl-group-count">' + tickers.length + '</span>';
+            html += '<button class="wl-group-del" onclick="event.stopPropagation();wlDeleteList(' + JSON.stringify(name) + ')" title="Delete watchlist">✕</button>';
+            html += '</div>';
+            html += '<div class="wl-tickers">';
+            if (!tickers.length) {
+                html += '<div style="padding:8px 14px 8px 28px;font-size:0.825em;color:#484f58;">Empty</div>';
+            } else {
+                tickers.forEach(function(t) {
+                    var active = (wlChartTicker === t) ? ' active' : '';
+                    html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" onclick="wlSelectTicker(' + JSON.stringify(t) + ')">';
+                    html += '<span class="wl-ticker-sym">' + esc(t) + '</span>';
+                    html += '<button class="wl-ticker-remove" onclick="event.stopPropagation();wlRemoveTicker(' + JSON.stringify(name) + ',' + JSON.stringify(t) + ')" title="Remove">✕</button>';
+                    html += '</div>';
+                });
+            }
+            html += '</div></div>';
+        });
+        scroll.innerHTML = html;
+    };
+
+    window.wlToggleGroup = function(name) {
+        wlOpenGroups[name] = !wlOpenGroups[name];
+        wlRender();
+    };
+
+    window.wlCreateNew = function() {
+        var name = prompt('Watchlist name:');
+        if (!name) return;
+        name = name.trim();
+        if (!name) return;
+        var all = wlGetAll();
+        if (all[name]) { alert('A watchlist named "' + name + '" already exists.'); return; }
+        all[name] = [];
+        wlSaveAll(all);
+        var order = wlGetOrder();
+        order.push(name);
+        wlSaveOrder(order);
+        wlOpenGroups[name] = true;
+        wlRender();
+    };
+
+    window.wlDeleteList = function(name) {
+        if (!confirm('Delete watchlist "' + name + '"?')) return;
+        var all = wlGetAll();
+        delete all[name];
+        wlSaveAll(all);
+        var order = wlGetOrder().filter(function(k){ return k !== name; });
+        wlSaveOrder(order);
+        delete wlOpenGroups[name];
+        wlRender();
+        wlRefreshStars();
+    };
+
+    window.wlRemoveTicker = function(name, ticker) {
+        var all = wlGetAll();
+        if (!all[name]) return;
+        all[name] = all[name].filter(function(t){ return t !== ticker; });
+        wlSaveAll(all);
+        if (wlChartTicker === ticker) {
+            // keep chart open, just update active state
+        }
+        wlRender();
+        wlRefreshStars();
+    };
+
+    window.wlAddTicker = function(name, ticker) {
+        var all = wlGetAll();
+        if (!all[name]) all[name] = [];
+        if (all[name].indexOf(ticker) === -1) all[name].push(ticker);
+        wlSaveAll(all);
+        wlRender();
+        wlRefreshStars();
+    };
+
+    window.wlSelectTicker = function(ticker) {
+        wlChartTicker = ticker;
+        document.getElementById('wl-chart-sym').textContent = ticker;
+        document.getElementById('wl-chart-empty').style.display = 'none';
+        var widgetDiv = document.getElementById('wl-chart-widget');
+        widgetDiv.style.display = 'block';
+        widgetDiv.innerHTML = '';
+        wlChartWidget = null;
+        var mappedSym = TV_MAP[ticker] || ticker;
+        try {
+            wlChartWidget = new TradingView.widget({
+                symbol: mappedSym, interval: wlChartTf, locale: 'en', style: '1',
+                theme: 'dark', timezone: 'America/Toronto',
+                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                gridColor: 'rgba(255,255,255,0.04)',
+                hide_side_toolbar: false, hide_top_toolbar: false,
+                hide_legend: false, hide_volume: true,
+                details: true, hotlist: false, calendar: false,
+                withdateranges: true, allow_symbol_change: true,
+                save_image: false, enable_publishing: false,
+                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                right_bar_margin: 3,
+                autosize: true,
+                container_id: 'wl-chart-widget',
+            });
+        } catch(e) {}
+        // Update active row highlight
+        document.querySelectorAll('.wl-ticker-row').forEach(function(r){
+            r.classList.toggle('active', r.getAttribute('data-wl-ticker') === ticker);
+        });
+    };
+
+    window.setWlTf = function(tf) {
+        wlChartTf = tf;
+        document.querySelectorAll('.wl-chart-tf-btn').forEach(function(b){
+            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
+        });
+        if (wlChartTicker) wlSelectTicker(wlChartTicker);
+    };
+
+    // ── Watchlist picker popover ──────────────────────────────────────────
+    window.wlOpenPicker = function(btn, e) {
+        e.stopPropagation();
+        var ticker = btn.getAttribute('data-ticker');
+        wlPickerTicker = ticker;
+
+        var all    = wlGetAll();
+        var order  = wlGetOrder();
+        var picker = document.getElementById('wl-picker');
+
+        var html = '<div class="wl-picker-title">Add to watchlist</div>';
+
+        if (order.length) {
+            order.forEach(function(name) {
+                var has = all[name] && all[name].indexOf(ticker) !== -1;
+                html += '<div class="wl-picker-item' + (has ? ' checked' : '') + '" onclick="wlPickerToggle(' + JSON.stringify(name) + ')">';
+                html += '<span class="wl-picker-check">' + (has ? '✓' : '') + '</span>';
+                html += esc(name);
+                html += '</div>';
+            });
+            html += '<div class="wl-picker-divider"></div>';
+        }
+
+        html += '<div class="wl-picker-new" onclick="wlPickerNewList()">';
+        html += '<span style="font-size:1em;color:#6e7681;">+</span> New watchlist…';
+        html += '</div>';
+
+        picker.innerHTML = html;
+
+        // Position near the button
+        var rect = btn.getBoundingClientRect();
+        var ph = 200; // estimated height
+        var top = rect.bottom + 4;
+        if (top + ph > window.innerHeight) top = rect.top - ph - 4;
+        picker.style.top  = top + 'px';
+        picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
+        picker.style.display = 'block';
+        wlPickerOpen = true;
+    };
+
+    window.wlPickerToggle = function(name) {
+        var ticker = wlPickerTicker;
+        if (!ticker) return;
+        var all = wlGetAll();
+        if (!all[name]) all[name] = [];
+        var idx = all[name].indexOf(ticker);
+        if (idx !== -1) {
+            all[name].splice(idx, 1);
+        } else {
+            all[name].push(ticker);
+        }
+        wlSaveAll(all);
+        wlRefreshStars();
+        if (currentView === 'watchlists') wlRender();
+        // Re-render picker in place
+        var btn = document.querySelector('.wl-add-btn[data-ticker="' + ticker + '"]');
+        if (btn) wlOpenPicker(btn, { stopPropagation: function(){} });
+        else wlClosePicker();
+    };
+
+    window.wlPickerNewList = function() {
+        var picker = document.getElementById('wl-picker');
+        // Replace new-list row with inline input
+        var newRow = picker.querySelector('.wl-picker-new');
+        if (!newRow) return;
+        newRow.outerHTML = '<input class="wl-picker-input" id="wl-picker-input" type="text" placeholder="List name…" maxlength="40" autofocus>';
+        var input = document.getElementById('wl-picker-input');
+        input.focus();
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var name = input.value.trim();
+                if (!name) return;
+                var all = wlGetAll();
+                if (!all[name]) {
+                    all[name] = [];
+                    var order = wlGetOrder();
+                    order.push(name);
+                    wlSaveOrder(order);
+                }
+                wlPickerTicker && all[name].indexOf(wlPickerTicker) === -1 && all[name].push(wlPickerTicker);
+                wlSaveAll(all);
+                wlRefreshStars();
+                if (currentView === 'watchlists') wlRender();
+                wlClosePicker();
+            }
+            if (e.key === 'Escape') wlClosePicker();
+        });
+    };
+
+    function wlClosePicker() {
+        document.getElementById('wl-picker').style.display = 'none';
+        wlPickerOpen = false;
+        wlPickerTicker = null;
+    }
+
+    // Close picker on outside click
+    document.addEventListener('click', function(e) {
+        if (wlPickerOpen && !document.getElementById('wl-picker').contains(e.target)) {
+            wlClosePicker();
+        }
+    });
 
     // ── Load data ─────────────────────────────────────────────────────────
     Promise.all([
