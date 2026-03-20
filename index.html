@@ -703,7 +703,7 @@
         <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:12px 14px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
             <div id="sf-popover-content"></div>
             <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:6px;">
-                <button class="sf-add-btn" style="border-style:solid;color:#6e7681;" onclick="sfClosePopover()">Done</button>
+                <button class="sf-add-btn" style="border-style:solid;color:#6e7681;" onclick="sfClosePopover();renderScans()">Done</button>
             </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -1885,14 +1885,12 @@
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         }
         sfRenderPills();
-        renderScans();
     };
 
     window.sfAddRow = function() {
         sfRowId++;
         sfRows.push({ id: sfRowId, type: 'ma', maCondition: 'above_price', dir: 'above', maType: 'SMA', maPeriod: 50, maType2: 'SMA', maPeriod1: 5, maPeriod2: 50, val: 0 });
         sfRenderPills();
-        renderScans();
         setTimeout(function() {
             var pill = document.querySelector('.sf-pill:last-child');
             if (pill) sfOpenPopover(sfRowId, pill);
