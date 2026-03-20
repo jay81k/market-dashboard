@@ -591,6 +591,7 @@
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <span style="font-size:0.78em;font-weight:600;color:#6e7681;text-transform:uppercase;letter-spacing:0.05em;">Scan</span>
                 <button class="scan-filter-btn active" data-scan="inside_day" onclick="setScan('inside_day')">Inside Day</button>
+                <button class="scan-filter-btn" data-scan="bullish_outside" onclick="setScan('bullish_outside')">Bullish Outside</button>
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
             <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
@@ -1958,6 +1959,7 @@
 
         function filterByScan(stocks, scan) {
         if (scan === 'inside_day') return stocks.filter(function(r) { return r.inside_day === true; });
+        if (scan === 'bullish_outside') return stocks.filter(function(r) { return r.bullish_outside === true; });
         return stocks;
     }
 
