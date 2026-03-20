@@ -2653,14 +2653,16 @@
     }
 
     // ── Watchlists ────────────────────────────────────────────────────────
-    var LS_WL_KEY      = 'dashboard-watchlists';   // { name: [ticker, ...], ... }
-    var LS_WL_ORD_KEY  = 'dashboard-watchlists-order'; // [name, ...]
+    var LS_WL_KEY      = 'dashboard-watchlists';
+    var LS_WL_ORD_KEY  = 'dashboard-watchlists-order';
     var wlChartTf      = 'D';
     var wlChartTicker  = null;
     var wlChartWidget  = null;
-    var wlOpenGroups   = {};   // name → bool
+    var wlOpenGroups   = {};
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
+    var wlPickerBtn    = null;
+    var wlPickerJustOpened = false;
 
     function wlGetAll() {
         try { return JSON.parse(localStorage.getItem(LS_WL_KEY) || '{}'); } catch(e) { return {}; }
@@ -2712,12 +2714,13 @@
         order.forEach(function(name) {
             var tickers = all[name] || [];
             var isOpen  = !!wlOpenGroups[name];
-            html += '<div class="wl-group' + (isOpen ? ' open' : '') + '" data-wl-name="' + esc(name) + '">';
-            html += '<div class="wl-group-header" onclick="wlToggleGroup(' + JSON.stringify(name) + ')">';
+            var nameAttr = esc(name);
+            html += '<div class="wl-group' + (isOpen ? ' open' : '') + '">';
+            html += '<div class="wl-group-header" data-wl-toggle="' + nameAttr + '">';
             html += '<span class="wl-group-caret">▶</span>';
-            html += '<span class="wl-group-name">' + esc(name) + '</span>';
+            html += '<span class="wl-group-name">' + nameAttr + '</span>';
             html += '<span class="wl-group-count">' + tickers.length + '</span>';
-            html += '<button class="wl-group-del" onclick="event.stopPropagation();wlDeleteList(' + JSON.stringify(name) + ')" title="Delete watchlist">✕</button>';
+            html += '<button class="wl-group-del" data-wl-del="' + nameAttr + '" title="Delete watchlist">✕</button>';
             html += '</div>';
             html += '<div class="wl-tickers">';
             if (!tickers.length) {
@@ -2725,9 +2728,9 @@
             } else {
                 tickers.forEach(function(t) {
                     var active = (wlChartTicker === t) ? ' active' : '';
-                    html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" onclick="wlSelectTicker(' + JSON.stringify(t) + ')">';
+                    html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" data-wl-list="' + nameAttr + '">';
                     html += '<span class="wl-ticker-sym">' + esc(t) + '</span>';
-                    html += '<button class="wl-ticker-remove" onclick="event.stopPropagation();wlRemoveTicker(' + JSON.stringify(name) + ',' + JSON.stringify(t) + ')" title="Remove">✕</button>';
+                    html += '<button class="wl-ticker-remove" data-wl-remove-ticker="' + esc(t) + '" data-wl-remove-list="' + nameAttr + '" title="Remove">✕</button>';
                     html += '</div>';
                 });
             }
@@ -2736,10 +2739,56 @@
         scroll.innerHTML = html;
     };
 
-    window.wlToggleGroup = function(name) {
-        wlOpenGroups[name] = !wlOpenGroups[name];
-        wlRender();
-    };
+    // Single delegated listener on the scroll container — registered once at startup
+    function wlAttachListeners() {
+        var scroll = document.getElementById('wl-list-scroll');
+        if (!scroll) return;
+        scroll.addEventListener('click', function(e) {
+            // Delete watchlist button
+            var delBtn = e.target.closest('[data-wl-del]');
+            if (delBtn) {
+                e.stopPropagation();
+                var name = delBtn.getAttribute('data-wl-del');
+                if (!confirm('Delete watchlist "' + name + '"?')) return;
+                var all = wlGetAll();
+                delete all[name];
+                wlSaveAll(all);
+                var order = wlGetOrder().filter(function(k){ return k !== name; });
+                wlSaveOrder(order);
+                delete wlOpenGroups[name];
+                wlRender();
+                wlRefreshStars();
+                return;
+            }
+            // Remove ticker from list
+            var remBtn = e.target.closest('[data-wl-remove-ticker]');
+            if (remBtn) {
+                e.stopPropagation();
+                var ticker = remBtn.getAttribute('data-wl-remove-ticker');
+                var listName = remBtn.getAttribute('data-wl-remove-list');
+                var all = wlGetAll();
+                if (!all[listName]) return;
+                all[listName] = all[listName].filter(function(t){ return t !== ticker; });
+                wlSaveAll(all);
+                wlRender();
+                wlRefreshStars();
+                return;
+            }
+            // Toggle group open/closed
+            var hdr = e.target.closest('[data-wl-toggle]');
+            if (hdr) {
+                var name = hdr.getAttribute('data-wl-toggle');
+                wlOpenGroups[name] = !wlOpenGroups[name];
+                wlRender();
+                return;
+            }
+            // Select ticker for chart
+            var tickerRow = e.target.closest('[data-wl-ticker]');
+            if (tickerRow && !e.target.closest('[data-wl-remove-ticker]')) {
+                wlSelectTicker(tickerRow.getAttribute('data-wl-ticker'));
+            }
+        });
+    }
 
     window.wlCreateNew = function() {
         var name = prompt('Watchlist name:');
@@ -2750,8 +2799,12 @@
         if (all[name]) { alert('A watchlist named "' + name + '" already exists.'); return; }
         all[name] = [];
         wlSaveAll(all);
-        var order = wlGetOrder();
-        order.push(name);
+        // Build order from existing saved order, then append new name — do NOT call wlGetOrder()
+        // here because it reads the already-updated storage and would include the name again.
+        var order = [];
+        try { order = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]'); } catch(e) {}
+        order = order.filter(function(k){ return k in all; }); // clean stale entries
+        if (order.indexOf(name) === -1) order.push(name);
         wlSaveOrder(order);
         wlOpenGroups[name] = true;
         wlRender();
@@ -2831,10 +2884,12 @@
     };
 
     // ── Watchlist picker popover ──────────────────────────────────────────
+
     window.wlOpenPicker = function(btn, e) {
         e.stopPropagation();
         var ticker = btn.getAttribute('data-ticker');
         wlPickerTicker = ticker;
+        wlPickerBtn    = btn;
 
         var all    = wlGetAll();
         var order  = wlGetOrder();
@@ -2861,13 +2916,14 @@
 
         // Position near the button
         var rect = btn.getBoundingClientRect();
-        var ph = 200; // estimated height
+        var ph = 200;
         var top = rect.bottom + 4;
         if (top + ph > window.innerHeight) top = rect.top - ph - 4;
         picker.style.top  = top + 'px';
         picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
         picker.style.display = 'block';
         wlPickerOpen = true;
+        wlPickerJustOpened = true;
     };
 
     window.wlPickerToggle = function(name) {
@@ -2884,18 +2940,19 @@
         wlSaveAll(all);
         wlRefreshStars();
         if (currentView === 'watchlists') wlRender();
-        // Re-render picker in place
-        var btn = document.querySelector('.wl-add-btn[data-ticker="' + ticker + '"]');
-        if (btn) wlOpenPicker(btn, { stopPropagation: function(){} });
-        else wlClosePicker();
+        // Re-render picker using the stored button reference
+        if (wlPickerBtn && document.contains(wlPickerBtn)) {
+            wlOpenPicker(wlPickerBtn, { stopPropagation: function(){} });
+        } else {
+            wlClosePicker();
+        }
     };
 
     window.wlPickerNewList = function() {
         var picker = document.getElementById('wl-picker');
-        // Replace new-list row with inline input
         var newRow = picker.querySelector('.wl-picker-new');
         if (!newRow) return;
-        newRow.outerHTML = '<input class="wl-picker-input" id="wl-picker-input" type="text" placeholder="List name…" maxlength="40" autofocus>';
+        newRow.outerHTML = '<input class="wl-picker-input" id="wl-picker-input" type="text" placeholder="List name…" maxlength="40">';
         var input = document.getElementById('wl-picker-input');
         input.focus();
         input.addEventListener('keydown', function(e) {
@@ -2905,11 +2962,15 @@
                 var all = wlGetAll();
                 if (!all[name]) {
                     all[name] = [];
-                    var order = wlGetOrder();
-                    order.push(name);
+                    // Read raw order without triggering wlGetOrder's auto-add logic
+                    var order = [];
+                    try { order = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]'); } catch(ex) {}
+                    if (order.indexOf(name) === -1) order.push(name);
                     wlSaveOrder(order);
                 }
-                wlPickerTicker && all[name].indexOf(wlPickerTicker) === -1 && all[name].push(wlPickerTicker);
+                if (wlPickerTicker && all[name].indexOf(wlPickerTicker) === -1) {
+                    all[name].push(wlPickerTicker);
+                }
                 wlSaveAll(all);
                 wlRefreshStars();
                 if (currentView === 'watchlists') wlRender();
@@ -2919,14 +2980,18 @@
         });
     };
 
+    var wlPickerJustOpened = false;
+
     function wlClosePicker() {
         document.getElementById('wl-picker').style.display = 'none';
         wlPickerOpen = false;
         wlPickerTicker = null;
+        wlPickerBtn = null;
     }
 
     // Close picker on outside click
     document.addEventListener('click', function(e) {
+        if (wlPickerJustOpened) { wlPickerJustOpened = false; return; }
         if (wlPickerOpen && !document.getElementById('wl-picker').contains(e.target)) {
             wlClosePicker();
         }
@@ -2947,6 +3012,7 @@
         document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength); });
 
         showView('industries');
+        wlAttachListeners();
 
         // Scans dblclick — attached once on the static container
         document.getElementById('scans-table-view').addEventListener('dblclick', function(e) {
