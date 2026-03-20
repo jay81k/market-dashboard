@@ -67,8 +67,26 @@ DIST_MA_COMBOS = [
 # Optional: any CSV_PASSTHROUGH column (leave blank to use None)
 # ---------------------------------------------------------------------------
 SUPPLEMENTAL_TICKERS = [
-    {"Ticker": "SNDK", "Sector": "Technology", "Industry": "Data Storage"},
-    {"Ticker": "Q",    "Sector": "Technology", "Industry": "Software - Infrastructure"},
+    {
+        "Ticker": "SNDK",
+        "Sector": "Technology",
+        "Industry": "Computer Hardware",
+        "Percentile": 99,
+        "Relative Strength": 99.0,
+        "1M_RS_Percentile": 99,
+        "3M_RS_Percentile": 99,
+        "6M_RS_Percentile": 99,
+    },
+    {
+        "Ticker": "Q",
+        "Sector": "Technology",
+        "Industry": "Semiconductor Equipment & Materials",
+        "Percentile": 89,
+        "Relative Strength": 89.0,
+        "1M_RS_Percentile": 89,
+        "3M_RS_Percentile": 90,
+        "6M_RS_Percentile": 90,
+    },
     # Add more rows here as needed:
     # {"Ticker": "XYZ", "Sector": "Healthcare", "Industry": "Biotechnology"},
 ]
