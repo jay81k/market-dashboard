@@ -684,14 +684,14 @@
             <div id="sf-pills-container" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0;"></div>
             <button class="sf-add-btn" onclick="sfAddRow()">+ Add Filter</button>
             <button class="sf-preset-btn save" onclick="sfOpenSaveModal()">Save</button>
-            <button class="sf-preset-btn" id="sf-load-btn" onclick="sfTogglePresets(this)">Load ▾</button>
+            <button class="sf-preset-btn" id="sf-load-btn" onclick="sfTogglePresets(this)">Presets ▾</button>
         </div>
         <!-- Preset dropdown -->
         <div id="sf-preset-dropdown" class="sf-preset-dropdown"></div>
         <!-- Save modal -->
         <div class="sf-save-modal" id="sf-save-modal" onclick="if(event.target===this)sfCloseSaveModal()">
             <div class="sf-save-modal-box">
-                <div class="sf-save-modal-title">Save Filter Preset</div>
+                <div class="sf-save-modal-title">Save Preset</div>
                 <input class="sf-save-input" id="sf-save-input" type="text" placeholder="Preset name..." maxlength="60">
                 <div class="sf-save-modal-btns">
                     <button class="sf-add-btn" onclick="sfCloseSaveModal()">Cancel</button>
@@ -1953,7 +1953,17 @@
     };
 
     // ── Presets (persistent storage) ─────────────────────────────────────
-    var PRESET_KEY_PREFIX = 'scan-preset:';
+    // ── Preset helpers ───────────────────────────────────────────────────
+    var LS_PRESETS_KEY = 'dashboard-scan-presets';
+
+    function sfGetAllPresets() {
+        try { return JSON.parse(localStorage.getItem(LS_PRESETS_KEY) || '{}'); }
+        catch(e) { return {}; }
+    }
+
+    function sfSaveAllPresets(obj) {
+        try { localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(obj)); } catch(e) {}
+    }
 
     window.sfOpenSaveModal = function() {
         if (!sfRows.length) { alert('Add at least one filter before saving.'); return; }
@@ -1966,77 +1976,110 @@
         document.getElementById('sf-save-modal').classList.remove('open');
     };
 
-    window.sfSavePreset = async function() {
+    window.sfSavePreset = function() {
         var name = (document.getElementById('sf-save-input').value || '').trim();
         if (!name) { alert('Please enter a preset name.'); return; }
-        var key = PRESET_KEY_PREFIX + name;
-        try {
-            await window.storage.set(key, JSON.stringify({ name: name, rows: sfRows }));
-            sfCloseSaveModal();
-        } catch(e) {
-            alert('Failed to save preset.');
-        }
+        var presets = sfGetAllPresets();
+        presets[name] = { name: name, rows: sfRows, saved: Date.now() };
+        sfSaveAllPresets(presets);
+        sfCloseSaveModal();
     };
 
-    window.sfTogglePresets = async function(btn) {
+    window.sfTogglePresets = function(btn) {
         var dd = document.getElementById('sf-preset-dropdown');
         if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
         var rect = btn.getBoundingClientRect();
         dd.style.top  = (rect.bottom + 6) + 'px';
-        dd.style.left = Math.max(8, rect.right - 220) + 'px';
-        dd.innerHTML = '<div class="sf-preset-empty">Loading...</div>';
+        dd.style.left = Math.max(8, rect.right - 240) + 'px';
+        sfRenderPresetsDropdown();
         dd.classList.add('open');
-        try {
-            var result = await window.storage.list(PRESET_KEY_PREFIX);
-            var keys = (result && result.keys) ? result.keys : [];
-            if (!keys.length) {
-                dd.innerHTML = '<div class="sf-preset-empty">No saved presets yet.</div>';
-                return;
-            }
-            var html = '';
-            for (var i = 0; i < keys.length; i++) {
-                var k = keys[i];
-                var displayName = k.replace(PRESET_KEY_PREFIX, '');
-                html += '<div class="sf-preset-item" data-key="' + esc(k) + '">' +
-                    '<span class="sf-preset-item-name" onclick="sfLoadPreset(\'' + esc(k) + '\')">' + esc(displayName) + '</span>' +
-                    '<button class="sf-preset-delete" onclick="sfDeletePreset(\'' + esc(k) + '\')" title="Delete">×</button>' +
-                    '</div>';
-            }
-            dd.innerHTML = html;
-        } catch(e) {
-            dd.innerHTML = '<div class="sf-preset-empty">Failed to load presets.</div>';
-        }
     };
 
-    window.sfLoadPreset = async function(key) {
-        document.getElementById('sf-preset-dropdown').classList.remove('open');
-        try {
-            var result = await window.storage.get(key);
-            if (!result) { alert('Preset not found.'); return; }
-            var preset = JSON.parse(result.value);
-            sfRows = preset.rows || [];
-            sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
-            sfRenderPills();
-            renderScans();
-        } catch(e) {
-            alert('Failed to load preset.');
-        }
-    };
-
-    window.sfDeletePreset = async function(key) {
+    function sfRenderPresetsDropdown() {
         var dd = document.getElementById('sf-preset-dropdown');
-        try {
-            await window.storage.delete(key);
-            // Refresh the dropdown
-            var remaining = dd.querySelectorAll('.sf-preset-item');
-            var item = dd.querySelector('[data-key="' + key + '"]');
-            if (item) item.remove();
-            if (!dd.querySelectorAll('.sf-preset-item').length) {
-                dd.innerHTML = '<div class="sf-preset-empty">No saved presets yet.</div>';
-            }
-        } catch(e) {
-            alert('Failed to delete preset.');
+        var presets = sfGetAllPresets();
+        var names = Object.keys(presets).sort();
+        var html = '<div style="padding:8px 12px 4px;border-bottom:1px solid #21262d;display:flex;gap:6px;">' +
+            '<button class="sf-preset-btn save" style="flex:1;font-size:0.792em;padding:3px 0;" onclick="sfExportAll()">Export all</button>' +
+            '<label class="sf-preset-btn" style="flex:1;font-size:0.792em;padding:3px 0;text-align:center;cursor:pointer;">Import file<input type="file" accept=".json" style="display:none" onchange="sfImportFile(this)"></label>' +
+            '</div>';
+        if (!names.length) {
+            html += '<div class="sf-preset-empty">No saved presets yet.</div>';
+        } else {
+            names.forEach(function(name) {
+                html += '<div class="sf-preset-item">' +
+                    '<span class="sf-preset-item-name" onclick="sfApplyPreset(' + JSON.stringify(name) + ')">' + esc(name) + '</span>' +
+                    '<button class="sf-preset-delete" onclick="sfExportOne(' + JSON.stringify(name) + ')" title="Export" style="font-size:0.75em;color:#6e7681;padding:0 5px;">↓</button>' +
+                    '<button class="sf-preset-delete" onclick="sfDeletePreset(' + JSON.stringify(name) + ')" title="Delete">×</button>' +
+                    '</div>';
+            });
         }
+        dd.innerHTML = html;
+    }
+
+    window.sfApplyPreset = function(name) {
+        document.getElementById('sf-preset-dropdown').classList.remove('open');
+        var presets = sfGetAllPresets();
+        var preset = presets[name];
+        if (!preset) { alert('Preset not found.'); return; }
+        sfRows = preset.rows || [];
+        sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
+        sfRenderPills();
+        renderScans();
+    };
+
+    window.sfDeletePreset = function(name) {
+        var presets = sfGetAllPresets();
+        delete presets[name];
+        sfSaveAllPresets(presets);
+        sfRenderPresetsDropdown();
+    };
+
+    window.sfExportOne = function(name) {
+        var presets = sfGetAllPresets();
+        var preset = presets[name];
+        if (!preset) return;
+        sfDownloadJson({ presets: { [name]: preset } }, 'preset-' + name.replace(/[^a-z0-9]/gi, '_') + '.json');
+    };
+
+    window.sfExportAll = function() {
+        var presets = sfGetAllPresets();
+        sfDownloadJson({ presets: presets }, 'scan-presets-all.json');
+        document.getElementById('sf-preset-dropdown').classList.remove('open');
+    };
+
+    function sfDownloadJson(obj, filename) {
+        var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    window.sfImportFile = function(input) {
+        var file = input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var data = JSON.parse(e.target.result);
+                if (!data.presets) { alert('Invalid preset file.'); return; }
+                var existing = sfGetAllPresets();
+                var imported = 0;
+                Object.keys(data.presets).forEach(function(name) {
+                    existing[name] = data.presets[name];
+                    imported++;
+                });
+                sfSaveAllPresets(existing);
+                document.getElementById('sf-preset-dropdown').classList.remove('open');
+                alert('Imported ' + imported + ' preset' + (imported !== 1 ? 's' : '') + ' successfully.');
+            } catch(err) {
+                alert('Failed to read preset file.');
+            }
+        };
+        reader.readAsText(file);
+        input.value = '';
     };
 
     // Close preset dropdown on outside click
