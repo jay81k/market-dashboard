@@ -1704,6 +1704,13 @@
                 volVal = v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : v.toFixed(0);
             }
             html += '<td style="color:#8b949e;">' + volVal + '</td>';
+            var pct52Val = '—';
+            var pct52Color = '#484f58';
+            if (row.PctFrom52WkHigh != null) {
+                pct52Val = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
+                pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
+            }
+            html += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
             var adrColor = '#484f58';
             if (row.adr_pct != null) {
                 if (row.adr_pct < 4)      adrColor = '#3fb950';
@@ -1791,23 +1798,12 @@
     function applyDistMA(container) {
         var key = maKey();
         var cells = (container || document).querySelectorAll('.dist-ma-cell');
-        var debugDone = false;
         cells.forEach(function(cell) {
             var raw = cell.getAttribute('data-dist-all');
-            if (!raw) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
+            if (!raw || raw.length < 3) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
             var obj = null;
             try { obj = JSON.parse(raw); } catch(e) {
                 try { obj = JSON.parse(raw.replace(/&quot;/g, '"')); } catch(e2) {}
-            }
-            // Log first cell to console for debugging
-            if (!debugDone) {
-                var parseErr = '';
-                try { JSON.parse(raw); } catch(e) { parseErr = e.message; }
-                console.log('[DistMA] key:', key);
-                console.log('[DistMA] raw length:', raw.length, 'first 200:', raw.slice(0,200));
-                console.log('[DistMA] parse error:', parseErr);
-                console.log('[DistMA] parsed obj:', obj);
-                debugDone = true;
             }
             var val = obj ? obj[key] : null;
             if (val == null) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
