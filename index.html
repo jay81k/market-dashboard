@@ -1084,7 +1084,7 @@
     // ── Helpers ───────────────────────────────────────────────────────────
     function esc(s) {
         if (s == null) return '';
-        return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return String(s).replace(/&/g,'&').replace(/"/g,'"').replace(/</g,'<').replace(/>/g,'>');
     }
     function fmt(v, d, sfx) {
         if (v == null) return '<span style="color:#30363d">—</span>';
@@ -1788,7 +1788,7 @@
         (container || document).querySelectorAll('.dist-ma-cell').forEach(function(cell) {
             var raw = cell.getAttribute('data-dist-all');
             var val = null;
-            try { val = JSON.parse(raw.replace(/&quot;/g,'"'))[key]; } catch(e) {}
+            try { val = JSON.parse(raw.replace(/"/g,'"'))[key]; } catch(e) {}
             if (val == null) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
             var w = Math.min(100, Math.max(0, Math.abs(val) / 20 * 100));
             var pos = val >= 0;
@@ -3046,6 +3046,8 @@
         var row = document.getElementById('wl-new-row');
         row.style.display = 'none';
     };
+
+    window.wlOpenAddSym = function() {
         var row   = document.getElementById('wl-add-sym-row');
         var input = document.getElementById('wl-add-sym-input');
         var btnRow = document.getElementById('wl-add-sym-btn-row');
