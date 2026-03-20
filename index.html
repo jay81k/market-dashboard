@@ -1830,7 +1830,7 @@
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
             var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
-            var minMax = row.type === 'cr' ? ' min="0" max="100"' : row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : '';
+            var minMax = row.type === 'cr' ? ' min="0" max="100" step="1"' : row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : row.type === 'adr' ? ' min="0" step="0.1"' : row.type === 'price' ? ' min="0" step="0.01"' : '';
             var suffix = (row.type === 'adr' || row.type === 'cr') ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">x</span>' : '';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'"'+minMax+' value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
         }
