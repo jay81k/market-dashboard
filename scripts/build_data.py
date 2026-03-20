@@ -201,6 +201,16 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         # ADR%
         adr_pct = calculate_adr_pct(hist)
 
+        # Relative volume: today's volume vs 50-day average volume
+        rel_vol = None
+        try:
+            today_vol = hist["Volume"].iloc[-1]
+            avg_vol   = hist["Volume"].iloc[-51:-1].mean()  # prior 50 days excluding today
+            if avg_vol and avg_vol > 0 and not pd.isna(today_vol):
+                rel_vol = round(float(today_vol) / float(avg_vol), 2)
+        except Exception:
+            pass
+
         # Dist/MA for all combos
         dist_ma = {
             ma_type + str(period): calculate_dist_ma(close, ma_type, period)
@@ -212,6 +222,32 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             ma_type + str(period): calculate_ma_value(close, ma_type, period)
             for ma_type, period in DIST_MA_COMBOS
         }
+
+        # Yesterday's MA values (for crossover detection)
+        close_prev = close.iloc[:-1]
+        ma_val_prev = {
+            ma_type + str(period): calculate_ma_value(close_prev, ma_type, period)
+            for ma_type, period in DIST_MA_COMBOS
+        }
+
+        # MA crossovers today: store set of "fast|slow|direction" strings
+        # e.g. "SMA5|SMA50|above" means SMA5 crossed above SMA50 today
+        ma_crossovers: set[str] = set()
+        for ma1, p1 in DIST_MA_COMBOS:
+            for ma2, p2 in DIST_MA_COMBOS:
+                if ma1 == ma2 and p1 == p2:
+                    continue
+                k1, k2 = ma1 + str(p1), ma2 + str(p2)
+                today1, today2   = ma_val.get(k1),      ma_val.get(k2)
+                prev1,  prev2    = ma_val_prev.get(k1), ma_val_prev.get(k2)
+                if None in (today1, today2, prev1, prev2):
+                    continue
+                # Crossed above: was below/equal yesterday, above today
+                if prev1 <= prev2 and today1 > today2:
+                    ma_crossovers.add(f"{k1}|{k2}|above")
+                # Crossed below: was above/equal yesterday, below today
+                elif prev1 >= prev2 and today1 < today2:
+                    ma_crossovers.add(f"{k1}|{k2}|below")
 
         # Inside day: today's high < prev high AND today's low > prev low
         inside_day = bool(
@@ -238,8 +274,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "vs_spy_3m": vs_spy_3m,
             "cr":        round(cr, 1)          if cr          is not None else None,
             "adr_pct":   adr_pct,
+            "rel_vol":   rel_vol,
             "dist_ma":   dist_ma,
             "ma_val":    ma_val,
+            "ma_crossovers": list(ma_crossovers),
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
