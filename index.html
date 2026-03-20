@@ -1744,6 +1744,7 @@
             if (cond === 'below_price')   return 'Price below ' + mt + ' ' + mp;
             if (cond === 'above_pct')     return mt + ' ' + mp + ' dist greater than ' + (row.val||0) + '%';
             if (cond === 'below_pct')     return mt + ' ' + mp + ' dist less than ' + (row.val||0) + '%';
+            if (cond === 'between_pct')   return mt + ' ' + mp + ' dist between ' + (row.val||0) + '% and ' + (row.val2!=null?row.val2:10) + '%';
             if (cond === 'ma_above')      return mt + ' ' + mp1 + ' above ' + mt2 + ' ' + mp2;
             if (cond === 'ma_below')      return mt + ' ' + mp1 + ' below ' + mt2 + ' ' + mp2;
             if (cond === 'crosses_above') return mt + ' ' + mp1 + ' crossed above ' + mt2 + ' ' + mp2;
@@ -1789,6 +1790,7 @@
                 ['below_price',   'Price Below'],
                 ['above_pct',     'Above % (Dist)'],
                 ['below_pct',     'Below % (Dist)'],
+                ['between_pct',   'Between % (Dist)'],
                 ['ma_above',      'MA Above MA'],
                 ['ma_below',      'MA Below MA'],
                 ['crosses_above', 'Crosses Above'],
@@ -1796,9 +1798,10 @@
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
-            var usesSingleMA = ['above_price','below_price','above_pct','below_pct'].indexOf(cond) !== -1;
+            var usesSingleMA = ['above_price','below_price','above_pct','below_pct','between_pct'].indexOf(cond) !== -1;
             var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
             var usesPct      = ['above_pct','below_pct'].indexOf(cond) !== -1;
+            var usesBetween  = cond === 'between_pct';
             var mt  = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
             var mp  = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             var mt2 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType2===t?' selected':'')+'>'+t+'</option>'; }).join('');
@@ -1813,7 +1816,11 @@
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
             }
             if (usesPct) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            }
+            if (usesBetween) {
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'pattern') {
             var patOpts = [
@@ -1880,8 +1887,9 @@
             if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
             row[field] = value;
             // When condition changes, reset val for pct modes
-            if (field === 'maCondition' && (value === 'above_pct' || value === 'below_pct')) {
-                if (row.val === '' || row.val == null) row.val = 0;
+            if (field === 'maCondition') {
+                if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
+                if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
             }
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         }
@@ -2123,6 +2131,13 @@
                         var dist = r.dist_ma ? r.dist_ma[key] : null;
                         var thresh = parseFloat(f.val);
                         if (dist == null || (!isNaN(thresh) && dist >= thresh)) return false;
+                    } else if (cond === 'between_pct') {
+                        var dist = r.dist_ma ? r.dist_ma[key] : null;
+                        var tMin = parseFloat(f.val);
+                        var tMax = parseFloat(f.val2);
+                        if (dist == null) return false;
+                        if (!isNaN(tMin) && dist < tMin) return false;
+                        if (!isNaN(tMax) && dist > tMax) return false;
                     } else if (cond === 'ma_above') {
                         var v1 = r.ma_val ? r.ma_val[k1] : null;
                         var v2 = r.ma_val ? r.ma_val[k2] : null;
