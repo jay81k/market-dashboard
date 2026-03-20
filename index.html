@@ -2165,8 +2165,8 @@
                 var k = keys[i];
                 var displayName = k.replace(PRESET_KEY_PREFIX, '');
                 html += '<div class="sf-preset-item" data-key="' + esc(k) + '">' +
-                    '<span class="sf-preset-item-name" onclick="sfLoadPreset('' + esc(k) + '')">' + esc(displayName) + '</span>' +
-                    '<button class="sf-preset-delete" onclick="sfDeletePreset('' + esc(k) + '')" title="Delete">×</button>' +
+                    '<span class="sf-preset-item-name" onclick="sfLoadPreset(\'' + esc(k) + '\')">' + esc(displayName) + '</span>' +
+                    '<button class="sf-preset-delete" onclick="sfDeletePreset(\'' + esc(k) + '\')" title="Delete">×</button>' +
                     '</div>';
             }
             dd.innerHTML = html;
