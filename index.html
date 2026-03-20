@@ -1758,12 +1758,13 @@
     var sfRowId = 0;
 
     var SF_TYPES = [
-        { value: 'ma',    label: 'MA vs Price' },
-        { value: 'ma_cross', label: 'MA Cross' },
+        { value: 'ma',    label: 'Moving Average' },
         { value: 'rs',    label: 'RS' },
         { value: 'price', label: 'Price' },
         { value: 'vol',   label: 'Avg Vol' },
         { value: 'adr',   label: 'ADR%' },
+        { value: 'cr',    label: 'CR%' },
+        { value: 'mcap',  label: 'Market Cap' },
     ];
 
     function sfParseVol(str) {
@@ -1773,19 +1774,34 @@
         return parseFloat(str);
     }
 
+    function sfParseMcap(str) {
+        str = String(str || '').trim().toUpperCase().replace(/,/g,'');
+        if (str.endsWith('B')) return parseFloat(str) * 1e9;
+        if (str.endsWith('M')) return parseFloat(str) * 1e6;
+        if (str.endsWith('K')) return parseFloat(str) * 1e3;
+        return parseFloat(str);
+    }
+
     function sfPillLabel(row) {
         var type = SF_TYPES.find(function(t){ return t.value === row.type; });
         var typeLabel = type ? type.label : row.type;
         if (row.type === 'ma') {
-            return (row.dir === 'above' ? 'Above' : 'Below') + ' ' + row.maType + ' ' + row.maPeriod;
+            var cond = row.maCondition || 'above_price';
+            var mt = row.maType || 'SMA'; var mp = row.maPeriod || 50;
+            var mt2 = row.maType2 || 'SMA'; var mp1 = row.maPeriod1 || 5; var mp2 = row.maPeriod2 || 50;
+            if (cond === 'above_price')   return 'Price above ' + mt + ' ' + mp;
+            if (cond === 'below_price')   return 'Price below ' + mt + ' ' + mp;
+            if (cond === 'above_pct')     return mt + ' ' + mp + ' dist greater than ' + (row.val||0) + '%';
+            if (cond === 'below_pct')     return mt + ' ' + mp + ' dist less than ' + (row.val||0) + '%';
+            if (cond === 'ma_above')      return mt + ' ' + mp1 + ' above ' + mt2 + ' ' + mp2;
+            if (cond === 'ma_below')      return mt + ' ' + mp1 + ' below ' + mt2 + ' ' + mp2;
+            if (cond === 'crosses_above') return mt + ' ' + mp1 + ' crossed above ' + mt2 + ' ' + mp2;
+            if (cond === 'crosses_below') return mt + ' ' + mp1 + ' crossed below ' + mt2 + ' ' + mp2;
+            return 'MA filter';
         }
-        if (row.type === 'ma_cross') {
-            var sym = row.dir === 'above' ? 'above' : 'below';
-            return row.maType + ' ' + row.maPeriod1 + ' ' + sym + ' ' + row.maType2 + ' ' + row.maPeriod2;
-        }
-        var dirLabel = row.dir === 'gt' ? '>' : '<';
+        var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
-        if (row.type === 'adr') valLabel += '%';
+        if (row.type === 'adr' || row.type === 'cr') valLabel += '%';
         return typeLabel + ' ' + dirLabel + valLabel;
     }
 
@@ -1810,28 +1826,46 @@
             '<select class="sf-select" onchange="sfPopChange('+id+',\'type\',this.value)">'+typeOpts+'</select>' +
             '</div>';
         if (row.type === 'ma') {
-            var dirOpts = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Above</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Below</option>';
-            var maTypes = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
-            var maPeriods = ['5','8','10','21','50','150','200'].map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+maTypes+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+maPeriods+'</select></div>';
-        } else if (row.type === 'ma_cross') {
-            var MA_PERIODS = ['5','8','10','21','50','150','200'];
-            var crossDir = '<option value="above"'+(row.dir==='above'?' selected':'')+'>Above</option><option value="below"'+(row.dir==='below'?' selected':'')+'>Below</option>';
-            var mt1 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
+            var MA_P = ['5','8','10','21','50','150','200'];
+            var cond = row.maCondition || 'above_price';
+            var condOpts = [
+                ['above_price',   'Price Above'],
+                ['below_price',   'Price Below'],
+                ['above_pct',     'Above % (Dist)'],
+                ['below_pct',     'Below % (Dist)'],
+                ['ma_above',      'MA Above MA'],
+                ['ma_below',      'MA Below MA'],
+                ['crosses_above', 'Crosses Above'],
+                ['crosses_below', 'Crosses Below'],
+            ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
+            // Single MA pickers (price above/below, dist)
+            var usesSingleMA = ['above_price','below_price','above_pct','below_pct'].indexOf(cond) !== -1;
+            var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
+            var usesPct      = ['above_pct','below_pct'].indexOf(cond) !== -1;
+            var mt  = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
+            var mp  = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             var mt2 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType2===t?' selected':'')+'>'+t+'</option>'; }).join('');
-            var mp1 = MA_PERIODS.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod1)===p?' selected':'')+'>'+p+'</option>'; }).join('');
-            var mp2 = MA_PERIODS.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod2)===p?' selected':'')+'>'+p+'</option>'; }).join('');
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Fast MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt1+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod1\',this.value)">'+mp1+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+crossDir+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
+            var mp1 = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod1)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            var mp2 = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod2)===p?' selected':'')+'>'+p+'</option>'; }).join('');
+            if (usesSingleMA) {
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+mp+'</select></div>';
+            }
+            if (usesDualMA) {
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Fast MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod1\',this.value)">'+mp1+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
+            }
+            if (usesPct) {
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            }
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
-            var inputType = (row.type === 'vol') ? 'text' : 'number';
-            var suffix = row.type === 'adr' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : '';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'" value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
+            var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
+            var minMax = row.type === 'cr' ? ' min="0" max="100"' : '';
+            var suffix = (row.type === 'adr' || row.type === 'cr') ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : '';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'"'+minMax+' value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
         }
         return html;
     }
@@ -1865,17 +1899,22 @@
         if (!row) return;
         if (field === 'type') {
             row.type     = value;
-            row.dir      = (value === 'ma' || value === 'ma_cross') ? 'above' : 'gt';
-            row.val      = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : '';
-            row.maType   = 'SMA';
-            row.maPeriod = 200;
-            row.maType2  = 'SMA';
-            row.maPeriod1 = 50;
-            row.maPeriod2 = 200;
+            row.dir         = 'above';
+            row.maCondition = 'above_price';
+            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : 0;
+            row.maType      = 'SMA';
+            row.maPeriod    = 50;
+            row.maType2     = 'SMA';
+            row.maPeriod1   = 5;
+            row.maPeriod2   = 50;
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         } else {
             if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
             row[field] = value;
+            // When condition changes, reset val for pct modes
+            if (field === 'maCondition' && (value === 'above_pct' || value === 'below_pct')) {
+                if (row.val === '' || row.val == null) row.val = 0;
+            }
             document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         }
         sfRenderPills();
@@ -1884,7 +1923,7 @@
 
     window.sfAddRow = function() {
         sfRowId++;
-        sfRows.push({ id: sfRowId, type: 'ma', dir: 'above', maType: 'SMA', maPeriod: 200, maType2: 'SMA', maPeriod1: 50, maPeriod2: 200, val: '' });
+        sfRows.push({ id: sfRowId, type: 'ma', maCondition: 'above_price', dir: 'above', maType: 'SMA', maPeriod: 50, maType2: 'SMA', maPeriod1: 5, maPeriod2: 50, val: 0 });
         sfRenderPills();
         renderScans();
         setTimeout(function() {
@@ -1906,19 +1945,39 @@
             for (var i = 0; i < sfRows.length; i++) {
                 var f = sfRows[i];
                 if (f.type === 'ma') {
-                    var key  = f.maType + f.maPeriod;
-                    var dist = r.dist_ma ? r.dist_ma[key] : null;
-                    if (dist == null) return false;
-                    if (f.dir === 'above' && dist <= 0) return false;
-                    if (f.dir === 'below' && dist >= 0) return false;
-                } else if (f.type === 'ma_cross') {
-                    var k1   = f.maType  + f.maPeriod1;
-                    var k2   = f.maType2 + f.maPeriod2;
-                    var d1   = r.ma_val ? r.ma_val[k1] : null;
-                    var d2   = r.ma_val ? r.ma_val[k2] : null;
-                    if (d1 == null || d2 == null) return false;
-                    if (f.dir === 'above' && d1 <= d2) return false;
-                    if (f.dir === 'below' && d1 >= d2) return false;
+                    var cond = f.maCondition || 'above_price';
+                    var key  = (f.maType||'SMA') + (f.maPeriod||50);
+                    var k1   = (f.maType||'SMA')  + (f.maPeriod1||5);
+                    var k2   = (f.maType2||'SMA') + (f.maPeriod2||50);
+                    if (cond === 'above_price') {
+                        var dist = r.dist_ma ? r.dist_ma[key] : null;
+                        if (dist == null || dist <= 0) return false;
+                    } else if (cond === 'below_price') {
+                        var dist = r.dist_ma ? r.dist_ma[key] : null;
+                        if (dist == null || dist >= 0) return false;
+                    } else if (cond === 'above_pct') {
+                        var dist = r.dist_ma ? r.dist_ma[key] : null;
+                        var thresh = parseFloat(f.val);
+                        if (dist == null || (!isNaN(thresh) && dist <= thresh)) return false;
+                    } else if (cond === 'below_pct') {
+                        var dist = r.dist_ma ? r.dist_ma[key] : null;
+                        var thresh = parseFloat(f.val);
+                        if (dist == null || (!isNaN(thresh) && dist >= thresh)) return false;
+                    } else if (cond === 'ma_above') {
+                        var v1 = r.ma_val ? r.ma_val[k1] : null;
+                        var v2 = r.ma_val ? r.ma_val[k2] : null;
+                        if (v1 == null || v2 == null || v1 <= v2) return false;
+                    } else if (cond === 'ma_below') {
+                        var v1 = r.ma_val ? r.ma_val[k1] : null;
+                        var v2 = r.ma_val ? r.ma_val[k2] : null;
+                        if (v1 == null || v2 == null || v1 >= v2) return false;
+                    } else if (cond === 'crosses_above') {
+                        var xKey = k1 + '|' + k2 + '|above';
+                        if ((r.ma_crossovers || []).indexOf(xKey) === -1) return false;
+                    } else if (cond === 'crosses_below') {
+                        var xKey = k1 + '|' + k2 + '|below';
+                        if ((r.ma_crossovers || []).indexOf(xKey) === -1) return false;
+                    }
                 } else if (f.type === 'rs') {
                     var rs = r.Percentile;
                     if (rs == null) return false;
@@ -1950,6 +2009,22 @@
                     if (!isNaN(av)) {
                         if (f.dir === 'gt' && adr <= av) return false;
                         if (f.dir === 'lt' && adr >= av) return false;
+                    }
+                } else if (f.type === 'cr') {
+                    var cr = r.cr;
+                    if (cr == null) return false;
+                    var cv = parseFloat(f.val);
+                    if (!isNaN(cv)) {
+                        if (f.dir === 'gt' && cr <= cv) return false;
+                        if (f.dir === 'lt' && cr >= cv) return false;
+                    }
+                } else if (f.type === 'mcap') {
+                    var mc = r.MarketCap;
+                    if (mc == null) return false;
+                    var mv = sfParseMcap(f.val);
+                    if (!isNaN(mv)) {
+                        if (f.dir === 'gt' && mc <= mv) return false;
+                        if (f.dir === 'lt' && mc >= mv) return false;
                     }
                 }
             }
