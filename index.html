@@ -2322,6 +2322,8 @@
             allStockRows = Array.from(scansTbody.querySelectorAll('.stock-row'));
             currentStockIndex = allStockRows.indexOf(row);
         };
+
+        if (scansMultichartActive) renderScansMc();
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
