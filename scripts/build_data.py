@@ -56,8 +56,8 @@ CSV_PASSTHROUGH = [
 
 # MA combos for Dist/MA column (matches ETF dashboard)
 DIST_MA_COMBOS = [
-    ("SMA", 5), ("SMA", 8), ("SMA", 10), ("SMA", 21), ("SMA", 50), ("SMA", 150), ("SMA", 200),
-    ("EMA", 5), ("EMA", 8), ("EMA", 10), ("EMA", 21), ("EMA", 50), ("EMA", 150), ("EMA", 200),
+    ("SMA", 5), ("SMA", 8), ("SMA", 10), ("SMA", 21), ("SMA", 50), ("SMA", 65), ("SMA", 150), ("SMA", 200),
+    ("EMA", 5), ("EMA", 8), ("EMA", 10), ("EMA", 21), ("EMA", 50), ("EMA", 65), ("EMA", 150), ("EMA", 200),
 ]
 
 # ---------------------------------------------------------------------------
