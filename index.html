@@ -231,38 +231,41 @@
         .stocks-table-wrap { flex: 1; overflow-y: auto; }
         .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.968em; table-layout: fixed; }
 
-        .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
-        .stocks-table th:nth-child(2)  { width: 42px; }   /* RS */
-        .stocks-table th:nth-child(3)  { width: 70px; }   /* Price */
-        .stocks-table th:nth-child(4)  { width: 72px; }   /* Day */
-        .stocks-table th:nth-child(5)  { width: 72px; }   /* 1W */
-        .stocks-table th:nth-child(6)  { width: 72px; }   /* 1M */
-        .stocks-table th:nth-child(7)  { width: 72px; }   /* 3M */
-        .stocks-table th:nth-child(8)  { width: 72px; }   /* YTD */
-        .stocks-table th:nth-child(9)  { width: 72px; }   /* vSPY */
-        .stocks-table th:nth-child(10) { width: 72px; }   /* v3M */
-        .stocks-table th:nth-child(11) { width: 90px; }   /* Dist/MA */
-        .stocks-table th:nth-child(12) { width: 80px; }   /* Avg Vol */
-        .stocks-table th:nth-child(13) { width: 56px; }   /* ADR% */
-        .stocks-table th:nth-child(14) { width: 44px; }   /* CR */
+        /* Stocks tab: Ticker|Price|RS|Day|1W|1M|3M|YTD|vSPY|v3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
+        .stocks-table th:nth-child(1)  { width: 90px; }
+        .stocks-table th:nth-child(2)  { width: 70px; }
+        .stocks-table th:nth-child(3)  { width: 42px; }
+        .stocks-table th:nth-child(4)  { width: 72px; }
+        .stocks-table th:nth-child(5)  { width: 72px; }
+        .stocks-table th:nth-child(6)  { width: 72px; }
+        .stocks-table th:nth-child(7)  { width: 72px; }
+        .stocks-table th:nth-child(8)  { width: 72px; }
+        .stocks-table th:nth-child(9)  { width: 72px; }
+        .stocks-table th:nth-child(10) { width: 72px; }
+        .stocks-table th:nth-child(11) { width: 90px; }
+        .stocks-table th:nth-child(12) { width: 72px; }
+        .stocks-table th:nth-child(13) { width: 64px; }
+        .stocks-table th:nth-child(14) { width: 56px; }
+        .stocks-table th:nth-child(15) { width: 44px; }
 
-        /* Scans table has extra Sector + Industry columns */
-        #scans-table th:nth-child(1)  { width: 32px; }   /* Checkbox */
-        #scans-table th:nth-child(3)  { width: 80px; }   /* Ticker */
-        #scans-table th:nth-child(3)  { width: 90px; }   /* Sector */
-        #scans-table th:nth-child(4)  { width: 130px; }  /* Industry */
-        #scans-table th:nth-child(5)  { width: 70px; }   /* Price */
-        #scans-table th:nth-child(6)  { width: 42px; }   /* RS */
-        #scans-table th:nth-child(7)  { width: 72px; }   /* Day */
-        #scans-table th:nth-child(8)  { width: 72px; }   /* 1W */
-        #scans-table th:nth-child(9)  { width: 72px; }   /* 1M */
-        #scans-table th:nth-child(10)  { width: 72px; }   /* 3M */
-        #scans-table th:nth-child(10) { width: 72px; }   /* YTD */
-        #scans-table th:nth-child(11) { width: 72px; }   /* vs 1M */
-        #scans-table th:nth-child(12) { width: 90px; }   /* Dist/MA */
-        #scans-table th:nth-child(13) { width: 72px; }   /* Avg Vol */
-        #scans-table th:nth-child(14) { width: 56px; }   /* ADR% */
-        #scans-table th:nth-child(15) { width: 44px; }   /* CR */
+        /* Scans tab: CB|Ticker|Sector|Industry|Price|RS|Day|1W|1M|3M|YTD|vs1M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
+        #scans-table th:nth-child(1)  { width: 32px; }
+        #scans-table th:nth-child(2)  { width: 80px; }
+        #scans-table th:nth-child(3)  { width: 90px; }
+        #scans-table th:nth-child(4)  { width: 130px; }
+        #scans-table th:nth-child(5)  { width: 70px; }
+        #scans-table th:nth-child(6)  { width: 42px; }
+        #scans-table th:nth-child(7)  { width: 72px; }
+        #scans-table th:nth-child(8)  { width: 72px; }
+        #scans-table th:nth-child(9)  { width: 72px; }
+        #scans-table th:nth-child(10) { width: 72px; }
+        #scans-table th:nth-child(11) { width: 72px; }
+        #scans-table th:nth-child(12) { width: 72px; }
+        #scans-table th:nth-child(13) { width: 90px; }
+        #scans-table th:nth-child(14) { width: 72px; }
+        #scans-table th:nth-child(15) { width: 64px; }
+        #scans-table th:nth-child(16) { width: 56px; }
+        #scans-table th:nth-child(17) { width: 44px; }
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
@@ -1351,6 +1354,7 @@
             { key:'vs_spy_3m',  label:'vs 3M',     tip:'3M return vs SPY' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',    label:'Avg Vol',   tip:'50-day average volume' },
+            { key:'pct_52wk',   label:'52Wk%',     tip:'% from 52-week high' },
             { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
@@ -1477,6 +1481,7 @@
         if (key === 'vs_spy')    return row.vs_spy;
         if (key === 'vs_spy_3m') return row.vs_spy_3m;
         if (key === 'avg_vol')   return row.AvgVol50;
+        if (key === 'pct_52wk')  return row.PctFrom52WkHigh;
         if (key === 'adr_pct')   return row.adr_pct;
         if (key === 'cr')        return row.cr;
         if (key === 'dist_ma')   return row.dist_ma ? (row.dist_ma[activeMAType + activeMALength] || null) : null;
@@ -1546,6 +1551,10 @@
         h += '<td class="'+cc(row.vs_spy_3m)+'">'+(row.vs_spy_3m!=null?fmt(row.vs_spy_3m,2,'%'):'—')+'</td>';
         h += '<td>'+distHtml+'</td>';
         h += '<td style="color:#8b949e;">'+volVal+'</td>';
+        var _p52 = row.PctFrom52WkHigh;
+        var _p52Val = _p52 != null ? (_p52 > 0 ? '+' : '') + _p52.toFixed(1) + '%' : '—';
+        var _p52Color = _p52 != null ? (_p52 >= -5 ? '#3fb950' : _p52 >= -15 ? '#e3852b' : '#f85149') : '#484f58';
+        h += '<td><span style="color:'+_p52Color+';font-weight:600;">'+_p52Val+'</span></td>';
         h += '<td><span style="color:'+adrColor+';font-weight:600;">'+adrVal+'</span></td>';
         h += '<td><span style="color:'+crColor+';font-weight:600;">'+crVal+'</span></td>';
         h += '</tr>';
@@ -1901,7 +1910,7 @@
             return 'MA filter';
         }
         if (row.type === 'pattern') {
-            var patLabels = { inside_day: 'Inside Day', bullish_outside: 'Bullish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal' };
+            var patLabels = { inside_day: 'Inside Day', bullish_outside: 'Bullish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
             return patLabels[row.val] || row.val;
         }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
@@ -1973,6 +1982,7 @@
                 ['bullish_reversal_bar','Bullish Reversal Bar'],
                 ['upside_reversal',     'Upside Reversal'],
                 ['oops_reversal',       'Oops Reversal'],
+                ['pocket_pivot',        'Pocket Pivot'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(row.val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Pattern</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
         } else {
@@ -2292,6 +2302,7 @@
                     if (f.val === 'bullish_reversal_bar' && !r.bullish_reversal_bar) return false;
                     if (f.val === 'upside_reversal'      && !r.upside_reversal)      return false;
                     if (f.val === 'oops_reversal'        && !r.oops_reversal)        return false;
+                    if (f.val === 'pocket_pivot'         && !r.pocket_pivot)          return false;
                 } else if (f.type === 'rvol') {
                     var rv = r.rel_vol;
                     if (rv == null) return false;
@@ -2345,6 +2356,7 @@
             { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPY' },
             { key:'dist_ma',   label:'Dist/MA', tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',   label:'Avg Vol', tip:'50-day average volume' },
+            { key:'pct_52wk',  label:'52Wk%',   tip:'% from 52-week high' },
             { key:'adr_pct',   label:'ADR%',    tip:'Avg Daily Range %' },
             { key:'cr',        label:'CR',      tip:'Closing range (100=high, 0=low)' },
         ];
@@ -2388,6 +2400,7 @@
             else if (key === 'ytd')      { av = a.ytd;       bv = b.ytd; }
             else if (key === 'vs_spy')   { av = a.vs_spy;    bv = b.vs_spy; }
             else if (key === 'avg_vol')  { av = a.AvgVol50;  bv = b.AvgVol50; }
+            else if (key === 'pct_52wk') { av = a.PctFrom52WkHigh; bv = b.PctFrom52WkHigh; }
             else if (key === 'adr_pct')  { av = a.adr_pct;   bv = b.adr_pct; }
             else if (key === 'cr')       { av = a.cr;        bv = b.cr; }
             else if (key === 'dist_ma')  { av = a.dist_ma ? a.dist_ma[activeMAType+activeMALength] : null; bv = b.dist_ma ? b.dist_ma[activeMAType+activeMALength] : null; }
@@ -2440,6 +2453,13 @@
             html += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
             html += '<td style="color:#8b949e;">' + volVal + '</td>';
+            var pct52Val = '—';
+            var pct52Color = '#484f58';
+            if (row.PctFrom52WkHigh != null) {
+                pct52Val = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
+                pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
+            }
+            html += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
             html += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
             var crColor = '#484f58';
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
