@@ -574,6 +574,28 @@ def main():
             **passthrough,
             **metrics,
         }
+
+        # For supplemental tickers, compute CSV passthrough fields from price history
+        if ticker in supplemental_set and ticker in histories:
+            hist = histories[ticker]
+            hist_clean = hist.dropna(subset=["Close", "Volume"])
+            # AvgVol50 — 50-day average volume (excluding today)
+            if row.get("AvgVol50") is None and len(hist_clean) >= 2:
+                try:
+                    avg_vol = hist_clean["Volume"].iloc[-51:-1].mean()
+                    if not pd.isna(avg_vol):
+                        row["AvgVol50"] = round(float(avg_vol))
+                except Exception:
+                    pass
+            # PctFrom52WkHigh — % below the 52-week high
+            if row.get("PctFrom52WkHigh") is None and len(hist_clean) >= 1:
+                try:
+                    high_52w = hist_clean["High"].max()
+                    current  = hist_clean["Close"].iloc[-1]
+                    if high_52w and high_52w > 0:
+                        row["PctFrom52WkHigh"] = round((current / high_52w - 1) * 100, 2)
+                except Exception:
+                    pass
         by_industry[industry].append(row)
         industry_to_sector[industry] = sector
 
