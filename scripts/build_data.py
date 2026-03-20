@@ -261,10 +261,51 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             hist["Low"].iloc[-1]  < hist["Low"].iloc[-2]
         ) if len(hist) >= 2 else False
 
+        # Hammer / Bullish Hammer
+        _o, _c = hist["Open"].iloc[-1], hist["Close"].iloc[-1]
+        _h, _l = hist["High"].iloc[-1], hist["Low"].iloc[-1]
+        _body        = abs(_c - _o)
+        _candle_range = _h - _l
+        _lower_shadow = min(_o, _c) - _l
+        _upper_shadow = _h - max(_o, _c)
+        hammer = bool(
+            _candle_range > 0 and
+            _body <= 0.3 * _candle_range and
+            _lower_shadow >= 2 * _body and
+            _upper_shadow <= 0.1 * _candle_range
+        )
+
+        _prev_low   = hist["Low"].iloc[-2]
+        _prev_close = hist["Close"].iloc[-2]
+
+        # Bullish Reversal Bar: undercuts prev low, closes above prev close
+        bullish_reversal_bar = bool(
+            _l < _prev_low and
+            _c > _prev_close
+        ) if len(hist) >= 2 else False
+
+        # Upside Reversal: undercuts prev low, closes in upper half of today's range
+        upside_reversal = bool(
+            _candle_range > 0 and
+            _l < _prev_low and
+            _c >= (_l + _candle_range * 0.5)
+        ) if len(hist) >= 2 else False
+
+        # Oops Reversal: opens below prev low, closes above prev low
+        _prev_low2 = hist["Low"].iloc[-2]
+        oops_reversal = bool(
+            hist["Open"].iloc[-1] < _prev_low2 and
+            _c > _prev_low2
+        ) if len(hist) >= 2 else False
+
         return {
             "price":      round(float(current), 2),
             "inside_day": inside_day,
             "bullish_outside": bullish_outside,
+            "hammer":              hammer,
+            "bullish_reversal_bar": bullish_reversal_bar,
+            "upside_reversal":      upside_reversal,
+            "oops_reversal":        oops_reversal,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
