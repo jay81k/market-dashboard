@@ -575,9 +575,38 @@
             background: #0d1117; overflow: hidden;
         }
         .wl-side-header {
-            display: flex; align-items: center; justify-content: flex-end;
+            display: flex; align-items: center; gap: 6px;
             padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
+        .wl-selector {
+            flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px;
+            padding: 4px 8px; border-radius: 5px; border: 1px solid #21262d;
+            background: #161b22; cursor: pointer; transition: border-color 0.1s;
+            user-select: none;
+        }
+        .wl-selector:hover { border-color: #30363d; }
+        .wl-selector-name { font-size: 0.902em; font-weight: 600; color: #c8d0dc; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wl-selector-caret { font-size: 0.75em; color: #6e7681; flex-shrink: 0; }
+        .wl-selector-dropdown {
+            border-bottom: 1px solid #21262d; flex-shrink: 0; background: #161b22;
+        }
+        .wl-selector-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 12px; cursor: pointer; font-size: 0.902em;
+            color: #8b949e; transition: background 0.1s;
+        }
+        .wl-selector-item:hover { background: #21262d; color: #c8d0dc; }
+        .wl-selector-item.active { color: #c8d0dc; font-weight: 600; }
+        .wl-selector-item-check { width: 14px; flex-shrink: 0; color: #378add; font-size: 0.85em; }
+        .wl-selector-item-count { font-size: 0.78em; color: #484f58; margin-left: auto; }
+        .wl-selector-item-del {
+            opacity: 0; background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 0.78em; padding: 1px 4px; margin-left: 6px;
+            transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+        }
+        .wl-selector-item:hover .wl-selector-item-del { opacity: 1; }
+        .wl-selector-item-del:hover { color: #f85149; }
+        .wl-selector-item-del.confirming { color: #e3852b; opacity: 1; }
         .wl-side-title { font-size: 0.858em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
         .wl-new-btn {
             padding: 3px 10px; border-radius: 4px; border: 1px solid #21262d;
@@ -588,35 +617,6 @@
         .wl-new-btn:hover { background: #161b22; color: #c8d0dc; border-color: #30363d; }
 
         .wl-list-scroll { flex: 1; overflow-y: auto; }
-
-        .wl-group { border-bottom: 1px solid #21262d; }
-        .wl-group-header {
-            display: flex; align-items: center; gap: 6px;
-            padding: 9px 10px; cursor: pointer; user-select: none;
-            transition: background 0.1s; position: relative;
-            border-left: 3px solid transparent;
-        }
-        .wl-group-header:hover { background: #161b22; }
-        .wl-group.open .wl-group-header {
-            border-left-color: #378add;
-            background: #111820;
-        }
-        .wl-group-caret { font-size: 0.7em; color: #484f58; transition: transform 0.15s; flex-shrink: 0; }
-        .wl-group.open .wl-group-caret { transform: rotate(90deg); color: #378add; }
-        .wl-group-name { font-size: 0.968em; font-weight: 600; color: #8b949e; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .wl-group.open .wl-group-name { color: #c8d0dc; }
-        .wl-group-count { font-size: 0.78em; color: #484f58; flex-shrink: 0; }
-        .wl-group-del {
-            opacity: 0; background: none; border: none; color: #484f58;
-            cursor: pointer; font-size: 0.88em; padding: 2px 4px; border-radius: 3px;
-            transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
-        }
-        .wl-group-header:hover .wl-group-del { opacity: 1; }
-        .wl-group-del:hover { color: #f85149; }
-        .wl-group-del.confirming { color: #e3852b; opacity: 1; }
-
-        .wl-tickers { display: none; }
-        .wl-group.open .wl-tickers { display: block; }
 
         .wl-ticker-row {
             display: flex; align-items: center;
@@ -955,6 +955,10 @@
         <!-- Watchlists side panel -->
         <div class="wl-side-panel">
             <div class="wl-side-header">
+                <div class="wl-selector" id="wl-selector" onclick="wlToggleSelector()">
+                    <span class="wl-selector-name" id="wl-selector-name">—</span>
+                    <span class="wl-selector-caret">▾</span>
+                </div>
                 <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
             </div>
             <div id="wl-new-row" class="wl-new-row" style="display:none;">
@@ -962,6 +966,7 @@
                 <button class="wl-new-confirm" onclick="wlConfirmNew()">Add</button>
                 <button class="wl-new-cancel" onclick="wlCancelNew()">✕</button>
             </div>
+            <div id="wl-selector-dropdown" class="wl-selector-dropdown" style="display:none;"></div>
             <div class="wl-list-scroll" id="wl-list-scroll"></div>
         </div>
     </div>
@@ -1129,13 +1134,6 @@
             document.getElementById('view-sector').style.display = 'flex';
         } else if (view === 'watchlists') {
             document.getElementById('view-watchlists').style.display = 'flex';
-            // Auto-open last-used list on first visit or if nothing open
-            var anyOpen = Object.keys(wlOpenGroups).some(function(k){ return wlOpenGroups[k]; });
-            if (!anyOpen) {
-                var last = wlGetLastList();
-                if (last) wlOpenGroups[last] = true;
-                else { var ord = wlGetOrder(); if (ord.length) wlOpenGroups[ord[0]] = true; }
-            }
             wlRender();
         }
     };
@@ -2746,7 +2744,6 @@
     var wlChartTf      = 'D';
     var wlChartTicker  = null;
     var wlChartWidget  = null;
-    var wlOpenGroups   = {};
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
@@ -2828,61 +2825,133 @@
     }
 
     window.wlRender = function() {
-        var scroll = document.getElementById('wl-list-scroll');
-        var all    = wlGetAll();
-        var order  = wlGetOrder();
+        var scroll   = document.getElementById('wl-list-scroll');
+        var all      = wlGetAll();
+        var order    = wlGetOrder();
+        var active   = wlGetLastList();
+        var nameEl   = document.getElementById('wl-selector-name');
+
+        // Update selector label
+        if (nameEl) nameEl.textContent = active || '— select list —';
 
         if (!order.length) {
             scroll.innerHTML = '<div class="wl-empty-state">No watchlists yet.<br>Add stocks using the ☆ button<br>on any stock row.</div>';
             return;
         }
+        if (!active || !all[active]) {
+            scroll.innerHTML = '<div class="wl-empty-state">Select a watchlist above.</div>';
+            return;
+        }
+
+        var tickers = all[active] || [];
+        var nameAttr = esc(active);
+        var html = '';
+
+        if (!tickers.length) {
+            html = '<div class="wl-empty-state">No stocks in this list yet.</div>';
+        } else {
+            html += '<div class="wl-col-hdr">';
+            html += '<span class="wl-c-sym">Symbol</span>';
+            html += '<span class="wl-c-last">Last</span>';
+            html += '<span class="wl-c-chg">Chg</span>';
+            html += '<span class="wl-c-chgp">Chg%</span>';
+            html += '<span class="wl-c-del"></span>';
+            html += '</div>';
+            tickers.forEach(function(t) {
+                var isActive  = (wlChartTicker === t) ? ' active' : '';
+                var sd        = wlLookupStock(t);
+                var price     = sd && sd.price != null ? sd.price : null;
+                var priceStr  = price != null ? price.toFixed(2) : '—';
+                var dayVal    = sd ? sd.daily : null;
+                var chgAbs    = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
+                var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
+                var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
+                var cl        = dayVal == null ? 'neutral' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : 'neutral';
+                html += '<div class="wl-ticker-row' + isActive + '" data-wl-ticker="' + esc(t) + '" data-wl-list="' + nameAttr + '">';
+                html += '<span class="wl-c-sym">' + esc(t) + '</span>';
+                html += '<span class="wl-c-last">' + priceStr + '</span>';
+                html += '<span class="wl-c-chg ' + cl + '">' + chgStr + '</span>';
+                html += '<span class="wl-c-chgp ' + cl + '">' + chgpStr + '</span>';
+                html += '<button class="wl-ticker-remove" data-wl-remove-ticker="' + esc(t) + '" data-wl-remove-list="' + nameAttr + '" title="Remove">✕</button>';
+                html += '</div>';
+            });
+        }
+        scroll.innerHTML = html;
+    };
+
+    var wlSelectorOpen = false;
+
+    window.wlToggleSelector = function() {
+        var dd    = document.getElementById('wl-selector-dropdown');
+        var all   = wlGetAll();
+        var order = wlGetOrder();
+        var active = wlGetLastList();
+
+        if (wlSelectorOpen) {
+            dd.style.display = 'none';
+            wlSelectorOpen = false;
+            return;
+        }
 
         var html = '';
         order.forEach(function(name) {
-            var tickers  = all[name] || [];
-            var isOpen   = !!wlOpenGroups[name];
-            var nameAttr = esc(name);
-            html += '<div class="wl-group' + (isOpen ? ' open' : '') + '">';
-            html += '<div class="wl-group-header" data-wl-toggle="' + nameAttr + '">';
-            html += '<span class="wl-group-caret">▶</span>';
-            html += '<span class="wl-group-name">' + nameAttr + '</span>';
-            html += '<span class="wl-group-count">' + tickers.length + '</span>';
-            html += '<button class="wl-group-del" data-wl-del="' + nameAttr + '" title="Delete watchlist">✕</button>';
+            var count    = (all[name] || []).length;
+            var isActive = name === active;
+            html += '<div class="wl-selector-item' + (isActive ? ' active' : '') + '" data-wl-switch="' + esc(name) + '">';
+            html += '<span class="wl-selector-item-check">' + (isActive ? '✓' : '') + '</span>';
+            html += esc(name);
+            html += '<span class="wl-selector-item-count">' + count + '</span>';
+            html += '<button class="wl-selector-item-del" data-wl-del-list="' + esc(name) + '" title="Delete">✕</button>';
             html += '</div>';
-            html += '<div class="wl-tickers">';
-            if (!tickers.length) {
-                html += '<div style="padding:8px 14px 8px 24px;font-size:0.825em;color:#484f58;">Empty</div>';
-            } else {
-                html += '<div class="wl-col-hdr">';
-                html += '<span class="wl-c-sym">Symbol</span>';
-                html += '<span class="wl-c-last">Last</span>';
-                html += '<span class="wl-c-chg">Chg</span>';
-                html += '<span class="wl-c-chgp">Chg%</span>';
-                html += '<span class="wl-c-del"></span>';
-                html += '</div>';
-                tickers.forEach(function(t) {
-                    var active    = (wlChartTicker === t) ? ' active' : '';
-                    var sd        = wlLookupStock(t);
-                    var price     = sd && sd.price != null ? sd.price : null;
-                    var priceStr  = price != null ? price.toFixed(2) : '—';
-                    var dayVal    = sd ? sd.daily : null;
-                    var chgAbs    = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
-                    var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
-                    var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
-                    var cl        = dayVal == null ? 'neutral' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : 'neutral';
-                    html += '<div class="wl-ticker-row' + active + '" data-wl-ticker="' + esc(t) + '" data-wl-list="' + nameAttr + '">';
-                    html += '<span class="wl-c-sym">' + esc(t) + '</span>';
-                    html += '<span class="wl-c-last">' + priceStr + '</span>';
-                    html += '<span class="wl-c-chg ' + cl + '">' + chgStr + '</span>';
-                    html += '<span class="wl-c-chgp ' + cl + '">' + chgpStr + '</span>';
-                    html += '<button class="wl-ticker-remove" data-wl-remove-ticker="' + esc(t) + '" data-wl-remove-list="' + nameAttr + '" title="Remove">✕</button>';
-                    html += '</div>';
-                });
-            }
-            html += '</div></div>';
         });
-        scroll.innerHTML = html;
+
+        dd.innerHTML = html;
+        dd.style.display = 'block';
+        wlSelectorOpen = true;
+
+        // Delegate clicks inside dropdown
+        dd.onclick = function(e) {
+            var delBtn = e.target.closest('[data-wl-del-list]');
+            if (delBtn) {
+                e.stopPropagation();
+                var name = delBtn.getAttribute('data-wl-del-list');
+                if (!delBtn.classList.contains('confirming')) {
+                    delBtn.classList.add('confirming');
+                    delBtn.textContent = '?';
+                    setTimeout(function(){ delBtn.classList.remove('confirming'); delBtn.textContent = '✕'; }, 2000);
+                    return;
+                }
+                var all = wlGetAll();
+                delete all[name];
+                wlSaveAll(all);
+                wlSaveOrder(wlGetOrder().filter(function(k){ return k !== name; }));
+                dd.style.display = 'none';
+                wlSelectorOpen = false;
+                wlRender();
+                wlRefreshStars();
+                return;
+            }
+            var item = e.target.closest('[data-wl-switch]');
+            if (!item) return;
+            var name = item.getAttribute('data-wl-switch');
+            wlSetLastList(name);
+            dd.style.display = 'none';
+            wlSelectorOpen = false;
+            wlRender();
+            wlRefreshStars();
+        };
     };
+
+    // Close selector on outside click
+    document.addEventListener('click', function(e) {
+        if (!wlSelectorOpen) return;
+        var dd  = document.getElementById('wl-selector-dropdown');
+        var sel = document.getElementById('wl-selector');
+        if (dd && !dd.contains(e.target) && sel && !sel.contains(e.target)) {
+            dd.style.display = 'none';
+            wlSelectorOpen = false;
+        }
+    });
 
     // Look up a stock's data from snapshot across all industries
     function wlLookupStock(ticker) {
@@ -2902,58 +2971,16 @@
         var scroll = document.getElementById('wl-list-scroll');
         if (!scroll) return;
         scroll.addEventListener('click', function(e) {
-            // Delete watchlist button
-            var delBtn = e.target.closest('[data-wl-del]');
-            if (delBtn) {
-                e.stopPropagation();
-                var name = delBtn.getAttribute('data-wl-del');
-                // First click: show confirmation state on button
-                if (!delBtn.classList.contains('confirming')) {
-                    delBtn.classList.add('confirming');
-                    delBtn.textContent = '?';
-                    delBtn.title = 'Click again to delete';
-                    setTimeout(function() {
-                        delBtn.classList.remove('confirming');
-                        delBtn.textContent = '✕';
-                        delBtn.title = 'Delete watchlist';
-                    }, 2000);
-                    return;
-                }
-                // Second click: confirmed, delete
-                var all = wlGetAll();
-                delete all[name];
-                wlSaveAll(all);
-                var order = wlGetOrder().filter(function(k){ return k !== name; });
-                wlSaveOrder(order);
-                delete wlOpenGroups[name];
-                wlRender();
-                wlRefreshStars();
-                return;
-            }
             // Remove ticker from list
             var remBtn = e.target.closest('[data-wl-remove-ticker]');
             if (remBtn) {
                 e.stopPropagation();
-                var ticker = remBtn.getAttribute('data-wl-remove-ticker');
+                var ticker   = remBtn.getAttribute('data-wl-remove-ticker');
                 var listName = remBtn.getAttribute('data-wl-remove-list');
                 var all = wlGetAll();
                 if (!all[listName]) return;
                 all[listName] = all[listName].filter(function(t){ return t !== ticker; });
                 wlSaveAll(all);
-                wlRender();
-                wlRefreshStars();
-                return;
-            }
-            // Toggle group open/closed — accordion: only one open at a time
-            var hdr = e.target.closest('[data-wl-toggle]');
-            if (hdr) {
-                var name = hdr.getAttribute('data-wl-toggle');
-                var isOpen = !!wlOpenGroups[name];
-                // Close all
-                Object.keys(wlOpenGroups).forEach(function(k){ wlOpenGroups[k] = false; });
-                // Toggle the clicked one
-                wlOpenGroups[name] = !isOpen;
-                wlSetLastList(name);
                 wlRender();
                 wlRefreshStars();
                 return;
@@ -2994,8 +3021,6 @@
         wlSaveOrder(order);
         wlSetLastList(name);
         // Open new list accordion-style (close all others)
-        Object.keys(wlOpenGroups).forEach(function(k){ wlOpenGroups[k] = false; });
-        wlOpenGroups[name] = true;
         wlCancelNew();
         wlRender();
     };
