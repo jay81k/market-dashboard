@@ -1687,6 +1687,7 @@
 
     // ── Scans ─────────────────────────────────────────────────────────────
     var scansMultichartActive = false;
+    var activeScan = null;
     var scansMcTimeframe    = 'D';
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
@@ -2166,8 +2167,9 @@
     }
 
     window.setScan = function(scan) {
+        activeScan = (activeScan === scan) ? null : scan;
         document.querySelectorAll('.scan-filter-btn').forEach(function(b) {
-            b.classList.toggle('active', b.getAttribute('data-scan') === scan);
+            b.classList.toggle('active', b.getAttribute('data-scan') === activeScan);
         });
         renderScans();
     };
@@ -2212,7 +2214,9 @@
 
     function renderScans() {
         var stocks = getAllStocks();
-        var filtered = stocks.slice();
+        var filtered = activeScan
+            ? stocks.filter(function(r) { return r[activeScan] === true; })
+            : stocks.slice();
         filtered = applyFilters(filtered);
 
         // Sort
