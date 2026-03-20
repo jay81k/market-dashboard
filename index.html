@@ -247,15 +247,16 @@
         .stocks-table th:nth-child(14) { width: 44px; }   /* CR */
 
         /* Scans table has extra Sector + Industry columns */
-        #scans-table th:nth-child(1)  { width: 80px; }   /* Ticker */
-        #scans-table th:nth-child(2)  { width: 90px; }   /* Sector */
-        #scans-table th:nth-child(3)  { width: 130px; }  /* Industry */
-        #scans-table th:nth-child(4)  { width: 70px; }   /* Price */
-        #scans-table th:nth-child(5)  { width: 42px; }   /* RS */
-        #scans-table th:nth-child(6)  { width: 72px; }   /* Day */
-        #scans-table th:nth-child(7)  { width: 72px; }   /* 1W */
-        #scans-table th:nth-child(8)  { width: 72px; }   /* 1M */
-        #scans-table th:nth-child(9)  { width: 72px; }   /* 3M */
+        #scans-table th:nth-child(1)  { width: 32px; }   /* Checkbox */
+        #scans-table th:nth-child(3)  { width: 80px; }   /* Ticker */
+        #scans-table th:nth-child(3)  { width: 90px; }   /* Sector */
+        #scans-table th:nth-child(4)  { width: 130px; }  /* Industry */
+        #scans-table th:nth-child(5)  { width: 70px; }   /* Price */
+        #scans-table th:nth-child(6)  { width: 42px; }   /* RS */
+        #scans-table th:nth-child(7)  { width: 72px; }   /* Day */
+        #scans-table th:nth-child(8)  { width: 72px; }   /* 1W */
+        #scans-table th:nth-child(9)  { width: 72px; }   /* 1M */
+        #scans-table th:nth-child(10)  { width: 72px; }   /* 3M */
         #scans-table th:nth-child(10) { width: 72px; }   /* YTD */
         #scans-table th:nth-child(11) { width: 72px; }   /* vs 1M */
         #scans-table th:nth-child(12) { width: 90px; }   /* Dist/MA */
@@ -428,6 +429,77 @@
             font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0;
         }
         .sf-add-btn:hover { border-color: #6e7681; color: #6e7681; }
+        .sf-preset-btn {
+            padding: 4px 10px; border-radius: 5px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.858em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s; white-space: nowrap;
+        }
+        .sf-preset-btn:hover { background: #161b22; border-color: #484f58; color: #c8d0dc; }
+        .sf-preset-btn.save { border-color: #2979c8; color: #58a6ff; }
+        .sf-preset-btn.save:hover { background: #1a3a5c; }
+        .sf-export-btn {
+            padding: 4px 10px; border-radius: 5px; border: 1px solid #2979c8;
+            background: transparent; color: #58a6ff; font-size: 0.858em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s; white-space: nowrap;
+        }
+        .sf-export-btn:hover { background: #1a3a5c; }
+        .sf-export-btn:disabled { opacity: 0.4; cursor: default; border-color: #21262d; color: #484f58; }
+        .scan-cb { width: 15px; height: 15px; cursor: pointer; accent-color: #388bfd; }
+        .sf-export-modal {
+            display: none; position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
+        }
+        .sf-export-modal.open { display: flex; }
+        .sf-export-modal-box {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 20px; min-width: 340px; max-width: 500px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        .sf-export-modal-title { font-size: 0.968em; font-weight: 600; color: #c8d0dc; margin-bottom: 4px; }
+        .sf-export-modal-sub { font-size: 0.792em; color: #6e7681; margin-bottom: 12px; }
+        .sf-export-textarea {
+            width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 5px;
+            color: #c8d0dc; padding: 8px 10px; font-size: 0.858em; font-family: monospace;
+            resize: vertical; min-height: 80px; outline: none; margin-bottom: 12px;
+        }
+        .sf-export-copied { color: #3fb950; font-size: 0.792em; margin-right: auto; opacity: 0; transition: opacity 0.3s; }
+        .sf-export-copied.show { opacity: 1; }
+        .sf-preset-dropdown {
+            display: none; position: fixed; z-index: 9999;
+            background: #161b22; border: 1px solid #30363d; border-radius: 7px;
+            min-width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            max-height: 320px; overflow-y: auto;
+        }
+        .sf-preset-dropdown.open { display: block; }
+        .sf-preset-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; cursor: pointer; font-size: 0.858em; color: #c8d0dc;
+            border-bottom: 1px solid #21262d; transition: background 0.1s;
+        }
+        .sf-preset-item:last-child { border-bottom: none; }
+        .sf-preset-item:hover { background: #21262d; }
+        .sf-preset-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sf-preset-delete { color: #484f58; font-size: 1em; padding: 0 4px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
+        .sf-preset-delete:hover { color: #f85149; }
+        .sf-preset-empty { padding: 12px; color: #484f58; font-size: 0.825em; text-align: center; }
+        .sf-save-modal {
+            display: none; position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
+        }
+        .sf-save-modal.open { display: flex; }
+        .sf-save-modal-box {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 20px; min-width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        .sf-save-modal-title { font-size: 0.968em; font-weight: 600; color: #c8d0dc; margin-bottom: 12px; }
+        .sf-save-input {
+            width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 5px;
+            color: #c8d0dc; padding: 7px 10px; font-size: 0.902em; outline: none;
+            font-family: inherit; margin-bottom: 12px;
+        }
+        .sf-save-input:focus { border-color: #388bfd44; }
+        .sf-save-modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
         .sf-popover-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
         .sf-popover-row:last-child { margin-bottom: 0; }
         .sf-popover-label { font-size: 0.748em; color: #6e7681; width: 56px; flex-shrink: 0; }
@@ -590,16 +662,44 @@
         <div class="stocks-header" id="scans-header" style="flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <span style="font-size:0.78em;font-weight:600;color:#6e7681;text-transform:uppercase;letter-spacing:0.05em;">Scan</span>
-                <button class="scan-filter-btn active" data-scan="inside_day" onclick="setScan('inside_day')">Inside Day</button>
-                <button class="scan-filter-btn" data-scan="bullish_outside" onclick="setScan('bullish_outside')">Bullish Outside</button>
+
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
+            <button class="sf-export-btn" id="scans-export-btn" onclick="sfOpenExport()" disabled>Export ▾</button>
             <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
+        </div>
+        <!-- Export modal -->
+        <div class="sf-export-modal" id="sf-export-modal" onclick="if(event.target===this)sfCloseExport()">
+            <div class="sf-export-modal-box">
+                <div class="sf-export-modal-title">Export Tickers</div>
+                <div class="sf-export-modal-sub" id="sf-export-sub"></div>
+                <textarea class="sf-export-textarea" id="sf-export-textarea" readonly></textarea>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="sf-export-copied" id="sf-export-copied">Copied!</span>
+                    <button class="sf-export-btn" onclick="sfCopyExport()">Copy</button>
+                    <button class="sf-add-btn" onclick="sfCloseExport()">Close</button>
+                </div>
+            </div>
         </div>
         <!-- Filter bar -->
         <div class="scans-filter-bar" id="scans-filter-bar">
             <div id="sf-pills-container" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0;"></div>
             <button class="sf-add-btn" onclick="sfAddRow()">+ Add Filter</button>
+            <button class="sf-preset-btn save" onclick="sfOpenSaveModal()">Save</button>
+            <button class="sf-preset-btn" id="sf-load-btn" onclick="sfTogglePresets(this)">Load ▾</button>
+        </div>
+        <!-- Preset dropdown -->
+        <div id="sf-preset-dropdown" class="sf-preset-dropdown"></div>
+        <!-- Save modal -->
+        <div class="sf-save-modal" id="sf-save-modal" onclick="if(event.target===this)sfCloseSaveModal()">
+            <div class="sf-save-modal-box">
+                <div class="sf-save-modal-title">Save Filter Preset</div>
+                <input class="sf-save-input" id="sf-save-input" type="text" placeholder="Preset name..." maxlength="60">
+                <div class="sf-save-modal-btns">
+                    <button class="sf-add-btn" onclick="sfCloseSaveModal()">Cancel</button>
+                    <button class="sf-preset-btn save" onclick="sfSavePreset()">Save</button>
+                </div>
+            </div>
         </div>
         <!-- Filter edit popover (shared) -->
         <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:12px 14px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
@@ -1737,7 +1837,6 @@
 
 
     // ── Scans ─────────────────────────────────────────────────────────────
-    var activeScan          = 'inside_day';
     var scansMultichartActive = false;
     var scansMcTimeframe    = 'D';
     var scansMcTickers      = [];
@@ -1765,7 +1864,8 @@
         { value: 'adr',   label: 'ADR%' },
         { value: 'cr',    label: 'CR%' },
         { value: 'mcap',  label: 'Market Cap' },
-        { value: 'rvol',  label: 'Rel. Volume' },
+        { value: 'rvol',    label: 'Rel. Volume' },
+        { value: 'pattern', label: 'Pattern' },
     ];
 
     function sfParseVol(str) {
@@ -1799,6 +1899,9 @@
             if (cond === 'crosses_above') return mt + ' ' + mp1 + ' crossed above ' + mt2 + ' ' + mp2;
             if (cond === 'crosses_below') return mt + ' ' + mp1 + ' crossed below ' + mt2 + ' ' + mp2;
             return 'MA filter';
+        }
+        if (row.type === 'pattern') {
+            return row.val === 'inside_day' ? 'Inside Day' : 'Bullish Outside';
         }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
@@ -1861,6 +1964,12 @@
             if (usesPct) {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
+        } else if (row.type === 'pattern') {
+            var patOpts = [
+                ['inside_day',     'Inside Day'],
+                ['bullish_outside','Bullish Outside'],
+            ].map(function(o){ return '<option value="'+o[0]+'"'+(row.val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Pattern</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
@@ -1903,7 +2012,7 @@
             row.type     = value;
             row.dir         = 'above';
             row.maCondition = 'above_price';
-            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : 0;
+            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : 0;
             row.maType      = 'SMA';
             row.maPeriod    = 50;
             row.maType2     = 'SMA';
@@ -1940,6 +2049,165 @@
         sfRenderPills();
         renderScans();
     };
+
+    // ── Scan selection & export ──────────────────────────────────────────
+    var selectedScans = new Set();
+
+    function sfUpdateExportBtn() {
+        var btn = document.getElementById('scans-export-btn');
+        if (btn) btn.disabled = selectedScans.size === 0;
+    }
+
+    window.sfToggleTicker = function(cb) {
+        var ticker = cb.getAttribute('data-ticker');
+        if (cb.checked) selectedScans.add(ticker);
+        else selectedScans.delete(ticker);
+        sfUpdateExportBtn();
+        // Update select-all checkbox state
+        var all = document.getElementById('scans-check-all');
+        if (all) {
+            var allCbs = document.querySelectorAll('#scans-tbody .scan-cb');
+            var checkedCount = document.querySelectorAll('#scans-tbody .scan-cb:checked').length;
+            all.indeterminate = checkedCount > 0 && checkedCount < allCbs.length;
+            all.checked = checkedCount === allCbs.length && allCbs.length > 0;
+        }
+    };
+
+    window.sfToggleAll = function(cb) {
+        document.querySelectorAll('#scans-tbody .scan-cb').forEach(function(el) {
+            el.checked = cb.checked;
+            var ticker = el.getAttribute('data-ticker');
+            if (cb.checked) selectedScans.add(ticker);
+            else selectedScans.delete(ticker);
+        });
+        sfUpdateExportBtn();
+    };
+
+    window.sfOpenExport = function() {
+        var tickers = Array.from(selectedScans);
+        var total = document.querySelectorAll('#scans-tbody .stock-row').length;
+        document.getElementById('sf-export-sub').textContent = tickers.length + ' selected ticker' + (tickers.length !== 1 ? 's' : '');
+        document.getElementById('sf-export-textarea').value = tickers.join(',');
+        document.getElementById('sf-export-modal').classList.add('open');
+    };
+
+    window.sfCloseExport = function() {
+        document.getElementById('sf-export-modal').classList.remove('open');
+    };
+
+    window.sfCopyExport = function() {
+        var ta = document.getElementById('sf-export-textarea');
+        ta.select();
+        document.execCommand('copy');
+        var copied = document.getElementById('sf-export-copied');
+        copied.classList.add('show');
+        setTimeout(function(){ copied.classList.remove('show'); }, 2000);
+    };
+
+    // ── Presets (persistent storage) ─────────────────────────────────────
+    var PRESET_KEY_PREFIX = 'scan-preset:';
+
+    window.sfOpenSaveModal = function() {
+        if (!sfRows.length) { alert('Add at least one filter before saving.'); return; }
+        document.getElementById('sf-save-input').value = '';
+        document.getElementById('sf-save-modal').classList.add('open');
+        setTimeout(function(){ document.getElementById('sf-save-input').focus(); }, 50);
+    };
+
+    window.sfCloseSaveModal = function() {
+        document.getElementById('sf-save-modal').classList.remove('open');
+    };
+
+    window.sfSavePreset = async function() {
+        var name = (document.getElementById('sf-save-input').value || '').trim();
+        if (!name) { alert('Please enter a preset name.'); return; }
+        var key = PRESET_KEY_PREFIX + name;
+        try {
+            await window.storage.set(key, JSON.stringify({ name: name, rows: sfRows }));
+            sfCloseSaveModal();
+        } catch(e) {
+            alert('Failed to save preset.');
+        }
+    };
+
+    window.sfTogglePresets = async function(btn) {
+        var dd = document.getElementById('sf-preset-dropdown');
+        if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
+        var rect = btn.getBoundingClientRect();
+        dd.style.top  = (rect.bottom + 6) + 'px';
+        dd.style.left = Math.max(8, rect.right - 220) + 'px';
+        dd.innerHTML = '<div class="sf-preset-empty">Loading...</div>';
+        dd.classList.add('open');
+        try {
+            var result = await window.storage.list(PRESET_KEY_PREFIX);
+            var keys = (result && result.keys) ? result.keys : [];
+            if (!keys.length) {
+                dd.innerHTML = '<div class="sf-preset-empty">No saved presets yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var displayName = k.replace(PRESET_KEY_PREFIX, '');
+                html += '<div class="sf-preset-item" data-key="' + esc(k) + '">' +
+                    '<span class="sf-preset-item-name" onclick="sfLoadPreset('' + esc(k) + '')">' + esc(displayName) + '</span>' +
+                    '<button class="sf-preset-delete" onclick="sfDeletePreset('' + esc(k) + '')" title="Delete">×</button>' +
+                    '</div>';
+            }
+            dd.innerHTML = html;
+        } catch(e) {
+            dd.innerHTML = '<div class="sf-preset-empty">Failed to load presets.</div>';
+        }
+    };
+
+    window.sfLoadPreset = async function(key) {
+        document.getElementById('sf-preset-dropdown').classList.remove('open');
+        try {
+            var result = await window.storage.get(key);
+            if (!result) { alert('Preset not found.'); return; }
+            var preset = JSON.parse(result.value);
+            sfRows = preset.rows || [];
+            sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
+            sfRenderPills();
+            renderScans();
+        } catch(e) {
+            alert('Failed to load preset.');
+        }
+    };
+
+    window.sfDeletePreset = async function(key) {
+        var dd = document.getElementById('sf-preset-dropdown');
+        try {
+            await window.storage.delete(key);
+            // Refresh the dropdown
+            var remaining = dd.querySelectorAll('.sf-preset-item');
+            var item = dd.querySelector('[data-key="' + key + '"]');
+            if (item) item.remove();
+            if (!dd.querySelectorAll('.sf-preset-item').length) {
+                dd.innerHTML = '<div class="sf-preset-empty">No saved presets yet.</div>';
+            }
+        } catch(e) {
+            alert('Failed to delete preset.');
+        }
+    };
+
+    // Close preset dropdown on outside click
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('sf-preset-dropdown');
+        var btn = document.getElementById('sf-load-btn');
+        if (dd && dd.classList.contains('open') && !dd.contains(e.target) && e.target !== btn) {
+            dd.classList.remove('open');
+        }
+    });
+
+    // Save modal keyboard shortcut
+    document.addEventListener('keydown', function(e) {
+        var modal = document.getElementById('sf-save-modal');
+        if (modal && modal.classList.contains('open')) {
+            if (e.key === 'Enter') sfSavePreset();
+            if (e.key === 'Escape') sfCloseSaveModal();
+        }
+    });
 
 
     function applyFilters(stocks) {
@@ -2012,6 +2280,9 @@
                         if (f.dir === 'gt' && adr <= av) return false;
                         if (f.dir === 'lt' && adr >= av) return false;
                     }
+                } else if (f.type === 'pattern') {
+                    if (f.val === 'inside_day'      && !r.inside_day)      return false;
+                    if (f.val === 'bullish_outside' && !r.bullish_outside) return false;
                 } else if (f.type === 'rvol') {
                     var rv = r.rel_vol;
                     if (rv == null) return false;
@@ -2042,14 +2313,7 @@
         });
     }
 
-        function filterByScan(stocks, scan) {
-        if (scan === 'inside_day') return stocks.filter(function(r) { return r.inside_day === true; });
-        if (scan === 'bullish_outside') return stocks.filter(function(r) { return r.bullish_outside === true; });
-        return stocks;
-    }
-
     window.setScan = function(scan) {
-        activeScan = scan;
         document.querySelectorAll('.scan-filter-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-scan') === scan);
         });
@@ -2075,7 +2339,7 @@
             { key:'adr_pct',   label:'ADR%',    tip:'Avg Daily Range %' },
             { key:'cr',        label:'CR',      tip:'Closing range (100=high, 0=low)' },
         ];
-        var html = '<tr>';
+        var html = '<tr><th style="width:32px;"><input type="checkbox" class="scan-cb" id="scans-check-all" onclick="sfToggleAll(this)"></th>';
         cols.forEach(function(c) {
             var sorted = scansSortState.by === c.key;
             var cl = sorted ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
@@ -2096,7 +2360,7 @@
 
     function renderScans() {
         var stocks = getAllStocks();
-        var filtered = filterByScan(stocks, activeScan);
+        var filtered = stocks.slice();
         filtered = applyFilters(filtered);
 
         // Sort
@@ -2151,7 +2415,9 @@
             var crVal = row.cr != null ? Math.round(row.cr)+'%' : '—';
             var secCl = sectorClass(row.sector);
 
+            var isChecked = selectedScans.has(row.ticker) ? ' checked' : '';
             html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">'; 
+            html += '<td onclick="event.stopPropagation()"><input type="checkbox" class="scan-cb" data-ticker="' + esc(row.ticker) + '"' + isChecked + ' onclick="sfToggleTicker(this)"></td>';
             html += '<td><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             html += '<td style="font-size:0.858em;" class="' + secCl + '">' + esc(row.sector||'—') + '</td>';
             html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
