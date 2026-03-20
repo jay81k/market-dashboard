@@ -1801,7 +1801,12 @@
             }
             // Log first cell to console for debugging
             if (!debugDone) {
-                console.log('[DistMA] key:', key, 'raw sample:', raw.slice(0,80), 'parsed:', obj ? 'ok' : 'FAIL', 'val:', obj ? obj[key] : 'n/a');
+                var parseErr = '';
+                try { JSON.parse(raw); } catch(e) { parseErr = e.message; }
+                console.log('[DistMA] key:', key);
+                console.log('[DistMA] raw length:', raw.length, 'first 200:', raw.slice(0,200));
+                console.log('[DistMA] parse error:', parseErr);
+                console.log('[DistMA] parsed obj:', obj);
                 debugDone = true;
             }
             var val = obj ? obj[key] : null;
