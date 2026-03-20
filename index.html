@@ -656,7 +656,16 @@
         }
         .wl-ticker-row:hover .wl-ticker-remove { opacity: 1; }
         .wl-ticker-remove:hover { color: #f85149; }
-        .wl-new-row {
+        .wl-add-sym-btn-row {
+            padding: 4px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .wl-add-sym-btn {
+            width: 100%; padding: 5px 8px; border-radius: 4px;
+            border: 1px dashed #21262d; background: transparent;
+            color: #484f58; font-size: 0.825em; font-family: inherit;
+            cursor: pointer; text-align: left; transition: all 0.12s;
+        }
+        .wl-add-sym-btn:hover { border-color: #30363d; color: #8b949e; background: #161b22; }
             display: flex; align-items: center; gap: 6px;
             padding: 6px 10px; border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #161b22;
@@ -965,6 +974,14 @@
                 <input id="wl-new-input" class="wl-new-input" type="text" placeholder="List name…" maxlength="40" autocomplete="off" spellcheck="false">
                 <button class="wl-new-confirm" onclick="wlConfirmNew()">Add</button>
                 <button class="wl-new-cancel" onclick="wlCancelNew()">✕</button>
+            </div>
+            <div id="wl-add-sym-row" class="wl-new-row" style="display:none;">
+                <input id="wl-add-sym-input" class="wl-new-input" type="text" placeholder="Symbol…" maxlength="12" autocomplete="off" spellcheck="false" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+                <button class="wl-new-confirm" onclick="wlConfirmAddSym()">Add</button>
+                <button class="wl-new-cancel" onclick="wlCancelAddSym()">✕</button>
+            </div>
+            <div class="wl-add-sym-btn-row" id="wl-add-sym-btn-row">
+                <button class="wl-add-sym-btn" onclick="wlOpenAddSym()">+ Add Symbol</button>
             </div>
             <div id="wl-selector-dropdown" class="wl-selector-dropdown" style="display:none;"></div>
             <div class="wl-list-scroll" id="wl-list-scroll"></div>
@@ -3029,6 +3046,46 @@
         var row = document.getElementById('wl-new-row');
         row.style.display = 'none';
     };
+        var row   = document.getElementById('wl-add-sym-row');
+        var input = document.getElementById('wl-add-sym-input');
+        var btnRow = document.getElementById('wl-add-sym-btn-row');
+        row.style.display = 'flex';
+        btnRow.style.display = 'none';
+        input.value = '';
+        input.focus();
+    };
+
+    window.wlConfirmAddSym = function() {
+        var input  = document.getElementById('wl-add-sym-input');
+        var ticker = input.value.trim().toUpperCase();
+        if (!ticker) { input.focus(); return; }
+        var active = wlGetLastList();
+        if (!active) { wlCancelAddSym(); return; }
+        var all = wlGetAll();
+        if (!all[active]) all[active] = [];
+        if (all[active].indexOf(ticker) === -1) {
+            all[active].push(ticker);
+            wlSaveAll(all);
+        }
+        wlCancelAddSym();
+        wlRender();
+        wlRefreshStars();
+    };
+
+    window.wlCancelAddSym = function() {
+        document.getElementById('wl-add-sym-row').style.display = 'none';
+        document.getElementById('wl-add-sym-btn-row').style.display = 'block';
+    };
+
+    // Keyboard handling for add-symbol input
+    document.addEventListener('keydown', function(e) {
+        var symRow = document.getElementById('wl-add-sym-row');
+        if (!symRow || symRow.style.display === 'none') return;
+        if (document.activeElement === document.getElementById('wl-add-sym-input')) {
+            if (e.key === 'Enter')  { e.preventDefault(); wlConfirmAddSym(); }
+            if (e.key === 'Escape') { e.preventDefault(); wlCancelAddSym(); }
+        }
+    });
 
     // Keyboard handling for the inline input
     document.addEventListener('keydown', function(e) {
