@@ -1852,7 +1852,7 @@
         if (!row) return;
         if (field === 'type') {
             row.type     = value;
-            row.dir         = 'above';
+            row.dir         = (value === 'ma') ? 'above' : 'gt';
             row.maCondition = 'above_price';
             row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : 0;
             row.maType      = 'SMA';
