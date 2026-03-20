@@ -1901,7 +1901,8 @@
             return 'MA filter';
         }
         if (row.type === 'pattern') {
-            return row.val === 'inside_day' ? 'Inside Day' : 'Bullish Outside';
+            var patLabels = { inside_day: 'Inside Day', bullish_outside: 'Bullish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal' };
+            return patLabels[row.val] || row.val;
         }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
@@ -1966,8 +1967,12 @@
             }
         } else if (row.type === 'pattern') {
             var patOpts = [
-                ['inside_day',     'Inside Day'],
-                ['bullish_outside','Bullish Outside'],
+                ['inside_day',          'Inside Day'],
+                ['bullish_outside',     'Bullish Outside'],
+                ['hammer',              'Hammer'],
+                ['bullish_reversal_bar','Bullish Reversal Bar'],
+                ['upside_reversal',     'Upside Reversal'],
+                ['oops_reversal',       'Oops Reversal'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(row.val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Pattern</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
         } else {
@@ -2283,6 +2288,10 @@
                 } else if (f.type === 'pattern') {
                     if (f.val === 'inside_day'      && !r.inside_day)      return false;
                     if (f.val === 'bullish_outside' && !r.bullish_outside) return false;
+                    if (f.val === 'hammer'               && !r.hammer)               return false;
+                    if (f.val === 'bullish_reversal_bar' && !r.bullish_reversal_bar) return false;
+                    if (f.val === 'upside_reversal'      && !r.upside_reversal)      return false;
+                    if (f.val === 'oops_reversal'        && !r.oops_reversal)        return false;
                 } else if (f.type === 'rvol') {
                     var rv = r.rel_vol;
                     if (rv == null) return false;
