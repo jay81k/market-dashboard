@@ -1129,6 +1129,13 @@
             document.getElementById('view-sector').style.display = 'flex';
         } else if (view === 'watchlists') {
             document.getElementById('view-watchlists').style.display = 'flex';
+            // Auto-open last-used list on first visit or if nothing open
+            var anyOpen = Object.keys(wlOpenGroups).some(function(k){ return wlOpenGroups[k]; });
+            if (!anyOpen) {
+                var last = wlGetLastList();
+                if (last) wlOpenGroups[last] = true;
+                else { var ord = wlGetOrder(); if (ord.length) wlOpenGroups[ord[0]] = true; }
+            }
             wlRender();
         }
     };
@@ -2831,13 +2838,6 @@
         }
 
         var html = '';
-        // Auto-open last-used list if nothing is explicitly open
-        var anyOpen = order.some(function(n){ return !!wlOpenGroups[n]; });
-        if (!anyOpen) {
-            var last = wlGetLastList();
-            if (last) wlOpenGroups[last] = true;
-            else if (order.length) wlOpenGroups[order[0]] = true;
-        }
         order.forEach(function(name) {
             var tickers  = all[name] || [];
             var isOpen   = !!wlOpenGroups[name];
