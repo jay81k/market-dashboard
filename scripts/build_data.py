@@ -278,6 +278,21 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         _prev_low   = hist["Low"].iloc[-2]
         _prev_close = hist["Close"].iloc[-2]
 
+        # Pocket Pivot: today closes up AND today's volume > max down-volume of prior 10 days
+        pocket_pivot = False
+        try:
+            if len(hist) >= 11:
+                today_vol  = hist["Volume"].iloc[-1]
+                prior_10   = hist.iloc[-11:-1]
+                down_days  = prior_10[prior_10["Close"] < prior_10["Open"]]
+                max_down_vol = down_days["Volume"].max() if len(down_days) > 0 else 0
+                pocket_pivot = bool(
+                    _c > _prev_close and
+                    today_vol > max_down_vol
+                )
+        except Exception:
+            pass
+
         # Bullish Reversal Bar: undercuts prev low, closes above prev close
         bullish_reversal_bar = bool(
             _l < _prev_low and
@@ -306,6 +321,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "bullish_reversal_bar": bullish_reversal_bar,
             "upside_reversal":      upside_reversal,
             "oops_reversal":        oops_reversal,
+            "pocket_pivot":         pocket_pivot,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
