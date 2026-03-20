@@ -743,6 +743,7 @@
             <button class="dma-opt dist-ma-len-btn" data-len="10"  onclick="setDistMALength(10)">10</button>
             <button class="dma-opt dist-ma-len-btn" data-len="21"  onclick="setDistMALength(21)">21</button>
             <button class="dma-opt dist-ma-len-btn active" data-len="50"  onclick="setDistMALength(50)">50</button>
+            <button class="dma-opt dist-ma-len-btn" data-len="65"  onclick="setDistMALength(65)">65</button>
             <button class="dma-opt dist-ma-len-btn" data-len="150" onclick="setDistMALength(150)">150</button>
             <button class="dma-opt dist-ma-len-btn" data-len="200" onclick="setDistMALength(200)">200</button>
         </div>
@@ -1783,7 +1784,7 @@
             '<select class="sf-select" onchange="sfPopChange('+id+',\'type\',this.value)">'+typeOpts+'</select>' +
             '</div>';
         if (row.type === 'ma') {
-            var MA_P = ['5','8','10','21','50','150','200'];
+            var MA_P = ['5','8','10','21','50','65','150','200'];
             var cond = row.maCondition || 'above_price';
             var condOpts = [
                 ['above_price',   'Price Above'],
