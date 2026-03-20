@@ -219,9 +219,16 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             hist["Low"].iloc[-1]  > hist["Low"].iloc[-2]
         ) if len(hist) >= 2 else False
 
+        # Bullish outside day: today's high > prev high AND today's low < prev low
+        bullish_outside = bool(
+            hist["High"].iloc[-1] > hist["High"].iloc[-2] and
+            hist["Low"].iloc[-1]  < hist["Low"].iloc[-2]
+        ) if len(hist) >= 2 else False
+
         return {
             "price":      round(float(current), 2),
             "inside_day": inside_day,
+            "bullish_outside": bullish_outside,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
