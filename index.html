@@ -235,19 +235,19 @@
         .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
         .stocks-table th:nth-child(2)  { width: 68px; }   /* Price */
         .stocks-table th:nth-child(3)  { width: 40px; }   /* RS */
-        .stocks-table th:nth-child(4)  { width: 66px; }   /* Chg */
-        .stocks-table th:nth-child(5)  { width: 66px; }   /* Chg% */
-        .stocks-table th:nth-child(6)  { width: 66px; }   /* 1W */
-        .stocks-table th:nth-child(7)  { width: 66px; }   /* 1M */
-        .stocks-table th:nth-child(8)  { width: 66px; }   /* 3M */
-        .stocks-table th:nth-child(9)  { width: 66px; }   /* YTD */
-        .stocks-table th:nth-child(10) { width: 66px; }   /* vs 1M */
-        .stocks-table th:nth-child(11) { width: 66px; }   /* vs 3M */
+        .stocks-table th:nth-child(4)  { width: 62px; }   /* Chg */
+        .stocks-table th:nth-child(5)  { width: 62px; }   /* Chg% */
+        .stocks-table th:nth-child(6)  { width: 62px; }   /* 1W */
+        .stocks-table th:nth-child(7)  { width: 62px; }   /* 1M */
+        .stocks-table th:nth-child(8)  { width: 62px; }   /* 3M */
+        .stocks-table th:nth-child(9)  { width: 62px; }   /* YTD */
+        .stocks-table th:nth-child(10) { width: 62px; }   /* vs 1M */
+        .stocks-table th:nth-child(11) { width: 62px; }   /* vs 3M */
         .stocks-table th:nth-child(12) { width: 88px; }   /* Dist/MA */
         .stocks-table th:nth-child(13) { width: 68px; }   /* Avg Vol */
-        .stocks-table th:nth-child(14) { width: 60px; }   /* 52Wk% */
-        .stocks-table th:nth-child(15) { width: 52px; }   /* ADR% */
-        .stocks-table th:nth-child(16) { width: 42px; }   /* CR */
+        .stocks-table th:nth-child(14) { width: 58px; }   /* 52Wk% */
+        .stocks-table th:nth-child(15) { width: 50px; }   /* ADR% */
+        .stocks-table th:nth-child(16) { width: 40px; }   /* CR */
 
         /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
         #scans-table th:nth-child(1)  { width: 110px; }  /* Ticker */
@@ -1650,13 +1650,6 @@
 
     function renderStocksTable(rows, industryName, theadId, tbodyId) {
         buildTableHeader(theadId, industryName);
-        var ranges = (snapshot && snapshot.column_ranges && snapshot.column_ranges[industryName]) || {};
-        var r1w  = ranges['1w']        || [-20,20];
-        var r1m  = ranges['1m']        || [-30,30];
-        var r3m  = ranges['3m']        || [-40,40];
-        var rYtd = ranges['ytd']       || [-50,50];
-        var rVs  = ranges['vs_spy']    || [-20,20];
-        var rV3  = ranges['vs_spy_3m'] || [-30,30];
         var maKey = activeMAType + activeMALength;
 
         var html = '';
@@ -1697,12 +1690,12 @@
             var chgStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
             html += '<td class="' + cc(row.daily) + '">' + chgStr + '</td>';
             html += '<td class="' + cc(row.daily) + '">' + (row.daily != null ? fmt(row.daily,2,'%') : '—') + '</td>';
-            html += '<td>' + valBar(row['1w'],  r1w[0],  r1w[1])  + '</td>';
-            html += '<td>' + valBar(row['1m'],  r1m[0],  r1m[1])  + '</td>';
-            html += '<td>' + valBar(row['3m'],  r3m[0],  r3m[1])  + '</td>';
-            html += '<td>' + valBar(row.ytd,    rYtd[0], rYtd[1]) + '</td>';
-            html += '<td>' + valBar(row.vs_spy, rVs[0],  rVs[1])  + '</td>';
-            html += '<td>' + valBar(row.vs_spy_3m, rV3[0], rV3[1])+ '</td>';
+            html += '<td class="' + cc(row['1w'])      + '">' + (row['1w']      != null ? fmt(row['1w'],2,'%')      : '—') + '</td>';
+            html += '<td class="' + cc(row['1m'])      + '">' + (row['1m']      != null ? fmt(row['1m'],2,'%')      : '—') + '</td>';
+            html += '<td class="' + cc(row['3m'])      + '">' + (row['3m']      != null ? fmt(row['3m'],2,'%')      : '—') + '</td>';
+            html += '<td class="' + cc(row.ytd)        + '">' + (row.ytd        != null ? fmt(row.ytd,2,'%')        : '—') + '</td>';
+            html += '<td class="' + cc(row.vs_spy)     + '">' + (row.vs_spy     != null ? fmt(row.vs_spy,2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row.vs_spy_3m)  + '">' + (row.vs_spy_3m  != null ? fmt(row.vs_spy_3m,2,'%')  : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
             // Avg Vol (from CSV AvgVol50)
             var volVal = '—';
