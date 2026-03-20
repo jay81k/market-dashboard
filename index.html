@@ -289,7 +289,7 @@
         .up   { color: #3fb950 !important; font-weight: 500; }
         .down { color: #f85149 !important; font-weight: 500; }
 
-        .val-bar { position: relative; display: inline-block; padding: 2px 4px; border-radius: 3px; min-width: 48px; text-align: right; }
+        .val-bar { position: relative; display: block; width: 100%; padding: 2px 4px; border-radius: 3px; text-align: right; box-sizing: border-box; }
         .val-bar-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: 0.13; z-index: 0; }
         .val-bar-fill.pos { background: #2ea043; left: 0; }
         .val-bar-fill.neg { background: #da3633; right: 0; }
@@ -846,7 +846,7 @@
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap">
-                <table class="stocks-table" id="stocks-table">
+                <table class="stocks-table" id="stocks-table" style="min-width:1100px;">
                     <thead id="stocks-thead"></thead>
                     <tbody id="stocks-tbody"></tbody>
                 </table>
@@ -932,7 +932,7 @@
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap" style="overflow-x:auto;">
-                <table class="stocks-table" id="scans-table" style="min-width:1100px;">
+                <table class="stocks-table" id="scans-table" style="min-width:1200px;">
                     <thead id="scans-thead"></thead>
                     <tbody id="scans-tbody"></tbody>
                 </table>
