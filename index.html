@@ -2971,6 +2971,11 @@
 
     window.wlOpenPicker = function(btn, e, internal) {
         e.stopPropagation();
+        // If this exact button already has the picker open, close it
+        if (!internal && wlPickerOpen && wlPickerBtn === btn) {
+            wlClosePicker();
+            return;
+        }
         // btn may be the ▾ button — get ticker from it directly (both star and chevron have data-ticker)
         var ticker = btn.getAttribute('data-ticker');
         wlPickerTicker = ticker;
