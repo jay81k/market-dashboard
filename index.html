@@ -1152,6 +1152,9 @@
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
         if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
+        if (view !== 'watchlists') {
+            wlStopPricePolling();
+        }
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
@@ -1197,6 +1200,7 @@
         } else if (view === 'watchlists') {
             document.getElementById('view-watchlists').style.display = 'flex';
             wlRender();
+            wlStartPricePolling();
             // Auto-load last selected ticker if available
             if (!wlMcActive) {
                 var autoTicker = wlChartTicker;
@@ -3008,6 +3012,97 @@
         });
     }
 
+    // ── Watchlist live prices ─────────────────────────────────────────────
+    function wlIsMarketOpen() {
+        var now = new Date();
+        var et  = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        var day = et.getDay();
+        if (day === 0 || day === 6) return false;
+        var h = et.getHours(), m = et.getMinutes();
+        var mins = h * 60 + m;
+        return mins >= 570 && mins < 960; // 9:30–16:00 ET
+    }
+
+    function wlFetchOneTicker(ticker) {
+        var url = WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d';
+        return fetch(url).then(function(r) {
+            if (!r.ok) return null;
+            return r.json();
+        }).then(function(data) {
+            var result = data && data.chart && data.chart.result && data.chart.result[0];
+            if (!result) return null;
+            var price     = result.meta && result.meta.regularMarketPrice;
+            var prevClose = result.meta && result.meta.previousClose;
+            if (!price || price <= 0) return null;
+            return { price: price, prevClose: prevClose || null };
+        }).catch(function() { return null; });
+    }
+
+    function wlFetchPrices() {
+        var active  = wlGetLastList();
+        var all     = wlGetAll();
+        var tickers = active && all[active] ? all[active] : [];
+        if (!tickers.length) return;
+
+        Promise.all(tickers.map(function(t) {
+            return wlFetchOneTicker(t).then(function(data) {
+                if (data) {
+                    wlLivePrices[t] = {
+                        price:     data.price,
+                        prevClose: data.prevClose,
+                        updatedAt: new Date()
+                    };
+                }
+            });
+        })).then(function() {
+            wlUpdatePriceRows();
+            wlUpdateRefreshLabel();
+        });
+    }
+
+    function wlUpdatePriceRows() {
+        document.querySelectorAll('.wl-ticker-row').forEach(function(row) {
+            var t    = row.getAttribute('data-wl-ticker');
+            var live = wlLivePrices[t];
+            if (!live) return;
+            var price     = live.price;
+            var prevClose = live.prevClose;
+            var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
+            var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            var cl        = chgPct == null ? 'neutral' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'neutral';
+            var lastEl    = row.querySelector('.wl-c-last');
+            var chgEl     = row.querySelector('.wl-c-chg');
+            var chgpEl    = row.querySelector('.wl-c-chgp');
+            if (lastEl) lastEl.textContent = price.toFixed(2);
+            if (chgEl)  { chgEl.textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—'; chgEl.className = 'wl-c-chg ' + cl; }
+            if (chgpEl) { chgpEl.textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—'; chgpEl.className = 'wl-c-chgp ' + cl; }
+        });
+    }
+
+    function wlUpdateRefreshLabel() {
+        var el = document.getElementById('wl-refresh-label');
+        if (!el) return;
+        var now = new Date();
+        var h   = now.getHours().toString().padStart(2,'0');
+        var m   = now.getMinutes().toString().padStart(2,'0');
+        el.textContent = 'Updated ' + h + ':' + m;
+    }
+
+    function wlStartPricePolling() {
+        if (wlPriceTimer) clearInterval(wlPriceTimer);
+        wlFetchPrices();
+        if (!wlIsMarketOpen()) return;
+        wlPriceTimer = setInterval(function() {
+            if (currentView !== 'watchlists') return;
+            if (!wlIsMarketOpen()) { wlStopPricePolling(); return; }
+            wlFetchPrices();
+        }, 5 * 60 * 1000);
+    }
+
+    function wlStopPricePolling() {
+        if (wlPriceTimer) { clearInterval(wlPriceTimer); wlPriceTimer = null; }
+    }
+
     // ── Watchlist Multichart ──────────────────────────────────────────────
     window.toggleWlMultichart = function() {
         wlMcActive = !wlMcActive;
@@ -3144,6 +3239,9 @@
     var wlMcActive     = false;
     var wlMcTimeframe  = 'D';
     var wlMcWidgets    = {};
+    var wlLivePrices   = {};   // { ticker: { price, prevClose, updatedAt } }
+    var wlPriceTimer   = null;
+    var WL_PROXY       = 'https://yahoo-proxy.jay69k.workers.dev';
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
@@ -3256,15 +3354,27 @@
             html += '<span class="wl-c-last">Last</span>';
             html += '<span class="wl-c-chg">Chg</span>';
             html += '<span class="wl-c-chgp">Chg%</span>';
-            html += '<span class="wl-c-del"></span>';
+            html += '<span class="wl-c-del" style="display:flex;align-items:center;gap:4px;margin-left:auto;">';
+            html += '<span id="wl-refresh-label" style="font-size:0.748em;color:#484f58;white-space:nowrap;"></span>';
+            html += '<button onclick="wlFetchPrices()" title="Refresh prices" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:0.85em;padding:0 2px;line-height:1;" onmouseover="this.style.color=\'#c8d0dc\'" onmouseout="this.style.color=\'#484f58\'">↻</button>';
+            html += '</span>';
             html += '</div>';
             tickers.forEach(function(t) {
                 var isActive  = (wlChartTicker === t) ? ' active' : '';
                 var sd        = wlLookupStock(t);
-                var price     = sd && sd.price != null ? sd.price : null;
+                var live      = wlLivePrices[t];
+                // Use live price if available, fall back to snapshot
+                var price, dayVal, chgAbs;
+                if (live) {
+                    price  = live.price;
+                    chgAbs = live.prevClose ? price - live.prevClose : null;
+                    dayVal = live.prevClose ? ((price - live.prevClose) / live.prevClose) * 100 : null;
+                } else {
+                    price  = sd && sd.price != null ? sd.price : null;
+                    dayVal = sd ? sd.daily : null;
+                    chgAbs = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
+                }
                 var priceStr  = price != null ? price.toFixed(2) : '—';
-                var dayVal    = sd ? sd.daily : null;
-                var chgAbs    = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
                 var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
                 var cl        = dayVal == null ? 'neutral' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : 'neutral';
@@ -3337,10 +3447,12 @@
             if (!item) return;
             var name = item.getAttribute('data-wl-switch');
             wlSetLastList(name);
+            wlLivePrices = {};
             dd.style.display = 'none';
             wlSelectorOpen = false;
             wlRender();
             wlRefreshStars();
+            wlStartPricePolling();
         };
     };
 
