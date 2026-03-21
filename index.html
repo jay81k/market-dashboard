@@ -1429,7 +1429,7 @@
             else if (activeSort === 'sector') industries.sort(function(a,b){ return a.sector.localeCompare(b.sector) || (a.rank||999) - (b.rank||999); });
         }
 
-        document.getElementById('result-count').textContent = industries.length + ' industries';
+        var rcEl = document.getElementById('result-count'); if (rcEl) rcEl.textContent = industries.length + ' industries';
 
         var html = '';
         industries.forEach(function(ind) {
