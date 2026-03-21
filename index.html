@@ -1952,34 +1952,37 @@
     var _chartModalPoll = null;
     var _chartModalObserver = null;
     function startChartModalPoll(initialSym) {
-        // Clear previous
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
         if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
 
         var _lastSym = initialSym;
+
+        function extractSymFromSrc(src) {
+            // src contains e.g. %22SVM%22 or %22AAPL%22 — the symbol is JSON-encoded
+            var m = src.match(/%22([A-Z0-9.]+)%22/);
+            return m ? m[1] : null;
+        }
 
         function checkIframe() {
             var container = document.getElementById('tradingview-chart');
             if (!container) return;
             var iframe = container.querySelector('iframe');
             if (!iframe) return;
-            // Watch the iframe title — TradingView sets it to e.g. "AAPL — Daily Chart"
-            _chartModalObserver = new MutationObserver(function() {
-                var title = iframe.getAttribute('title') || iframe.title || '';
-                // Title format: "SYMBOL — ..." or "SYMBOL - ..."
-                var match = title.match(/^([A-Z0-9.]+)\s*[—–-]/);
-                if (match) {
-                    var bare = match[1];
-                    if (bare && bare !== _lastSym) {
-                        _lastSym = bare;
-                        updateChartModalHeader(bare);
+
+            _chartModalObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mut) {
+                    if (mut.attributeName === 'src') {
+                        var bare = extractSymFromSrc(iframe.src);
+                        if (bare && bare !== _lastSym) {
+                            _lastSym = bare;
+                            updateChartModalHeader(bare);
+                        }
                     }
-                }
+                });
             });
-            _chartModalObserver.observe(iframe, { attributes: true, attributeFilter: ['title'] });
+            _chartModalObserver.observe(iframe, { attributes: true, attributeFilter: ['src'] });
         }
 
-        // Iframe may not exist yet — wait for it
         var _waitForIframe = setInterval(function() {
             var container = document.getElementById('tradingview-chart');
             if (container && container.querySelector('iframe')) {
