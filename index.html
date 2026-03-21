@@ -2198,10 +2198,6 @@
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
     var scansSortState      = { by: 'rs', dir: -1 };
-    var scansVirtRows       = [];   // pre-built HTML strings, one per row
-    var scansVirtRowH       = 37;   // measured row height in px
-    var scansVirtBuf        = 15;   // rows to render above/below viewport
-    var scansVirtColCount   = 17;   // number of columns (for spacer colspan)
 
     function getAllStocks() {
         if (!snapshot || !snapshot.by_industry) return [];
@@ -2796,45 +2792,7 @@
         });
     }
 
-    function scansVirtualPaint(tbody, scrollTop) {
-        if (!scansVirtRows.length) { tbody.innerHTML = ''; return; }
-        var total    = scansVirtRows.length;
-        var viewH    = tbody.closest('.stocks-table-wrap') ? tbody.closest('.stocks-table-wrap').clientHeight : 600;
-        var visCount = Math.ceil(viewH / scansVirtRowH);
-        var startIdx = Math.max(0, Math.floor(scrollTop / scansVirtRowH) - scansVirtBuf);
-        var endIdx   = Math.min(total, startIdx + visCount + scansVirtBuf * 2);
-        var topH     = startIdx * scansVirtRowH;
-        var botH     = (total - endIdx) * scansVirtRowH;
-
-        var html = '';
-        if (topH > 0) html += '<tr style="height:' + topH + 'px"><td colspan="' + scansVirtColCount + '"></td></tr>';
-        for (var i = startIdx; i < endIdx; i++) html += scansVirtRows[i];
-        if (botH > 0) html += '<tr style="height:' + botH + 'px"><td colspan="' + scansVirtColCount + '"></td></tr>';
-
-        tbody.innerHTML = html;
-        applyDistMA(tbody.closest('table') || document.getElementById('scans-table'));
-
-        // Re-wire click/dblclick on newly rendered rows
-        tbody.onclick = function(e) {
-            var row = e.target.closest('.stock-row');
-            if (!row || e.target.classList.contains('scan-add-btn') ||
-                e.target.classList.contains('wl-add-btn') || e.target.classList.contains('wl-pick-btn')) return;
-            tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
-            row.classList.add('active');
-            allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
-            currentStockIndex = allStockRows.indexOf(row);
-        };
-        tbody.ondblclick = function(e) {
-            var row = e.target.closest('.stock-row');
-            if (!row) return;
-            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
-        };
-        allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
-        wlRefreshStars();
-    }
-
     function renderScans() {
-        scansVirtRows = [];
         var stocks = getAllStocks();
         var filtered = activeScan
             ? stocks.filter(function(r) { return r[activeScan] === true; })
@@ -2934,43 +2892,36 @@
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
             html += '</tr>';
-            scansVirtRows.push(html);
         });
 
         var scansTbody = document.getElementById('scans-tbody');
-        scansVirtualPaint(scansTbody, 0);
+        scansTbody.innerHTML = html;
+        applyDistMA(document.getElementById('scans-table'));
+
+        // Wire keyboard nav
+        allStockRows = Array.from(scansTbody.querySelectorAll('.stock-row'));
         currentStockIndex = -1;
 
-        // Reset scroll position on fresh render
-        var wrap = document.querySelector('#scans-table-view .stocks-table-wrap');
-        if (wrap) {
-            wrap.scrollTop = 0;
-            wrap.onscroll = function() {
-                scansVirtualPaint(document.getElementById('scans-tbody'), this.scrollTop);
-            };
-        }
+        scansTbody.onclick = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row || e.target.classList.contains('scan-add-btn')) return;
+            scansTbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
+            row.classList.add('active');
+            allStockRows = Array.from(scansTbody.querySelectorAll('.stock-row'));
+            currentStockIndex = allStockRows.indexOf(row);
+        };
 
         if (scansMultichartActive) renderScansMc();
+        wlRefreshStars();
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
     function filterScansTable(q) {
-        q = (q || '').toLowerCase().trim();
-        if (!q) {
-            // Restore full virtual rows
-            var wrap = document.querySelector('#scans-table-view .stocks-table-wrap');
-            scansVirtualPaint(document.getElementById('scans-tbody'), wrap ? wrap.scrollTop : 0);
-            return;
-        }
-        // Filter scansVirtRows by matching data-symbol attribute
-        var tbody = document.getElementById('scans-tbody');
-        var filtered = scansVirtRows.filter(function(html) {
-            var m = html.match(/data-symbol="([^"]+)"/);
-            return m && m[1].toLowerCase().indexOf(q) !== -1;
+        q = (q || '').toLowerCase();
+        document.querySelectorAll('#scans-tbody .stock-row').forEach(function(row) {
+            var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
+            row.style.display = (!q || sym.includes(q)) ? '' : 'none';
         });
-        tbody.innerHTML = filtered.join('');
-        applyDistMA(document.getElementById('scans-table'));
-        allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
     }
 
     // ── Scans Multichart ─────────────────────────────────────────────────
