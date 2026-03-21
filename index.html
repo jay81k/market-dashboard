@@ -1799,6 +1799,7 @@
                 var rows = Array.from(tbody.querySelectorAll('.stock-row'));
                 rows.sort(function(a,b){ return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0); });
                 tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+                applyDistMA(tbody);
                 thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
                 allStockRows = rows; return;
             }
@@ -1816,6 +1817,7 @@
             return (av - bv) * currentStockSort.dir;
         });
         tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
+        applyDistMA(tbody);
         allStockRows = rows;
     });
 
