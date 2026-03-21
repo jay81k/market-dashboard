@@ -167,11 +167,21 @@
         }
         .mc-cell:hover { border-color: #388bfd; box-shadow: 0 0 0 1px #388bfd; }
         .mc-cell-label {
-            position: absolute; top: 6px; left: 8px; z-index: 2;
+            position: absolute; top: 6px; left: 30px; z-index: 5;
             font-size: 0.858em; font-weight: 700; color: #58a6ff;
             background: rgba(13,17,23,0.75); padding: 1px 5px; border-radius: 3px;
             pointer-events: none;
         }
+        .mc-cell-flag {
+            position: absolute; top: 5px; left: 7px; z-index: 6;
+            background: rgba(13,17,23,0.75); border: none; border-radius: 3px;
+            color: #484f58; font-size: 0.92em; padding: 1px 4px;
+            cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.1s;
+            line-height: 1.3;
+        }
+        .mc-cell:hover .mc-cell-flag { opacity: 1; }
+        .mc-cell-flag:hover { color: #f9c74f; }
+        .mc-cell-flag.flagged { color: #f9c74f; opacity: 1; }
         .mc-cell-overlay {
             position: absolute; inset: 0; z-index: 4;
             pointer-events: all; cursor: pointer;
@@ -1514,6 +1524,15 @@
             label.className = 'mc-cell-label';
             label.textContent = sym;
 
+            var flag = document.createElement('button');
+            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
+            flag.textContent = '⚑';
+            flag.title = 'Add to Flagged';
+            flag.addEventListener('click', function(e) {
+                e.stopPropagation();
+                wlFlagTicker(sym, flag);
+            });
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
@@ -1529,6 +1548,7 @@
                 openMcFullscreen(sym);
             });
 
+            cell.appendChild(flag);
             cell.appendChild(label);
             cell.appendChild(hint);
             cell.appendChild(overlay);
@@ -2772,6 +2792,15 @@
             label.className = 'mc-cell-label';
             label.textContent = sym;
 
+            var flag = document.createElement('button');
+            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
+            flag.textContent = '⚑';
+            flag.title = 'Add to Flagged';
+            flag.addEventListener('click', function(e) {
+                e.stopPropagation();
+                wlFlagTicker(sym, flag);
+            });
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
@@ -2787,6 +2816,7 @@
                 openMcFullscreen(sym);
             });
 
+            cell.appendChild(flag);
             cell.appendChild(label);
             cell.appendChild(hint);
             cell.appendChild(overlay);
@@ -2818,6 +2848,35 @@
     }
 
     // ── Watchlists ────────────────────────────────────────────────────────
+    var WL_FLAGGED = 'Flagged';
+
+    function wlIsFlagged(ticker) {
+        var all = wlGetAll();
+        return !!(all[WL_FLAGGED] && all[WL_FLAGGED].indexOf(ticker) !== -1);
+    }
+
+    window.wlFlagTicker = function(ticker, btn) {
+        var all = wlGetAll();
+        if (!all[WL_FLAGGED]) {
+            all[WL_FLAGGED] = [];
+            var order = [];
+            try { order = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]'); } catch(e) {}
+            if (order.indexOf(WL_FLAGGED) === -1) order.unshift(WL_FLAGGED); // put Flagged first
+            wlSaveOrder(order);
+            wlSetLastList(WL_FLAGGED);
+        }
+        var idx = all[WL_FLAGGED].indexOf(ticker);
+        if (idx !== -1) {
+            all[WL_FLAGGED].splice(idx, 1);
+            if (btn) { btn.classList.remove('flagged'); btn.title = 'Add to Flagged'; }
+        } else {
+            all[WL_FLAGGED].push(ticker);
+            if (btn) { btn.classList.add('flagged'); btn.title = 'Remove from Flagged'; }
+        }
+        wlSaveAll(all);
+        if (currentView === 'watchlists') wlRender();
+        wlRefreshStars();
+    };
     var LS_WL_KEY      = 'dashboard-watchlists';
     var LS_WL_ORD_KEY  = 'dashboard-watchlists-order';
     var LS_WL_LAST_KEY = 'dashboard-watchlists-last';
