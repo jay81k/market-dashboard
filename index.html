@@ -3129,7 +3129,6 @@
             });
         })).then(function() {
             wlUpdatePriceRows();
-            wlUpdateRefreshLabel();
         });
     }
 
@@ -3150,15 +3149,6 @@
             if (chgEl)  { chgEl.textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—'; chgEl.className = 'wl-c-chg ' + cl; }
             if (chgpEl) { chgpEl.textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—'; chgpEl.className = 'wl-c-chgp ' + cl; }
         });
-    }
-
-    function wlUpdateRefreshLabel() {
-        var el = document.getElementById('wl-refresh-label');
-        if (!el) return;
-        var now = new Date();
-        var h   = now.getHours().toString().padStart(2,'0');
-        var m   = now.getMinutes().toString().padStart(2,'0');
-        el.textContent = 'Updated ' + h + ':' + m;
     }
 
     function wlStartPricePolling() {
@@ -3427,23 +3417,23 @@
             html += '<span class="wl-c-last">Last</span>';
             html += '<span class="wl-c-chg">Chg</span>';
             html += '<span class="wl-c-chgp">Chg%</span>';
-            html += '<span class="wl-c-del" style="display:flex;align-items:center;gap:4px;margin-left:auto;">';
-            html += '<span id="wl-refresh-label" style="font-size:0.748em;color:#484f58;white-space:nowrap;"></span>';
-            html += '<button onclick="wlFetchPrices()" title="Refresh prices" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:0.85em;padding:0 2px;line-height:1;" onmouseover="this.style.color=\'#c8d0dc\'" onmouseout="this.style.color=\'#484f58\'">↻</button>';
-            html += '</span>';
+            html += '<span class="wl-c-del"></span>';
             html += '</div>';
             tickers.forEach(function(t) {
                 var isActive  = (wlChartTicker === t) ? ' active' : '';
                 var sd        = wlLookupStock(t);
                 var live      = wlLivePrices[t];
-                // Use live price if available, fall back to snapshot
                 var price, dayVal, chgAbs;
-                if (live) {
+                // Only use live price if we have both price AND prevClose
+                if (live && live.price && live.prevClose) {
                     price  = live.price;
-                    chgAbs = live.prevClose ? price - live.prevClose : null;
-                    dayVal = live.prevClose ? ((price - live.prevClose) / live.prevClose) * 100 : null;
+                    chgAbs = price - live.prevClose;
+                    dayVal = (chgAbs / live.prevClose) * 100;
                 } else {
+                    // Fall back to snapshot
                     price  = sd && sd.price != null ? sd.price : null;
+                    // Use live price only for last price display if prevClose missing
+                    if (live && live.price && !price) price = live.price;
                     dayVal = sd ? sd.daily : null;
                     chgAbs = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
                 }
