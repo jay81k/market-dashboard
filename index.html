@@ -277,8 +277,6 @@
         #scans-table th:nth-child(15) { width: 56px; }   /* 52Wk% */
         #scans-table th:nth-child(16) { width: 48px; }   /* ADR% */
         #scans-table th:nth-child(17) { width: 38px; }   /* CR */
-        #scans-table th:nth-child(18) { width: 50px; }   /* EPS */
-        #scans-table th:nth-child(19) { width: 50px; }   /* REV */
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
@@ -1087,9 +1085,8 @@
 <script>
 (function() {
     // ── State ──────────────────────────────────────────────────────────────
-    var snapshot       = null;
-    var industriesData = null;
-    var fundamentalsData = null;
+    var snapshot      = null;
+    var industriesData= null;
     var currentView   = 'industries';
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
@@ -1560,7 +1557,7 @@
                         withdateranges: false, allow_symbol_change: false,
                         save_image: false, enable_publishing: false,
                         studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 0,
+                        right_bar_margin: 3,
                         autosize: true, container_id: chartDiv.id,
                     });
                 } catch(e) {}
@@ -1595,7 +1592,7 @@
                 withdateranges: true, allow_symbol_change: true,
                 save_image: false, enable_publishing: false,
                 studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                right_bar_margin: 0,
+                right_bar_margin: 3,
                 autosize: true,
                 container_id: 'mc-fullscreen-chart',
             });
@@ -2068,17 +2065,15 @@
     var sfRowId = 0;
 
     var SF_TYPES = [
-        { value: 'ma',         label: 'Moving Average' },
-        { value: 'rs',         label: 'RS' },
-        { value: 'price',      label: 'Price' },
-        { value: 'vol',        label: 'Avg Vol' },
-        { value: 'adr',        label: 'ADR%' },
-        { value: 'cr',         label: 'CR%' },
-        { value: 'mcap',       label: 'Market Cap' },
-        { value: 'rvol',       label: 'Rel. Volume' },
-        { value: 'pattern',    label: 'Pattern' },
-        { value: 'eps_growth', label: 'EPS Growth %' },
-        { value: 'rev_growth', label: 'Revenue Growth %' },
+        { value: 'ma',    label: 'Moving Average' },
+        { value: 'rs',    label: 'RS' },
+        { value: 'price', label: 'Price' },
+        { value: 'vol',   label: 'Avg Vol' },
+        { value: 'adr',   label: 'ADR%' },
+        { value: 'cr',    label: 'CR%' },
+        { value: 'mcap',  label: 'Market Cap' },
+        { value: 'rvol',    label: 'Rel. Volume' },
+        { value: 'pattern', label: 'Pattern' },
     ];
 
     function sfParseVol(str) {
@@ -2122,7 +2117,6 @@
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
         if (row.type === 'adr' || row.type === 'cr') valLabel += '%';
         if (row.type === 'rvol') valLabel += 'x';
-        if (row.type === 'eps_growth' || row.type === 'rev_growth') valLabel += '%';
         return typeLabel + ' ' + dirLabel + valLabel;
     }
 
@@ -2596,24 +2590,6 @@
                         if (f.dir === 'gt' && mc <= mv) return false;
                         if (f.dir === 'lt' && mc >= mv) return false;
                     }
-                } else if (f.type === 'eps_growth') {
-                    var fund = fundamentalsData && fundamentalsData[r.ticker];
-                    var eg = fund ? fund.eps_growth : null;
-                    if (eg == null) return false;
-                    var ev = parseFloat(f.val);
-                    if (!isNaN(ev)) {
-                        if (f.dir === 'gt' && eg <= ev) return false;
-                        if (f.dir === 'lt' && eg >= ev) return false;
-                    }
-                } else if (f.type === 'rev_growth') {
-                    var fund = fundamentalsData && fundamentalsData[r.ticker];
-                    var rg = fund ? fund.rev_growth : null;
-                    if (rg == null) return false;
-                    var rv2 = parseFloat(f.val);
-                    if (!isNaN(rv2)) {
-                        if (f.dir === 'gt' && rg <= rv2) return false;
-                        if (f.dir === 'lt' && rg >= rv2) return false;
-                    }
                 }
             }
             return true;
@@ -2648,8 +2624,6 @@
             { key:'pct_52wk',  label:'52Wk%',   tip:'% from 52-week high' },
             { key:'adr_pct',   label:'ADR%',    tip:'Avg Daily Range %' },
             { key:'cr',        label:'CR',      tip:'Closing range (100=high, 0=low)' },
-            { key:'eps_growth',label:'EPS', tip:'Forward EPS % change vs trailing EPS' },
-            { key:'rev_growth',label:'REV', tip:'Revenue growth year-over-year %' },
         ];
         var html = '<tr>';
         cols.forEach(function(c) {
@@ -2699,8 +2673,6 @@
             else if (key === 'adr_pct')  { av = a.adr_pct;   bv = b.adr_pct; }
             else if (key === 'cr')       { av = a.cr;        bv = b.cr; }
             else if (key === 'dist_ma')  { av = a.dist_ma ? a.dist_ma[activeMAType+activeMALength] : null; bv = b.dist_ma ? b.dist_ma[activeMAType+activeMALength] : null; }
-            else if (key === 'eps_growth') { var fa = fundamentalsData && fundamentalsData[a.ticker]; var fb2 = fundamentalsData && fundamentalsData[b.ticker]; av = fa ? fa.eps_growth : null; bv = fb2 ? fb2.eps_growth : null; }
-            else if (key === 'rev_growth') { var fa = fundamentalsData && fundamentalsData[a.ticker]; var fb2 = fundamentalsData && fundamentalsData[b.ticker]; av = fa ? fa.rev_growth : null; bv = fb2 ? fb2.rev_growth : null; }
             else { av = null; bv = null; }
             if (av == null && bv == null) return 0;
             if (av == null) return 1;
@@ -2771,11 +2743,6 @@
             var crColor = '#484f58';
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
-            var fund = fundamentalsData && fundamentalsData[row.ticker];
-            var epsGrw = fund ? fund.eps_growth : null;
-            var revGrw = fund ? fund.rev_growth : null;
-            html += '<td class="' + cc(epsGrw) + '">' + (epsGrw != null ? fmt(epsGrw,1,'%') : '—') + '</td>';
-            html += '<td class="' + cc(revGrw) + '">' + (revGrw != null ? fmt(revGrw,1,'%') : '—') + '</td>';
             html += '</tr>';
         });
 
@@ -2890,7 +2857,7 @@
                         withdateranges: false, allow_symbol_change: false,
                         save_image: false, enable_publishing: false,
                         studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 0,
+                        right_bar_margin: 3,
                         autosize: true, container_id: chartDiv.id,
                     });
                 } catch(e) {}
@@ -3362,7 +3329,7 @@
                 withdateranges: true, allow_symbol_change: true,
                 save_image: false, enable_publishing: false,
                 studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                right_bar_margin: 0,
+                right_bar_margin: 3,
                 autosize: true,
                 container_id: 'wl-chart-widget',
             });
@@ -3586,11 +3553,9 @@
     Promise.all([
         fetch('data/snapshot.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
         fetch('data/industries.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
-        fetch('data/fundamentals.json').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
     ]).then(function(res) {
-        snapshot         = res[0];
-        industriesData   = res[1];
-        fundamentalsData = res[2] ? res[2].by_ticker : null;
+        snapshot       = res[0];
+        industriesData = res[1];
 
         document.getElementById('loading-msg').style.display = 'none';
 
