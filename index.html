@@ -249,23 +249,24 @@
         .stocks-table th:nth-child(15) { width: 50px; }   /* ADR% */
         .stocks-table th:nth-child(16) { width: 40px; }   /* CR */
 
-        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
+        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
         #scans-table th:nth-child(1)  { width: 110px; }  /* Ticker */
         #scans-table th:nth-child(2)  { width: 140px; }  /* Industry */
-        #scans-table th:nth-child(3)  { width: 68px; }   /* Price */
-        #scans-table th:nth-child(4)  { width: 40px; }   /* RS */
-        #scans-table th:nth-child(5)  { width: 66px; }   /* Chg */
-        #scans-table th:nth-child(6)  { width: 66px; }   /* Chg% */
-        #scans-table th:nth-child(7)  { width: 66px; }   /* 1W */
-        #scans-table th:nth-child(8)  { width: 66px; }   /* 1M */
-        #scans-table th:nth-child(9)  { width: 66px; }   /* 3M */
-        #scans-table th:nth-child(10) { width: 66px; }   /* YTD */
-        #scans-table th:nth-child(11) { width: 66px; }   /* vs 1M */
-        #scans-table th:nth-child(12) { width: 88px; }   /* Dist/MA */
-        #scans-table th:nth-child(13) { width: 68px; }   /* Avg Vol */
-        #scans-table th:nth-child(14) { width: 60px; }   /* 52Wk% */
-        #scans-table th:nth-child(15) { width: 52px; }   /* ADR% */
-        #scans-table th:nth-child(16) { width: 42px; }   /* CR */
+        #scans-table th:nth-child(3)  { width: 64px; }   /* Price */
+        #scans-table th:nth-child(4)  { width: 38px; }   /* RS */
+        #scans-table th:nth-child(5)  { width: 60px; }   /* Chg */
+        #scans-table th:nth-child(6)  { width: 60px; }   /* Chg% */
+        #scans-table th:nth-child(7)  { width: 60px; }   /* 1W */
+        #scans-table th:nth-child(8)  { width: 60px; }   /* 1M */
+        #scans-table th:nth-child(9)  { width: 60px; }   /* 3M */
+        #scans-table th:nth-child(10) { width: 60px; }   /* YTD */
+        #scans-table th:nth-child(11) { width: 60px; }   /* vs 1M */
+        #scans-table th:nth-child(12) { width: 60px; }   /* 3M RS */
+        #scans-table th:nth-child(13) { width: 86px; }   /* Dist/MA */
+        #scans-table th:nth-child(14) { width: 64px; }   /* Avg Vol */
+        #scans-table th:nth-child(15) { width: 56px; }   /* 52Wk% */
+        #scans-table th:nth-child(16) { width: 48px; }   /* ADR% */
+        #scans-table th:nth-child(17) { width: 38px; }   /* CR */
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
@@ -933,7 +934,7 @@
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap" style="overflow-x:auto;">
-                <table class="stocks-table" id="scans-table" style="min-width:1200px;">
+                <table class="stocks-table" id="scans-table" style="min-width:1260px;">
                     <thead id="scans-thead"></thead>
                     <tbody id="scans-tbody"></tbody>
                 </table>
@@ -2562,6 +2563,7 @@
             { key:'3m',        label:'3M',      tip:'63-day return' },
             { key:'ytd',       label:'YTD',     tip:'Year-to-date return' },
             { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPY' },
+            { key:'vs_spy_3m', label:'3M RS',   tip:'3M return vs SPY' },
             { key:'dist_ma',   label:'Dist/MA', tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',   label:'Avg Vol', tip:'50-day average volume' },
             { key:'pct_52wk',  label:'52Wk%',   tip:'% from 52-week high' },
@@ -2610,6 +2612,7 @@
             else if (key === '3m')       { av = a['3m'];     bv = b['3m']; }
             else if (key === 'ytd')      { av = a.ytd;       bv = b.ytd; }
             else if (key === 'vs_spy')   { av = a.vs_spy;    bv = b.vs_spy; }
+            else if (key === 'vs_spy_3m'){ av = a.vs_spy_3m; bv = b.vs_spy_3m; }
             else if (key === 'avg_vol')  { av = a.AvgVol50;  bv = b.AvgVol50; }
             else if (key === 'pct_52wk') { av = a.PctFrom52WkHigh; bv = b.PctFrom52WkHigh; }
             else if (key === 'adr_pct')  { av = a.adr_pct;   bv = b.adr_pct; }
@@ -2671,6 +2674,7 @@
             html += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
             html += '<td class="' + cc(row.ytd)       + '">' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
             html += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
+            html += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
             html += '<td style="color:#8b949e;">' + volVal + '</td>';
             var pct52Val = '—';
