@@ -1927,7 +1927,11 @@
 
         document.getElementById('chart-modal-overlay').classList.add('open');
         if (chartWidget) {
-            try { chartWidget.setSymbol(sym, null, function(){}); return; } catch(e) {}
+            try {
+                chartWidget.setSymbol(sym, null, function(){});
+                startChartModalPoll(symbol);
+                return;
+            } catch(e) {}
         }
         chartWidget = new TradingView.widget({
             symbol: sym, interval: 'D', locale: 'en', style: '1',
@@ -1942,12 +1946,16 @@
             save_image: false, enable_publishing: false,
             autosize: true, container_id: 'tradingview-chart',
         });
-        // Poll for symbol changes while modal is open
-        var _lastSym = symbol;
-        var _pollInterval = setInterval(function() {
+        startChartModalPoll(symbol);
+    }
+
+    var _chartModalPoll = null;
+    function startChartModalPoll(initialSym) {
+        if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
+        var _lastSym = initialSym;
+        _chartModalPoll = setInterval(function() {
             if (!document.getElementById('chart-modal-overlay').classList.contains('open')) {
-                clearInterval(_pollInterval);
-                return;
+                clearInterval(_chartModalPoll); _chartModalPoll = null; return;
             }
             try {
                 var cur = chartWidget.activeChart().symbol();
