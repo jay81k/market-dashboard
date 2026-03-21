@@ -60,111 +60,6 @@ DIST_MA_COMBOS = [
     ("EMA", 5), ("EMA", 8), ("EMA", 10), ("EMA", 21), ("EMA", 50), ("EMA", 65), ("EMA", 150), ("EMA", 200),
 ]
 
-# How old fundamentals data can be before it gets re-fetched (days)
-FUNDAMENTALS_MAX_AGE_DAYS = 7
-
-# Fields to pull from yfinance .info
-FUNDAMENTALS_FIELDS = ["forwardEps", "trailingEps", "revenueGrowth", "totalRevenue"]
-
-# ---------------------------------------------------------------------------
-# Fundamentals cache helpers
-# ---------------------------------------------------------------------------
-
-def load_fundamentals_cache(out_dir: str) -> dict:
-    """Load existing fundamentals.json cache. Returns dict keyed by ticker."""
-    path = os.path.join(out_dir, "fundamentals.json")
-    if not os.path.exists(path):
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("by_ticker", {})
-    except Exception as e:
-        print(f"Warning: could not load fundamentals cache: {e}")
-        return {}
-
-
-def needs_refresh(entry: dict) -> bool:
-    """Return True if entry is missing or older than FUNDAMENTALS_MAX_AGE_DAYS."""
-    if not entry:
-        return True
-    fetched_at = entry.get("fetched_at")
-    if not fetched_at:
-        return True
-    try:
-        age = (datetime.utcnow() - datetime.fromisoformat(fetched_at)).days
-        return age >= FUNDAMENTALS_MAX_AGE_DAYS
-    except Exception:
-        return True
-
-
-def fetch_fundamentals_batch(tickers: list[str], max_workers: int = 5) -> dict:
-    """
-    Fetch .info fundamentals for a list of tickers using a ThreadPoolExecutor.
-    Returns dict keyed by ticker with computed fields + fetched_at timestamp.
-    """
-    results = {}
-    _sample_printed = [False]
-
-    def _fetch_one(ticker: str) -> tuple[str, dict]:
-        try:
-            t = yf.Ticker(ticker)
-            info = t.info
-
-            # Print sample fields on first successful fetch for debugging
-            if not _sample_printed[0] and info:
-                _sample_printed[0] = True
-                sample_keys = [k for k in info if any(x in k.lower() for x in ['eps', 'revenue', 'earnings', 'growth'])]
-                print(f"  Sample fields for {ticker}: {sample_keys}")
-                print(f"  forwardEps={info.get('forwardEps')} trailingEps={info.get('trailingEps')} revenueGrowth={info.get('revenueGrowth')}")
-
-            fwd_eps    = info.get("forwardEps")
-            trail_eps  = info.get("trailingEps")
-            rev_growth = info.get("revenueGrowth")
-
-            # Fallback field names used in some yfinance versions
-            if fwd_eps is None:
-                fwd_eps = info.get("epsForward")
-            if trail_eps is None:
-                trail_eps = info.get("epsTrailingTwelveMonths") or info.get("trailingEps")
-            if rev_growth is None:
-                rev_growth = info.get("revenueGrowth")
-
-            # EPS growth: % change from trailing to forward
-            eps_growth = None
-            if fwd_eps is not None and trail_eps is not None and trail_eps != 0:
-                eps_growth = round(((fwd_eps - trail_eps) / abs(trail_eps)) * 100, 2)
-
-            # Revenue growth: already a decimal from yfinance, convert to %
-            rev_growth_pct = round(rev_growth * 100, 2) if rev_growth is not None else None
-
-            return ticker, {
-                "eps_growth": eps_growth,
-                "rev_growth": rev_growth_pct,
-                "fetched_at": datetime.utcnow().isoformat() + "Z",
-            }
-        except Exception as e:
-            print(f"  Fundamentals error [{ticker}]: {e}")
-            return ticker, {"fetched_at": datetime.utcnow().isoformat() + "Z"}
-
-    print(f"Fetching fundamentals for {len(tickers)} tickers ({max_workers} workers)...")
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futs = {ex.submit(_fetch_one, t): t for t in tickers}
-        done = 0
-        for fut in as_completed(futs):
-            ticker, data = fut.result()
-            results[ticker] = data
-            done += 1
-            if done % 100 == 0:
-                print(f"  Fundamentals: {done}/{len(tickers)}")
-            time.sleep(0.1)  # light throttle
-
-    # Summary
-    with_data = sum(1 for v in results.values() if v.get("eps_growth") is not None or v.get("rev_growth") is not None)
-    print(f"Fundamentals fetch complete: {len(results)} tickers, {with_data} with data\n")
-    return results
-
-
 # ---------------------------------------------------------------------------
 # Supplemental tickers — always included regardless of CSV contents.
 # Add any ticker missing from your nightly CSV feed here.
@@ -845,20 +740,6 @@ def main():
     write_json("snapshot.json", snapshot)
     write_json("meta.json", meta)
     write_json("industries.json", {"built_at": datetime.utcnow().isoformat() + "Z", "industries": industries_list})
-
-    # 9. Fundamentals — weekly cache, only re-fetch stale/missing tickers
-    print("Checking fundamentals cache...")
-    fund_cache = load_fundamentals_cache(args.out_dir)
-    stale = [t for t in tickers if needs_refresh(fund_cache.get(t, {}))]
-    print(f"  {len(fund_cache)} cached, {len(stale)} need refresh")
-    if stale:
-        fresh = fetch_fundamentals_batch(stale, max_workers=5)
-        fund_cache.update(fresh)
-    write_json("fundamentals.json", {
-        "built_at":  datetime.utcnow().isoformat() + "Z",
-        "by_ticker": fund_cache,
-    })
-
     print("\nAll done.")
 
 
