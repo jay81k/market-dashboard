@@ -792,6 +792,7 @@
 <!-- Toolbar -->
 <div class="toolbar">
     <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
+    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;">&#x229E;</button>
 </div>
 
 <!-- Main scrollable area -->
@@ -971,7 +972,6 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view">&#x229E;</button>
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                         Fundamentals
@@ -1180,8 +1180,9 @@
             searchEl.placeholder = 'Search…';
         }
 
-        // Show/hide toolbar elements (only for industries view)
+        // Show/hide toolbar elements
         document.getElementById('industry-list-header').style.display = (view === 'industries') ? 'flex' : 'none';
+        document.getElementById('wl-multichart-toggle-btn').style.display = (view === 'watchlists') ? '' : 'none';
 
         if (view === 'industries') {
             document.getElementById('view-industries').style.display = 'block';
@@ -1196,6 +1197,18 @@
         } else if (view === 'watchlists') {
             document.getElementById('view-watchlists').style.display = 'flex';
             wlRender();
+            // Auto-load last selected ticker if available
+            if (!wlMcActive) {
+                var autoTicker = wlChartTicker;
+                if (!autoTicker) {
+                    var autoList = wlGetLastList();
+                    var autoAll  = wlGetAll();
+                    if (autoList && autoAll[autoList] && autoAll[autoList].length) {
+                        autoTicker = autoAll[autoList][0];
+                    }
+                }
+                if (autoTicker) wlSelectTicker(autoTicker);
+            }
         }
     };
 
