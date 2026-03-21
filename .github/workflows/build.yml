@@ -2,7 +2,7 @@ name: Build Dashboard Data
 
 on:
   schedule:
-    - cron: '0 0 * * 2-6'  # midnight UTC = 8 PM EDT (Tue-Sat UTC = Mon-Fri evening EDT)
+    - cron: '0 22 * * 1-5'  # 10 PM UTC = 6 PM EDT (Mon-Fri)
   workflow_dispatch:
 
 permissions:
