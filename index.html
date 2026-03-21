@@ -1097,6 +1097,9 @@
     var activeMALength = parseInt(localStorage.getItem('distMALength') || '50');
     var allStockRows   = [];
     var currentStockIndex = -1;
+    var allIndustryRows = [];
+    var currentIndustryIndex = -1;
+    var currentWlIndex = -1;
     var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX' };
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -1120,6 +1123,9 @@
     // ── View switching ─────────────────────────────────────────────────────
     window.showView = function(view) {
         currentView = view;
+        currentIndustryIndex = -1;
+        currentStockIndex    = -1;
+        currentWlIndex       = -1;
         document.getElementById('view-industries').style.display      = 'none';
         document.getElementById('view-industry-stocks').classList.remove('active');
         document.getElementById('view-scans').style.display           = 'none';
@@ -1979,32 +1985,98 @@
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
     };
     document.addEventListener('keydown', function(e) {
+        // Always handle Escape first
         if (e.key === 'Escape') {
             if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) {
                 closeMcFullscreen(); return;
             }
-            closeChartModal();
+            if (document.getElementById('chart-modal-overlay').classList.contains('open')) {
+                closeChartModal(); return;
+            }
+            if (currentView === 'industry-stocks') { backToIndustries(); return; }
+            return;
         }
-        if (e.target.tagName === 'INPUT') return;
-        var modal = document.getElementById('chart-modal-overlay');
-        if (!modal.classList.contains('open') || allStockRows.length === 0) return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            currentStockIndex = Math.min(currentStockIndex + 1, allStockRows.length - 1);
-            var r = allStockRows[currentStockIndex];
-            allStockRows.forEach(function(x){ x.classList.remove('active'); });
-            r.classList.add('active');
-            r.scrollIntoView({ block: 'nearest' });
-            openChartModal(r.getAttribute('data-symbol'));
+
+        // Don't hijack input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+        var modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+
+        // ── Industries view ───────────────────────────────────────────────
+        if (currentView === 'industries' || currentView === 'sector') {
+            allIndustryRows = Array.from(document.querySelectorAll('.industry-row'));
+            if (!allIndustryRows.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentIndustryIndex = Math.min(currentIndustryIndex + 1, allIndustryRows.length - 1);
+                allIndustryRows.forEach(function(r){ r.style.background = ''; });
+                allIndustryRows[currentIndustryIndex].style.background = '#1c2128';
+                allIndustryRows[currentIndustryIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentIndustryIndex = Math.max(currentIndustryIndex - 1, 0);
+                allIndustryRows.forEach(function(r){ r.style.background = ''; });
+                allIndustryRows[currentIndustryIndex].style.background = '#1c2128';
+                allIndustryRows[currentIndustryIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter' && currentIndustryIndex >= 0) {
+                e.preventDefault();
+                var indRow = allIndustryRows[currentIndustryIndex];
+                var ind = indRow.getAttribute('data-industry');
+                if (ind) openIndustry(ind);
+            }
+            return;
         }
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            currentStockIndex = Math.max(currentStockIndex - 1, 0);
-            var r = allStockRows[currentStockIndex];
-            allStockRows.forEach(function(x){ x.classList.remove('active'); });
-            r.classList.add('active');
-            r.scrollIntoView({ block: 'nearest' });
-            openChartModal(r.getAttribute('data-symbol'));
+
+        // ── Industry stocks + Scans views ────────────────────────────────
+        if (currentView === 'industry-stocks' || currentView === 'scans') {
+            if (!allStockRows.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentStockIndex = Math.min(currentStockIndex + 1, allStockRows.length - 1);
+                var r = allStockRows[currentStockIndex];
+                allStockRows.forEach(function(x){ x.classList.remove('active'); });
+                r.classList.add('active');
+                r.scrollIntoView({ block: 'nearest' });
+                if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentStockIndex = Math.max(currentStockIndex - 1, 0);
+                var r = allStockRows[currentStockIndex];
+                allStockRows.forEach(function(x){ x.classList.remove('active'); });
+                r.classList.add('active');
+                r.scrollIntoView({ block: 'nearest' });
+                if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+            } else if (e.key === 'Enter' && currentStockIndex >= 0) {
+                e.preventDefault();
+                var r = allStockRows[currentStockIndex];
+                openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+            }
+            return;
+        }
+
+        // ── Watchlists view ───────────────────────────────────────────────
+        if (currentView === 'watchlists') {
+            var wlRows = Array.from(document.querySelectorAll('.wl-ticker-row'));
+            if (!wlRows.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentWlIndex = Math.min(currentWlIndex + 1, wlRows.length - 1);
+                var r = wlRows[currentWlIndex];
+                r.scrollIntoView({ block: 'nearest' });
+                wlSelectTicker(r.getAttribute('data-wl-ticker'));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentWlIndex = Math.max(currentWlIndex - 1, 0);
+                var r = wlRows[currentWlIndex];
+                r.scrollIntoView({ block: 'nearest' });
+                wlSelectTicker(r.getAttribute('data-wl-ticker'));
+            } else if (e.key === 'Enter' && currentWlIndex >= 0) {
+                e.preventDefault();
+                var r = wlRows[currentWlIndex];
+                var ticker = r.getAttribute('data-wl-ticker');
+                if (ticker) openChartModal(ticker);
+            }
+            return;
         }
     });
 
@@ -2983,6 +3055,7 @@
     }
 
     window.wlRender = function() {
+        currentWlIndex = -1;
         var scroll   = document.getElementById('wl-list-scroll');
         var all      = wlGetAll();
         var order    = wlGetOrder();
