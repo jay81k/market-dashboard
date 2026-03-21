@@ -1938,23 +1938,26 @@
             hide_legend: false, hide_volume: true,
             details: true, hotlist: false, calendar: false,
             withdateranges: true, allow_symbol_change: true,
-            studies: ['STD;MA%Ribbon', { id: 'STD;MA%Ribbon', inputs: { in_0: 8, in_1: 1, in_2: 150, in_3: 0, in_4: 20, in_5: 0, in_6: 50, in_7: 0 }, overrides: { 'MA Ribbon.MA1.visible': true, 'MA Ribbon.MA1.color': '#f8bbd0', 'MA Ribbon.MA2.visible': true, 'MA Ribbon.MA2.color': '#9c9c9c', 'MA Ribbon.MA3.visible': false, 'MA Ribbon.MA4.visible': false } }, 'Volume@tv-basicstudies'],
+            studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
             save_image: false, enable_publishing: false,
             autosize: true, container_id: 'tradingview-chart',
         });
-        // Update header when user changes symbol inside the widget
-        try {
-            chartWidget.onChartReady(function() {
-                chartWidget.activeChart().onSymbolChanged().subscribe(null, function() {
-                    try {
-                        var newSym = chartWidget.activeChart().symbol();
-                        // Strip exchange prefix if present (e.g. "NASDAQ:AAPL" → "AAPL")
-                        var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
-                        updateChartModalHeader(bare);
-                    } catch(e) {}
-                });
-            });
-        } catch(e) {}
+        // Poll for symbol changes while modal is open
+        var _lastSym = symbol;
+        var _pollInterval = setInterval(function() {
+            if (!document.getElementById('chart-modal-overlay').classList.contains('open')) {
+                clearInterval(_pollInterval);
+                return;
+            }
+            try {
+                var cur = chartWidget.activeChart().symbol();
+                var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
+                if (bare && bare !== _lastSym) {
+                    _lastSym = bare;
+                    updateChartModalHeader(bare);
+                }
+            } catch(e) {}
+        }, 500);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
@@ -3309,11 +3312,43 @@
                 details: true, hotlist: false, calendar: false,
                 withdateranges: true, allow_symbol_change: true,
                 save_image: false, enable_publishing: false,
-                studies: ['STD;MA%Ribbon', { id: 'STD;MA%Ribbon', inputs: { in_0: 8, in_1: 1, in_2: 150, in_3: 0, in_4: 20, in_5: 0, in_6: 50, in_7: 0 }, overrides: { 'MA Ribbon.MA1.visible': true, 'MA Ribbon.MA1.color': '#f8bbd0', 'MA Ribbon.MA2.visible': true, 'MA Ribbon.MA2.color': '#9c9c9c', 'MA Ribbon.MA3.visible': false, 'MA Ribbon.MA4.visible': false } }, 'Volume@tv-basicstudies'],
+                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
                 right_bar_margin: 3,
                 autosize: true,
                 container_id: 'wl-chart-widget',
             });
+            // Poll for symbol changes in watchlist panel
+            var _wlLastSym = ticker;
+            var _wlPoll = setInterval(function() {
+                if (!document.getElementById('wl-chart-widget') || document.getElementById('wl-chart-widget').style.display === 'none') {
+                    clearInterval(_wlPoll); return;
+                }
+                try {
+                    var cur = wlChartWidget.activeChart().symbol();
+                    var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
+                    if (bare && bare !== _wlLastSym) {
+                        _wlLastSym = bare;
+                        document.getElementById('wl-chart-sym').textContent = bare;
+                        // Update meta
+                        var industry = '', sector = '';
+                        if (snapshot && snapshot.by_industry) {
+                            outer2: for (var ind2 in snapshot.by_industry) {
+                                var rows2 = snapshot.by_industry[ind2];
+                                for (var j = 0; j < rows2.length; j++) {
+                                    if (rows2[j].ticker === bare) { industry = rows2[j].industry||''; break outer2; }
+                                }
+                            }
+                        }
+                        var metaEl2 = document.getElementById('wl-chart-meta');
+                        if (metaEl2) metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' : '';
+                        var t2 = bare.replace(/[^A-Z0-9]/gi,'');
+                        var fb = document.getElementById('wl-chart-fundamentals-btn');
+                        var nb = document.getElementById('wl-chart-news-btn');
+                        if (fb) fb.href = 'https://finviz.com/quote.ashx?t=' + t2;
+                        if (nb) nb.href = 'https://finviz.com/quote.ashx?t=' + t2 + '#news';
+                    }
+                } catch(e) {}
+            }, 500);
         } catch(e) {}
 
         // Update active row highlight
