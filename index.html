@@ -1951,49 +1951,49 @@
 
     var _chartModalPoll = null;
     var _chartModalObserver = null;
+    var _chartModalMsgHandler = null;
+
     function startChartModalPoll(initialSym) {
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
         if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
+        if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
 
         var _lastSym = initialSym;
 
-        function extractSymFromSrc(src) {
-            // src contains e.g. %22SVM%22 or %22AAPL%22 — the symbol is JSON-encoded
-            var m = src.match(/%22([A-Z0-9.]+)%22/);
-            return m ? m[1] : null;
-        }
-
-        function checkIframe() {
-            var container = document.getElementById('tradingview-chart');
-            if (!container) return;
-            var iframe = container.querySelector('iframe');
-            if (!iframe) return;
-
-            _chartModalObserver = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mut) {
-                    if (mut.attributeName === 'src') {
-                        var bare = extractSymFromSrc(iframe.src);
-                        if (bare && bare !== _lastSym) {
-                            _lastSym = bare;
-                            updateChartModalHeader(bare);
-                        }
+        _chartModalMsgHandler = function(e) {
+            try {
+                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                // TradingView postMessage format varies — check common patterns
+                var sym = null;
+                if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
+                    sym = data.data.symbol;
+                } else if (data && data.name === 'widgetReady' && data.data && data.data.symbol) {
+                    sym = data.data.symbol;
+                } else if (data && data.symbolName) {
+                    sym = data.symbolName;
+                } else if (data && data.symbol) {
+                    sym = data.symbol;
+                } else {
+                    // Log unknown messages from TradingView for debugging
+                    if (e.origin && e.origin.indexOf('tradingview.com') !== -1 && data && data.name) {
+                        console.log('[TV msg]', data.name, JSON.stringify(data).slice(0,150));
                     }
-                });
-            });
-            _chartModalObserver.observe(iframe, { attributes: true, attributeFilter: ['src'] });
-        }
-
-        var _waitForIframe = setInterval(function() {
-            var container = document.getElementById('tradingview-chart');
-            if (container && container.querySelector('iframe')) {
-                clearInterval(_waitForIframe);
-                checkIframe();
-            }
-        }, 200);
+                }
+                if (sym) {
+                    var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
+                    if (bare && bare !== _lastSym) {
+                        _lastSym = bare;
+                        updateChartModalHeader(bare);
+                    }
+                }
+            } catch(err) {}
+        };
+        window.addEventListener('message', _chartModalMsgHandler);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
         if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
+        if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
     };
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
