@@ -352,6 +352,13 @@
         .chart-modal-meta .meta-sep { margin: 0 5px; color: #30363d; }
         .chart-modal-meta .meta-sector { color: #8b949e; }
         .chart-modal-meta .meta-industry { color: #6e7681; }
+        .chart-rs-badge {
+            font-size: 0.825em; font-weight: 700; margin-left: 10px;
+            padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+        }
+        .chart-rs-badge.rs-high   { background: #0d2b0d; color: #3fb950; border: 1px solid #2ea04322; }
+        .chart-rs-badge.rs-mid    { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
+        .chart-rs-badge.rs-low    { background: #2b0d0d; color: #f85149; border: 1px solid #f8514922; }
         .chart-modal-ext-btn {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 10px; border-radius: 5px; border: 1px solid #30363d;
@@ -963,6 +970,7 @@
             <div class="wl-chart-panel-header">
                 <span class="wl-chart-sym" id="wl-chart-sym">—</span>
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
+                <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
@@ -1040,6 +1048,7 @@
         <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
+            <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                 <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
@@ -1062,6 +1071,7 @@
 <div class="mc-fullscreen-overlay" id="mc-fullscreen-overlay">
     <div class="mc-fullscreen-header">
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
+        <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
@@ -1583,6 +1593,17 @@
         var mcNBtn = document.getElementById('mc-fullscreen-news-btn');
         if (mcFBtn) mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
         if (mcNBtn) mcNBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker + '#news';
+        // RS badge
+        var mcPct = null;
+        if (snapshot && snapshot.by_industry) {
+            outer: for (var ind in snapshot.by_industry) {
+                var rows = snapshot.by_industry[ind];
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].ticker === sym) { mcPct = rows[i].Percentile; break outer; }
+                }
+            }
+        }
+        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct);
         overlay.classList.add('open');
 
         var mappedSym = TV_MAP[sym] || sym;
@@ -1861,16 +1882,33 @@
     };
 
     // ── Chart modal ───────────────────────────────────────────────────────
+    function rsBadge(percentile) {
+        if (percentile == null) return null;
+        var pct = Math.round(percentile);
+        var cls = pct >= 75 ? 'rs-high' : pct >= 40 ? 'rs-mid' : 'rs-low';
+        return { text: 'RS ' + pct, cls: cls };
+    }
+
+    function applyRsBadge(el, percentile) {
+        if (!el) return;
+        var b = rsBadge(percentile);
+        if (!b) { el.style.display = 'none'; return; }
+        el.textContent = b.text;
+        el.className = 'chart-rs-badge ' + b.cls;
+        el.style.display = '';
+    }
+
     function updateChartModalHeader(symbol) {
-        var sector = '', industry = '';
+        var sector = '', industry = '', percentile = null;
         // Look up from snapshot
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
                     if (rows[i].ticker === symbol) {
-                        sector   = rows[i].sector   || '';
-                        industry = rows[i].industry || '';
+                        sector     = rows[i].sector     || '';
+                        industry   = rows[i].industry   || '';
+                        percentile = rows[i].Percentile != null ? rows[i].Percentile : null;
                         break outer;
                     }
                 }
@@ -1896,6 +1934,7 @@
                 ? '<span class="meta-sector">' + esc(industry) + '</span>' + indRankHtml
                 : '';
         }
+        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile);
         var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
         var fBtn = document.getElementById('chart-modal-fundamentals-btn');
         var nBtn = document.getElementById('chart-modal-news-btn');
@@ -3359,12 +3398,17 @@
         if (nBtn) { nBtn.href = 'https://finviz.com/quote.ashx?t=' + t + '#news'; nBtn.style.display = ''; }
 
         // Populate industry · rank from snapshot/industriesData
-        var industry = '', sector = '';
+        var industry = '', sector = '', wlPct = null;
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].ticker === ticker) { industry = rows[i].industry || ''; sector = rows[i].sector || ''; break outer; }
+                    if (rows[i].ticker === ticker) {
+                        industry = rows[i].industry || '';
+                        sector   = rows[i].sector   || '';
+                        wlPct    = rows[i].Percentile != null ? rows[i].Percentile : null;
+                        break outer;
+                    }
                 }
             }
         }
@@ -3382,6 +3426,7 @@
             }
             metaEl.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml : '';
         }
+        applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct);
 
         // Show chart widget
         document.getElementById('wl-chart-empty').style.display = 'none';
@@ -3427,12 +3472,16 @@
                         if (bare && bare !== _wlLastSym) {
                             _wlLastSym = bare;
                             document.getElementById('wl-chart-sym').textContent = bare;
-                            var industry = '';
+                            var industry = '', msgPct = null;
                             if (snapshot && snapshot.by_industry) {
                                 outer2: for (var ind2 in snapshot.by_industry) {
                                     var rows2 = snapshot.by_industry[ind2];
                                     for (var j = 0; j < rows2.length; j++) {
-                                        if (rows2[j].ticker === bare) { industry = rows2[j].industry||''; break outer2; }
+                                        if (rows2[j].ticker === bare) {
+                                            industry = rows2[j].industry||'';
+                                            msgPct   = rows2[j].Percentile != null ? rows2[j].Percentile : null;
+                                            break outer2;
+                                        }
                                     }
                                 }
                             }
@@ -3451,6 +3500,7 @@
                                 }
                                 metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
                             }
+                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct);
                             var t2 = bare.replace(/[^A-Z0-9]/gi,'');
                             var fb = document.getElementById('wl-chart-fundamentals-btn');
                             var nb = document.getElementById('wl-chart-news-btn');
