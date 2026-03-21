@@ -2165,6 +2165,8 @@
             filterStocksTable(q);
         } else if (currentView === 'scans') {
             filterScansTable(q);
+        } else if (currentView === 'watchlists') {
+            wlSearchQuery(q);
         }
     });
 
@@ -3009,6 +3011,77 @@
                 } catch(e) {}
             }, { threshold: 0.1 });
             observer.observe(cell);
+        });
+    }
+
+    function wlSearchQuery(q) {
+        var scroll = document.getElementById('wl-list-scroll');
+        if (!q || !q.trim()) {
+            wlRender();
+            return;
+        }
+        q = q.trim().toUpperCase();
+        var all   = wlGetAll();
+        var order = wlGetOrder();
+
+        // Gather matches across all lists
+        var matches = [];
+        order.forEach(function(listName) {
+            var tickers = all[listName] || [];
+            tickers.forEach(function(t) {
+                if (t.toUpperCase().indexOf(q) !== -1) {
+                    matches.push({ ticker: t, list: listName });
+                }
+            });
+        });
+
+        if (!matches.length) {
+            scroll.innerHTML = '<div class="wl-empty-state">No matches for "' + esc(q) + '"</div>';
+            return;
+        }
+
+        var html = '<div class="wl-col-hdr">';
+        html += '<span class="wl-c-sym">Symbol</span>';
+        html += '<span style="flex:1;font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.04em;">List</span>';
+        html += '</div>';
+
+        matches.forEach(function(m) {
+            var live = wlLivePrices[m.ticker];
+            var sd   = wlLookupStock(m.ticker);
+            var price, dayVal;
+            if (live) {
+                price  = live.price;
+                dayVal = live.prevClose ? ((live.price - live.prevClose) / live.prevClose) * 100 : null;
+            } else {
+                price  = sd && sd.price != null ? sd.price : null;
+                dayVal = sd ? sd.daily : null;
+            }
+            var priceStr = price != null ? price.toFixed(2) : '—';
+            var chgpStr  = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '';
+            var cl       = dayVal == null ? '' : dayVal > 0 ? 'up' : dayVal < 0 ? 'down' : '';
+
+            html += '<div class="wl-ticker-row" data-wl-ticker="' + esc(m.ticker) + '" data-wl-list="' + esc(m.list) + '" style="cursor:pointer;">';
+            html += '<span class="wl-c-sym">' + esc(m.ticker) + '</span>';
+            html += '<span style="flex:1;font-size:0.858em;color:#6e7681;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.list) + '</span>';
+            html += '<span class="wl-c-last" style="margin-left:auto;">' + priceStr + '</span>';
+            html += '<span class="wl-c-chgp ' + cl + '" style="width:52px;text-align:right;font-size:0.858em;">' + chgpStr + '</span>';
+            html += '</div>';
+        });
+
+        scroll.innerHTML = html;
+
+        // Wire click — switch to that list and select the ticker
+        scroll.querySelectorAll('.wl-ticker-row').forEach(function(row) {
+            row.addEventListener('click', function() {
+                var ticker   = row.getAttribute('data-wl-ticker');
+                var listName = row.getAttribute('data-wl-list');
+                document.getElementById('search-input').value = '';
+                wlSetLastList(listName);
+                wlLivePrices = {};
+                wlRender();
+                wlStartPricePolling();
+                wlSelectTicker(ticker);
+            });
         });
     }
 
