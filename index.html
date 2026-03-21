@@ -2303,28 +2303,43 @@
         var presets = sfGetAllPresets();
         var names = Object.keys(presets).sort();
         var html = '<div style="padding:8px 12px 4px;border-bottom:1px solid #21262d;display:flex;gap:6px;">' +
-            '<button class="sf-preset-btn save" style="flex:1;font-size:0.792em;padding:3px 0;" onclick="sfExportAll()">Export all</button>' +
+            '<button class="sf-preset-btn save" style="flex:1;font-size:0.792em;padding:3px 0;" data-sf-action="export-all">Export all</button>' +
             '<label class="sf-preset-btn" style="flex:1;font-size:0.792em;padding:3px 0;text-align:center;cursor:pointer;">Import file<input type="file" accept=".json" style="display:none" onchange="sfImportFile(this)"></label>' +
             '</div>';
         if (!names.length) {
             html += '<div class="sf-preset-empty">No saved presets yet.</div>';
         } else {
             names.forEach(function(name) {
+                var n = esc(name);
                 html += '<div class="sf-preset-item">' +
-                    '<span class="sf-preset-item-name" onclick="sfApplyPreset(' + JSON.stringify(name) + ')">' + esc(name) + '</span>' +
-                    '<button class="sf-preset-delete" onclick="sfExportOne(' + JSON.stringify(name) + ')" title="Export" style="font-size:0.75em;color:#6e7681;padding:0 5px;">↓</button>' +
-                    '<button class="sf-preset-delete" onclick="sfDeletePreset(' + JSON.stringify(name) + ')" title="Delete">×</button>' +
+                    '<span class="sf-preset-item-name" data-sf-apply="' + n + '">' + n + '</span>' +
+                    '<button class="sf-preset-delete" data-sf-export="' + n + '" title="Export" style="font-size:0.75em;color:#6e7681;padding:0 5px;">↓</button>' +
+                    '<button class="sf-preset-delete" data-sf-delete="' + n + '" title="Delete">×</button>' +
                     '</div>';
             });
         }
         dd.innerHTML = html;
+
+        // Delegated click handler — re-attached each render
+        dd.onclick = function(e) {
+            e.stopPropagation();
+            var applyEl  = e.target.closest('[data-sf-apply]');
+            var exportEl = e.target.closest('[data-sf-export]');
+            var deleteEl = e.target.closest('[data-sf-delete]');
+            var exportAll = e.target.closest('[data-sf-action="export-all"]');
+            if (applyEl)  { sfApplyPreset(applyEl.getAttribute('data-sf-apply')); return; }
+            if (exportEl) { sfExportOne(exportEl.getAttribute('data-sf-export')); return; }
+            if (deleteEl) { sfDeletePreset(deleteEl.getAttribute('data-sf-delete')); return; }
+            if (exportAll){ sfExportAll(); return; }
+        };
     }
 
     window.sfApplyPreset = function(name) {
-        document.getElementById('sf-preset-dropdown').classList.remove('open');
+        var dd = document.getElementById('sf-preset-dropdown');
+        if (dd) dd.classList.remove('open');
         var presets = sfGetAllPresets();
         var preset = presets[name];
-        if (!preset) { alert('Preset not found.'); return; }
+        if (!preset) return;
         sfRows = preset.rows || [];
         sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
         sfRenderPills();
