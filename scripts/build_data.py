@@ -104,13 +104,31 @@ def fetch_fundamentals_batch(tickers: list[str], max_workers: int = 5) -> dict:
     Returns dict keyed by ticker with computed fields + fetched_at timestamp.
     """
     results = {}
+    _sample_printed = [False]
 
     def _fetch_one(ticker: str) -> tuple[str, dict]:
         try:
-            info = yf.Ticker(ticker).info
-            fwd_eps   = info.get("forwardEps")
-            trail_eps = info.get("trailingEps")
+            t = yf.Ticker(ticker)
+            info = t.info
+
+            # Print sample fields on first successful fetch for debugging
+            if not _sample_printed[0] and info:
+                _sample_printed[0] = True
+                sample_keys = [k for k in info if any(x in k.lower() for x in ['eps', 'revenue', 'earnings', 'growth'])]
+                print(f"  Sample fields for {ticker}: {sample_keys}")
+                print(f"  forwardEps={info.get('forwardEps')} trailingEps={info.get('trailingEps')} revenueGrowth={info.get('revenueGrowth')}")
+
+            fwd_eps    = info.get("forwardEps")
+            trail_eps  = info.get("trailingEps")
             rev_growth = info.get("revenueGrowth")
+
+            # Fallback field names used in some yfinance versions
+            if fwd_eps is None:
+                fwd_eps = info.get("epsForward")
+            if trail_eps is None:
+                trail_eps = info.get("epsTrailingTwelveMonths") or info.get("trailingEps")
+            if rev_growth is None:
+                rev_growth = info.get("revenueGrowth")
 
             # EPS growth: % change from trailing to forward
             eps_growth = None
@@ -121,9 +139,9 @@ def fetch_fundamentals_batch(tickers: list[str], max_workers: int = 5) -> dict:
             rev_growth_pct = round(rev_growth * 100, 2) if rev_growth is not None else None
 
             return ticker, {
-                "eps_growth":  eps_growth,
-                "rev_growth":  rev_growth_pct,
-                "fetched_at":  datetime.utcnow().isoformat() + "Z",
+                "eps_growth": eps_growth,
+                "rev_growth": rev_growth_pct,
+                "fetched_at": datetime.utcnow().isoformat() + "Z",
             }
         except Exception as e:
             print(f"  Fundamentals error [{ticker}]: {e}")
@@ -141,7 +159,9 @@ def fetch_fundamentals_batch(tickers: list[str], max_workers: int = 5) -> dict:
                 print(f"  Fundamentals: {done}/{len(tickers)}")
             time.sleep(0.1)  # light throttle
 
-    print(f"Fundamentals fetch complete: {len(results)} tickers\n")
+    # Summary
+    with_data = sum(1 for v in results.values() if v.get("eps_growth") is not None or v.get("rev_growth") is not None)
+    print(f"Fundamentals fetch complete: {len(results)} tickers, {with_data} with data\n")
     return results
 
 
