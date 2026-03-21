@@ -3136,15 +3136,23 @@
         document.querySelectorAll('.wl-ticker-row').forEach(function(row) {
             var t    = row.getAttribute('data-wl-ticker');
             var live = wlLivePrices[t];
-            if (!live) return;
+            if (!live || !live.price) return;
             var price     = live.price;
             var prevClose = live.prevClose;
             var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
             var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
-            var cl        = chgPct == null ? 'neutral' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'neutral';
-            var lastEl    = row.querySelector('.wl-c-last');
-            var chgEl     = row.querySelector('.wl-c-chg');
-            var chgpEl    = row.querySelector('.wl-c-chgp');
+            // Fall back to snapshot daily if no prevClose from live
+            if (chgPct == null) {
+                var sd = wlLookupStock(t);
+                if (sd && sd.daily != null) {
+                    chgPct = sd.daily;
+                    chgAbs = sd.price ? (sd.price / (1 + sd.daily / 100)) * (sd.daily / 100) : null;
+                }
+            }
+            var cl     = chgPct == null ? 'neutral' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'neutral';
+            var lastEl = row.querySelector('.wl-c-last');
+            var chgEl  = row.querySelector('.wl-c-chg');
+            var chgpEl = row.querySelector('.wl-c-chgp');
             if (lastEl) lastEl.textContent = price.toFixed(2);
             if (chgEl)  { chgEl.textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—'; chgEl.className = 'wl-c-chg ' + cl; }
             if (chgpEl) { chgpEl.textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—'; chgpEl.className = 'wl-c-chgp ' + cl; }
