@@ -557,6 +557,7 @@
             flex-shrink: 0;
         }
         .wl-chart-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; min-width: 60px; }
+        .wl-chart-meta { font-size: 0.825em; color: #6e7681; margin-left: 10px; white-space: nowrap; }
         .wl-chart-mc-group { display: flex; gap: 3px; }
         .wl-chart-tf-btn {
             padding: 3px 9px; border-radius: 4px; border: 1px solid #21262d;
@@ -955,11 +956,16 @@
         <div class="wl-chart-panel">
             <div class="wl-chart-panel-header">
                 <span class="wl-chart-sym" id="wl-chart-sym">—</span>
-                <div class="wl-chart-mc-group" id="wl-tf-group">
-                    <button class="wl-chart-tf-btn" data-tf="5"  onclick="setWlTf('5')">5m</button>
-                    <button class="wl-chart-tf-btn active" data-tf="D"  onclick="setWlTf('D')">Daily</button>
-                    <button class="wl-chart-tf-btn" data-tf="W"  onclick="setWlTf('W')">Weekly</button>
-                    <button class="wl-chart-tf-btn" data-tf="M"  onclick="setWlTf('M')">Monthly</button>
+                <span class="wl-chart-meta" id="wl-chart-meta"></span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+                    <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
+                        Fundamentals
+                    </a>
+                    <a id="wl-chart-news-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1V3zm0 4h10v2H1V7zm0 4h14v2H1v-2z"/></svg>
+                        News
+                    </a>
                 </div>
             </div>
             <div class="wl-chart-body" id="wl-chart-body">
@@ -1882,7 +1888,7 @@
                             '</span>';
                     }
                 }
-                metaEl.innerHTML = '<span class="meta-sector">' + esc(sector) + '</span>' +
+                metaEl.innerHTML = '<span class="meta-sector">' + esc(industry) + '</span>' +
                     indRankHtml;
             } else {
                 metaEl.innerHTML = '';
@@ -3171,7 +3177,42 @@
 
     window.wlSelectTicker = function(ticker) {
         wlChartTicker = ticker;
+
+        // Update header — symbol, industry · rank, fundamentals/news links
         document.getElementById('wl-chart-sym').textContent = ticker;
+        var metaEl = document.getElementById('wl-chart-meta');
+        var fBtn   = document.getElementById('wl-chart-fundamentals-btn');
+        var nBtn   = document.getElementById('wl-chart-news-btn');
+        var t = ticker.replace(/[^A-Z0-9]/gi, '');
+        if (fBtn) { fBtn.href = 'https://finviz.com/quote.ashx?t=' + t; fBtn.style.display = ''; }
+        if (nBtn) { nBtn.href = 'https://finviz.com/quote.ashx?t=' + t + '#news'; nBtn.style.display = ''; }
+
+        // Populate industry · rank from snapshot/industriesData
+        var industry = '', sector = '';
+        if (snapshot && snapshot.by_industry) {
+            outer: for (var ind in snapshot.by_industry) {
+                var rows = snapshot.by_industry[ind];
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].ticker === ticker) { industry = rows[i].industry || ''; sector = rows[i].sector || ''; break outer; }
+                }
+            }
+        }
+        if (metaEl) {
+            var indRankHtml = '';
+            if (industry && industriesData && industriesData.industries) {
+                var indData = industriesData.industries.find(function(x){ return x.industry === industry; });
+                var total   = industriesData.industries.length;
+                if (indData && indData.rank != null) {
+                    var pct = indData.percentile != null ? indData.percentile : null;
+                    var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    indRankHtml = '<span style="margin:0 5px;color:#30363d;">·</span>' +
+                        '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
+                }
+            }
+            metaEl.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml : '';
+        }
+
+        // Show chart widget
         document.getElementById('wl-chart-empty').style.display = 'none';
         var widgetDiv = document.getElementById('wl-chart-widget');
         widgetDiv.style.display = 'block';
@@ -3195,18 +3236,11 @@
                 container_id: 'wl-chart-widget',
             });
         } catch(e) {}
+
         // Update active row highlight
         document.querySelectorAll('.wl-ticker-row').forEach(function(r){
             r.classList.toggle('active', r.getAttribute('data-wl-ticker') === ticker);
         });
-    };
-
-    window.setWlTf = function(tf) {
-        wlChartTf = tf;
-        document.querySelectorAll('.wl-chart-tf-btn').forEach(function(b){
-            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
-        });
-        if (wlChartTicker) wlSelectTicker(wlChartTicker);
     };
 
     // ── Watchlist picker popover ──────────────────────────────────────────
