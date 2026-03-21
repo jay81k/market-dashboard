@@ -1969,6 +1969,8 @@
                     sym = data.data.symbol;
                 } else if (data && data.name === 'widgetReady' && data.data && data.data.symbol) {
                     sym = data.data.symbol;
+                } else if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
+                    sym = data.data.original_name;
                 } else if (data && data.symbolName) {
                     sym = data.symbolName;
                 } else if (data && data.symbol) {
