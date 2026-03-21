@@ -1849,11 +1849,52 @@
     };
 
     // ── Chart modal ───────────────────────────────────────────────────────
+    function updateChartModalHeader(symbol) {
+        var sector = '', industry = '';
+        // Look up from snapshot
+        if (snapshot && snapshot.by_industry) {
+            outer: for (var ind in snapshot.by_industry) {
+                var rows = snapshot.by_industry[ind];
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].ticker === symbol) {
+                        sector   = rows[i].sector   || '';
+                        industry = rows[i].industry || '';
+                        break outer;
+                    }
+                }
+            }
+        }
+        document.getElementById('chart-modal-sym').textContent = symbol;
+        var metaEl = document.getElementById('chart-modal-meta');
+        if (metaEl) {
+            var indRankHtml = '';
+            if (industry && industriesData && industriesData.industries) {
+                var indData = industriesData.industries.find(function(x){ return x.industry === industry; });
+                var total   = industriesData.industries.length;
+                if (indData && indData.rank != null) {
+                    var pct = indData.percentile != null ? indData.percentile : null;
+                    var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    indRankHtml = '<span class="meta-sep">·</span>' +
+                        '<span class="meta-ind-rank" style="color:' + rankColor + '">' +
+                        '(' + indData.rank + '/' + total + ')' +
+                        '</span>';
+                }
+            }
+            metaEl.innerHTML = industry
+                ? '<span class="meta-sector">' + esc(industry) + '</span>' + indRankHtml
+                : '';
+        }
+        var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
+        var fBtn = document.getElementById('chart-modal-fundamentals-btn');
+        var nBtn = document.getElementById('chart-modal-news-btn');
+        if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
+        if (nBtn) nBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker + '#news';
+    }
+
     function openChartModal(symbol, sector, industry) {
         var sym = TV_MAP[symbol] || symbol;
-        document.getElementById('chart-modal-sym').textContent = symbol;
 
-        // Resolve sector/industry: prefer args, fall back to clicked row data attrs, then snapshot
+        // Resolve sector/industry from args, row attrs, or snapshot for initial header
         if (!sector || !industry) {
             var clickedRow = document.querySelector('.stock-row[data-symbol="' + symbol + '"]');
             if (clickedRow) {
@@ -1861,46 +1902,8 @@
                 industry = industry || clickedRow.getAttribute('data-industry') || '';
             }
         }
-        if ((!sector || !industry) && snapshot) {
-            outer: for (var ind in snapshot.by_industry) {
-                var rows = snapshot.by_industry[ind];
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].ticker === symbol) {
-                        sector   = sector   || rows[i].sector   || '';
-                        industry = industry || rows[i].industry || '';
-                        break outer;
-                    }
-                }
-            }
-        }
-        var metaEl = document.getElementById('chart-modal-meta');
-        if (metaEl) {
-            if (sector || industry) {
-                var indRankHtml = '';
-                if (industry && industriesData && industriesData.industries) {
-                    var indData = industriesData.industries.find(function(i){ return i.industry === industry; });
-                    var total   = industriesData.industries.length;
-                    if (indData && indData.rank != null) {
-                        var pct = indData.percentile != null ? indData.percentile : null;
-                        var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                        indRankHtml = '<span class="meta-sep">·</span>' +
-                            '<span class="meta-ind-rank" style="color:' + rankColor + '">' +
-                            '(' + indData.rank + '/' + total + ')' +
-                            '</span>';
-                    }
-                }
-                metaEl.innerHTML = '<span class="meta-sector">' + esc(industry) + '</span>' +
-                    indRankHtml;
-            } else {
-                metaEl.innerHTML = '';
-            }
-        }
-
-        var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
-        var fBtn = document.getElementById('chart-modal-fundamentals-btn');
-        var nBtn = document.getElementById('chart-modal-news-btn');
-        if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
-        if (nBtn) nBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker + '#news';
+        // Use updateChartModalHeader for snapshot lookup + DOM update
+        updateChartModalHeader(symbol);
 
         document.getElementById('chart-modal-overlay').classList.add('open');
         if (chartWidget) {
@@ -1915,10 +1918,23 @@
             hide_legend: false, hide_volume: true,
             details: true, hotlist: false, calendar: false,
             withdateranges: true, allow_symbol_change: true,
-            studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+            studies: ['STD;MA%Ribbon', 'STD;MA%Ribbon', 'Volume@tv-basicstudies'],
             save_image: false, enable_publishing: false,
             autosize: true, container_id: 'tradingview-chart',
         });
+        // Update header when user changes symbol inside the widget
+        try {
+            chartWidget.onChartReady(function() {
+                chartWidget.activeChart().onSymbolChanged().subscribe(null, function() {
+                    try {
+                        var newSym = chartWidget.activeChart().symbol();
+                        // Strip exchange prefix if present (e.g. "NASDAQ:AAPL" → "AAPL")
+                        var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
+                        updateChartModalHeader(bare);
+                    } catch(e) {}
+                });
+            });
+        } catch(e) {}
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
