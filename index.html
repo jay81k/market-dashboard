@@ -792,7 +792,6 @@
 <!-- Toolbar -->
 <div class="toolbar">
     <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
-    <span class="result-count" id="result-count"></span>
 </div>
 
 <!-- Main scrollable area -->
@@ -972,6 +971,7 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+                    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view">&#x229E;</button>
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                         Fundamentals
@@ -985,6 +985,16 @@
             <div class="wl-chart-body" id="wl-chart-body">
                 <div class="wl-chart-empty" id="wl-chart-empty">Select a ticker from a watchlist to chart it</div>
                 <div id="wl-chart-widget" style="width:100%;height:100%;display:none;"></div>
+                <!-- Watchlist multichart view -->
+                <div id="wl-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;height:100%;">
+                    <div class="multichart-toolbar" id="wl-multichart-toolbar">
+                        <button class="mc-tf-btn" data-tf="5" onclick="setWlMcTf('5')">5m</button>
+                        <button class="mc-tf-btn active" data-tf="D" onclick="setWlMcTf('D')">Daily</button>
+                        <button class="mc-tf-btn" data-tf="W" onclick="setWlMcTf('W')">Weekly</button>
+                        <button class="mc-tf-btn" data-tf="M" onclick="setWlMcTf('M')">Monthly</button>
+                    </div>
+                    <div class="multichart-grid" id="wl-multichart-grid"></div>
+                </div>
             </div>
         </div>
         <!-- Watchlists side panel -->
@@ -1142,6 +1152,14 @@
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
         if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
+        if (view !== 'watchlists' && wlMcActive) {
+            wlMcActive = false;
+            var btn = document.getElementById('wl-multichart-toggle-btn');
+            if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; }
+            var mcView = document.getElementById('wl-multichart-view');
+            if (mcView) mcView.style.display = 'none';
+            wlMcWidgets = {};
+        }
 
         document.getElementById('main-area').style.overflow = (view === 'watchlists') ? 'hidden' : '';
 
@@ -2977,6 +2995,103 @@
         });
     }
 
+    // ── Watchlist Multichart ──────────────────────────────────────────────
+    window.toggleWlMultichart = function() {
+        wlMcActive = !wlMcActive;
+        var btn = document.getElementById('wl-multichart-toggle-btn');
+        btn.style.background  = wlMcActive ? '#1f3a5c' : '';
+        btn.style.borderColor = wlMcActive ? '#388bfd' : '';
+        btn.style.color       = wlMcActive ? '#58a6ff' : '';
+        document.getElementById('wl-chart-empty').style.display  = wlMcActive ? 'none' : '';
+        document.getElementById('wl-chart-widget').style.display = 'none';
+        document.getElementById('wl-multichart-view').style.display = wlMcActive ? 'flex' : 'none';
+        if (wlMcActive) renderWlMc();
+    };
+
+    window.setWlMcTf = function(tf) {
+        wlMcTimeframe = tf;
+        document.querySelectorAll('#wl-multichart-toolbar .mc-tf-btn').forEach(function(b){
+            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
+        });
+        wlMcWidgets = {};
+        renderWlMc();
+    };
+
+    function renderWlMc() {
+        var grid = document.getElementById('wl-multichart-grid');
+        var active = wlGetLastList();
+        var all    = wlGetAll();
+        var tickers = (active && all[active]) ? all[active] : [];
+        if (!tickers.length) {
+            grid.innerHTML = '<div style="color:#484f58;padding:20px;">No tickers in this watchlist.</div>';
+            return;
+        }
+        grid.innerHTML = '';
+        wlMcWidgets = {};
+        tickers.forEach(function(sym) {
+            var cell = document.createElement('div');
+            cell.className = 'mc-cell';
+            cell.setAttribute('data-sym', sym);
+
+            var label = document.createElement('div');
+            label.className = 'mc-cell-label';
+            label.textContent = sym;
+
+            var flag = document.createElement('button');
+            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
+            flag.textContent = '⚑';
+            flag.title = 'Add to Flagged';
+            flag.addEventListener('click', function(e) {
+                e.stopPropagation();
+                wlFlagTicker(sym, flag);
+            });
+
+            var hint = document.createElement('div');
+            hint.className = 'mc-cell-hint';
+            hint.textContent = 'click to expand';
+
+            var chartDiv = document.createElement('div');
+            chartDiv.id = 'wl-mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g, '_');
+            chartDiv.style.cssText = 'width:100%;height:100%;';
+
+            var overlay = document.createElement('div');
+            overlay.className = 'mc-cell-overlay';
+            overlay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                openMcFullscreen(sym);
+            });
+
+            cell.appendChild(flag);
+            cell.appendChild(label);
+            cell.appendChild(hint);
+            cell.appendChild(overlay);
+            cell.appendChild(chartDiv);
+            grid.appendChild(cell);
+
+            var observer = new IntersectionObserver(function(entries) {
+                if (!entries[0].isIntersecting) return;
+                observer.disconnect();
+                var mappedSym = TV_MAP[sym] || sym;
+                try {
+                    wlMcWidgets[sym] = new TradingView.widget({
+                        symbol: mappedSym, interval: wlMcTimeframe, locale: 'en', style: '1',
+                        theme: 'dark', timezone: 'America/Toronto',
+                        toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                        gridColor: 'rgba(255,255,255,0.04)',
+                        hide_side_toolbar: true, hide_top_toolbar: true,
+                        hide_legend: true, hide_volume: true,
+                        withdateranges: false, allow_symbol_change: false,
+                        save_image: false, enable_publishing: false,
+                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                        right_bar_margin: 3,
+                        autosize: true, container_id: chartDiv.id,
+                    });
+                } catch(e) {}
+            }, { threshold: 0.1 });
+            observer.observe(cell);
+        });
+    }
+
     // ── Watchlists ────────────────────────────────────────────────────────
     var WL_FLAGGED = 'Flagged';
 
@@ -3013,6 +3128,9 @@
     var wlChartTf      = 'D';
     var wlChartTicker  = null;
     var wlChartWidget  = null;
+    var wlMcActive     = false;
+    var wlMcTimeframe  = 'D';
+    var wlMcWidgets    = {};
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
@@ -3147,6 +3265,7 @@
             });
         }
         scroll.innerHTML = html;
+        if (wlMcActive) renderWlMc();
     };
 
     var wlSelectorOpen = false;
