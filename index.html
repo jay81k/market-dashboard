@@ -1138,8 +1138,8 @@
         document.getElementById('view-scans').style.display           = 'none';
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
+        if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
 
-        // Watchlists needs overflow:hidden so its flex children fill height correctly
         document.getElementById('main-area').style.overflow = (view === 'watchlists') ? 'hidden' : '';
 
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
@@ -3347,38 +3347,48 @@
                 autosize: true,
                 container_id: 'wl-chart-widget',
             });
-            // Poll for symbol changes in watchlist panel
+            // Listen for symbol changes in watchlist panel via postMessage
             var _wlLastSym = ticker;
-            var _wlPoll = setInterval(function() {
-                if (!document.getElementById('wl-chart-widget') || document.getElementById('wl-chart-widget').style.display === 'none') {
-                    clearInterval(_wlPoll); return;
-                }
+            if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); }
+            window._wlChartMsgHandler = function(e) {
                 try {
-                    var cur = wlChartWidget.activeChart().symbol();
-                    var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
-                    if (bare && bare !== _wlLastSym) {
-                        _wlLastSym = bare;
-                        document.getElementById('wl-chart-sym').textContent = bare;
-                        // Update meta
-                        var industry = '', sector = '';
-                        if (snapshot && snapshot.by_industry) {
-                            outer2: for (var ind2 in snapshot.by_industry) {
-                                var rows2 = snapshot.by_industry[ind2];
-                                for (var j = 0; j < rows2.length; j++) {
-                                    if (rows2[j].ticker === bare) { industry = rows2[j].industry||''; break outer2; }
+                    var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                    var sym = null;
+                    if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
+                        sym = data.data.original_name;
+                    } else if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
+                        sym = data.data.symbol;
+                    } else if (data && data.symbolName) {
+                        sym = data.symbolName;
+                    } else if (data && data.symbol) {
+                        sym = data.symbol;
+                    }
+                    if (sym) {
+                        var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
+                        if (bare && bare !== _wlLastSym) {
+                            _wlLastSym = bare;
+                            document.getElementById('wl-chart-sym').textContent = bare;
+                            var industry = '';
+                            if (snapshot && snapshot.by_industry) {
+                                outer2: for (var ind2 in snapshot.by_industry) {
+                                    var rows2 = snapshot.by_industry[ind2];
+                                    for (var j = 0; j < rows2.length; j++) {
+                                        if (rows2[j].ticker === bare) { industry = rows2[j].industry||''; break outer2; }
+                                    }
                                 }
                             }
+                            var metaEl2 = document.getElementById('wl-chart-meta');
+                            if (metaEl2) metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' : '';
+                            var t2 = bare.replace(/[^A-Z0-9]/gi,'');
+                            var fb = document.getElementById('wl-chart-fundamentals-btn');
+                            var nb = document.getElementById('wl-chart-news-btn');
+                            if (fb) fb.href = 'https://finviz.com/quote.ashx?t=' + t2;
+                            if (nb) nb.href = 'https://finviz.com/quote.ashx?t=' + t2 + '#news';
                         }
-                        var metaEl2 = document.getElementById('wl-chart-meta');
-                        if (metaEl2) metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' : '';
-                        var t2 = bare.replace(/[^A-Z0-9]/gi,'');
-                        var fb = document.getElementById('wl-chart-fundamentals-btn');
-                        var nb = document.getElementById('wl-chart-news-btn');
-                        if (fb) fb.href = 'https://finviz.com/quote.ashx?t=' + t2;
-                        if (nb) nb.href = 'https://finviz.com/quote.ashx?t=' + t2 + '#news';
                     }
-                } catch(e) {}
-            }, 500);
+                } catch(err) {}
+            };
+            window.addEventListener('message', window._wlChartMsgHandler);
         } catch(e) {}
 
         // Update active row highlight
