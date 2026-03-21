@@ -1950,30 +1950,47 @@
     }
 
     var _chartModalPoll = null;
+    var _chartModalObserver = null;
     function startChartModalPoll(initialSym) {
+        // Clear previous
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
+        if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
+
         var _lastSym = initialSym;
-        // Wait until activeChart() is available before polling
-        var _readyWait = setInterval(function() {
-            try { chartWidget.activeChart().symbol(); clearInterval(_readyWait); } catch(e) { return; }
-            // Chart is ready — start polling
-            _chartModalPoll = setInterval(function() {
-                if (!document.getElementById('chart-modal-overlay').classList.contains('open')) {
-                    clearInterval(_chartModalPoll); _chartModalPoll = null; return;
-                }
-                try {
-                    var cur = chartWidget.activeChart().symbol();
-                    var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
+
+        function checkIframe() {
+            var container = document.getElementById('tradingview-chart');
+            if (!container) return;
+            var iframe = container.querySelector('iframe');
+            if (!iframe) return;
+            // Watch the iframe title — TradingView sets it to e.g. "AAPL — Daily Chart"
+            _chartModalObserver = new MutationObserver(function() {
+                var title = iframe.getAttribute('title') || iframe.title || '';
+                // Title format: "SYMBOL — ..." or "SYMBOL - ..."
+                var match = title.match(/^([A-Z0-9.]+)\s*[—–-]/);
+                if (match) {
+                    var bare = match[1];
                     if (bare && bare !== _lastSym) {
                         _lastSym = bare;
                         updateChartModalHeader(bare);
                     }
-                } catch(e) {}
-            }, 300);
+                }
+            });
+            _chartModalObserver.observe(iframe, { attributes: true, attributeFilter: ['title'] });
+        }
+
+        // Iframe may not exist yet — wait for it
+        var _waitForIframe = setInterval(function() {
+            var container = document.getElementById('tradingview-chart');
+            if (container && container.querySelector('iframe')) {
+                clearInterval(_waitForIframe);
+                checkIframe();
+            }
         }, 200);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
+        if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
     };
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
