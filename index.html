@@ -1975,11 +1975,6 @@
                     sym = data.symbolName;
                 } else if (data && data.symbol) {
                     sym = data.symbol;
-                } else {
-                    // Log unknown messages from TradingView for debugging
-                    if (e.origin && e.origin.indexOf('tradingview.com') !== -1 && data && data.name) {
-                        console.log('[TV msg]', data.name, JSON.stringify(data).slice(0,150));
-                    }
                 }
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
