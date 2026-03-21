@@ -1953,19 +1953,24 @@
     function startChartModalPoll(initialSym) {
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
         var _lastSym = initialSym;
-        _chartModalPoll = setInterval(function() {
-            if (!document.getElementById('chart-modal-overlay').classList.contains('open')) {
-                clearInterval(_chartModalPoll); _chartModalPoll = null; return;
-            }
-            try {
-                var cur = chartWidget.activeChart().symbol();
-                var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
-                if (bare && bare !== _lastSym) {
-                    _lastSym = bare;
-                    updateChartModalHeader(bare);
+        // Wait until activeChart() is available before polling
+        var _readyWait = setInterval(function() {
+            try { chartWidget.activeChart().symbol(); clearInterval(_readyWait); } catch(e) { return; }
+            // Chart is ready — start polling
+            _chartModalPoll = setInterval(function() {
+                if (!document.getElementById('chart-modal-overlay').classList.contains('open')) {
+                    clearInterval(_chartModalPoll); _chartModalPoll = null; return;
                 }
-            } catch(e) {}
-        }, 500);
+                try {
+                    var cur = chartWidget.activeChart().symbol();
+                    var bare = cur.indexOf(':') !== -1 ? cur.split(':')[1] : cur;
+                    if (bare && bare !== _lastSym) {
+                        _lastSym = bare;
+                        updateChartModalHeader(bare);
+                    }
+                } catch(e) {}
+            }, 300);
+        }, 200);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
