@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore")
 DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
 DEFAULT_INDUSTRIES_CSV_URL = os.environ.get("INDUSTRIES_CSV_URL", "")
 
-MIN_AVG_VOLUME  = 100_000    # AvgVol50 filter — anything below gets dropped
+MIN_AVG_VOLUME  = 90_000     # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
 
@@ -539,6 +539,7 @@ def main():
     by_industry:  dict[str, list]  = defaultdict(list)
     industry_to_sector: dict[str, str] = {}
     skipped = 0
+    supplemental_set = {t["Ticker"] for t in SUPPLEMENTAL_TICKERS}
 
     for ticker in tickers:
         hist = histories.get(ticker)
@@ -603,7 +604,6 @@ def main():
 
     # Assign Rank to supplemental tickers based on where their Percentile
     # falls relative to the full universe — CSV-sourced ranks are left untouched.
-    supplemental_set = {t["Ticker"] for t in SUPPLEMENTAL_TICKERS}
     if supplemental_set:
         # Collect all rows with a Percentile value
         all_rows = [r for rows in by_industry.values() for r in rows]
