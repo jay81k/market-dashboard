@@ -1107,7 +1107,7 @@
     // ── Helpers ───────────────────────────────────────────────────────────
     function esc(s) {
         if (s == null) return '';
-        return String(s).replace(/&/g,'&').replace(/"/g,'"').replace(/</g,'<').replace(/>/g,'>');
+        return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
     function fmt(v, d, sfx) {
         if (v == null) return '<span style="color:#30363d">—</span>';
