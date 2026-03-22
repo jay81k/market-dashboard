@@ -546,7 +546,9 @@
         .sf-input { background: #161b22; border: 1px solid #21262d; border-radius: 4px; color: #c8d0dc; font-size: 0.748em; padding: 3px 7px; outline: none; font-family: inherit; width: 72px; flex-shrink: 0; }
         .sf-input:focus { border-color: #388bfd44; }
         .sf-input::placeholder { color: #484f58; }
-        .sf-active-pill {
+        .sf-cluster-chip { display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;border:1px solid #21262d;background:#0d1117;color:#6e7681;font-size:0.748em;font-weight:600;cursor:pointer;margin:2px;user-select:none; }
+        .sf-cluster-chip.on { border-color:#2979c8;background:#1a3a5c;color:#58a6ff; }
+        .sf-cluster-chip:hover { border-color:#30363d;color:#c8d0dc; }
             display: inline-flex; align-items: center; gap: 4px;
             background: #1a3a5c33; border: 1px solid #2979c844;
             border-radius: 4px; padding: 2px 7px;
@@ -2647,6 +2649,10 @@
             if (cond === 'ma_below')      return mt + ' ' + mp1 + ' below ' + mt2 + ' ' + mp2;
             if (cond === 'crosses_above') return mt + ' ' + mp1 + ' crossed above ' + mt2 + ' ' + mp2;
             if (cond === 'crosses_below') return mt + ' ' + mp1 + ' crossed below ' + mt2 + ' ' + mp2;
+            if (cond === 'ma_cluster') {
+                var cms = row.clusterMAs || ['SMA50','SMA200','EMA21'];
+                return 'Cluster ' + cms.join('/') + ' ≤' + (row.clusterSpread!=null?row.clusterSpread:1) + '%';
+            }
             return 'MA filter';
         }
         if (row.type === 'pattern') {
@@ -2734,6 +2740,7 @@
                 ['ma_below',      'MA Below MA'],
                 ['crosses_above', 'Crosses Above'],
                 ['crosses_below', 'Crosses Below'],
+                ['ma_cluster',    'MA Cluster'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
@@ -2760,6 +2767,21 @@
             if (usesBetween) {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            }
+            if (cond === 'ma_cluster') {
+                var clusterMAs = [
+                    ['SMA','5'],['SMA','8'],['SMA','10'],['SMA','21'],
+                    ['SMA','50'],['SMA','150'],['SMA','200'],
+                    ['EMA','8'],['EMA','21'],['EMA','50'],
+                ];
+                var selectedMAs = row.clusterMAs || ['SMA50','SMA200','EMA21'];
+                var checks = clusterMAs.map(function(m) {
+                    var key = m[0]+m[1];
+                    var on  = selectedMAs.indexOf(key) !== -1;
+                    return '<span class="sf-cluster-chip' + (on ? ' on' : '') + '" data-key="' + key + '" data-id="' + id + '" onclick="sfToggleClusterMA(this)">' + m[0] + ' ' + m[1] + '</span>';
+                }).join('');
+                html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;"><span class="sf-popover-label" style="width:100%;margin-bottom:2px;">MAs</span>'+checks+'</div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'pattern') {
             var patOpts = [
@@ -2875,6 +2897,19 @@
         sfRenderPills();
         // Do NOT call renderScans — nothing changed
     };
+    window.sfToggleClusterMA = function(el) {
+        var id  = parseInt(el.getAttribute('data-id'));
+        var key = el.getAttribute('data-key');
+        var row = sfRows.find(function(r){ return r.id === id; });
+        if (!row) return;
+        if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21'];
+        var idx = row.clusterMAs.indexOf(key);
+        if (idx !== -1) { if (row.clusterMAs.length > 2) row.clusterMAs.splice(idx, 1); }
+        else row.clusterMAs.push(key);
+        var c = sfPopoverHtml(row); c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+        document.getElementById('sf-popover-content').innerHTML = c;
+    };
+
     window.sfOpenPopover = function(id, pillEl) {
         sfActivePopoverId = id;
         var pop = document.getElementById('sf-popover');
@@ -2924,6 +2959,7 @@
             if (field === 'maCondition') {
                 if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
                 if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
+                if (value === 'ma_cluster') { if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21']; if (row.clusterSpread == null) row.clusterSpread = 1; }
             }
             var c2 = sfPopoverHtml(row); c2 = c2.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
             document.getElementById('sf-popover-content').innerHTML = c2;
@@ -3202,6 +3238,16 @@
                     } else if (cond === 'crosses_below') {
                         var xKey = k1 + '|' + k2 + '|below';
                         if ((r.ma_crossovers || []).indexOf(xKey) === -1) return false;
+                    } else if (cond === 'ma_cluster') {
+                        var cms   = f.clusterMAs || ['SMA50','SMA200','EMA21'];
+                        var spread = parseFloat(f.clusterSpread != null ? f.clusterSpread : 1);
+                        if (isNaN(spread)) spread = 1;
+                        var vals = cms.map(function(k){ return r.ma_val ? r.ma_val[k] : null; });
+                        if (vals.some(function(v){ return v == null; })) return false;
+                        var minV = Math.min.apply(null, vals);
+                        var maxV = Math.max.apply(null, vals);
+                        if (minV <= 0) return false;
+                        if (((maxV - minV) / minV * 100) > spread) return false;
                     }
                 } else if (f.type === 'rs') {
                     var rs = r.Percentile;
