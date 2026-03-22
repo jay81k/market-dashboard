@@ -1403,7 +1403,8 @@
         document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
         document.getElementById('tab-market').classList.toggle('active', view === 'market');
 
-        document.getElementById('search-input').style.display = (view === 'market') ? 'none' : '';
+        var searchEl = document.getElementById('search-input');
+        searchEl.style.display = (view === 'market') ? 'none' : '';
         searchEl.value = '';
         searchQuery = '';
         if (view === 'industries') {
