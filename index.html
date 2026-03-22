@@ -803,37 +803,68 @@
         }
         .market-index-card {
             background: #161b22; border: 1px solid #21262d; border-radius: 8px;
-            padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 4px;
+            padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 0;
             transition: border-color 0.15s;
         }
         .market-index-card:hover { border-color: #30363d; }
-        .market-index-card.skeleton { min-height: 140px; animation: market-pulse 1.4s ease-in-out infinite; }
-        @keyframes market-pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }
+        .market-index-card.skeleton { min-height: 240px; animation: market-pulse 1.4s ease-in-out infinite; }
+        @keyframes market-pulse { 0%,100%{opacity:.35} 50%{opacity:.8} }
         .market-index-card.up   { border-left: 3px solid #3fb950; }
         .market-index-card.down { border-left: 3px solid #f85149; }
         .market-index-card.flat { border-left: 3px solid #484f58; }
 
-        .mic-label  { font-size: 0.748em; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; }
-        .mic-name   { font-size: 0.825em; color: #6e7681; margin-top: 1px; }
-        .mic-price  { font-size: 1.32em; font-weight: 700; color: #c8d0dc; margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-        .mic-change { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+        /* Card header row */
+        .mic-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+        .mic-label  { font-size: 0.825em; font-weight: 700; color: #c8d0dc; text-transform: uppercase; letter-spacing: 0.06em; }
+        .mic-name   { font-size: 0.792em; color: #6e7681; }
+        .mic-date   { font-size: 0.748em; color: #484f58; margin-left: auto; }
+
+        /* Price + change row */
+        .mic-price-row { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+        .mic-price  { font-size: 1.45em; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; }
+        .mic-change { display: flex; align-items: baseline; gap: 6px; }
         .mic-chg-abs  { font-size: 0.902em; font-weight: 600; font-variant-numeric: tabular-nums; }
         .mic-chg-pct  { font-size: 0.858em; font-weight: 600; font-variant-numeric: tabular-nums; }
         .mic-chg-abs.up, .mic-chg-pct.up   { color: #3fb950; }
         .mic-chg-abs.down, .mic-chg-pct.down { color: #f85149; }
         .mic-chg-abs.flat, .mic-chg-pct.flat { color: #484f58; }
 
-        .mic-sparkline { margin-top: 10px; width: 100%; height: 52px; display: block; }
-        .mic-sparkline-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-        .mic-sparkline-area { stroke: none; opacity: 0.12; }
+        /* Sparkline wrapper — positions y-axis labels alongside SVG */
+        .mic-chart-wrap { position: relative; margin-top: 12px; }
+        .mic-sparkline  { display: block; width: 100%; height: 130px; overflow: visible; }
+
+        /* SVG element styles */
+        .mic-grid-line      { stroke: #21262d; stroke-width: 1; }
+        .mic-sparkline-path { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+        .mic-sparkline-area { stroke: none; opacity: 0.1; }
+        .mic-prev-close-line { stroke: #484f58; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.6; }
+        .mic-current-dot    { stroke-width: 2; }
+
         .mic-sparkline.up   .mic-sparkline-path { stroke: #3fb950; }
         .mic-sparkline.up   .mic-sparkline-area { fill: #3fb950; }
+        .mic-sparkline.up   .mic-current-dot    { fill: #3fb950; stroke: #0d1117; }
         .mic-sparkline.down .mic-sparkline-path { stroke: #f85149; }
         .mic-sparkline.down .mic-sparkline-area { fill: #f85149; }
+        .mic-sparkline.down .mic-current-dot    { fill: #f85149; stroke: #0d1117; }
         .mic-sparkline.flat .mic-sparkline-path { stroke: #484f58; }
         .mic-sparkline.flat .mic-sparkline-area { fill: #484f58; }
+        .mic-sparkline.flat .mic-current-dot    { fill: #484f58; stroke: #0d1117; }
 
-        .mic-prev-close-line { stroke: #484f58; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
+        /* Y-axis price badge on the right */
+        .mic-price-badge {
+            position: absolute; right: 0; transform: translateY(-50%);
+            font-size: 0.682em; font-weight: 700; font-variant-numeric: tabular-nums;
+            padding: 1px 5px; border-radius: 3px; pointer-events: none; white-space: nowrap;
+        }
+        .mic-price-badge.up   { background: #3fb950; color: #0d1117; }
+        .mic-price-badge.down { background: #f85149; color: #0d1117; }
+        .mic-price-badge.flat { background: #484f58; color: #c8d0dc; }
+        .mic-price-badge.hi   { background: transparent; color: #484f58; border: 1px solid #21262d; }
+        .mic-price-badge.lo   { background: transparent; color: #484f58; border: 1px solid #21262d; }
+
+        /* X-axis time labels */
+        .mic-xaxis { display: flex; justify-content: space-between; margin-top: 4px; padding: 0 2px; }
+        .mic-xaxis span { font-size: 0.682em; color: #484f58; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
@@ -4111,62 +4142,127 @@
 
     function marketParseResult(data) {
         if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return null;
-        var result    = data.chart.result[0];
-        var meta      = result.meta || {};
+        var result     = data.chart.result[0];
+        var meta       = result.meta || {};
         var timestamps = result.timestamp || [];
-        var closes    = (result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) || [];
+        var closes     = (result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) || [];
 
-        // Filter out null closes, keeping index alignment
-        var points = [];
+        var points = [], ts = [];
         for (var i = 0; i < timestamps.length; i++) {
-            if (closes[i] != null) points.push(closes[i]);
+            if (closes[i] != null) { points.push(closes[i]); ts.push(timestamps[i]); }
         }
 
         return {
-            price:     meta.regularMarketPrice     || null,
-            prevClose: meta.previousClose           || meta.chartPreviousClose || null,
-            points:    points,
+            price:      meta.regularMarketPrice                      || null,
+            prevClose:  meta.previousClose || meta.chartPreviousClose || null,
+            points:     points,
+            timestamps: ts,
         };
     }
 
-    function marketSparklineSVG(points, direction) {
-        if (!points || points.length < 2) return '';
-        var W = 300, H = 52, pad = 2;
-        var min = Math.min.apply(null, points);
-        var max = Math.max.apply(null, points);
-        var range = max - min || 1;
-        var stepX = (W - pad * 2) / (points.length - 1);
+    function marketFmtPrice(v) {
+        if (v == null) return '—';
+        return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
-        var coords = points.map(function(v, i) {
-            var x = pad + i * stepX;
-            var y = pad + (1 - (v - min) / range) * (H - pad * 2);
-            return x.toFixed(1) + ',' + y.toFixed(1);
-        });
+    function marketXLabels(points, timestamps) {
+        if (!timestamps || timestamps.length < 2) return '<span></span><span></span><span></span>';
+        var fmt = function(ts) {
+            var d = new Date(ts * 1000);
+            if (marketTf === '1d') {
+                return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+            }
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+        var n   = timestamps.length;
+        var mid = Math.floor(n / 2);
+        return '<span>' + fmt(timestamps[0]) + '</span>' +
+               '<span>' + fmt(timestamps[mid]) + '</span>' +
+               '<span>' + fmt(timestamps[n - 1]) + '</span>';
+    }
 
-        var pathD    = 'M' + coords.join(' L');
-        // Closed area path — drop to bottom-right then bottom-left
-        var lastX    = (pad + (points.length - 1) * stepX).toFixed(1);
-        var bottomY  = (H - pad).toFixed(1);
-        var areaD    = pathD + ' L' + lastX + ',' + bottomY + ' L' + pad + ',' + bottomY + ' Z';
+    function marketSparklineSVG(points, prevClose, direction) {
+        if (!points || points.length < 2) return '<div class="mic-chart-wrap"></div>';
 
-        // Prev-close dashed line (only meaningful for 1D)
-        var prevCloseLineY = null;
-        if (marketTf === '1d' && points.length > 1) {
-            // The first point approximates open; we draw a flat line at that level
-            var firstY = pad + (1 - (points[0] - min) / range) * (H - pad * 2);
-            prevCloseLineY = firstY.toFixed(1);
+        var W = 500, H = 130, padL = 4, padR = 56, padT = 8, padB = 8;
+        var chartW = W - padL - padR;
+        var chartH = H - padT - padB;
+
+        var allVals = points.slice();
+        if (prevClose != null) allVals.push(prevClose);
+        var min = Math.min.apply(null, allVals);
+        var max = Math.max.apply(null, allVals);
+        var range = (max - min) || 1;
+        // Add 5% headroom top and bottom
+        min -= range * 0.05;
+        max += range * 0.05;
+        range = max - min;
+
+        var toX = function(i) { return padL + (i / (points.length - 1)) * chartW; };
+        var toY = function(v) { return padT + (1 - (v - min) / range) * chartH; };
+
+        // Grid lines at high / mid / low
+        var gridVals = [max - range * 0.05, min + range * 0.5, min + range * 0.05];
+        var gridLines = gridVals.map(function(v) {
+            var y = toY(v).toFixed(1);
+            return '<line class="mic-grid-line" x1="' + padL + '" y1="' + y + '" x2="' + (padL + chartW) + '" y2="' + y + '"/>';
+        }).join('');
+
+        // Prev-close dashed line
+        var pcLine = '';
+        if (prevClose != null) {
+            var pcy = toY(prevClose).toFixed(1);
+            pcLine = '<line class="mic-prev-close-line" x1="' + padL + '" y1="' + pcy + '" x2="' + (padL + chartW) + '" y2="' + pcy + '"/>';
         }
 
-        var cl = direction;
-        var pcLine = prevCloseLineY != null
-            ? '<line class="mic-prev-close-line" x1="' + pad + '" y1="' + prevCloseLineY + '" x2="' + (W - pad) + '" y2="' + prevCloseLineY + '"/>'
-            : '';
+        // Price line + area
+        var coords = points.map(function(v, i) {
+            return toX(i).toFixed(1) + ',' + toY(v).toFixed(1);
+        });
+        var pathD  = 'M' + coords.join(' L');
+        var lastX  = toX(points.length - 1).toFixed(1);
+        var botY   = (padT + chartH).toFixed(1);
+        var areaD  = pathD + ' L' + lastX + ',' + botY + ' L' + padL + ',' + botY + ' Z';
 
-        return '<svg class="mic-sparkline ' + cl + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
-            pcLine +
+        // Current price dot
+        var lastV  = points[points.length - 1];
+        var dotX   = toX(points.length - 1).toFixed(1);
+        var dotY   = toY(lastV).toFixed(1);
+        var dot    = '<circle class="mic-current-dot" cx="' + dotX + '" cy="' + dotY + '" r="3.5"/>';
+
+        // Y-axis price labels — high, prev-close, current (coloured badge)
+        var hiVal  = Math.max.apply(null, points);
+        var loVal  = Math.min.apply(null, points);
+        var hiY    = toY(hiVal).toFixed(1);
+        var loY    = toY(loVal).toFixed(1);
+        var curY   = dotY;
+        var labelX = padL + chartW + 4;
+
+        var yLabels =
+            '<text x="' + labelX + '" y="' + (parseFloat(hiY) + 3.5) + '" font-size="9" fill="#484f58" font-family="inherit">' + marketFmtPrice(hiVal) + '</text>' +
+            '<text x="' + labelX + '" y="' + (parseFloat(loY) + 3.5) + '" font-size="9" fill="#484f58" font-family="inherit">' + marketFmtPrice(loVal) + '</text>';
+
+        // Current price badge (coloured rect + text)
+        var curColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#484f58';
+        var curLabel = marketFmtPrice(lastV);
+        var badgeW   = curLabel.length * 5.6 + 8;
+        yLabels += '<rect x="' + labelX + '" y="' + (parseFloat(curY) - 8) + '" width="' + badgeW + '" height="13" rx="2" fill="' + curColor + '"/>' +
+                   '<text x="' + (labelX + 4) + '" y="' + (parseFloat(curY) + 3) + '" font-size="9" fill="#0d1117" font-weight="700" font-family="inherit">' + curLabel + '</text>';
+
+        // Prev-close label
+        if (prevClose != null) {
+            var pcy2 = toY(prevClose).toFixed(1);
+            yLabels += '<text x="' + labelX + '" y="' + (parseFloat(pcy2) - 2) + '" font-size="8.5" fill="#484f58" font-family="inherit" opacity="0.7">PC ' + marketFmtPrice(prevClose) + '</text>';
+        }
+
+        var svg = '<svg class="mic-sparkline ' + direction + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
+            gridLines + pcLine +
             '<path class="mic-sparkline-area" d="' + areaD + '"/>' +
             '<path class="mic-sparkline-path" d="' + pathD + '"/>' +
+            dot + yLabels +
             '</svg>';
+
+        return '<div class="mic-chart-wrap">' + svg + '</div>';
     }
 
     function marketRenderCard(idx, parsed) {
@@ -4175,10 +4271,9 @@
 
         if (!parsed) {
             card.className = 'market-index-card';
-            card.innerHTML = '<div class="mic-label">' + idx.label + '</div>' +
-                '<div class="mic-name">' + idx.name + '</div>' +
-                '<div class="mic-price" style="color:#484f58;">—</div>' +
-                '<div class="mic-change"><span class="mic-chg-abs flat">—</span></div>';
+            card.innerHTML =
+                '<div class="mic-header"><span class="mic-label">' + idx.label + '</span><span class="mic-name">' + idx.name + '</span></div>' +
+                '<div class="mic-price-row"><span class="mic-price" style="color:#484f58;">—</span></div>';
             return;
         }
 
@@ -4188,20 +4283,29 @@
         var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
-        var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+        var priceStr  = marketFmtPrice(price);
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
         var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
 
+        var now     = new Date();
+        var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
         card.className = 'market-index-card ' + direction;
         card.innerHTML =
-            '<div class="mic-label">' + idx.label + '</div>' +
-            '<div class="mic-name">' + idx.name + '</div>' +
-            '<div class="mic-price">' + priceStr + '</div>' +
-            '<div class="mic-change">' +
-                '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
-                '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
+            '<div class="mic-header">' +
+                '<span class="mic-label">' + idx.label + '</span>' +
+                '<span class="mic-name">' + idx.name + '</span>' +
+                '<span class="mic-date">' + dateStr + '</span>' +
             '</div>' +
-            marketSparklineSVG(parsed.points, direction);
+            '<div class="mic-price-row">' +
+                '<span class="mic-price">' + priceStr + '</span>' +
+                '<div class="mic-change">' +
+                    '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
+                    '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
+                '</div>' +
+            '</div>' +
+            marketSparklineSVG(parsed.points, parsed.prevClose, direction) +
+            '<div class="mic-xaxis">' + marketXLabels(parsed.points, parsed.timestamps) + '</div>';
     }
 
     function marketFetchAll() {
