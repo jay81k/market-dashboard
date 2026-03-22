@@ -1247,7 +1247,7 @@
         <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:0;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px;border-bottom:1px solid #21262d;">
                 <span id="sf-popover-title" style="font-size:0.825em;font-weight:700;color:#c8d0dc;"></span>
-                <button onclick="sfClosePopover()" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>
+                <button onclick="sfCancelPill()" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>
             </div>
             <div id="sf-popover-content" style="padding:10px 12px;"></div>
             <div style="padding:0 12px 10px;display:flex;gap:6px;">
@@ -2602,6 +2602,7 @@
     var sfRows  = [];   // array of filter rule objects
     var sfRowId = 0;
     var sfActivePillType = null;
+    var sfPillWasPreExisting = false;
 
     var SF_TYPES = [
         { value: 'ma',    label: 'Moving Average' },
@@ -2791,6 +2792,7 @@
 
         // Ensure a row exists for this type
         var row = sfRowForType(type);
+        sfPillWasPreExisting = !!row;
         if (!row) {
             sfRowId++;
             var defaults = { id: sfRowId, type: type, dir: 'gt',
@@ -2836,7 +2838,18 @@
         renderScans();
     };
 
-    var sfActivePopoverId = null;
+    window.sfCancelPill = function() {
+        // If row was newly created (never applied), remove it
+        if (!sfPillWasPreExisting && sfActivePillType) {
+            sfRows = sfRows.filter(function(r){ return r.type !== sfActivePillType; });
+        }
+        document.getElementById('sf-popover').style.display = 'none';
+        sfActivePopoverId = null;
+        sfActivePillType = null;
+        sfPillWasPreExisting = false;
+        sfRenderPills();
+        // Do NOT call renderScans — nothing changed
+    };
     window.sfOpenPopover = function(id, pillEl) {
         sfActivePopoverId = id;
         var pop = document.getElementById('sf-popover');
@@ -2854,6 +2867,7 @@
         document.getElementById('sf-popover').style.display = 'none';
         sfActivePopoverId = null;
         sfActivePillType = null;
+        sfPillWasPreExisting = false;
         sfRenderPills();
         renderScans();
     };
@@ -2861,7 +2875,7 @@
     document.addEventListener('click', function(e) {
         var pop = document.getElementById('sf-popover');
         if (!pop || pop.style.display === 'none') return;
-        if (!pop.contains(e.target) && !e.target.closest('.sf-pill')) sfClosePopover();
+        if (!pop.contains(e.target) && !e.target.closest('.sf-pill')) sfCancelPill();
     });
 
     window.sfPopChange = function(id, field, value) {
