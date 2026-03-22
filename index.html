@@ -871,10 +871,27 @@
             text-transform: uppercase; letter-spacing: 0.08em;
             padding: 4px 16px 8px;
         }
-        .market-breadth-grid {
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 12px; margin: 0 16px 20px;
+        .market-six-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0,1fr));
+            gap: 8px; margin: 0 16px 12px;
         }
+        .market-six-grid .market-ad-wrap { padding: 10px 12px 8px; }
+        .market-six-grid .market-ad-row { margin-bottom: 6px; }
+        .market-six-grid .market-ad-label { font-size: 9px; }
+        .market-six-grid .market-ad-count { font-size: 16px; }
+        .market-six-grid .market-ad-pct { font-size: 9px; }
+        .market-six-grid .market-ad-bar-wrap { height: 4px; }
+        .market-six-grid .market-ad-ratio { gap: 10px; margin-top: 6px; padding-top: 6px; justify-content: center; }
+        .market-six-grid .market-ad-stat-label { font-size: 9px; }
+        .market-six-grid .market-ad-stat-val { font-size: 11px; }
+        .market-six-grid .ma-label { font-size: 9px; }
+        .market-six-grid .ma-pct-big { font-size: 16px; }
+        .market-six-grid .ma-zone { font-size: 9px; }
+        .market-six-grid .ma-net { font-size: 9px; }
+        .market-six-grid .ma-counts-row { font-size: 9px; }
+        .market-six-grid .ma-split-bar { height: 4px; margin-top: 4px; }
+        .market-six-grid .ma-zone-row { margin-top: 3px; }
         .market-ad-wrap {
             background: #161b22; border: 1px solid #21262d; border-radius: 8px;
             padding: 14px 18px;
@@ -1330,16 +1347,11 @@
         <div class="market-macro-card skeleton" id="mm-BTC"></div>
     </div>
 
-    <!-- Advancers / Decliners -->
-    <div class="market-section-label">Breadth</div>
-    <div class="market-breadth-grid">
+    <!-- Breadth + MA — single compact row -->
+    <div class="market-section-label">Breadth &amp; Moving Averages</div>
+    <div class="market-six-grid">
         <div class="market-ad-wrap" id="market-ad-wrap"></div>
         <div class="market-ad-wrap" id="market-hl-wrap"></div>
-    </div>
-
-    <!-- MA Breadth -->
-    <div class="market-section-label">Stocks vs Moving Averages</div>
-    <div class="market-ma-grid" id="market-ma-grid">
         <div class="market-ad-wrap" id="market-ma-5sma"></div>
         <div class="market-ad-wrap" id="market-ma-21ema"></div>
         <div class="market-ad-wrap" id="market-ma-50sma"></div>
