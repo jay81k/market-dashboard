@@ -946,7 +946,7 @@
         /* ── Macro cards ── */
         .market-macro-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1.3fr;
+            grid-template-columns: repeat(10, minmax(0, 1fr)) 1.2fr;
             gap: 8px; padding: 0 16px 12px;
         }
         .market-macro-card {
@@ -1270,6 +1270,10 @@
         <div class="market-macro-card skeleton" id="mm-CPR"></div>
         <div class="market-macro-card skeleton" id="mm-VIX"></div>
         <div class="market-macro-card skeleton" id="mm-TNX"></div>
+        <div class="market-macro-card skeleton" id="mm-ETH"></div>
+        <div class="market-macro-card skeleton" id="mm-XRP"></div>
+        <div class="market-macro-card skeleton" id="mm-SOL"></div>
+        <div class="market-macro-card skeleton" id="mm-HYPE"></div>
         <div class="market-macro-card skeleton" id="mm-BTC"></div>
     </div>
 
@@ -4520,13 +4524,17 @@
     }
 
     var MACRO_TICKERS = [
-        { id: 'OIL',    symbol: 'CL=F',    label: 'OIL',    name: 'Crude Oil WTI' },
-        { id: 'GLD',    symbol: 'GC=F',    label: 'GOLD',   name: 'Gold Futures' },
-        { id: 'SLV',    symbol: 'SI=F',    label: 'SILVER', name: 'Silver Futures' },
-        { id: 'CPR',    symbol: 'HG=F',    label: 'COPPER', name: 'Copper Futures' },
-        { id: 'VIX',    symbol: '^VIX',    label: 'VIX',    name: 'Volatility Index' },
-        { id: 'TNX',    symbol: '^TNX',    label: '10YR',   name: '10-Yr Yield' },
-        { id: 'BTC',    symbol: 'BTC-USD', label: 'BTC',    name: 'Bitcoin' },
+        { id: 'OIL',  symbol: 'CL=F',    label: 'OIL',    name: 'Crude Oil WTI' },
+        { id: 'GLD',  symbol: 'GC=F',    label: 'GOLD',   name: 'Gold Futures' },
+        { id: 'SLV',  symbol: 'SI=F',    label: 'SILVER', name: 'Silver Futures' },
+        { id: 'CPR',  symbol: 'HG=F',    label: 'COPPER', name: 'Copper Futures' },
+        { id: 'VIX',  symbol: '^VIX',    label: 'VIX',    name: 'Volatility Index' },
+        { id: 'TNX',  symbol: '^TNX',    label: '10YR',   name: '10-Yr Yield' },
+        { id: 'ETH',  symbol: 'ETH-USD', label: 'ETH',    name: 'Ethereum' },
+        { id: 'XRP',  symbol: 'XRP-USD', label: 'XRP',    name: 'XRP' },
+        { id: 'SOL',  symbol: 'SOL-USD', label: 'SOL',    name: 'Solana' },
+        { id: 'HYPE', symbol: 'HYPE-USD',label: 'HYPE',   name: 'Hyperliquid' },
+        { id: 'BTC',  symbol: 'BTC-USD', label: 'BTC',    name: 'Bitcoin' },
     ];
 
     function marketFetchMacro() {
@@ -4560,7 +4568,8 @@
                 var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
                 var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
-                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: t.id === 'BTC' ? 0 : 2, maximumFractionDigits: t.id === 'BTC' ? 0 : 2 }) : '—';
+                var isCrypto  = ['BTC','ETH','XRP','SOL','HYPE'].indexOf(t.id) !== -1;
+                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: isCrypto ? 0 : 2, maximumFractionDigits: isCrypto ? (price >= 100 ? 0 : 2) : 2 }) : '—';
                 var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
                 var hiStr     = dayHigh != null ? dayHigh.toFixed(2) : '—';
