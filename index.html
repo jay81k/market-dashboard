@@ -946,7 +946,7 @@
         /* ── Macro cards ── */
         .market-macro-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1.3fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1.3fr;
             gap: 8px; padding: 0 16px 12px;
         }
         .market-macro-card {
@@ -1264,9 +1264,11 @@
     <!-- Macro cards -->
     <div class="market-macro-grid" id="market-macro-grid">
         <div class="market-macro-card skeleton" id="mm-OIL"></div>
+        <div class="market-macro-card skeleton" id="mm-GLD"></div>
+        <div class="market-macro-card skeleton" id="mm-SLV"></div>
+        <div class="market-macro-card skeleton" id="mm-CPR"></div>
         <div class="market-macro-card skeleton" id="mm-VIX"></div>
         <div class="market-macro-card skeleton" id="mm-TNX"></div>
-        <div class="market-macro-card skeleton" id="mm-GLD"></div>
         <div class="market-macro-card skeleton" id="mm-BTC"></div>
     </div>
 
@@ -4515,11 +4517,13 @@
     }
 
     var MACRO_TICKERS = [
-        { id: 'OIL', symbol: 'CL=F',    label: 'OIL',  name: 'Crude Oil WTI' },
-        { id: 'VIX', symbol: '^VIX',    label: 'VIX',  name: 'Volatility Index' },
-        { id: 'TNX', symbol: '^TNX',    label: '10YR', name: '10-Yr Yield' },
-        { id: 'GLD', symbol: 'GC=F',    label: 'GOLD', name: 'Gold Futures' },
-        { id: 'BTC', symbol: 'BTC-USD', label: 'BTC',  name: 'Bitcoin' },
+        { id: 'OIL',    symbol: 'CL=F',    label: 'OIL',    name: 'Crude Oil WTI' },
+        { id: 'GLD',    symbol: 'GC=F',    label: 'GOLD',   name: 'Gold Futures' },
+        { id: 'SLV',    symbol: 'SI=F',    label: 'SILVER', name: 'Silver Futures' },
+        { id: 'CPR',    symbol: 'HG=F',    label: 'COPPER', name: 'Copper Futures' },
+        { id: 'VIX',    symbol: '^VIX',    label: 'VIX',    name: 'Volatility Index' },
+        { id: 'TNX',    symbol: '^TNX',    label: '10YR',   name: '10-Yr Yield' },
+        { id: 'BTC',    symbol: 'BTC-USD', label: 'BTC',    name: 'Bitcoin' },
     ];
 
     function marketFetchMacro() {
