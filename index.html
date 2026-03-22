@@ -4549,7 +4549,7 @@
                 var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
                 var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
-                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: t.id === 'BTC' ? 0 : 2 }) : '—';
+                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: t.id === 'BTC' ? 0 : 2, maximumFractionDigits: t.id === 'BTC' ? 0 : 2 }) : '—';
                 var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
                 var hiStr     = dayHigh != null ? dayHigh.toFixed(2) : '—';
