@@ -1252,7 +1252,7 @@
             <div id="sf-popover-content" style="padding:10px 12px;"></div>
             <div style="padding:0 12px 10px;display:flex;gap:6px;">
                 <button onclick="sfClosePopover()" style="flex:1;padding:5px;border-radius:4px;background:#1f6feb;border:none;color:#fff;font-size:0.825em;font-weight:600;cursor:pointer;font-family:inherit;">Apply</button>
-                <button onclick="sfClearPillType(sfActivePillType)" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Clear</button>
+                <button onclick="sfActivePillType&&sfClearPillType(sfActivePillType)" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Clear</button>
             </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
