@@ -943,6 +943,33 @@
         .ma-net.down  { color: #f85149; }
         .ma-crit-tag  { font-size: 10px; color: #484f58; margin-top: 4px; padding: 3px 7px; background: #0d1117; border-radius: 4px; border: 1px solid #21262d; align-self: flex-start; }
         .ma-crit-tag span { color: #58a6ff; font-weight: 600; }
+        /* ── Macro cards ── */
+        .market-macro-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1.3fr;
+            gap: 8px; padding: 0 16px 12px;
+        }
+        .market-macro-card {
+            background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+            padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 2px;
+        }
+        .market-macro-card.skeleton { min-height: 80px; animation: market-pulse 1.4s ease-in-out infinite; }
+        .market-macro-card.up   { border-left: 3px solid #3fb950; }
+        .market-macro-card.down { border-left: 3px solid #f85149; }
+        .market-macro-card.flat { border-left: 3px solid #484f58; }
+        .mm-label { font-size: 10px; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; }
+        .mm-name  { font-size: 10px; color: #6e7681; margin-bottom: 2px; }
+        .mm-price { font-size: 1.2em; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; line-height: 1.1; }
+        .mm-hl    { display: flex; gap: 10px; margin-top: 4px; }
+        .mm-hl-item { font-size: 10px; font-variant-numeric: tabular-nums; color: #6e7681; }
+        .mm-hl-item span { color: #8b949e; }
+        .mm-chg   { display: flex; gap: 6px; align-items: baseline; margin-top: 1px; }
+        .mm-chg-abs { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mm-chg-pct { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mm-chg-abs.up, .mm-chg-pct.up   { color: #3fb950; }
+        .mm-chg-abs.down, .mm-chg-pct.down { color: #f85149; }
+        .mm-chg-abs.flat, .mm-chg-pct.flat { color: #484f58; }
+
         /* ── Gainers / Losers ── */
         .market-gl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 20px; }
         .gl-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid #21262d; }
@@ -1234,6 +1261,15 @@
         <div class="market-index-card skeleton" id="mc-RUT"></div>
     </div>
 
+    <!-- Macro cards -->
+    <div class="market-macro-grid" id="market-macro-grid">
+        <div class="market-macro-card skeleton" id="mm-OIL"></div>
+        <div class="market-macro-card skeleton" id="mm-VIX"></div>
+        <div class="market-macro-card skeleton" id="mm-TNX"></div>
+        <div class="market-macro-card skeleton" id="mm-GLD"></div>
+        <div class="market-macro-card skeleton" id="mm-BTC"></div>
+    </div>
+
     <!-- Advancers / Decliners -->
     <div class="market-section-label">Breadth</div>
     <div class="market-breadth-grid">
@@ -1456,6 +1492,7 @@
             renderMarketMA();
             renderMarketMovers();
             marketFetchAll();
+            marketFetchMacro();
         }
     };
 
@@ -4453,6 +4490,7 @@
             renderMarketHL();
             renderMarketMA();
             renderMarketMovers();
+            marketFetchMacro();
             var now = new Date();
             var isOpen = wlIsMarketOpen();
             document.getElementById('market-updated').textContent =
@@ -4474,6 +4512,64 @@
 
     function marketStopTimer() {
         if (marketTimer) { clearInterval(marketTimer); marketTimer = null; }
+    }
+
+    var MACRO_TICKERS = [
+        { id: 'OIL', symbol: 'CL=F',    label: 'OIL',  name: 'Crude Oil WTI' },
+        { id: 'VIX', symbol: '^VIX',    label: 'VIX',  name: 'Volatility Index' },
+        { id: 'TNX', symbol: '^TNX',    label: '10YR', name: '10-Yr Yield' },
+        { id: 'GLD', symbol: 'GC=F',    label: 'GOLD', name: 'Gold Futures' },
+        { id: 'BTC', symbol: 'BTC-USD', label: 'BTC',  name: 'Bitcoin' },
+    ];
+
+    function marketFetchMacro() {
+        Promise.all(MACRO_TICKERS.map(function(t) {
+            return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=1d&range=2d')
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .catch(function() { return null; });
+        })).then(function(results) {
+            MACRO_TICKERS.forEach(function(t, i) {
+                var el = document.getElementById('mm-' + t.id);
+                if (!el) return;
+
+                var data   = results[i];
+                var result = data && data.chart && data.chart.result && data.chart.result[0];
+                if (!result) {
+                    el.className = 'market-macro-card flat';
+                    el.innerHTML = '<div class="mm-label">' + t.label + '</div><div class="mm-name">' + t.name + '</div><div class="mm-price">—</div>';
+                    return;
+                }
+
+                var meta      = result.meta || {};
+                var price     = meta.regularMarketPrice;
+                var prevClose = meta.previousClose || meta.chartPreviousClose;
+                var dayHigh   = meta.regularMarketDayHigh;
+                var dayLow    = meta.regularMarketDayLow;
+                var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
+                var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
+                var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
+
+                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: t.id === 'BTC' ? 0 : 2 }) : '—';
+                var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
+                var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
+                var hiStr     = dayHigh != null ? dayHigh.toFixed(2) : '—';
+                var loStr     = dayLow  != null ? dayLow.toFixed(2)  : '—';
+
+                el.className = 'market-macro-card ' + dir;
+                el.innerHTML =
+                    '<div class="mm-label">' + t.label + '</div>' +
+                    '<div class="mm-name">'  + t.name  + '</div>' +
+                    '<div class="mm-price">' + priceStr + '</div>' +
+                    '<div class="mm-chg">' +
+                        '<span class="mm-chg-abs ' + dir + '">' + chgAbsStr + '</span>' +
+                        '<span class="mm-chg-pct ' + dir + '">(' + chgPctStr + ')</span>' +
+                    '</div>' +
+                    '<div class="mm-hl">' +
+                        '<div class="mm-hl-item"><span>H </span>' + hiStr + '</div>' +
+                        '<div class="mm-hl-item"><span>L </span>' + loStr + '</div>' +
+                    '</div>';
+            });
+        });
     }
 
     function renderMarketBreadth() {
