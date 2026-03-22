@@ -943,6 +943,25 @@
         .ma-net.down  { color: #f85149; }
         .ma-crit-tag  { font-size: 10px; color: #484f58; margin-top: 4px; padding: 3px 7px; background: #0d1117; border-radius: 4px; border: 1px solid #21262d; align-self: flex-start; }
         .ma-crit-tag span { color: #58a6ff; font-weight: 600; }
+        /* ── Gainers / Losers ── */
+        .market-gl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 20px; }
+        .gl-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid #21262d; }
+        .gl-title  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+        .gl-title.up   { color: #3fb950; }
+        .gl-title.down { color: #f85149; }
+        .gl-subtitle { font-size: 10px; color: #484f58; margin-left: auto; }
+        .gl-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #21262d; transition: background 0.1s; cursor: pointer; }
+        .gl-row:last-child { border-bottom: none; }
+        .gl-row:hover { background: #1c2128; }
+        .gl-rank   { font-size: 10px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; }
+        .gl-ticker { font-size: 13px; font-weight: 700; color: #58a6ff; background: #0d1117; border: 1px solid #21262d; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; min-width: 52px; text-align: center; }
+        .gl-name   { font-size: 11px; color: #6e7681; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gl-price  { font-size: 12px; color: #8b949e; font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
+        .gl-pct    { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 58px; text-align: right; }
+        .gl-pct.up   { color: #3fb950; }
+        .gl-pct.down { color: #f85149; }
+        .gl-vol    { font-size: 11px; color: #484f58; font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 48px; text-align: right; }
+        .gl-loading { padding: 20px 14px; color: #484f58; font-size: 0.858em; }
     </style>
 </head>
 <body>
@@ -1231,6 +1250,13 @@
         <div class="market-ad-wrap" id="market-ma-50sma"></div>
         <div class="market-ad-wrap" id="market-ma-200sma"></div>
     </div>
+
+    <!-- Gainers / Losers -->
+    <div class="market-section-label">Top Movers</div>
+    <div class="market-gl-grid">
+        <div class="market-ad-wrap" id="market-gainers"></div>
+        <div class="market-ad-wrap" id="market-losers"></div>
+    </div>
 </div>
 
 <!-- Dist/MA dropdown -->
@@ -1428,6 +1454,7 @@
             renderMarketBreadth();
             renderMarketHL();
             renderMarketMA();
+            renderMarketMovers();
             marketFetchAll();
         }
     };
@@ -4425,6 +4452,7 @@
             renderMarketBreadth();
             renderMarketHL();
             renderMarketMA();
+            renderMarketMovers();
             var now = new Date();
             var isOpen = wlIsMarketOpen();
             document.getElementById('market-updated').textContent =
@@ -4600,7 +4628,7 @@
                         '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
                         '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
-                    '<div class="ma-label" style="align-self:center;text-align:center;" data-tooltip="Filtered: also above 50 SMA">' + labels[i] + '</div>' +
+                    '<div class="ma-label" style="align-self:center;text-align:center;" data-tooltip="Also above 50 SMA">' + labels[i] + '</div>' +
                     '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
                         '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:11px;">%</span></div>' +
@@ -4672,6 +4700,83 @@
                     '</div>' +
                 '</div>';
         }
+    }
+
+    function fmtVol(v) {
+        if (v == null) return '—';
+        if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
+        if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
+        return v.toFixed(0);
+    }
+
+    function renderMarketMovers() {
+        if (!snapshot || !snapshot.by_industry) return;
+
+        var gainEl = document.getElementById('market-gainers');
+        var lossEl = document.getElementById('market-losers');
+        if (!gainEl || !lossEl) return;
+
+        // Collect all stocks with a daily value
+        var all = [];
+        Object.values(snapshot.by_industry).forEach(function(rows) {
+            rows.forEach(function(r) {
+                if (r.daily != null && r.price != null) all.push(r);
+            });
+        });
+
+        all.sort(function(a, b) { return b.daily - a.daily; });
+        var gainers = all.slice(0, 5);
+        var losers  = all.slice(-5).reverse();
+        var top10   = gainers.concat(losers);
+
+        // Show skeleton rows while fetching volume
+        function skeletonHTML(title, dir) {
+            var html = '<div class="gl-header"><div class="gl-title ' + dir + '">' + title + '</div><div class="gl-subtitle">daily % change</div></div>';
+            for (var i = 0; i < 5; i++) {
+                html += '<div class="gl-row"><div class="gl-rank">' + (i+1) + '</div>' +
+                    '<div class="gl-ticker" style="color:#484f58;border-color:#21262d;">——</div>' +
+                    '<div class="gl-name" style="color:#21262d;">Loading…</div>' +
+                    '<div class="gl-price">—</div><div class="gl-pct">—</div><div class="gl-vol">—</div></div>';
+            }
+            return html;
+        }
+        gainEl.innerHTML = skeletonHTML('Top Gainers', 'up');
+        lossEl.innerHTML = skeletonHTML('Top Losers', 'down');
+
+        // Fetch today's volume for all 10
+        var volMap = {};
+        Promise.all(top10.map(function(r) {
+            return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(r.ticker) + '&interval=1d&range=1d')
+                .then(function(res) { return res.ok ? res.json() : null; })
+                .then(function(data) {
+                    var result = data && data.chart && data.chart.result && data.chart.result[0];
+                    if (!result) return;
+                    var q = result.indicators && result.indicators.quote && result.indicators.quote[0];
+                    if (q && q.volume && q.volume.length) {
+                        var v = q.volume[q.volume.length - 1];
+                        if (v != null) volMap[r.ticker] = v;
+                    }
+                }).catch(function() {});
+        })).then(function() {
+            function buildRows(stocks, dir) {
+                return stocks.map(function(r, i) {
+                    var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
+                    var vol    = volMap[r.ticker] != null ? fmtVol(volMap[r.ticker]) : '—';
+                    return '<div class="gl-row">' +
+                        '<div class="gl-rank">' + (i + 1) + '</div>' +
+                        '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
+                        '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
+                        '<div class="gl-price">$' + r.price.toFixed(2) + '</div>' +
+                        '<div class="gl-pct ' + dir + '">' + pctStr + '</div>' +
+                        '<div class="gl-vol">' + vol + '</div>' +
+                    '</div>';
+                }).join('');
+            }
+
+            gainEl.innerHTML = '<div class="gl-header"><div class="gl-title up">Top Gainers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(gainers, 'up');
+            lossEl.innerHTML = '<div class="gl-header"><div class="gl-title down">Top Losers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(losers, 'down');
+        });
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
