@@ -4513,7 +4513,7 @@
                         if (currentView !== 'market') { clearInterval(marketTimer); marketTimer = null; return; }
                         if (!wlIsMarketOpen()) { clearInterval(marketTimer); marketTimer = null; return; }
                         marketFetchAll();
-                    }, 60 * 1000);
+                    }, 5 * 60 * 1000);
                 }
             }
         });
