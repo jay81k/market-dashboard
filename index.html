@@ -3879,7 +3879,6 @@
         if (order.length) {
             order.forEach(function(name) {
                 var has      = all[name] && all[name].indexOf(ticker) !== -1;
-                var isLast   = name === last;
                 html += '<div class="wl-picker-item' + (has ? ' checked' : '') + '" data-wl-pick="' + esc(name) + '">';
                 html += '<span class="wl-picker-check">' + (has ? '✓' : '') + '</span>';
                 html += esc(name);
