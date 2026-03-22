@@ -4630,6 +4630,7 @@
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
             var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            sel.style.justifyContent = 'space-between';
             sel.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
                     '<div style="display:flex;flex-direction:column;gap:1px;">' +
@@ -4644,18 +4645,20 @@
                         '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
-                '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
-                    '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
-                    '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
-                '</div>' +
-                '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
-                    '<div style="display:flex;flex-direction:column;gap:1px;">' +
-                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
-                        '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
+                '<div>' +
+                    '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
+                        '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
+                        '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
                     '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
-                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
-                        '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
+                        '<div style="display:flex;flex-direction:column;gap:1px;">' +
+                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
+                            '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
+                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
+                            '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
+                        '</div>' +
                     '</div>' +
                 '</div>';
         }
