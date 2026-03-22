@@ -1356,6 +1356,7 @@
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
         document.getElementById('view-market').style.display          = 'none';
+        if (view !== 'market') marketStopTimer();
         if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
         if (view !== 'watchlists') {
             wlStopPricePolling();
@@ -4424,16 +4425,26 @@
             renderMarketHL();
             renderMarketMA();
             var now = new Date();
+            var isOpen = wlIsMarketOpen();
             document.getElementById('market-updated').textContent =
-                'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) +
+                (isOpen ? '' : ' · Market closed');
 
-            // Auto-refresh every minute while on market view
-            if (marketTimer) clearInterval(marketTimer);
-            marketTimer = setInterval(function() {
-                if (currentView !== 'market') { clearInterval(marketTimer); marketTimer = null; return; }
-                marketFetchAll();
-            }, 60 * 1000);
+            // Only auto-refresh during market hours — set timer once, not on every fetch
+            if (!marketTimer) {
+                if (isOpen) {
+                    marketTimer = setInterval(function() {
+                        if (currentView !== 'market') { clearInterval(marketTimer); marketTimer = null; return; }
+                        if (!wlIsMarketOpen()) { clearInterval(marketTimer); marketTimer = null; return; }
+                        marketFetchAll();
+                    }, 60 * 1000);
+                }
+            }
         });
+    }
+
+    function marketStopTimer() {
+        if (marketTimer) { clearInterval(marketTimer); marketTimer = null; }
     }
 
     function renderMarketBreadth() {
@@ -4598,29 +4609,39 @@
             if (!sel) continue;
             var ab   = splitAbove[j], bl = splitBelow[j];
             var stot = (ab + bl) || 1;
-            var pctA = Math.round(ab / stot * 100);
-            var pctB = 100 - pctA;
-            var ddir = maZoneDir(pctA);
+            var pctA = (ab / stot * 100).toFixed(1);
+            var pctB = (bl / stot * 100).toFixed(1);
+            var ddir = maZoneDir(Math.round(ab / stot * 100));
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
+            var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
             sel.innerHTML =
-                '<div class="ma-label">' + splitLabels[j] + '</div>' +
-                '<div class="ma-split-row">' +
-                    '<div class="ma-pct-big ' + ddir + '">' + pctA + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
-                    '<div class="ma-pct-div">/</div>' +
-                    '<div class="ma-pct-sm">' + pctB + '<span style="font-size:12px;">%</span></div>' +
+                '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">' +
+                    '<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-start;">' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
+                        '<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:14px;">%</span></div>' +
+                        '<div style="font-size:11px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
+                    '</div>' +
+                    '<div class="ma-label" style="align-self:center;">' + splitLabels[j] + '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;">' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
+                        '<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:14px;">%</span></div>' +
+                        '<div style="font-size:11px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
+                    '</div>' +
                 '</div>' +
-                '<div class="ma-counts-row">' +
-                    '<span class="up">' + ab.toLocaleString() + ' above</span>' +
-                    '<span class="down">' + bl.toLocaleString() + ' below</span>' +
+                '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
+                    '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
+                    '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
                 '</div>' +
-                '<div class="ma-split-bar">' +
-                    '<div class="ma-split-bar-adv ' + (ddir === 'down' ? 'flat' : ddir) + '" style="width:' + pctA + '%"></div>' +
-                    '<div class="ma-split-bar-dec"></div>' +
-                '</div>' +
-                '<div class="ma-zone-row">' +
-                    '<div class="ma-zone ' + ddir + '">' + maZoneLabel(pctA) + '</div>' +
-                    '<div class="ma-net ' + ndir + '">net ' + maFmtNet(net) + '</div>' +
+                '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;">' +
+                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
+                        '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
+                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
+                        '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
+                    '</div>' +
                 '</div>';
         }
     }
