@@ -865,6 +865,49 @@
         /* X-axis time labels */
         .mic-xaxis { display: flex; justify-content: space-between; margin-top: 4px; padding: 0 2px; }
         .mic-xaxis span { font-size: 0.682em; color: #484f58; font-variant-numeric: tabular-nums; }
+        /* ── Market breadth ── */
+        .market-section-label {
+            font-size: 0.748em; font-weight: 700; color: #484f58;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            padding: 4px 16px 8px;
+        }
+        .market-ad-wrap {
+            margin: 0 16px 20px;
+            background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+            padding: 14px 18px;
+        }
+        .market-ad-row {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+        }
+        .market-ad-row:last-child { margin-bottom: 0; }
+        .market-ad-side-adv { min-width: 110px; }
+        .market-ad-side-dec { min-width: 110px; text-align: right; }
+        .market-ad-label { font-size: 0.792em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .market-ad-label.adv { color: #3fb950; }
+        .market-ad-label.dec { color: #f85149; }
+        .market-ad-label.unch { color: #484f58; }
+        .market-ad-count { font-size: 1.12em; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .market-ad-count.adv { color: #3fb950; }
+        .market-ad-count.dec { color: #f85149; }
+        .market-ad-count.unch { color: #484f58; }
+        .market-ad-pct { font-size: 0.792em; color: #6e7681; font-variant-numeric: tabular-nums; }
+
+        /* The bar */
+        .market-ad-bar-wrap { flex: 1; display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
+        .market-ad-bar-adv  { background: #3fb950; border-radius: 4px 0 0 4px; transition: width 0.4s ease; }
+        .market-ad-bar-unch { background: #30363d; transition: width 0.4s ease; }
+        .market-ad-bar-dec  { background: #f85149; border-radius: 0 4px 4px 0; flex: 1; transition: width 0.4s ease; }
+
+        /* Ratio line */
+        .market-ad-ratio {
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid #21262d;
+            display: flex; gap: 20px;
+        }
+        .market-ad-stat { display: flex; flex-direction: column; gap: 2px; }
+        .market-ad-stat-label { font-size: 0.682em; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
+        .market-ad-stat-val   { font-size: 0.938em; font-weight: 700; font-variant-numeric: tabular-nums; color: #c8d0dc; }
+        .market-ad-stat-val.up   { color: #3fb950; }
+        .market-ad-stat-val.down { color: #f85149; }
     </style>
 </head>
 <body>
@@ -1137,6 +1180,10 @@
         <div class="market-index-card skeleton" id="mc-DJI"></div>
         <div class="market-index-card skeleton" id="mc-RUT"></div>
     </div>
+
+    <!-- Advancers / Decliners -->
+    <div class="market-section-label">Breadth</div>
+    <div class="market-ad-wrap" id="market-ad-wrap"></div>
 </div>
 
 <!-- Dist/MA dropdown -->
@@ -1330,6 +1377,7 @@
             }
         } else if (view === 'market') {
             document.getElementById('view-market').style.display = 'flex';
+            renderMarketBreadth();
             marketFetchAll();
         }
     };
@@ -4324,6 +4372,7 @@
             MARKET_INDEXES.forEach(function(idx, i) {
                 marketRenderCard(idx, results[i]);
             });
+            renderMarketBreadth();
             var now = new Date();
             document.getElementById('market-updated').textContent =
                 'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -4335,6 +4384,60 @@
                 marketFetchAll();
             }, 60 * 1000);
         });
+    }
+
+    function renderMarketBreadth() {
+        var wrap = document.getElementById('market-ad-wrap');
+        if (!wrap || !snapshot || !snapshot.by_industry) return;
+
+        var adv = 0, dec = 0, unch = 0;
+        Object.values(snapshot.by_industry).forEach(function(rows) {
+            rows.forEach(function(r) {
+                if (r.daily == null) return;
+                if (r.daily > 0)      adv++;
+                else if (r.daily < 0) dec++;
+                else                  unch++;
+            });
+        });
+
+        var total   = adv + dec + unch;
+        if (!total) { wrap.innerHTML = '<div style="color:#484f58;font-size:0.858em;">No data.</div>'; return; }
+
+        var advPct  = (adv  / total * 100).toFixed(1);
+        var decPct  = (dec  / total * 100).toFixed(1);
+        var unPct   = (unch / total * 100).toFixed(1);
+        var ratio   = dec > 0 ? (adv / dec).toFixed(2) : '—';
+        var net     = adv - dec;
+        var netCl   = net > 0 ? 'up' : net < 0 ? 'down' : '';
+        var netStr  = (net >= 0 ? '+' : '') + net;
+
+        // Bar widths — proportional, unch gets minimum visual space if > 0
+        var advW  = (adv  / total * 100).toFixed(2) + '%';
+        var decW  = (dec  / total * 100).toFixed(2) + '%';
+        var unW   = (unch / total * 100).toFixed(2) + '%';
+
+        wrap.innerHTML =
+            '<div class="market-ad-row">' +
+                '<div class="market-ad-side-adv">' +
+                    '<div class="market-ad-label adv">Advancing</div>' +
+                    '<div class="market-ad-count adv">' + adv.toLocaleString() + ' <span class="market-ad-pct">(' + advPct + '%)</span></div>' +
+                '</div>' +
+                '<div class="market-ad-bar-wrap">' +
+                    '<div class="market-ad-bar-adv"  style="width:' + advW + '"></div>' +
+                    (unch ? '<div class="market-ad-bar-unch" style="width:' + unW + '"></div>' : '') +
+                    '<div class="market-ad-bar-dec"  style="width:' + decW + '"></div>' +
+                '</div>' +
+                '<div class="market-ad-side-dec">' +
+                    '<div class="market-ad-label dec">Declining</div>' +
+                    '<div class="market-ad-count dec">' + dec.toLocaleString() + ' <span class="market-ad-pct">(' + decPct + '%)</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="market-ad-ratio">' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">A/D Ratio</span><span class="market-ad-stat-val ' + netCl + '">' + ratio + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Net</span><span class="market-ad-stat-val ' + netCl + '">' + netStr + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Unchanged</span><span class="market-ad-stat-val">' + unch + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Total</span><span class="market-ad-stat-val">' + total.toLocaleString() + '</span></div>' +
+            '</div>';
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
