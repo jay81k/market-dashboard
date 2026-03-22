@@ -4576,45 +4576,54 @@
         });
 
         var tot = total || 1;
-        // Half-gauge arc: total arc length of the semicircle path
-        var ARC = 157; // π * r where r=50 in the 120x65 viewBox
 
-        // Half-gauge cards — 5 SMA and 21 EMA
+        // Simple split cards — 5 SMA and 21 EMA (above = filtered count, below = rest)
         var ids    = ['market-ma-5sma', 'market-ma-21ema'];
-        var labels = ['Above 5 SMA', 'Above 21 EMA'];
+        var labels = ['5 SMA', '21 EMA'];
         var cnts   = [sma5, ema21];
         for (var i = 0; i < 2; i++) {
             var el = document.getElementById(ids[i]);
             if (!el) continue;
-            var pct  = Math.round(cnts[i] / tot * 100);
-            var dir  = maZoneDir(pct);
-            var clr  = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#8b949e';
-            // stroke-dashoffset: ARC = empty (0%), 0 = full (100%)
-            var offset = (ARC - (pct / 100 * ARC)).toFixed(1);
-            el.style.alignItems = 'center';
+            var ab   = cnts[i], bl = tot - cnts[i];
+            var stot = tot || 1;
+            var pctA = (ab / stot * 100).toFixed(1);
+            var pctB = (bl / stot * 100).toFixed(1);
+            var ddir = maZoneDir(Math.round(ab / stot * 100));
+            var net  = ab - bl;
+            var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
+            var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            el.style.alignItems = '';
             el.innerHTML =
-                '<div class="ma-label" style="align-self:flex-start;">' + labels[i] + '</div>' +
-                '<div style="position:relative;width:140px;height:76px;margin:4px auto 0;overflow:hidden;">' +
-                    '<svg viewBox="0 0 120 65" style="width:140px;height:76px;">' +
-                        '<path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="#21262d" stroke-width="10" stroke-linecap="round"/>' +
-                        '<path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="' + clr + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + ARC + '" stroke-dashoffset="' + offset + '"/>' +
-                    '</svg>' +
-                    '<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;">' +
-                        '<div style="font-size:22px;font-weight:700;line-height:1;color:' + clr + ';letter-spacing:-0.02em;">' + pct + '<span style="font-size:12px;">%</span></div>' +
-                        '<div style="font-size:9px;color:#484f58;margin-top:2px;font-variant-numeric:tabular-nums;">' + cnts[i].toLocaleString() + '</div>' +
-                    '</div>' +
-                '</div>' +
-                '<div style="display:flex;justify-content:space-between;width:100%;margin-top:4px;">' +
+                '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
                     '<div style="display:flex;flex-direction:column;gap:1px;">' +
-                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Total</div>' +
-                        '<div style="font-size:11px;font-weight:700;color:#8b949e;font-variant-numeric:tabular-nums;">' + tot.toLocaleString() + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
+                    '<div class="ma-label" style="align-self:center;text-align:center;">' + labels[i] + '</div>' +
                     '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
-                        '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
-                        '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + dir + '">' + maZoneLabel(pct) + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
-                '<div class="ma-crit-tag">also above <span>50 SMA</span></div>';
+                '<div>' +
+                    '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
+                        '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
+                        '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
+                    '</div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
+                        '<div style="display:flex;flex-direction:column;gap:1px;">' +
+                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
+                            '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
+                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
+                            '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ma-crit-tag" style="margin-top:8px;">also above <span>50 SMA</span></div>';
         }
 
         // Split cards — 50 SMA and 200 SMA
