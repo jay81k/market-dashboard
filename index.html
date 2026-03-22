@@ -951,21 +951,22 @@
         }
         .market-macro-card {
             background: #161b22; border: 1px solid #21262d; border-radius: 8px;
-            padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 2px;
+            padding: 12px 14px; display: flex; flex-direction: column; gap: 3px;
+            min-height: 110px;
         }
         .market-macro-card.skeleton { min-height: 80px; animation: market-pulse 1.4s ease-in-out infinite; }
         .market-macro-card.up   { border-left: 3px solid #3fb950; }
         .market-macro-card.down { border-left: 3px solid #f85149; }
         .market-macro-card.flat { border-left: 3px solid #484f58; }
-        .mm-label { font-size: 10px; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; }
-        .mm-name  { font-size: 10px; color: #6e7681; margin-bottom: 2px; }
-        .mm-price { font-size: 1.2em; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; line-height: 1.1; }
-        .mm-hl    { display: flex; gap: 10px; margin-top: 4px; }
-        .mm-hl-item { font-size: 10px; font-variant-numeric: tabular-nums; color: #6e7681; }
-        .mm-hl-item span { color: #8b949e; }
-        .mm-chg   { display: flex; gap: 6px; align-items: baseline; margin-top: 1px; }
-        .mm-chg-abs { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .mm-chg-pct { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mm-label { font-size: 11px; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; }
+        .mm-name  { font-size: 11px; color: #6e7681; }
+        .mm-price { font-size: 1.5em; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; }
+        .mm-hl    { display: flex; gap: 10px; margin-top: 5px; }
+        .mm-hl-item { font-size: 11px; font-variant-numeric: tabular-nums; color: #6e7681; }
+        .mm-hl-item span { color: #484f58; }
+        .mm-chg   { display: flex; gap: 6px; align-items: baseline; margin-top: 2px; }
+        .mm-chg-abs { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mm-chg-pct { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
         .mm-chg-abs.up, .mm-chg-pct.up   { color: #3fb950; }
         .mm-chg-abs.down, .mm-chg-pct.down { color: #f85149; }
         .mm-chg-abs.flat, .mm-chg-pct.flat { color: #484f58; }
