@@ -778,6 +778,62 @@
             font-size: 0.858em; font-family: inherit; outline: none; margin-top: 4px;
         }
         .wl-picker-input:focus { border-color: #388bfd44; }
+        /* ── Market view ── */
+        .market-toolbar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; background: #0d1117;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .market-toolbar-label { font-size: 0.748em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
+        .market-tf-group { display: flex; gap: 3px; }
+        .market-tf-btn {
+            padding: 3px 10px; border-radius: 5px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.825em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            transition: all 0.12s;
+        }
+        .market-tf-btn:hover { background: #161b22; color: #c8d0dc; }
+        .market-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+        .market-updated { font-size: 0.748em; color: #484f58; margin-left: auto; }
+
+        .market-index-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px; padding: 16px;
+        }
+        .market-index-card {
+            background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+            padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 4px;
+            transition: border-color 0.15s;
+        }
+        .market-index-card:hover { border-color: #30363d; }
+        .market-index-card.skeleton { min-height: 140px; animation: market-pulse 1.4s ease-in-out infinite; }
+        @keyframes market-pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }
+        .market-index-card.up   { border-left: 3px solid #3fb950; }
+        .market-index-card.down { border-left: 3px solid #f85149; }
+        .market-index-card.flat { border-left: 3px solid #484f58; }
+
+        .mic-label  { font-size: 0.748em; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; }
+        .mic-name   { font-size: 0.825em; color: #6e7681; margin-top: 1px; }
+        .mic-price  { font-size: 1.32em; font-weight: 700; color: #c8d0dc; margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+        .mic-change { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+        .mic-chg-abs  { font-size: 0.902em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mic-chg-pct  { font-size: 0.858em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mic-chg-abs.up, .mic-chg-pct.up   { color: #3fb950; }
+        .mic-chg-abs.down, .mic-chg-pct.down { color: #f85149; }
+        .mic-chg-abs.flat, .mic-chg-pct.flat { color: #484f58; }
+
+        .mic-sparkline { margin-top: 10px; width: 100%; height: 52px; display: block; }
+        .mic-sparkline-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .mic-sparkline-area { stroke: none; opacity: 0.12; }
+        .mic-sparkline.up   .mic-sparkline-path { stroke: #3fb950; }
+        .mic-sparkline.up   .mic-sparkline-area { fill: #3fb950; }
+        .mic-sparkline.down .mic-sparkline-path { stroke: #f85149; }
+        .mic-sparkline.down .mic-sparkline-area { fill: #f85149; }
+        .mic-sparkline.flat .mic-sparkline-path { stroke: #484f58; }
+        .mic-sparkline.flat .mic-sparkline-area { fill: #484f58; }
+
+        .mic-prev-close-line { stroke: #484f58; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -785,6 +841,7 @@
 <!-- Top nav -->
 <div class="topnav">
     <div class="nav-tabs">
+        <div class="nav-tab" id="tab-market" onclick="showView('market')">Market</div>
         <div class="nav-tab active" id="tab-industries" onclick="navToIndustries()">Industries</div>
         <div class="nav-tab" id="tab-scans" onclick="showView('scans')">Stocks</div>
         <div class="nav-tab" id="tab-watchlists" onclick="showView('watchlists')">Watchlists</div>
@@ -1030,6 +1087,27 @@
 <!-- Watchlist picker popover -->
 <div id="wl-picker" class="wl-picker" style="display:none;"></div>
 
+<!-- Market view -->
+<div id="view-market" style="display:none;flex-direction:column;height:100%;overflow-y:auto;">
+    <div class="market-toolbar">
+        <span class="market-toolbar-label">Timeframe</span>
+        <div class="market-tf-group">
+            <button class="market-tf-btn active" data-tf="1d" data-interval="5m"  onclick="setMarketTf(this)">1D</button>
+            <button class="market-tf-btn"        data-tf="5d" data-interval="30m" onclick="setMarketTf(this)">5D</button>
+            <button class="market-tf-btn"        data-tf="1mo" data-interval="1d" onclick="setMarketTf(this)">1M</button>
+            <button class="market-tf-btn"        data-tf="3mo" data-interval="1d" onclick="setMarketTf(this)">3M</button>
+            <button class="market-tf-btn"        data-tf="1y"  data-interval="1d" onclick="setMarketTf(this)">1Y</button>
+        </div>
+        <span class="market-updated" id="market-updated"></span>
+    </div>
+    <div class="market-index-grid" id="market-index-grid">
+        <div class="market-index-card skeleton" id="mc-GSPC"></div>
+        <div class="market-index-card skeleton" id="mc-IXIC"></div>
+        <div class="market-index-card skeleton" id="mc-DJI"></div>
+        <div class="market-index-card skeleton" id="mc-RUT"></div>
+    </div>
+</div>
+
 <!-- Dist/MA dropdown -->
 <div id="dist-ma-dropdown" class="dist-ma-dropdown">
     <div class="dma-row">
@@ -1153,6 +1231,7 @@
         document.getElementById('view-scans').style.display           = 'none';
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
+        document.getElementById('view-market').style.display          = 'none';
         if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
         if (view !== 'watchlists') {
             wlStopPricePolling();
@@ -1171,6 +1250,7 @@
         document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
         document.getElementById('tab-scans').classList.toggle('active', view === 'scans');
         document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
+        document.getElementById('tab-market').classList.toggle('active', view === 'market');
 
         var searchEl = document.getElementById('search-input');
         searchEl.value = '';
@@ -1183,6 +1263,8 @@
             searchEl.placeholder = 'Filter stocks…';
         } else if (view === 'watchlists') {
             searchEl.placeholder = 'Search…';
+        } else if (view === 'market') {
+            searchEl.placeholder = 'Market overview';
         }
 
         // Show/hide toolbar elements
@@ -1215,6 +1297,9 @@
                 }
                 if (autoTicker) wlSelectTicker(autoTicker);
             }
+        } else if (view === 'market') {
+            document.getElementById('view-market').style.display = 'flex';
+            marketFetchAll();
         }
     };
 
@@ -3993,6 +4078,160 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && wlPickerOpen) wlClosePicker();
     });
+
+    // ── Market Overview ───────────────────────────────────────────────────
+
+    var MARKET_INDEXES = [
+        { id: 'GSPC', symbol: '^GSPC', label: 'SPX',  name: 'S&P 500' },
+        { id: 'IXIC', symbol: '^IXIC', label: 'NAS',  name: 'Nasdaq' },
+        { id: 'DJI',  symbol: '^DJI',  label: 'DJI',  name: 'Dow Jones' },
+        { id: 'RUT',  symbol: '^RUT',  label: 'RUT',  name: 'Russell 2000' },
+    ];
+
+    var marketTf       = '1d';
+    var marketInterval = '5m';
+    var marketTimer    = null;
+
+    window.setMarketTf = function(btn) {
+        marketTf       = btn.getAttribute('data-tf');
+        marketInterval = btn.getAttribute('data-interval');
+        document.querySelectorAll('.market-tf-btn').forEach(function(b) {
+            b.classList.toggle('active', b === btn);
+        });
+        marketFetchAll();
+    };
+
+    function marketFetchOne(symbol) {
+        var url = WL_PROXY + '?symbol=' + encodeURIComponent(symbol) +
+                  '&interval=' + marketInterval + '&range=' + marketTf;
+        return fetch(url)
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .catch(function() { return null; });
+    }
+
+    function marketParseResult(data) {
+        if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return null;
+        var result    = data.chart.result[0];
+        var meta      = result.meta || {};
+        var timestamps = result.timestamp || [];
+        var closes    = (result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) || [];
+
+        // Filter out null closes, keeping index alignment
+        var points = [];
+        for (var i = 0; i < timestamps.length; i++) {
+            if (closes[i] != null) points.push(closes[i]);
+        }
+
+        return {
+            price:     meta.regularMarketPrice     || null,
+            prevClose: meta.previousClose           || meta.chartPreviousClose || null,
+            points:    points,
+        };
+    }
+
+    function marketSparklineSVG(points, direction) {
+        if (!points || points.length < 2) return '';
+        var W = 300, H = 52, pad = 2;
+        var min = Math.min.apply(null, points);
+        var max = Math.max.apply(null, points);
+        var range = max - min || 1;
+        var stepX = (W - pad * 2) / (points.length - 1);
+
+        var coords = points.map(function(v, i) {
+            var x = pad + i * stepX;
+            var y = pad + (1 - (v - min) / range) * (H - pad * 2);
+            return x.toFixed(1) + ',' + y.toFixed(1);
+        });
+
+        var pathD    = 'M' + coords.join(' L');
+        // Closed area path — drop to bottom-right then bottom-left
+        var lastX    = (pad + (points.length - 1) * stepX).toFixed(1);
+        var bottomY  = (H - pad).toFixed(1);
+        var areaD    = pathD + ' L' + lastX + ',' + bottomY + ' L' + pad + ',' + bottomY + ' Z';
+
+        // Prev-close dashed line (only meaningful for 1D)
+        var prevCloseLineY = null;
+        if (marketTf === '1d' && points.length > 1) {
+            // The first point approximates open; we draw a flat line at that level
+            var firstY = pad + (1 - (points[0] - min) / range) * (H - pad * 2);
+            prevCloseLineY = firstY.toFixed(1);
+        }
+
+        var cl = direction;
+        var pcLine = prevCloseLineY != null
+            ? '<line class="mic-prev-close-line" x1="' + pad + '" y1="' + prevCloseLineY + '" x2="' + (W - pad) + '" y2="' + prevCloseLineY + '"/>'
+            : '';
+
+        return '<svg class="mic-sparkline ' + cl + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
+            pcLine +
+            '<path class="mic-sparkline-area" d="' + areaD + '"/>' +
+            '<path class="mic-sparkline-path" d="' + pathD + '"/>' +
+            '</svg>';
+    }
+
+    function marketRenderCard(idx, parsed) {
+        var card = document.getElementById('mc-' + idx.id);
+        if (!card) return;
+
+        if (!parsed) {
+            card.className = 'market-index-card';
+            card.innerHTML = '<div class="mic-label">' + idx.label + '</div>' +
+                '<div class="mic-name">' + idx.name + '</div>' +
+                '<div class="mic-price" style="color:#484f58;">—</div>' +
+                '<div class="mic-change"><span class="mic-chg-abs flat">—</span></div>';
+            return;
+        }
+
+        var price     = parsed.price;
+        var prevClose = parsed.prevClose;
+        var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
+        var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
+        var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
+
+        var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+        var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
+        var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
+
+        card.className = 'market-index-card ' + direction;
+        card.innerHTML =
+            '<div class="mic-label">' + idx.label + '</div>' +
+            '<div class="mic-name">' + idx.name + '</div>' +
+            '<div class="mic-price">' + priceStr + '</div>' +
+            '<div class="mic-change">' +
+                '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
+                '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
+            '</div>' +
+            marketSparklineSVG(parsed.points, direction);
+    }
+
+    function marketFetchAll() {
+        // Reset to skeleton while loading
+        MARKET_INDEXES.forEach(function(idx) {
+            var card = document.getElementById('mc-' + idx.id);
+            if (card) { card.className = 'market-index-card skeleton'; card.innerHTML = ''; }
+        });
+        document.getElementById('market-updated').textContent = '';
+
+        Promise.all(MARKET_INDEXES.map(function(idx) {
+            return marketFetchOne(idx.symbol).then(function(data) {
+                return marketParseResult(data);
+            });
+        })).then(function(results) {
+            MARKET_INDEXES.forEach(function(idx, i) {
+                marketRenderCard(idx, results[i]);
+            });
+            var now = new Date();
+            document.getElementById('market-updated').textContent =
+                'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+            // Auto-refresh every minute while on market view
+            if (marketTimer) clearInterval(marketTimer);
+            marketTimer = setInterval(function() {
+                if (currentView !== 'market') { clearInterval(marketTimer); marketTimer = null; return; }
+                marketFetchAll();
+            }, 60 * 1000);
+        });
+    }
 
     // ── Load data ─────────────────────────────────────────────────────────
     Promise.all([
