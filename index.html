@@ -4842,16 +4842,16 @@
         });
 
         all.sort(function(a, b) { return b.daily - a.daily; });
-        var gainers = all.slice(0, 5);
-        var losers  = all.slice(-5).reverse();
-        var top10   = gainers.concat(losers);
+        var gainers = all.slice(0, 8);
+        var losers  = all.slice(-8).reverse();
+        var top16   = gainers.concat(losers);
 
         // Render unusual volume immediately from snapshot — no fetch needed
         var rvolEl = document.getElementById('market-rvol');
         if (rvolEl) {
             var rvolStocks = all.filter(function(r) { return r.rel_vol != null; });
             rvolStocks.sort(function(a, b) { return b.rel_vol - a.rel_vol; });
-            var topRvol = rvolStocks.slice(0, 5);
+            var topRvol = rvolStocks.slice(0, 8);
             rvolEl.innerHTML = '<div class="gl-header"><div class="gl-title" style="color:#58a6ff;">Unusual Volume</div><div class="gl-subtitle">vs 50-day avg</div></div>' +
                 topRvol.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
@@ -4882,7 +4882,7 @@
 
         // Fetch today's volume for all 10
         var volMap = {};
-        Promise.all(top10.map(function(r) {
+        Promise.all(top16.map(function(r) {
             return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(r.ticker) + '&interval=1d&range=1d')
                 .then(function(res) { return res.ok ? res.json() : null; })
                 .then(function(data) {
