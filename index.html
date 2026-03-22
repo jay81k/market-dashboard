@@ -915,6 +915,7 @@
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px; margin: 0 16px 20px;
+            align-items: start;
         }
         /* MA card internals */
         .ma-split-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
@@ -4632,7 +4633,6 @@
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
             var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
-            sel.style.justifyContent = 'space-between';
             sel.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
                     '<div style="display:flex;flex-direction:column;gap:1px;">' +
@@ -4647,7 +4647,7 @@
                         '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
-                '<div style="margin-top:auto;">' +
+                '<div>' +
                     '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
                         '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
                         '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
