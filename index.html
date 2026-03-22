@@ -2770,15 +2770,14 @@
             }
             if (cond === 'ma_cluster') {
                 var clusterMAs = [
-                    ['SMA','5'],['SMA','8'],['SMA','10'],['SMA','21'],
-                    ['SMA','50'],['SMA','150'],['SMA','200'],
-                    ['EMA','8'],['EMA','21'],['EMA','50'],
+                    ['SMA','5'],['EMA','8'],['EMA','21'],
+                    ['SMA','50'],['EMA','65'],['SMA','150'],['SMA','200'],
                 ];
-                var selectedMAs = row.clusterMAs || ['SMA50','SMA200','EMA21'];
+                var selectedMAs = row.clusterMAs || ['SMA50','EMA21','SMA200'];
                 var checks = clusterMAs.map(function(m) {
                     var key = m[0]+m[1];
                     var on  = selectedMAs.indexOf(key) !== -1;
-                    return '<span class="sf-cluster-chip' + (on ? ' on' : '') + '" data-key="' + key + '" data-id="' + id + '" onclick="sfToggleClusterMA(this)">' + m[0] + ' ' + m[1] + '</span>';
+                    return '<span class="sf-cluster-chip' + (on ? ' on' : '') + '" data-key="' + key + '" data-id="' + id + '" onclick="event.stopPropagation();sfToggleClusterMA(this)">' + m[0] + ' ' + m[1] + '</span>';
                 }).join('');
                 html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;"><span class="sf-popover-label" style="width:100%;margin-bottom:2px;">MAs</span>'+checks+'</div>';
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
@@ -2902,7 +2901,7 @@
         var key = el.getAttribute('data-key');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
-        if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21'];
+        if (!row.clusterMAs) row.clusterMAs = ['SMA50','EMA21','SMA200'];
         var idx = row.clusterMAs.indexOf(key);
         if (idx !== -1) { if (row.clusterMAs.length > 2) row.clusterMAs.splice(idx, 1); }
         else row.clusterMAs.push(key);
