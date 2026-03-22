@@ -911,6 +911,37 @@
         .market-ad-stat-val   { font-size: 0.938em; font-weight: 700; font-variant-numeric: tabular-nums; color: #c8d0dc; }
         .market-ad-stat-val.up   { color: #3fb950; }
         .market-ad-stat-val.down { color: #f85149; }
+        .market-ma-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.4fr 1.4fr;
+            gap: 12px; margin: 0 16px 20px;
+        }
+        /* MA card internals */
+        .ma-split-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+        .ma-pct-big   { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+        .ma-pct-big.up   { color: #3fb950; }
+        .ma-pct-big.down { color: #f85149; }
+        .ma-pct-big.flat { color: #8b949e; }
+        .ma-pct-sm    { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: #f85149; }
+        .ma-pct-div   { font-size: 17px; color: #30363d; }
+        .ma-counts-row { display: flex; justify-content: space-between; font-size: 11px; color: #6e7681; font-variant-numeric: tabular-nums; margin-top: 2px; }
+        .ma-counts-row .up   { color: #3fb950; }
+        .ma-counts-row .down { color: #f85149; }
+        .ma-split-bar { height: 5px; border-radius: 3px; overflow: hidden; display: flex; margin-top: 6px; }
+        .ma-split-bar-adv { height: 100%; border-radius: 3px 0 0 3px; }
+        .ma-split-bar-adv.up   { background: #3fb950; }
+        .ma-split-bar-adv.flat { background: #484f58; }
+        .ma-split-bar-dec { height: 100%; border-radius: 0 3px 3px 0; flex: 1; background: #f85149; }
+        .ma-zone-row  { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+        .ma-zone      { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .ma-zone.up   { color: #3fb950; }
+        .ma-zone.down { color: #f85149; }
+        .ma-zone.flat { color: #8b949e; }
+        .ma-net       { font-size: 10px; color: #6e7681; font-variant-numeric: tabular-nums; }
+        .ma-net.up    { color: #3fb950; }
+        .ma-net.down  { color: #f85149; }
+        .ma-crit-tag  { font-size: 10px; color: #484f58; margin-top: 4px; padding: 3px 7px; background: #0d1117; border-radius: 4px; border: 1px solid #21262d; align-self: flex-start; }
+        .ma-crit-tag span { color: #58a6ff; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -1190,6 +1221,15 @@
         <div class="market-ad-wrap" id="market-ad-wrap"></div>
         <div class="market-ad-wrap" id="market-hl-wrap"></div>
     </div>
+
+    <!-- MA Breadth -->
+    <div class="market-section-label">Stocks vs Moving Averages</div>
+    <div class="market-ma-grid" id="market-ma-grid">
+        <div class="market-ad-wrap" id="market-ma-5sma"></div>
+        <div class="market-ad-wrap" id="market-ma-21ema"></div>
+        <div class="market-ad-wrap" id="market-ma-50sma"></div>
+        <div class="market-ad-wrap" id="market-ma-200sma"></div>
+    </div>
 </div>
 
 <!-- Dist/MA dropdown -->
@@ -1385,6 +1425,7 @@
             document.getElementById('view-market').style.display = 'flex';
             renderMarketBreadth();
             renderMarketHL();
+            renderMarketMA();
             marketFetchAll();
         }
     };
@@ -4381,6 +4422,7 @@
             });
             renderMarketBreadth();
             renderMarketHL();
+            renderMarketMA();
             var now = new Date();
             document.getElementById('market-updated').textContent =
                 'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -4496,6 +4538,95 @@
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">Neither</span><span class="market-ad-stat-val">' + (total - nh - nl).toLocaleString() + '</span></div>' +
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">Total</span><span class="market-ad-stat-val">' + total.toLocaleString() + '</span></div>' +
             '</div>';
+    }
+
+    function renderMarketMA() {
+        if (!snapshot || !snapshot.by_industry) return;
+
+        var counts = { sma5: 0, ema21: 0, sma50above: 0, sma50below: 0, sma200above: 0, sma200below: 0, total: 0 };
+
+        Object.values(snapshot.by_industry).forEach(function(rows) {
+            rows.forEach(function(r) {
+                var dm = r.dist_ma;
+                if (!dm) return;
+                counts.total++;
+                var above50 = dm['SMA50'] != null && dm['SMA50'] > 0;
+                if (dm['SMA5']  != null && dm['SMA5']  > 0 && above50) counts.sma5++;
+                if (dm['EMA21'] != null && dm['EMA21'] > 0 && above50) counts.ema21++;
+                if (dm['SMA50'] != null) {
+                    if (dm['SMA50'] > 0) counts.sma50above++;
+                    else                 counts.sma50below++;
+                }
+                if (dm['SMA200'] != null) {
+                    if (dm['SMA200'] > 0) counts.sma200above++;
+                    else                  counts.sma200below++;
+                }
+            });
+        });
+
+        var total = counts.total || 1;
+
+        function zoneDir(pct) { return pct >= 60 ? 'up' : pct <= 40 ? 'down' : 'flat'; }
+        function zoneLabel(pct) { return pct >= 60 ? 'Bullish' : pct <= 40 ? 'Bearish' : 'Neutral'; }
+        function fmtNet(n) { return (n >= 0 ? '+' : '') + n.toLocaleString(); }
+
+        // ── Simple card (5 SMA & 21 EMA — filtered by above 50 SMA) ──────────
+        function renderSimpleCard(elId, label, count) {
+            var el = document.getElementById(elId);
+            if (!el) return;
+            var pct = Math.round(count / total * 100);
+            var dir = zoneDir(pct);
+            el.innerHTML =
+                '<div class="ma-label">' + label + '</div>' +
+                '<div class="ma-pct-big ' + dir + '">' + pct + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
+                '<div style="font-size:11px;color:#6e7681;font-variant-numeric:tabular-nums;">' + count.toLocaleString() + ' of ' + total.toLocaleString() + ' stocks</div>' +
+                '<div style="position:relative;margin-top:6px;">' +
+                    '<div style="position:absolute;top:-8px;left:50%;width:1px;height:14px;background:#21262d;transform:translateX(-50%);"></div>' +
+                    '<div style="height:5px;background:#21262d;border-radius:3px;overflow:hidden;">' +
+                        '<div style="height:100%;width:' + pct + '%;border-radius:3px;background:' + (dir==='up'?'#3fb950':dir==='down'?'#f85149':'#484f58') + ';"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ma-zone-row" style="margin-top:4px;">' +
+                    '<div class="ma-zone ' + dir + '">' + zoneLabel(pct) + '</div>' +
+                '</div>' +
+                '<div class="ma-crit-tag">also above <span>50 SMA</span></div>';
+        }
+
+        // ── Split card (50 SMA & 200 SMA — shows above & below) ──────────────
+        function renderSplitCard(elId, label, above, below) {
+            var el = document.getElementById(elId);
+            if (!el) return;
+            var tot   = above + below || 1;
+            var pctA  = Math.round(above / tot * 100);
+            var pctB  = 100 - pctA;
+            var dir   = zoneDir(pctA);
+            var net   = above - below;
+            var netDir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
+            el.innerHTML =
+                '<div class="ma-label">' + label + '</div>' +
+                '<div class="ma-split-row">' +
+                    '<div class="ma-pct-big ' + dir + '">' + pctA + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
+                    '<div class="ma-pct-div">/</div>' +
+                    '<div class="ma-pct-sm">' + pctB + '<span style="font-size:12px;">%</span></div>' +
+                '</div>' +
+                '<div class="ma-counts-row">' +
+                    '<span class="up">' + above.toLocaleString() + ' above</span>' +
+                    '<span class="down">' + below.toLocaleString() + ' below</span>' +
+                '</div>' +
+                '<div class="ma-split-bar">' +
+                    '<div class="ma-split-bar-adv ' + (dir==='down'?'flat':dir) + '" style="width:' + pctA + '%"></div>' +
+                    '<div class="ma-split-bar-dec"></div>' +
+                '</div>' +
+                '<div class="ma-zone-row">' +
+                    '<div class="ma-zone ' + dir + '">' + zoneLabel(pctA) + '</div>' +
+                    '<div class="ma-net ' + netDir + '">net ' + fmtNet(net) + '</div>' +
+                '</div>';
+        }
+
+        renderSimpleCard('market-ma-5sma',   'Above 5 SMA',   counts.sma5);
+        renderSimpleCard('market-ma-21ema',  'Above 21 EMA',  counts.ema21);
+        renderSplitCard ('market-ma-50sma',  '50 SMA',        counts.sma50above,  counts.sma50below);
+        renderSplitCard ('market-ma-200sma', '200 SMA',       counts.sma200above, counts.sma200below);
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
