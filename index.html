@@ -4540,93 +4540,89 @@
             '</div>';
     }
 
+    function maZoneDir(pct)   { return pct >= 60 ? 'up' : pct <= 40 ? 'down' : 'flat'; }
+    function maZoneLabel(pct) { return pct >= 60 ? 'Bullish' : pct <= 40 ? 'Bearish' : 'Neutral'; }
+    function maBarColor(dir)  { return dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58'; }
+    function maFmtNet(n)      { return (n >= 0 ? '+' : '') + n.toLocaleString(); }
+
     function renderMarketMA() {
         if (!snapshot || !snapshot.by_industry) return;
 
-        var counts = { sma5: 0, ema21: 0, sma50above: 0, sma50below: 0, sma200above: 0, sma200below: 0, total: 0 };
+        var sma5 = 0, ema21 = 0, sma50a = 0, sma50b = 0, sma200a = 0, sma200b = 0, total = 0;
 
         Object.values(snapshot.by_industry).forEach(function(rows) {
             rows.forEach(function(r) {
                 var dm = r.dist_ma;
                 if (!dm) return;
-                counts.total++;
-                var above50 = dm['SMA50'] != null && dm['SMA50'] > 0;
-                if (dm['SMA5']  != null && dm['SMA5']  > 0 && above50) counts.sma5++;
-                if (dm['EMA21'] != null && dm['EMA21'] > 0 && above50) counts.ema21++;
-                if (dm['SMA50'] != null) {
-                    if (dm['SMA50'] > 0) counts.sma50above++;
-                    else                 counts.sma50below++;
-                }
-                if (dm['SMA200'] != null) {
-                    if (dm['SMA200'] > 0) counts.sma200above++;
-                    else                  counts.sma200below++;
-                }
+                total++;
+                var above50 = dm.SMA50 != null && dm.SMA50 > 0;
+                if (dm.SMA5  != null && dm.SMA5  > 0 && above50) sma5++;
+                if (dm.EMA21 != null && dm.EMA21 > 0 && above50) ema21++;
+                if (dm.SMA50  != null) { if (dm.SMA50  > 0) sma50a++;  else sma50b++;  }
+                if (dm.SMA200 != null) { if (dm.SMA200 > 0) sma200a++; else sma200b++; }
             });
         });
 
-        var total = counts.total || 1;
+        var tot = total || 1;
 
-        function zoneDir(pct) { return pct >= 60 ? 'up' : pct <= 40 ? 'down' : 'flat'; }
-        function zoneLabel(pct) { return pct >= 60 ? 'Bullish' : pct <= 40 ? 'Bearish' : 'Neutral'; }
-        function fmtNet(n) { return (n >= 0 ? '+' : '') + n.toLocaleString(); }
-
-        // ── Simple card (5 SMA & 21 EMA — filtered by above 50 SMA) ──────────
-        function renderSimpleCard(elId, label, count) {
-            var el = document.getElementById(elId);
-            if (!el) return;
-            var pct = Math.round(count / total * 100);
-            var dir = zoneDir(pct);
+        // Simple card — 5 SMA and 21 EMA
+        var ids   = ['market-ma-5sma', 'market-ma-21ema'];
+        var labels = ['Above 5 SMA', 'Above 21 EMA'];
+        var cnts   = [sma5, ema21];
+        for (var i = 0; i < 2; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el) continue;
+            var pct = Math.round(cnts[i] / tot * 100);
+            var dir = maZoneDir(pct);
             el.innerHTML =
-                '<div class="ma-label">' + label + '</div>' +
+                '<div class="ma-label">' + labels[i] + '</div>' +
                 '<div class="ma-pct-big ' + dir + '">' + pct + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
-                '<div style="font-size:11px;color:#6e7681;font-variant-numeric:tabular-nums;">' + count.toLocaleString() + ' of ' + total.toLocaleString() + ' stocks</div>' +
+                '<div style="font-size:11px;color:#6e7681;font-variant-numeric:tabular-nums;">' + cnts[i].toLocaleString() + ' of ' + tot.toLocaleString() + ' stocks</div>' +
                 '<div style="position:relative;margin-top:6px;">' +
                     '<div style="position:absolute;top:-8px;left:50%;width:1px;height:14px;background:#21262d;transform:translateX(-50%);"></div>' +
                     '<div style="height:5px;background:#21262d;border-radius:3px;overflow:hidden;">' +
-                        '<div style="height:100%;width:' + pct + '%;border-radius:3px;background:' + (dir==='up'?'#3fb950':dir==='down'?'#f85149':'#484f58') + ';"></div>' +
+                        '<div style="height:100%;width:' + pct + '%;border-radius:3px;background:' + maBarColor(dir) + ';"></div>' +
                     '</div>' +
                 '</div>' +
-                '<div class="ma-zone-row" style="margin-top:4px;">' +
-                    '<div class="ma-zone ' + dir + '">' + zoneLabel(pct) + '</div>' +
-                '</div>' +
+                '<div class="ma-zone-row" style="margin-top:4px;"><div class="ma-zone ' + dir + '">' + maZoneLabel(pct) + '</div></div>' +
                 '<div class="ma-crit-tag">also above <span>50 SMA</span></div>';
         }
 
-        // ── Split card (50 SMA & 200 SMA — shows above & below) ──────────────
-        function renderSplitCard(elId, label, above, below) {
-            var el = document.getElementById(elId);
-            if (!el) return;
-            var tot   = above + below || 1;
-            var pctA  = Math.round(above / tot * 100);
-            var pctB  = 100 - pctA;
-            var dir   = zoneDir(pctA);
-            var net   = above - below;
-            var netDir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
-            el.innerHTML =
-                '<div class="ma-label">' + label + '</div>' +
+        // Split cards — 50 SMA and 200 SMA
+        var splitIds    = ['market-ma-50sma',  'market-ma-200sma'];
+        var splitLabels = ['50 SMA',           '200 SMA'];
+        var splitAbove  = [sma50a,              sma200a];
+        var splitBelow  = [sma50b,              sma200b];
+        for (var j = 0; j < 2; j++) {
+            var sel = document.getElementById(splitIds[j]);
+            if (!sel) continue;
+            var ab   = splitAbove[j], bl = splitBelow[j];
+            var stot = (ab + bl) || 1;
+            var pctA = Math.round(ab / stot * 100);
+            var pctB = 100 - pctA;
+            var ddir = maZoneDir(pctA);
+            var net  = ab - bl;
+            var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
+            sel.innerHTML =
+                '<div class="ma-label">' + splitLabels[j] + '</div>' +
                 '<div class="ma-split-row">' +
-                    '<div class="ma-pct-big ' + dir + '">' + pctA + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
+                    '<div class="ma-pct-big ' + ddir + '">' + pctA + '<span style="font-size:16px;color:#6e7681">%</span></div>' +
                     '<div class="ma-pct-div">/</div>' +
                     '<div class="ma-pct-sm">' + pctB + '<span style="font-size:12px;">%</span></div>' +
                 '</div>' +
                 '<div class="ma-counts-row">' +
-                    '<span class="up">' + above.toLocaleString() + ' above</span>' +
-                    '<span class="down">' + below.toLocaleString() + ' below</span>' +
+                    '<span class="up">' + ab.toLocaleString() + ' above</span>' +
+                    '<span class="down">' + bl.toLocaleString() + ' below</span>' +
                 '</div>' +
                 '<div class="ma-split-bar">' +
-                    '<div class="ma-split-bar-adv ' + (dir==='down'?'flat':dir) + '" style="width:' + pctA + '%"></div>' +
+                    '<div class="ma-split-bar-adv ' + (ddir === 'down' ? 'flat' : ddir) + '" style="width:' + pctA + '%"></div>' +
                     '<div class="ma-split-bar-dec"></div>' +
                 '</div>' +
                 '<div class="ma-zone-row">' +
-                    '<div class="ma-zone ' + dir + '">' + zoneLabel(pctA) + '</div>' +
-                    '<div class="ma-net ' + netDir + '">net ' + fmtNet(net) + '</div>' +
+                    '<div class="ma-zone ' + ddir + '">' + maZoneLabel(pctA) + '</div>' +
+                    '<div class="ma-net ' + ndir + '">net ' + maFmtNet(net) + '</div>' +
                 '</div>';
         }
-
-        renderSimpleCard('market-ma-5sma',   'Above 5 SMA',   counts.sma5);
-        renderSimpleCard('market-ma-21ema',  'Above 21 EMA',  counts.ema21);
-        renderSplitCard ('market-ma-50sma',  '50 SMA',        counts.sma50above,  counts.sma50below);
-        renderSplitCard ('market-ma-200sma', '200 SMA',       counts.sma200above, counts.sma200below);
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
