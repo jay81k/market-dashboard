@@ -971,7 +971,7 @@
         .mm-chg-abs.flat, .mm-chg-pct.flat { color: #484f58; }
 
         /* ── Gainers / Losers ── */
-        .market-gl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 20px; }
+        .market-gl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 16px 20px; }
         .gl-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid #21262d; }
         .gl-title  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
         .gl-title.up   { color: #3fb950; }
@@ -1288,11 +1288,12 @@
         <div class="market-ad-wrap" id="market-ma-200sma"></div>
     </div>
 
-    <!-- Gainers / Losers -->
+    <!-- Gainers / Losers / Unusual Volume -->
     <div class="market-section-label">Top Movers</div>
     <div class="market-gl-grid">
         <div class="market-ad-wrap" id="market-gainers"></div>
         <div class="market-ad-wrap" id="market-losers"></div>
+        <div class="market-ad-wrap" id="market-rvol"></div>
     </div>
 </div>
 
@@ -4829,6 +4830,26 @@
         var gainers = all.slice(0, 5);
         var losers  = all.slice(-5).reverse();
         var top10   = gainers.concat(losers);
+
+        // Render unusual volume immediately from snapshot — no fetch needed
+        var rvolEl = document.getElementById('market-rvol');
+        if (rvolEl) {
+            var rvolStocks = all.filter(function(r) { return r.rel_vol != null; });
+            rvolStocks.sort(function(a, b) { return b.rel_vol - a.rel_vol; });
+            var topRvol = rvolStocks.slice(0, 5);
+            rvolEl.innerHTML = '<div class="gl-header"><div class="gl-title" style="color:#58a6ff;">Unusual Volume</div><div class="gl-subtitle">vs 50-day avg</div></div>' +
+                topRvol.map(function(r, i) {
+                    var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
+                    var dirCl  = r.daily > 0 ? 'up' : r.daily < 0 ? 'down' : '';
+                    return '<div class="gl-row">' +
+                        '<div class="gl-rank">' + (i + 1) + '</div>' +
+                        '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
+                        '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
+                        '<div class="gl-pct ' + dirCl + '">' + pctStr + '</div>' +
+                        '<div class="gl-vol" style="color:#58a6ff;font-weight:700;">' + r.rel_vol.toFixed(1) + 'x</div>' +
+                    '</div>';
+                }).join('');
+        }
 
         // Show skeleton rows while fetching volume
         function skeletonHTML(title, dir) {
