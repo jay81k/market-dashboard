@@ -913,7 +913,7 @@
         .market-ad-stat-val.down { color: #f85149; }
         .market-ma-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1.4fr 1.4fr;
+            grid-template-columns: 0.7fr 0.7fr 1.4fr 1.4fr;
             gap: 12px; margin: 0 16px 20px;
         }
         /* MA card internals */
@@ -4591,14 +4591,14 @@
             el.style.alignItems = 'center';
             el.innerHTML =
                 '<div class="ma-label" style="align-self:flex-start;">' + labels[i] + '</div>' +
-                '<div style="position:relative;width:110px;height:110px;">' +
-                    '<svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg);">' +
+                '<div style="position:relative;width:90px;height:90px;">' +
+                    '<svg width="90" height="90" viewBox="0 0 110 110" style="transform:rotate(-90deg);">' +
                         '<circle cx="55" cy="55" r="42" fill="none" stroke="#21262d" stroke-width="10"/>' +
                         '<circle cx="55" cy="55" r="42" fill="none" stroke="' + clr + '" stroke-width="10" stroke-dasharray="' + dash + '" stroke-linecap="round"/>' +
                     '</svg>' +
                     '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
-                        '<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:' + clr + ';">' + pct + '<span style="font-size:13px;">%</span></div>' +
-                        '<div style="font-size:10px;color:#484f58;margin-top:2px;font-variant-numeric:tabular-nums;">' + cnts[i].toLocaleString() + '</div>' +
+                        '<div style="font-size:19px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:' + clr + ';">' + pct + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:9px;color:#484f58;margin-top:2px;font-variant-numeric:tabular-nums;">' + cnts[i].toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div style="display:flex;justify-content:space-between;width:100%;margin-top:2px;">' +
@@ -4631,17 +4631,17 @@
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
             var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
             sel.innerHTML =
-                '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">' +
-                    '<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-start;">' +
+                '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-start;">' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
-                        '<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:14px;">%</span></div>' +
-                        '<div style="font-size:11px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:12px;">%</span></div>' +
+                        '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
                     '<div class="ma-label" style="align-self:center;">' + splitLabels[j] + '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
-                        '<div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:14px;">%</span></div>' +
-                        '<div style="font-size:11px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:12px;">%</span></div>' +
+                        '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
