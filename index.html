@@ -871,8 +871,11 @@
             text-transform: uppercase; letter-spacing: 0.08em;
             padding: 4px 16px 8px;
         }
+        .market-breadth-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin: 0 16px 20px;
+        }
         .market-ad-wrap {
-            margin: 0 16px 20px;
             background: #161b22; border: 1px solid #21262d; border-radius: 8px;
             padding: 14px 18px;
         }
@@ -1183,7 +1186,10 @@
 
     <!-- Advancers / Decliners -->
     <div class="market-section-label">Breadth</div>
-    <div class="market-ad-wrap" id="market-ad-wrap"></div>
+    <div class="market-breadth-grid">
+        <div class="market-ad-wrap" id="market-ad-wrap"></div>
+        <div class="market-ad-wrap" id="market-hl-wrap"></div>
+    </div>
 </div>
 
 <!-- Dist/MA dropdown -->
@@ -1378,6 +1384,7 @@
         } else if (view === 'market') {
             document.getElementById('view-market').style.display = 'flex';
             renderMarketBreadth();
+            renderMarketHL();
             marketFetchAll();
         }
     };
@@ -4373,6 +4380,7 @@
                 marketRenderCard(idx, results[i]);
             });
             renderMarketBreadth();
+            renderMarketHL();
             var now = new Date();
             document.getElementById('market-updated').textContent =
                 'Updated ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -4436,6 +4444,56 @@
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">A/D Ratio</span><span class="market-ad-stat-val ' + netCl + '">' + ratio + '</span></div>' +
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">Net</span><span class="market-ad-stat-val ' + netCl + '">' + netStr + '</span></div>' +
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">Unchanged</span><span class="market-ad-stat-val">' + unch + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Total</span><span class="market-ad-stat-val">' + total.toLocaleString() + '</span></div>' +
+            '</div>';
+    }
+
+    function renderMarketHL() {
+        var wrap = document.getElementById('market-hl-wrap');
+        if (!wrap || !snapshot || !snapshot.by_industry) return;
+
+        var nh = 0, nl = 0, total = 0;
+        Object.values(snapshot.by_industry).forEach(function(rows) {
+            rows.forEach(function(r) {
+                total++;
+                if (r.new_52wk_high === true) nh++;
+                if (r.new_52wk_low  === true) nl++;
+            });
+        });
+
+        if (!total) { wrap.innerHTML = '<div style="color:#484f58;font-size:0.858em;">No data.</div>'; return; }
+
+        var nhPct  = (nh / total * 100).toFixed(1);
+        var nlPct  = (nl / total * 100).toFixed(1);
+        var net    = nh - nl;
+        var netCl  = net > 0 ? 'up' : net < 0 ? 'down' : '';
+        var netStr = (net >= 0 ? '+' : '') + net;
+        var ratio  = nl > 0 ? (nh / nl).toFixed(2) : nh > 0 ? '∞' : '—';
+
+        // Bar: NH green on left, rest grey, NL red on right
+        var nhW = (nh / total * 100).toFixed(2) + '%';
+        var nlW = (nl / total * 100).toFixed(2) + '%';
+
+        wrap.innerHTML =
+            '<div class="market-ad-row">' +
+                '<div class="market-ad-side-adv">' +
+                    '<div class="market-ad-label adv">New Highs</div>' +
+                    '<div class="market-ad-count adv">' + nh.toLocaleString() + ' <span class="market-ad-pct">(' + nhPct + '%)</span></div>' +
+                '</div>' +
+                '<div class="market-ad-bar-wrap">' +
+                    '<div class="market-ad-bar-adv" style="width:' + nhW + '"></div>' +
+                    '<div class="market-ad-bar-unch" style="flex:1"></div>' +
+                    '<div class="market-ad-bar-dec" style="width:' + nlW + '"></div>' +
+                '</div>' +
+                '<div class="market-ad-side-dec">' +
+                    '<div class="market-ad-label dec">New Lows</div>' +
+                    '<div class="market-ad-count dec">' + nl.toLocaleString() + ' <span class="market-ad-pct">(' + nlPct + '%)</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="market-ad-ratio">' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">H/L Ratio</span><span class="market-ad-stat-val ' + netCl + '">' + ratio + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Net</span><span class="market-ad-stat-val ' + netCl + '">' + netStr + '</span></div>' +
+                '<div class="market-ad-stat"><span class="market-ad-stat-label">Neither</span><span class="market-ad-stat-val">' + (total - nh - nl).toLocaleString() + '</span></div>' +
                 '<div class="market-ad-stat"><span class="market-ad-stat-label">Total</span><span class="market-ad-stat-val">' + total.toLocaleString() + '</span></div>' +
             '</div>';
     }
