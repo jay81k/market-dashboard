@@ -977,13 +977,13 @@
         .analytics-sub   { font-size: 11px; color: #484f58; }
 
         /* Sector perf */
-        .sp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .sp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
         .sp-row:last-child { margin-bottom: 0; }
-        .sp-name { font-size: 11px; color: #8b949e; width: 152px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sp-bar-wrap { flex: 1; height: 8px; background: #21262d; border-radius: 3px; overflow: visible; position: relative; }
+        .sp-name { font-size: 12px; color: #8b949e; width: 152px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sp-bar-wrap { flex: 1; height: 10px; background: #21262d; border-radius: 3px; overflow: visible; position: relative; }
         .sp-bar { height: 100%; border-radius: 3px; position: absolute; }
-        .sp-center { position: absolute; left: 50%; top: -4px; width: 1px; height: 16px; background: #30363d; }
-        .sp-pct { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; width: 54px; text-align: right; flex-shrink: 0; }
+        .sp-center { position: absolute; left: 50%; top: -4px; width: 1px; height: 18px; background: #30363d; }
+        .sp-pct { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; width: 54px; text-align: right; flex-shrink: 0; }
 
         /* Industry breadth */
         .ib-top { display: flex; gap: 0; margin-bottom: 10px; }
@@ -5106,7 +5106,7 @@
         var el = document.getElementById('market-rs-dist');
         if (!el || !snapshot || !snapshot.by_industry) return;
 
-        var buckets = [0,0,0,0,0,0,0,0,0,0]; // 0-10, 10-20, ... 90-100
+        var buckets = [0,0,0,0,0,0,0,0,0,0];
         var all = [], total = 0;
 
         Object.values(snapshot.by_industry).forEach(function(rows) {
@@ -5126,35 +5126,67 @@
             median = Math.round(all[Math.floor(all.length/2)]);
             avg    = Math.round(all.reduce(function(s,v){return s+v;},0) / all.length);
         }
-        var above80 = buckets[8] + buckets[9];
-        var below20 = buckets[0] + buckets[1];
-        var skew    = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
+        var above80  = buckets[8] + buckets[9];
+        var below20  = buckets[0] + buckets[1];
+        var skew     = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
         var skewLabel = skew === 'top' ? 'Top Heavy' : skew === 'bot' ? 'Bot Heavy' : 'Balanced';
+        var COLORS   = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
+        var XLABELS  = ['0','10','20','30','40','50','60','70','80','90'];
 
-        var COLORS = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
-        var LABELS = ['0–10','10–20','20–30','30–40','40–50','50–60','60–70','70–80','80–90','90–100'];
+        // Y-axis: pick 4 nice ticks up to maxBucket
+        var yMax  = Math.ceil(maxBucket / 100) * 100 || 100;
+        var yStep = yMax / 4;
+        var yTicks = [yMax, yMax*0.75, yMax*0.5, yMax*0.25, 0];
 
-        var rows = '';
-        for (var i = 9; i >= 0; i--) {
-            var w = (buckets[i] / maxBucket * 100).toFixed(1);
-            var p = total ? (buckets[i] / total * 100).toFixed(0) : 0;
-            rows += '<div class="rs-dist-row">' +
-                '<div class="rs-dist-label">' + LABELS[i] + '</div>' +
-                '<div class="rs-dist-bar-wrap"><div class="rs-dist-bar" style="width:' + w + '%;background:' + COLORS[i] + ';"></div></div>' +
-                '<div class="rs-dist-count">' + buckets[i] + '</div>' +
-                '<div class="rs-dist-pct">' + p + '%</div>' +
-            '</div>';
+        // Build SVG histogram
+        var W = 400, H = 160, padL = 36, padB = 22, padT = 8, padR = 4;
+        var chartW = W - padL - padR;
+        var chartH = H - padB - padT;
+        var barW   = chartW / 10;
+
+        var barsHtml = '';
+        for (var i = 0; i < 10; i++) {
+            var bh   = (buckets[i] / yMax) * chartH;
+            var bx   = padL + i * barW;
+            var by   = padT + chartH - bh;
+            barsHtml += '<rect x="' + (bx+2) + '" y="' + by + '" width="' + (barW-4) + '" height="' + bh + '" fill="' + COLORS[i] + '" rx="2"/>';
         }
 
+        // Y grid lines + labels
+        var gridHtml = '';
+        yTicks.forEach(function(v) {
+            var y = padT + chartH - (v / yMax) * chartH;
+            gridHtml += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="#21262d" stroke-width="1"/>';
+            gridHtml += '<text x="' + (padL-4) + '" y="' + (y+3.5) + '" fill="#484f58" font-size="9" text-anchor="end" font-family="inherit">' + v + '</text>';
+        });
+
+        // X labels
+        var xlHtml = '';
+        for (var j = 0; j < 10; j++) {
+            var lx = padL + j * barW + barW / 2;
+            xlHtml += '<text x="' + lx + '" y="' + (H-4) + '" fill="#484f58" font-size="9" text-anchor="middle" font-family="inherit">' + XLABELS[j] + '</text>';
+        }
+
+        var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block;margin-top:8px;" xmlns="http://www.w3.org/2000/svg">' +
+            gridHtml + barsHtml + xlHtml + '</svg>';
+
+        // Legend
+        var legend =
+            '<div style="display:flex;gap:12px;margin-top:6px;">' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#3fb950;flex-shrink:0;"></div>RS ≥ 60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#484f58;flex-shrink:0;"></div>RS 40–60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#f85149;flex-shrink:0;"></div>RS ≤ 40</div>' +
+            '</div>';
+
         el.innerHTML =
-            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;">' +
                 '<div class="analytics-title">RS Distribution</div>' +
                 '<div class="analytics-sub">' + total.toLocaleString() + ' stocks</div>' +
             '</div>' +
-            rows +
+            svg + legend +
             '<div class="rs-footer">' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">Median</div><div class="rs-foot-val">' + median + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Average</div><div class="rs-foot-val">' + avg + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Avg</div><div class="rs-foot-val">' + avg + '</div></div>' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">Above 80</div><div class="rs-foot-val up">' + above80 + '</div></div>' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">Below 20</div><div class="rs-foot-val down">' + below20 + '</div></div>' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">Skew</div><div class="rs-skew-pill ' + skew + '">' + skewLabel + '</div></div>' +
