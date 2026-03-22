@@ -1218,7 +1218,6 @@
 <!-- Market view -->
 <div id="view-market" style="display:none;flex-direction:column;height:100%;overflow-y:auto;">
     <div class="market-toolbar">
-        <span class="market-toolbar-label">Timeframe</span>
         <div class="market-tf-group">
             <button class="market-tf-btn active" data-tf="1d" data-interval="5m"  onclick="setMarketTf(this)">1D</button>
             <button class="market-tf-btn"        data-tf="5d" data-interval="30m" onclick="setMarketTf(this)">5D</button>
@@ -1404,7 +1403,7 @@
         document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
         document.getElementById('tab-market').classList.toggle('active', view === 'market');
 
-        var searchEl = document.getElementById('search-input');
+        document.getElementById('search-input').style.display = (view === 'market') ? 'none' : '';
         searchEl.value = '';
         searchQuery = '';
         if (view === 'industries') {
