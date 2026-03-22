@@ -428,20 +428,25 @@
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
         .sf-pill {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: #1a3a5c33; border: 1px solid #2979c855;
-            border-radius: 5px; padding: 3px 8px 3px 10px;
-            font-size: 0.792em; color: #58a6ff; cursor: pointer;
-            white-space: nowrap; flex-shrink: 0; user-select: none;
-            transition: background 0.1s, border-color 0.1s;
+            display: inline-flex; align-items: center; gap: 0;
+            border-radius: 5px; border: 1px solid #21262d;
+            background: #161b22; font-size: 0.825em; font-weight: 600;
+            cursor: pointer; white-space: nowrap; flex-shrink: 0;
+            user-select: none; overflow: hidden; height: 26px;
+            transition: border-color 0.12s;
         }
-        .sf-pill:hover { background: #1a3a5c55; border-color: #2979c8aa; }
-        .sf-pill-x {
-            background: transparent; border: none; color: #484f58;
-            cursor: pointer; font-size: 1em; padding: 0; line-height: 1;
-            flex-shrink: 0; font-family: inherit;
-        }
-        .sf-pill-x:hover { color: #f85149; }
+        .sf-pill:hover { border-color: #30363d; }
+        .sf-pill.active { border-color: #2979c8; background: #1a3a5c22; }
+        .sf-pill.open   { border-color: #388bfd; background: #1a3a5c33; }
+        .sf-pill-name { padding: 0 8px; color: #6e7681; height: 100%; display: flex; align-items: center; }
+        .sf-pill.active .sf-pill-name, .sf-pill.open .sf-pill-name { color: #c8d0dc; }
+        .sf-pill-val  { padding: 0 6px 0 0; color: #58a6ff; font-weight: 700; }
+        .sf-pill-caret { font-size: 8px; color: #484f58; padding: 0 6px; border-left: 1px solid #21262d; height: 100%; display: flex; align-items: center; }
+        .sf-pill.active .sf-pill-caret, .sf-pill.open .sf-pill-caret { color: #58a6ff; border-left-color: #2979c844; }
+        .sf-pill-x { padding: 0 7px; color: #484f58; border-left: 1px solid #21262d; font-size: 10px; height: 100%; display: flex; align-items: center; background: none; border-top: none; border-bottom: none; border-right: none; cursor: pointer; font-family: inherit; }
+        .sf-pill-x:hover { color: #f85149; background: #2a1215; }
+        .sf-pill-add { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 5px; border: 1px dashed #30363d; background: transparent; color: #484f58; font-size: 0.825em; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .sf-pill-add:hover { border-color: #58a6ff44; color: #6e7681; }
         .sf-add-btn {
             padding: 3px 10px; border-radius: 4px; border: 1px dashed #30363d;
             background: transparent; color: #484f58; font-size: 0.748em;
@@ -1219,10 +1224,11 @@
         </div>
         <!-- Filter bar -->
         <div class="scans-filter-bar" id="scans-filter-bar">
-            <div id="sf-pills-container" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0;"></div>
-            <button class="sf-add-btn" onclick="sfAddRow()">+ Add Filter</button>
-            <button class="sf-preset-btn save" onclick="sfOpenSaveModal()">Save</button>
-            <button class="sf-preset-btn" id="sf-load-btn" onclick="sfTogglePresets(this)">Presets ▾</button>
+            <div id="sf-pill-bar" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:1;min-width:0;"></div>
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+                <button class="sf-preset-btn save" onclick="sfOpenSaveModal()">Save</button>
+                <button class="sf-preset-btn" id="sf-load-btn" onclick="sfTogglePresets(this)">Presets ▾</button>
+            </div>
         </div>
         <!-- Preset dropdown -->
         <div id="sf-preset-dropdown" class="sf-preset-dropdown"></div>
@@ -1237,11 +1243,16 @@
                 </div>
             </div>
         </div>
-        <!-- Filter edit popover (shared) -->
-        <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:12px 14px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
-            <div id="sf-popover-content"></div>
-            <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:6px;">
-                <button class="sf-add-btn" style="border-style:solid;color:#6e7681;" onclick="sfClosePopover()">Done</button>
+        <!-- Filter dropdown -->
+        <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:0;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px;border-bottom:1px solid #21262d;">
+                <span id="sf-popover-title" style="font-size:0.825em;font-weight:700;color:#c8d0dc;"></span>
+                <button onclick="sfClosePopover()" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>
+            </div>
+            <div id="sf-popover-content" style="padding:10px 12px;"></div>
+            <div style="padding:0 12px 10px;display:flex;gap:6px;">
+                <button onclick="sfClosePopover()" style="flex:1;padding:5px;border-radius:4px;background:#1f6feb;border:none;color:#fff;font-size:0.825em;font-weight:600;cursor:pointer;font-family:inherit;">Apply</button>
+                <button onclick="sfClearPillType(sfActivePillType)" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Clear</button>
             </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -2590,6 +2601,7 @@
     // ── Scan filters (dynamic rows) ───────────────────────────────────────
     var sfRows  = [];   // array of filter rule objects
     var sfRowId = 0;
+    var sfActivePillType = null;
 
     var SF_TYPES = [
         { value: 'ma',    label: 'Moving Average' },
@@ -2647,15 +2659,56 @@
         return typeLabel + ' ' + dirLabel + valLabel;
     }
 
+    // Map type → current active row (if any)
+    function sfRowForType(type) {
+        return sfRows.find(function(r){ return r.type === type; }) || null;
+    }
+
+    function sfPillValueLabel(row) {
+        if (!row) return '';
+        return sfPillLabel(row);
+    }
+
     function sfRenderPills() {
-        var container = document.getElementById('sf-pills-container');
-        if (!container) return;
-        container.innerHTML = sfRows.map(function(row) {
-            return '<span class="sf-pill" onclick="sfOpenPopover(' + row.id + ',this)">' +
-                esc(sfPillLabel(row)) +
-                '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">\u00d7</button>' +
-                '</span>';
+        var bar = document.getElementById('sf-pill-bar');
+        if (!bar) return;
+
+        var PILL_TYPES = [
+            { type: 'rs',      label: 'RS' },
+            { type: 'price',   label: 'Price' },
+            { type: 'vol',     label: 'Avg Vol' },
+            { type: 'adr',     label: 'ADR%' },
+            { type: 'cr',      label: 'CR%' },
+            { type: 'mcap',    label: 'Mkt Cap' },
+            { type: 'rvol',    label: 'Rel. Vol' },
+            { type: 'pattern', label: 'Pattern' },
+            { type: 'ma',      label: 'MA' },
+        ];
+
+        var html = PILL_TYPES.map(function(pt) {
+            var row   = sfRowForType(pt.type);
+            var isOpen   = sfActivePillType === pt.type;
+            var isActive = !!row;
+            var cls   = 'sf-pill' + (isActive ? ' active' : '') + (isOpen ? ' open' : '');
+            var val   = isActive ? sfPillValueLabel(row) : '';
+            var valHtml = isActive
+                ? '<span class="sf-pill-val">' + esc(val.replace(pt.label + ' ', '').replace(pt.label, '').trim()) + '</span>'
+                : '';
+            var xBtn = isActive
+                ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfClearPillType(\'' + pt.type + '\')">✕</button>'
+                : '';
+            return '<div class="' + cls + '" onclick="sfTogglePill(\'' + pt.type + '\',this)">' +
+                '<span class="sf-pill-name">' + pt.label + '</span>' +
+                valHtml +
+                '<span class="sf-pill-caret">' + (isOpen ? '▴' : '▾') + '</span>' +
+                xBtn +
+            '</div>';
         }).join('');
+
+        // + Filter button for extra custom filters
+        html += '<button class="sf-pill-add" onclick="sfAddRow()">+ Filter</button>';
+
+        bar.innerHTML = html;
     }
 
     function sfPopoverHtml(row) {
@@ -2729,12 +2782,67 @@
         return html;
     }
 
+    window.sfTogglePill = function(type, pillEl) {
+        if (sfActivePillType === type) {
+            sfClosePopover();
+            return;
+        }
+        sfActivePillType = type;
+
+        // Ensure a row exists for this type
+        var row = sfRowForType(type);
+        if (!row) {
+            sfRowId++;
+            var defaults = { id: sfRowId, type: type, dir: 'gt',
+                maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
+                maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
+                val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
+                     type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
+                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0 };
+            sfRows.push(defaults);
+            row = defaults;
+        }
+
+        var TITLES = { rs: 'RS Percentile', price: 'Price', vol: 'Avg Volume',
+                       adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
+                       rvol: 'Relative Volume', pattern: 'Pattern', ma: 'Moving Average' };
+        document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
+
+        // Build content — strip the Type selector row, show only relevant controls
+        var content = sfPopoverHtml(row);
+        // Remove the Type selector row (first sf-popover-row) since type is fixed per pill
+        content = content.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+        document.getElementById('sf-popover-content').innerHTML = content;
+
+        var pop  = document.getElementById('sf-popover');
+        var rect = pillEl.getBoundingClientRect();
+        var top  = rect.bottom + 4;
+        var left = Math.min(rect.left, window.innerWidth - 260);
+        if (top + 260 > window.innerHeight) top = rect.top - 270;
+        pop.style.top  = top + 'px';
+        pop.style.left = left + 'px';
+        pop.style.display = 'block';
+
+        sfRenderPills();
+    };
+
+    window.sfClearPillType = function(type) {
+        sfRows = sfRows.filter(function(r){ return r.type !== type; });
+        if (sfActivePillType === type) {
+            document.getElementById('sf-popover').style.display = 'none';
+            sfActivePillType = null;
+        }
+        sfRenderPills();
+        renderScans();
+    };
+
     var sfActivePopoverId = null;
     window.sfOpenPopover = function(id, pillEl) {
         sfActivePopoverId = id;
         var pop = document.getElementById('sf-popover');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
+        document.getElementById('sf-popover-title').textContent = row.type;
         document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
         var rect = pillEl.getBoundingClientRect();
         pop.style.top  = (rect.bottom + 6) + 'px';
@@ -2745,6 +2853,8 @@
     window.sfClosePopover = function() {
         document.getElementById('sf-popover').style.display = 'none';
         sfActivePopoverId = null;
+        sfActivePillType = null;
+        sfRenderPills();
         renderScans();
     };
 
@@ -2767,16 +2877,17 @@
             row.maType2     = 'SMA';
             row.maPeriod1   = 5;
             row.maPeriod2   = 50;
-            document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+            var c = sfPopoverHtml(row); c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+            document.getElementById('sf-popover-content').innerHTML = c;
         } else {
             if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
             row[field] = value;
-            // When condition changes, reset val for pct modes
             if (field === 'maCondition') {
                 if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
                 if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
             }
-            document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+            var c2 = sfPopoverHtml(row); c2 = c2.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+            document.getElementById('sf-popover-content').innerHTML = c2;
         }
         sfRenderPills();
     };
@@ -5235,6 +5346,7 @@
         document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength); });
 
         showView('industries');
+        sfRenderPills();
         wlAttachListeners();
 
         // Scans dblclick — attached once on the static container
