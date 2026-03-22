@@ -344,6 +344,24 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _c > _prev_low2
         ) if len(hist) >= 2 else False
 
+        # 52-week high/low — compare today's bar against the prior 252 sessions (excluding today)
+        new_52wk_high = False
+        new_52wk_low  = False
+        pct_from_52wk_low = None
+        try:
+            prior = hist.iloc[:-1]  # everything except today
+            if len(prior) >= 20:    # need enough history to be meaningful
+                high_52w = prior["High"].max()
+                low_52w  = prior["Low"].min()
+                today_high = hist["High"].iloc[-1]
+                today_low  = hist["Low"].iloc[-1]
+                new_52wk_high = bool(today_high >= high_52w)
+                new_52wk_low  = bool(today_low  <= low_52w)
+                if low_52w and low_52w > 0:
+                    pct_from_52wk_low = round((current / low_52w - 1) * 100, 2)
+        except Exception:
+            pass
+
         return {
             "price":      round(float(current), 2),
             "inside_day": inside_day,
@@ -353,6 +371,9 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "upside_reversal":      upside_reversal,
             "oops_reversal":        oops_reversal,
             "pocket_pivot":         pocket_pivot,
+            "new_52wk_high":        new_52wk_high,
+            "new_52wk_low":         new_52wk_low,
+            "PctFrom52WkLow":       pct_from_52wk_low,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
