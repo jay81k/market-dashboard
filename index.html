@@ -971,6 +971,59 @@
         .mm-chg-abs.down, .mm-chg-pct.down { color: #f85149; }
         .mm-chg-abs.flat, .mm-chg-pct.flat { color: #484f58; }
 
+        /* ── Analytics row ── */
+        .market-analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 0 16px 20px; }
+        .analytics-title { font-size: 11px; font-weight: 700; color: #484f58; text-transform: uppercase; letter-spacing: 0.07em; }
+        .analytics-sub   { font-size: 11px; color: #484f58; }
+
+        /* Sector perf */
+        .sp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .sp-row:last-child { margin-bottom: 0; }
+        .sp-name { font-size: 11px; color: #8b949e; width: 152px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sp-bar-wrap { flex: 1; height: 8px; background: #21262d; border-radius: 3px; overflow: visible; position: relative; }
+        .sp-bar { height: 100%; border-radius: 3px; position: absolute; }
+        .sp-center { position: absolute; left: 50%; top: -4px; width: 1px; height: 16px; background: #30363d; }
+        .sp-pct { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; width: 54px; text-align: right; flex-shrink: 0; }
+
+        /* Industry breadth */
+        .ib-top { display: flex; gap: 0; margin-bottom: 10px; }
+        .ib-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .ib-stat.c { align-items: center; border-left: 1px solid #21262d; border-right: 1px solid #21262d; }
+        .ib-stat.r { align-items: flex-end; }
+        .ib-stat-label { font-size: 9px; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
+        .ib-stat-val { font-size: 20px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+        .ib-stat-pct { font-size: 10px; font-variant-numeric: tabular-nums; }
+        .ib-master { height: 6px; border-radius: 3px; overflow: hidden; display: flex; margin-bottom: 10px; }
+        .ib-master-adv  { background: #3fb950; }
+        .ib-master-unch { background: #30363d; }
+        .ib-master-dec  { background: #f85149; flex: 1; }
+        .ib-sec-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .ib-sec-row:last-child { margin-bottom: 0; }
+        .ib-sec-name { font-size: 11px; color: #8b949e; width: 148px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ib-sec-bar  { flex: 1; height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; display: flex; }
+        .ib-sec-adv  { background: #3fb950; border-radius: 3px 0 0 3px; }
+        .ib-sec-dec  { background: #f85149; border-radius: 0 3px 3px 0; flex: 1; }
+        .ib-sec-cnt  { font-size: 11px; width: 62px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+        /* RS distribution */
+        .rs-dist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .rs-dist-row:last-child { margin-bottom: 0; }
+        .rs-dist-label { font-size: 11px; color: #8b949e; width: 56px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .rs-dist-bar-wrap { flex: 1; height: 14px; background: #21262d; border-radius: 3px; overflow: hidden; }
+        .rs-dist-bar { height: 100%; border-radius: 3px; }
+        .rs-dist-count { font-size: 11px; font-weight: 700; color: #c8d0dc; width: 36px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .rs-dist-pct { font-size: 10px; color: #484f58; width: 32px; text-align: right; flex-shrink: 0; }
+        .rs-footer { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid #21262d; }
+        .rs-foot-stat { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+        .rs-foot-label { font-size: 9px; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
+        .rs-foot-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #c8d0dc; }
+        .rs-foot-val.up { color: #3fb950; }
+        .rs-foot-val.down { color: #f85149; }
+        .rs-skew-pill { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 4px; }
+        .rs-skew-pill.top  { background: #12261e; color: #3fb950; border: 1px solid #1a4030; }
+        .rs-skew-pill.bot  { background: #2a1215; color: #f85149; border: 1px solid #4a2020; }
+        .rs-skew-pill.bal  { background: #161b22; color: #8b949e; border: 1px solid #21262d; }
+
         /* ── Gainers / Losers ── */
         .market-gl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 16px 20px; }
         .gl-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid #21262d; }
@@ -1300,6 +1353,14 @@
         <div class="market-ad-wrap" id="market-losers"></div>
         <div class="market-ad-wrap" id="market-rvol"></div>
     </div>
+
+    <!-- Analytics row -->
+    <div class="market-section-label">Analytics</div>
+    <div class="market-analytics-grid">
+        <div class="market-ad-wrap" id="market-sector-perf"></div>
+        <div class="market-ad-wrap" id="market-ind-breadth"></div>
+        <div class="market-ad-wrap" id="market-rs-dist"></div>
+    </div>
 </div>
 
 <!-- Dist/MA dropdown -->
@@ -1499,6 +1560,9 @@
             renderMarketHL();
             renderMarketMA();
             renderMarketMovers();
+            renderSectorPerf();
+            renderIndBreadth();
+            renderRSDist();
             marketFetchAll();
             marketFetchMacro();
         }
@@ -4499,6 +4563,9 @@
             renderMarketHL();
             renderMarketMA();
             renderMarketMovers();
+            renderSectorPerf();
+            renderIndBreadth();
+            renderRSDist();
             marketFetchMacro();
             var now = new Date();
             var isOpen = wlIsMarketOpen();
@@ -4913,6 +4980,185 @@
             gainEl.innerHTML = '<div class="gl-header"><div class="gl-title up">Top Gainers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(gainers, 'up');
             lossEl.innerHTML = '<div class="gl-header"><div class="gl-title down">Top Losers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(losers, 'down');
         });
+    }
+
+    // ── Sector Performance ────────────────────────────────────────────────
+    function renderSectorPerf() {
+        var el = document.getElementById('market-sector-perf');
+        if (!el || !snapshot || !snapshot.industry_summary) return;
+
+        // Aggregate avg_daily by sector
+        var sectorMap = {};
+        Object.values(snapshot.industry_summary).forEach(function(s) {
+            if (!s.sector || s.avg_daily == null) return;
+            if (!sectorMap[s.sector]) sectorMap[s.sector] = { sum: 0, count: 0 };
+            sectorMap[s.sector].sum   += s.avg_daily;
+            sectorMap[s.sector].count += 1;
+        });
+
+        var sectors = Object.keys(sectorMap).map(function(name) {
+            return { name: name, avg: sectorMap[name].sum / sectorMap[name].count };
+        });
+        sectors.sort(function(a, b) { return b.avg - a.avg; });
+
+        var maxAbs = Math.max.apply(null, sectors.map(function(s) { return Math.abs(s.avg); })) || 1;
+
+        var rows = sectors.map(function(s) {
+            var pct    = s.avg;
+            var dir    = pct > 0 ? 'up' : pct < 0 ? 'down' : '';
+            var clr    = pct > 0 ? '#3fb950' : '#f85149';
+            var barPct = Math.abs(pct) / maxAbs * 48; // max 48% each side from center
+            var barStyle, barLeft;
+            if (pct >= 0) {
+                barLeft  = '50%';
+                barStyle = 'left:50%;width:' + barPct + '%;border-radius:0 3px 3px 0;';
+            } else {
+                barStyle = 'right:50%;width:' + barPct + '%;border-radius:3px 0 0 3px;';
+            }
+            var sign = pct >= 0 ? '+' : '';
+            return '<div class="sp-row">' +
+                '<div class="sp-name">' + esc(s.name) + '</div>' +
+                '<div class="sp-bar-wrap">' +
+                    '<div class="sp-center"></div>' +
+                    '<div class="sp-bar" style="background:' + clr + ';' + barStyle + '"></div>' +
+                '</div>' +
+                '<div class="sp-pct ' + dir + '">' + sign + pct.toFixed(2) + '%</div>' +
+            '</div>';
+        }).join('');
+
+        el.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">' +
+                '<div class="analytics-title">Sector Performance</div>' +
+            '</div>' + rows;
+    }
+
+    // ── Industry Breadth ──────────────────────────────────────────────────
+    function renderIndBreadth() {
+        var el = document.getElementById('market-ind-breadth');
+        if (!el || !snapshot || !snapshot.industry_summary) return;
+
+        var adv = 0, dec = 0, unch = 0;
+        var sectorMap = {};
+
+        Object.entries(snapshot.industry_summary).forEach(function(entry) {
+            var s = entry[1];
+            if (!s.sector) return;
+            if (!sectorMap[s.sector]) sectorMap[s.sector] = { adv: 0, dec: 0, unch: 0 };
+            if (s.avg_daily == null)    { unch++; sectorMap[s.sector].unch++; }
+            else if (s.avg_daily > 0)   { adv++;  sectorMap[s.sector].adv++;  }
+            else                        { dec++;  sectorMap[s.sector].dec++;  }
+        });
+
+        var total = adv + dec + unch || 1;
+        var advPct = (adv / total * 100).toFixed(1);
+        var decPct = (dec / total * 100).toFixed(1);
+        var net    = adv - dec;
+        var ratio  = dec > 0 ? (adv / dec).toFixed(2) : adv > 0 ? '∞' : '—';
+        var netDir = net > 0 ? 'up' : net < 0 ? 'down' : '';
+
+        // Best/worst sector by adv ratio
+        var sectorList = Object.keys(sectorMap).map(function(name) {
+            var sd = sectorMap[name];
+            var tot = sd.adv + sd.dec + sd.unch || 1;
+            return { name: name, adv: sd.adv, dec: sd.dec, ratio: sd.adv / tot };
+        });
+        sectorList.sort(function(a, b) { return b.ratio - a.ratio; });
+
+        var secRows = sectorList.map(function(s) {
+            var tot    = s.adv + s.dec || 1;
+            var advW   = (s.adv / tot * 100).toFixed(1);
+            return '<div class="ib-sec-row">' +
+                '<div class="ib-sec-name">' + esc(s.name) + '</div>' +
+                '<div class="ib-sec-bar">' +
+                    '<div class="ib-sec-adv" style="width:' + advW + '%"></div>' +
+                    '<div class="ib-sec-dec"></div>' +
+                '</div>' +
+                '<div class="ib-sec-cnt"><span style="color:#3fb950;">' + s.adv + '</span> / <span style="color:#f85149;">' + s.dec + '</span></div>' +
+            '</div>';
+        }).join('');
+
+        el.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
+                '<div class="analytics-title">Industry Breadth</div>' +
+                '<div class="analytics-sub">' + total + ' industries</div>' +
+            '</div>' +
+            '<div class="ib-top">' +
+                '<div class="ib-stat"><div class="ib-stat-label">Advancing</div><div class="ib-stat-val up">' + adv + '</div><div class="ib-stat-pct up">' + advPct + '%</div></div>' +
+                '<div class="ib-stat c"><div class="ib-stat-label">Unchanged</div><div class="ib-stat-val flat">' + unch + '</div></div>' +
+                '<div class="ib-stat r"><div class="ib-stat-label">Declining</div><div class="ib-stat-val down">' + dec + '</div><div class="ib-stat-pct down">' + decPct + '%</div></div>' +
+            '</div>' +
+            '<div class="ib-master">' +
+                '<div class="ib-master-adv" style="width:' + advPct + '%"></div>' +
+                (unch ? '<div class="ib-master-unch" style="width:' + (unch/total*100).toFixed(1) + '%"></div>' : '') +
+                '<div class="ib-master-dec"></div>' +
+            '</div>' +
+            secRows +
+            '<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #21262d;">' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Net</div><div class="rs-foot-val ' + netDir + '">' + (net >= 0 ? '+' : '') + net + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">A/D Ratio</div><div class="rs-foot-val ' + netDir + '">' + ratio + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Best</div><div class="rs-foot-val" style="font-size:11px;color:#3fb950;">' + esc(sectorList[0] ? sectorList[0].name.split(' ')[0] : '—') + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Worst</div><div class="rs-foot-val" style="font-size:11px;color:#f85149;">' + esc(sectorList[sectorList.length-1] ? sectorList[sectorList.length-1].name.split(' ')[0] : '—') + '</div></div>' +
+            '</div>';
+    }
+
+    // ── RS Distribution ───────────────────────────────────────────────────
+    function renderRSDist() {
+        var el = document.getElementById('market-rs-dist');
+        if (!el || !snapshot || !snapshot.by_industry) return;
+
+        var buckets = [0,0,0,0,0,0,0,0,0,0]; // 0-10, 10-20, ... 90-100
+        var all = [], total = 0;
+
+        Object.values(snapshot.by_industry).forEach(function(rows) {
+            rows.forEach(function(r) {
+                if (r.Percentile == null) return;
+                var p = Math.min(99, Math.max(0, r.Percentile));
+                buckets[Math.min(9, Math.floor(p / 10))]++;
+                all.push(p);
+                total++;
+            });
+        });
+
+        var maxBucket = Math.max.apply(null, buckets) || 1;
+        var median = 0, avg = 0;
+        if (all.length) {
+            all.sort(function(a,b){return a-b;});
+            median = Math.round(all[Math.floor(all.length/2)]);
+            avg    = Math.round(all.reduce(function(s,v){return s+v;},0) / all.length);
+        }
+        var above80 = buckets[8] + buckets[9];
+        var below20 = buckets[0] + buckets[1];
+        var skew    = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
+        var skewLabel = skew === 'top' ? 'Top Heavy' : skew === 'bot' ? 'Bot Heavy' : 'Balanced';
+
+        var COLORS = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
+        var LABELS = ['0–10','10–20','20–30','30–40','40–50','50–60','60–70','70–80','80–90','90–100'];
+
+        var rows = '';
+        for (var i = 9; i >= 0; i--) {
+            var w = (buckets[i] / maxBucket * 100).toFixed(1);
+            var p = total ? (buckets[i] / total * 100).toFixed(0) : 0;
+            rows += '<div class="rs-dist-row">' +
+                '<div class="rs-dist-label">' + LABELS[i] + '</div>' +
+                '<div class="rs-dist-bar-wrap"><div class="rs-dist-bar" style="width:' + w + '%;background:' + COLORS[i] + ';"></div></div>' +
+                '<div class="rs-dist-count">' + buckets[i] + '</div>' +
+                '<div class="rs-dist-pct">' + p + '%</div>' +
+            '</div>';
+        }
+
+        el.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">' +
+                '<div class="analytics-title">RS Distribution</div>' +
+                '<div class="analytics-sub">' + total.toLocaleString() + ' stocks</div>' +
+            '</div>' +
+            rows +
+            '<div class="rs-footer">' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Median</div><div class="rs-foot-val">' + median + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Average</div><div class="rs-foot-val">' + avg + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Above 80</div><div class="rs-foot-val up">' + above80 + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Below 20</div><div class="rs-foot-val down">' + below20 + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Skew</div><div class="rs-skew-pill ' + skew + '">' + skewLabel + '</div></div>' +
+            '</div>';
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
