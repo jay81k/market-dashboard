@@ -4295,6 +4295,7 @@
             b.classList.toggle('active', b === btn);
         });
         marketFetchAll();
+        marketFetchMacro();
     };
 
     function marketFetchOne(symbol) {
@@ -4528,8 +4529,12 @@
     ];
 
     function marketFetchMacro() {
+        // Macro cards always use daily interval — 1D locks to range=2d,
+        // other timeframes use the active range with daily candles
+        var range    = (marketTf === '1d') ? '2d'      : marketTf;
+        var interval = (marketTf === '1d') ? '1d'      : marketInterval;
         Promise.all(MACRO_TICKERS.map(function(t) {
-            return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=1d&range=2d')
+            return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=' + interval + '&range=' + range)
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .catch(function() { return null; });
         })).then(function(results) {
