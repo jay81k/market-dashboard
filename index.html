@@ -1252,7 +1252,7 @@
             <div id="sf-popover-content" style="padding:10px 12px;"></div>
             <div style="padding:0 12px 10px;display:flex;gap:6px;">
                 <button onclick="sfClosePopover()" style="flex:1;padding:5px;border-radius:4px;background:#1f6feb;border:none;color:#fff;font-size:0.825em;font-weight:600;cursor:pointer;font-family:inherit;">Apply</button>
-                <button onclick="sfActivePillType&&sfClearPillType(sfActivePillType)" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Clear</button>
+                <button onclick="sfResetPill()" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Reset</button>
             </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -2696,7 +2696,7 @@
                 ? '<span class="sf-pill-val">' + esc(val.replace(pt.label + ' ', '').replace(pt.label, '').trim()) + '</span>'
                 : '';
             var xBtn = isActive
-                ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfClearPillType(\'' + pt.type + '\')">✕</button>'
+                ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemovePillType(\'' + pt.type + '\')">✕</button>'
                 : '';
             return '<div class="' + cls + '" onclick="sfTogglePill(\'' + pt.type + '\',this)">' +
                 '<span class="sf-pill-name">' + pt.label + '</span>' +
@@ -2829,10 +2829,35 @@
     };
 
     window.sfClearPillType = function(type) {
+        var row = sfRowForType(type);
+        if (row) {
+            // Reset to defaults for this type
+            row.dir         = 'gt';
+            row.maCondition = 'above_price';
+            row.maType      = 'SMA'; row.maPeriod  = 50;
+            row.maType2     = 'SMA'; row.maPeriod1 = 5; row.maPeriod2 = 50;
+            row.val         = type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
+                              type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
+                              type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0;
+            row.val2        = null;
+            // Re-render popover content with reset values
+            var c = sfPopoverHtml(row);
+            c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+            var contentEl = document.getElementById('sf-popover-content');
+            if (contentEl) contentEl.innerHTML = c;
+        }
+    };
+
+    window.sfResetPill = function() {
+        if (sfActivePillType) sfClearPillType(sfActivePillType);
+    };
+
+    window.sfRemovePillType = function(type) {
         sfRows = sfRows.filter(function(r){ return r.type !== type; });
         if (sfActivePillType === type) {
             document.getElementById('sf-popover').style.display = 'none';
             sfActivePillType = null;
+            sfPillWasPreExisting = false;
         }
         sfRenderPills();
         renderScans();
