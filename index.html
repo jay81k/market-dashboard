@@ -3876,7 +3876,7 @@
         var order  = wlGetOrder();
         var picker = document.getElementById('wl-picker');
 
-        var html = '<div class="wl-picker-title">Add to watchlist<button class="wl-picker-close" onclick="wlClosePicker()" title="Close">✕</button></div>';
+        var html = '<div class="wl-picker-title">Add to watchlist<button class="wl-picker-close" title="Close">✕</button></div>';
 
         if (order.length) {
             order.forEach(function(name) {
@@ -3897,6 +3897,7 @@
 
         picker.onclick = function(ev) {
             ev.stopPropagation();
+            if (ev.target.closest('.wl-picker-close')) { wlClosePicker(); return; }
             var item = ev.target.closest('[data-wl-pick]');
             if (item) { wlPickerToggle(item.getAttribute('data-wl-pick')); return; }
             var newBtn = ev.target.closest('#wl-picker-new-btn');
