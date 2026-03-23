@@ -1571,9 +1571,7 @@
             var ticker = sym ? sym.textContent.trim() : '';
             var inQueue = tickerQueue.indexOf(ticker) !== -1;
             btn.classList.toggle('added', inQueue);
-            btn.innerHTML = inQueue
-                ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg> ✓'
-                : '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg> +';
+            btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg> ' + (inQueue ? '✓' : '+');
         });
     }
 
@@ -1590,27 +1588,21 @@
     window.copyTickerQueue = function(btnEl) {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-        function flashCopied() {
+        function flashBtn() {
             if (!btnEl) return;
             var orig = btnEl.innerHTML;
-            var origBorder = btnEl.style.borderColor;
-            btnEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" style="color:#3fb950"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
-            btnEl.style.borderColor = '#3fb950';
-            setTimeout(function() { btnEl.innerHTML = orig; btnEl.style.borderColor = origBorder; }, 1500);
+            btnEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
+            btnEl.style.background = '#1f6feb';
+            btnEl.style.borderColor = '#388bfd';
+            btnEl.style.color = '#fff';
+            setTimeout(function() {
+                btnEl.innerHTML = orig;
+                btnEl.style.background = '';
+                btnEl.style.borderColor = '';
+                btnEl.style.color = '';
+            }, 1500);
         }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(flashCopied).catch(function() {
-                var ta = document.createElement('textarea');
-                ta.value = text;
-                ta.setAttribute('readonly', '');
-                ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;opacity:0;';
-                document.body.appendChild(ta);
-                ta.focus(); ta.select();
-                try { document.execCommand('copy'); } catch(e) {}
-                document.body.removeChild(ta);
-                flashCopied();
-            });
-        } else {
+        navigator.clipboard.writeText(text).then(flashBtn).catch(function() {
             var ta = document.createElement('textarea');
             ta.value = text;
             ta.setAttribute('readonly', '');
@@ -1619,8 +1611,8 @@
             ta.focus(); ta.select();
             try { document.execCommand('copy'); } catch(e) {}
             document.body.removeChild(ta);
-            flashCopied();
-        }
+            flashBtn();
+        });
     };
 
     window.clearTickerQueue = function() {
