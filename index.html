@@ -1605,7 +1605,8 @@
     window.copyTickerQueue = function() {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-        navigator.clipboard.writeText(text).then(function() {
+
+        function showCopiedFeedback() {
             QUEUE_PILL_IDS.forEach(function(id) {
                 var pill = document.getElementById(id);
                 if (!pill || !pill.classList.contains('visible')) return;
@@ -1616,15 +1617,29 @@
                     setTimeout(function() { copyEl.textContent = orig; }, 1500);
                 }
             });
-        }).catch(function() {
-            var text2 = tickerQueue.join(',');
+        }
+
+        function fallbackCopy() {
             var ta = document.createElement('textarea');
-            ta.value = text2;
-            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '0'; ta.style.left = '0';
+            ta.style.width = '2em'; ta.style.height = '2em';
+            ta.style.padding = '0'; ta.style.border = 'none';
+            ta.style.outline = 'none'; ta.style.boxShadow = 'none';
+            ta.style.background = 'transparent';
             document.body.appendChild(ta);
-            ta.select(); document.execCommand('copy');
+            ta.focus(); ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
             document.body.removeChild(ta);
-        });
+            showCopiedFeedback();
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showCopiedFeedback).catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
     };
 
     window.clearTickerQueue = function() {
