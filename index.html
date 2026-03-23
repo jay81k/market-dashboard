@@ -1588,31 +1588,35 @@
     window.copyTickerQueue = function(btnEl) {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-        function flashBtn() {
-            if (!btnEl) return;
-            var orig = btnEl.innerHTML;
-            btnEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
-            btnEl.style.background = '#1f6feb';
-            btnEl.style.borderColor = '#388bfd';
-            btnEl.style.color = '#fff';
-            setTimeout(function() {
-                btnEl.innerHTML = orig;
-                btnEl.style.background = '';
-                btnEl.style.borderColor = '';
-                btnEl.style.color = '';
-            }, 1500);
+
+        // Method 1: execCommand (synchronous, works on direct user gesture)
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(ta);
+
+        // Method 2: modern API as backup (async, no harm if it also succeeds)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(function(){});
         }
-        navigator.clipboard.writeText(text).then(flashBtn).catch(function() {
-            var ta = document.createElement('textarea');
-            ta.value = text;
-            ta.setAttribute('readonly', '');
-            ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;opacity:0;';
-            document.body.appendChild(ta);
-            ta.focus(); ta.select();
-            try { document.execCommand('copy'); } catch(e) {}
-            document.body.removeChild(ta);
-            flashBtn();
-        });
+
+        // Flash the button blue
+        if (!btnEl) return;
+        var orig = btnEl.innerHTML;
+        btnEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
+        btnEl.style.background = '#1f6feb';
+        btnEl.style.borderColor = '#388bfd';
+        btnEl.style.color = '#fff';
+        setTimeout(function() {
+            btnEl.innerHTML = orig;
+            btnEl.style.background = '';
+            btnEl.style.borderColor = '';
+            btnEl.style.color = '';
+        }, 1500);
     };
 
     window.clearTickerQueue = function() {
