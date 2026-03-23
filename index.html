@@ -4507,16 +4507,17 @@
 
     window.wlConfirmAddSym = function() {
         var input  = document.getElementById('wl-add-sym-input');
-        var ticker = input.value.trim().toUpperCase();
-        if (!ticker) { input.focus(); return; }
+        var raw    = input.value.trim().toUpperCase();
+        if (!raw) { input.focus(); return; }
         var active = wlGetLastList();
         if (!active) { wlCancelAddSym(); return; }
         var all = wlGetAll();
         if (!all[active]) all[active] = [];
-        if (all[active].indexOf(ticker) === -1) {
-            all[active].push(ticker);
-            wlSaveAll(all);
-        }
+        var tickers = raw.split(/[\s,]+/).filter(function(t) { return t.length > 0; });
+        tickers.forEach(function(ticker) {
+            if (all[active].indexOf(ticker) === -1) all[active].push(ticker);
+        });
+        wlSaveAll(all);
         wlCancelAddSym();
         wlRender();
         wlRefreshStars();
