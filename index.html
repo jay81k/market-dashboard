@@ -1351,7 +1351,7 @@
                 <button class="wl-new-cancel" onclick="wlCancelNew()">✕</button>
             </div>
             <div id="wl-add-sym-row" class="wl-new-row" style="display:none;">
-                <input id="wl-add-sym-input" class="wl-new-input" type="text" placeholder="Symbol…" maxlength="12" autocomplete="off" spellcheck="false" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+                <input id="wl-add-sym-input" class="wl-new-input" type="text" placeholder="Symbol…" autocomplete="off" spellcheck="false" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
                 <button class="wl-new-confirm" onclick="wlConfirmAddSym()">Add</button>
                 <button class="wl-new-cancel" onclick="wlCancelAddSym()">✕</button>
             </div>
@@ -4522,6 +4522,26 @@
             if (e.key === 'Enter')  { e.preventDefault(); wlConfirmAddSym(); }
             if (e.key === 'Escape') { e.preventDefault(); wlCancelAddSym(); }
         }
+    });
+
+    // Paste handler: if pasted text contains commas, bulk-add all tickers at once
+    document.getElementById('wl-add-sym-input').addEventListener('paste', function(e) {
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!text || text.indexOf(',') === -1) return; // single ticker — let it paste normally
+        e.preventDefault();
+        var tickers = text.split(',').map(function(t) { return t.trim().toUpperCase(); }).filter(Boolean);
+        if (!tickers.length) return;
+        var active = wlGetLastList();
+        if (!active) return;
+        var all = wlGetAll();
+        if (!all[active]) all[active] = [];
+        tickers.forEach(function(ticker) {
+            if (all[active].indexOf(ticker) === -1) all[active].push(ticker);
+        });
+        wlSaveAll(all);
+        wlCancelAddSym();
+        wlRender();
+        wlRefreshStars();
     });
 
     // Keyboard handling for the inline input
