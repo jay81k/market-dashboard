@@ -1079,11 +1079,11 @@
 <!-- Top nav -->
 <div class="topnav">
     <div class="nav-tabs">
-        <div class="nav-tab" id="tab-market" onclick="showView('market')">
+        <div class="nav-tab active" id="tab-market" onclick="showView('market')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="7" width="3" height="6" rx="1" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx="1" fill="currentColor"/><rect x="10" y="1" width="3" height="12" rx="1" fill="currentColor"/></svg>
             Market
         </div>
-        <div class="nav-tab active" id="tab-industries" onclick="navToIndustries()">
+        <div class="nav-tab" id="tab-industries" onclick="navToIndustries()">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor"/></svg>
             Industries
         </div>
@@ -5351,7 +5351,7 @@
                 topRvol.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                     var dirCl  = r.daily > 0 ? 'up' : r.daily < 0 ? 'down' : '';
-                    return '<div class="gl-row">' +
+                    return '<div class="gl-row" style="cursor:pointer;" onclick="openChartModal(\'' + r.ticker + '\',\'\',\'' + esc(r.industry||'') + '\')">' +
                         '<div class="gl-rank">' + (i + 1) + '</div>' +
                         '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                         '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
@@ -5394,7 +5394,7 @@
                 return stocks.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                     var vol    = volMap[r.ticker] != null ? fmtVol(volMap[r.ticker]) : '—';
-                    return '<div class="gl-row">' +
+                    return '<div class="gl-row" style="cursor:pointer;" onclick="openChartModal(\'' + r.ticker + '\',\'\',\'' + esc(r.industry||'') + '\')">' +
                         '<div class="gl-rank">' + (i + 1) + '</div>' +
                         '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                         '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
@@ -5661,12 +5661,12 @@
                 try { localStorage.setItem(LS_PRESETS_KEY, kvPresets); } catch(e) {}
             }
 
-            showView('industries');
+            showView('market');
             sfRenderPills();
             wlAttachListeners();
         }).catch(function() {
             // KV unavailable — proceed normally with localStorage
-            showView('industries');
+            showView('market');
             sfRenderPills();
             wlAttachListeners();
         });
