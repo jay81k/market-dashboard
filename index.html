@@ -2712,7 +2712,28 @@
             '</div>';
         }).join('');
 
-        // + Filter button for extra custom filters
+        var fixedTypes = PILL_TYPES.map(function(pt){ return pt.type; });
+
+        // Render any extra rows added via + Filter (duplicates of existing types)
+        var extraRows = sfRows.filter(function(r) {
+            // Extra if there are multiple rows of same type, or type not in fixed list
+            var sameType = sfRows.filter(function(r2){ return r2.type === r.type; });
+            return sameType.length > 1 && sameType.indexOf(r) > 0;
+        });
+        var extraHtml = extraRows.map(function(row) {
+            var typeLabel = (PILL_TYPES.find(function(pt){ return pt.type === row.type; }) || {}).label || row.type;
+            var val = sfPillLabel(row);
+            return '<div class="sf-pill active" onclick="sfOpenPopover(' + row.id + ',this)">' +
+                '<span class="sf-pill-name">' + esc(typeLabel) + '</span>' +
+                '<span class="sf-pill-val">' + esc(val) + '</span>' +
+                '<span class="sf-pill-caret">▾</span>' +
+                '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">✕</button>' +
+            '</div>';
+        }).join('');
+
+        html += extraHtml;
+
+        // + Filter button for adding additional filters
         html += '<button class="sf-pill-add" onclick="sfAddRow()">+ Filter</button>';
 
         bar.innerHTML = html;
@@ -2967,12 +2988,74 @@
     };
 
     window.sfAddRow = function() {
-        sfRowId++;
-        sfRows.push({ id: sfRowId, type: 'ma', maCondition: 'above_price', dir: 'above', maType: 'SMA', maPeriod: 50, maType2: 'SMA', maPeriod1: 5, maPeriod2: 50, val: 0 });
-        sfRenderPills();
+        // Remove any existing picker
+        var existing = document.getElementById('sf-add-picker');
+        if (existing) { existing.remove(); return; }
+
+        var TYPES = [
+            { value: 'ma',      label: 'Moving Average' },
+            { value: 'rs',      label: 'RS' },
+            { value: 'price',   label: 'Price' },
+            { value: 'vol',     label: 'Avg Vol' },
+            { value: 'adr',     label: 'ADR%' },
+            { value: 'cr',      label: 'CR%' },
+            { value: 'mcap',    label: 'Market Cap' },
+            { value: 'rvol',    label: 'Rel. Volume' },
+            { value: 'pattern', label: 'Pattern' },
+        ];
+
+        var picker = document.createElement('div');
+        picker.id = 'sf-add-picker';
+        picker.style.cssText = 'position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:4px 0;';
+
+        picker.innerHTML = TYPES.map(function(t) {
+            return '<div class="sf-add-picker-item" onclick="sfAddPickerSelect(\'' + t.value + '\')" style="padding:7px 14px;font-size:0.825em;color:#c8d0dc;cursor:pointer;" onmouseover="this.style.background=\'#21262d\'" onmouseout="this.style.background=\'\'">' + t.label + '</div>';
+        }).join('');
+
+        document.body.appendChild(picker);
+
+        // Position below the + Filter button
+        var btn = document.querySelector('.sf-pill-add');
+        if (btn) {
+            var rect = btn.getBoundingClientRect();
+            picker.style.top  = (rect.bottom + 4) + 'px';
+            picker.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+        }
+
+        // Close on outside click
         setTimeout(function() {
-            var pill = document.querySelector('.sf-pill:last-child');
-            if (pill) sfOpenPopover(sfRowId, pill);
+            document.addEventListener('click', function closePicker(e) {
+                if (!picker.contains(e.target) && !e.target.closest('.sf-pill-add')) {
+                    picker.remove();
+                    document.removeEventListener('click', closePicker);
+                }
+            });
+        }, 0);
+    };
+
+    window.sfAddPickerSelect = function(type) {
+        var picker = document.getElementById('sf-add-picker');
+        if (picker) picker.remove();
+
+        sfRowId++;
+        var defaults = { id: sfRowId, type: type, dir: 'gt',
+            maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
+            maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
+            val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
+                 type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
+                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0 };
+        sfRows.push(defaults);
+        sfRenderPills();
+
+        // Open popover for the newly added row using the old popover system
+        setTimeout(function() {
+            var pills = document.querySelectorAll('.sf-pill');
+            for (var i = 0; i < pills.length; i++) {
+                if (pills[i].getAttribute('onclick') && pills[i].getAttribute('onclick').indexOf(sfRowId) !== -1) {
+                    sfOpenPopover(sfRowId, pills[i]);
+                    return;
+                }
+            }
         }, 30);
     };
 
