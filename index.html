@@ -1060,9 +1060,9 @@
         .gl-title.up   { color: #3fb950; }
         .gl-title.down { color: #f85149; }
         .gl-subtitle { font-size: 10px; color: #484f58; margin-left: auto; }
-        .gl-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #21262d; transition: background 0.1s; cursor: pointer; }
-        .gl-row:last-child { border-bottom: none; }
-        .gl-row:hover { background: #1c2128; }
+        .gl-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #21262d; transition: background 0.1s; }
+        .gl-clickable { cursor: pointer; }
+        .gl-clickable:hover { background: #1c2128; }
         .gl-rank   { font-size: 10px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; }
         .gl-ticker { font-size: 13px; font-weight: 700; color: #58a6ff; background: #0d1117; border: 1px solid #21262d; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; min-width: 52px; text-align: center; }
         .gl-name   { font-size: 11px; color: #6e7681; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5351,7 +5351,7 @@
                 topRvol.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                     var dirCl  = r.daily > 0 ? 'up' : r.daily < 0 ? 'down' : '';
-                    return '<div class="gl-row" style="cursor:pointer;" onclick="openChartModal(\'' + r.ticker + '\',\'\',\'' + esc(r.industry||'') + '\')">' +
+                    return '<div class="gl-row gl-clickable" data-ticker="' + esc(r.ticker) + '" data-industry="' + esc(r.industry||'') + '">' +
                         '<div class="gl-rank">' + (i + 1) + '</div>' +
                         '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                         '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
@@ -5394,7 +5394,7 @@
                 return stocks.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                     var vol    = volMap[r.ticker] != null ? fmtVol(volMap[r.ticker]) : '—';
-                    return '<div class="gl-row" style="cursor:pointer;" onclick="openChartModal(\'' + r.ticker + '\',\'\',\'' + esc(r.industry||'') + '\')">' +
+                    return '<div class="gl-row gl-clickable" data-ticker="' + esc(r.ticker) + '" data-industry="' + esc(r.industry||'') + '">' +
                         '<div class="gl-rank">' + (i + 1) + '</div>' +
                         '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                         '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
@@ -5671,7 +5671,14 @@
             wlAttachListeners();
         });
 
-        // Scans dblclick — attached once on the static container
+        // Market movers — click to open chart modal
+        document.getElementById('view-market').addEventListener('click', function(e) {
+            var row = e.target.closest('.gl-clickable');
+            if (!row) return;
+            var ticker   = row.getAttribute('data-ticker');
+            var industry = row.getAttribute('data-industry') || '';
+            if (ticker) openChartModal(ticker, '', industry);
+        });
         document.getElementById('scans-table-view').addEventListener('dblclick', function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
