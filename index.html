@@ -385,16 +385,17 @@
         .queue-add-btn:hover { background: #21262d; border-color: #484f58; color: #c8d0dc; }
         .queue-add-btn.added { background: #1a3a5c; border-color: #1f6feb; color: #58a6ff; }
         .queue-add-btn svg { opacity: 0.8; flex-shrink: 0; }
-        .queue-copy-btn {
-            display: none; align-items: center;
+        .queue-pill {
+            display: none; align-items: center; gap: 5px;
             padding: 3px 9px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.858em;
-            font-family: inherit; cursor: pointer; font-weight: 500;
-            letter-spacing: 0.04em; transition: all 0.12s;
+            background: #161b22; font-size: 0.792em; color: #8b949e;
+            font-family: inherit; white-space: nowrap;
         }
-        .queue-copy-btn:hover { background: #161b22; color: #c8d0dc; }
-
-
+        .queue-pill.visible { display: inline-flex; }
+        .queue-pill-copy { color: #58a6ff; cursor: pointer; font-weight: 600; }
+        .queue-pill-copy:hover { color: #79b8ff; }
+        .queue-pill-clear { color: #484f58; cursor: pointer; margin-left: 2px; }
+        .queue-pill-clear:hover { color: #f85149; }
 
         .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.935em; }
 
@@ -1307,7 +1308,12 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-
+                    <span class="queue-pill" id="wl-chart-queue-pill">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
+                        <span class="queue-pill-count"></span> queued ·
+                        <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
+                        <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
+                    </span>
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                         Fundamentals
@@ -1320,7 +1326,6 @@
                         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                         +
                     </button>
-                    <button class="queue-copy-btn" id="wl-chart-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
                 </div>
             </div>
             <div class="wl-chart-body" id="wl-chart-body">
@@ -1360,7 +1365,7 @@
                 <button class="wl-new-cancel" onclick="wlCancelNew()">✕</button>
             </div>
             <div id="wl-add-sym-row" class="wl-new-row" style="display:none;">
-                <input id="wl-add-sym-input" class="wl-new-input" type="text" placeholder="Symbol…" autocomplete="off" spellcheck="false" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+                <input id="wl-add-sym-input" class="wl-new-input" type="text" placeholder="Symbol…" maxlength="12" autocomplete="off" spellcheck="false" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
                 <button class="wl-new-confirm" onclick="wlConfirmAddSym()">Add</button>
                 <button class="wl-new-cancel" onclick="wlCancelAddSym()">✕</button>
             </div>
@@ -1470,7 +1475,12 @@
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-
+                <span class="queue-pill" id="chart-modal-queue-pill">
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
+                    <span class="queue-pill-count"></span> queued ·
+                    <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
+                    <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
+                </span>
                 <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                     Fundamentals
@@ -1483,7 +1493,6 @@
                     <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                     +
                 </button>
-                <button class="queue-copy-btn" id="chart-modal-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
                 <button class="chart-modal-close" onclick="closeChartModal()">×</button>
             </div>
         </div>
@@ -1499,7 +1508,12 @@
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-
+            <span class="queue-pill" id="mc-fullscreen-queue-pill">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
+                <span class="queue-pill-count"></span> queued ·
+                <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
+                <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
+            </span>
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                 Fundamentals
@@ -1512,7 +1526,6 @@
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                 +
             </button>
-            <button class="queue-copy-btn" id="mc-fullscreen-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
             <button class="mc-fullscreen-close" onclick="closeMcFullscreen()">×</button>
         </div>
     </div>
@@ -1547,7 +1560,8 @@
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
     var tickerQueue = [];
 
-    var QUEUE_BTN_IDS = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
+    var QUEUE_BTN_IDS  = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
+    var QUEUE_PILL_IDS = ['wl-chart-queue-pill', 'chart-modal-queue-pill', 'mc-fullscreen-queue-pill'];
 
     window.toggleTickerQueue = function(ticker, btnId) {
         ticker = (ticker || '').trim();
@@ -1571,52 +1585,46 @@
             var ticker = sym ? sym.textContent.trim() : '';
             var inQueue = tickerQueue.indexOf(ticker) !== -1;
             btn.classList.toggle('added', inQueue);
-            btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg> ' + (inQueue ? '✓' : '+');
+            btn.innerHTML = inQueue
+                ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg> ✓'
+                : '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg> +';
         });
     }
-
-    var QUEUE_COPY_IDS = ['wl-chart-queue-copy', 'chart-modal-queue-copy', 'mc-fullscreen-queue-copy'];
 
     function updateQueuePills() {
-        var visible = tickerQueue.length > 0;
-        QUEUE_COPY_IDS.forEach(function(id) {
-            var btn = document.getElementById(id);
-            if (btn) btn.style.display = visible ? 'inline-flex' : 'none';
+        var count = tickerQueue.length;
+        QUEUE_PILL_IDS.forEach(function(id) {
+            var pill = document.getElementById(id);
+            if (!pill) return;
+            pill.classList.toggle('visible', count > 0);
+            var countEl = pill.querySelector('.queue-pill-count');
+            if (countEl) countEl.textContent = count;
         });
     }
 
-    window.copyTickerQueue = function(btnEl) {
+    window.copyTickerQueue = function() {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-
-        // Method 1: execCommand (synchronous, works on direct user gesture)
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        try { document.execCommand('copy'); } catch(e) {}
-        document.body.removeChild(ta);
-
-        // Method 2: modern API as backup (async, no harm if it also succeeds)
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).catch(function(){});
-        }
-
-        // Flash the button blue
-        if (!btnEl) return;
-        var orig = btnEl.innerHTML;
-        btnEl.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
-        btnEl.style.background = '#1f6feb';
-        btnEl.style.borderColor = '#388bfd';
-        btnEl.style.color = '#fff';
-        setTimeout(function() {
-            btnEl.innerHTML = orig;
-            btnEl.style.background = '';
-            btnEl.style.borderColor = '';
-            btnEl.style.color = '';
-        }, 1500);
+        navigator.clipboard.writeText(text).then(function() {
+            QUEUE_PILL_IDS.forEach(function(id) {
+                var pill = document.getElementById(id);
+                if (!pill || !pill.classList.contains('visible')) return;
+                var copyEl = pill.querySelector('.queue-pill-copy');
+                if (copyEl) {
+                    var orig = copyEl.textContent;
+                    copyEl.textContent = 'copied!';
+                    setTimeout(function() { copyEl.textContent = orig; }, 1500);
+                }
+            });
+        }).catch(function() {
+            var text2 = tickerQueue.join(',');
+            var ta = document.createElement('textarea');
+            ta.value = text2;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+        });
     };
 
     window.clearTickerQueue = function() {
@@ -4560,26 +4568,6 @@
             if (e.key === 'Enter')  { e.preventDefault(); wlConfirmAddSym(); }
             if (e.key === 'Escape') { e.preventDefault(); wlCancelAddSym(); }
         }
-    });
-
-    // Paste handler: if pasted text contains commas, bulk-add all tickers at once
-    document.getElementById('wl-add-sym-input').addEventListener('paste', function(e) {
-        var text = (e.clipboardData || window.clipboardData).getData('text');
-        if (!text || text.indexOf(',') === -1) return; // single ticker — let it paste normally
-        e.preventDefault();
-        var tickers = text.split(',').map(function(t) { return t.trim().toUpperCase(); }).filter(Boolean);
-        if (!tickers.length) return;
-        var active = wlGetLastList();
-        if (!active) return;
-        var all = wlGetAll();
-        if (!all[active]) all[active] = [];
-        tickers.forEach(function(ticker) {
-            if (all[active].indexOf(ticker) === -1) all[active].push(ticker);
-        });
-        wlSaveAll(all);
-        wlCancelAddSym();
-        wlRender();
-        wlRefreshStars();
     });
 
     // Keyboard handling for the inline input
