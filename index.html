@@ -641,6 +641,8 @@
             transition: all 0.12s;
         }
         .wl-new-btn:hover { background: #161b22; color: #c8d0dc; border-color: #30363d; }
+        .wl-export-item { padding: 8px 14px; font-size: 0.825em; color: #c8d0dc; cursor: pointer; }
+        .wl-export-item:hover { background: #21262d; }
 
         .wl-list-scroll { flex: 1; overflow-y: auto; }
 
@@ -1318,6 +1320,13 @@
                     <span class="wl-selector-caret">▾</span>
                 </div>
                 <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
+                <div style="position:relative;">
+                    <button class="wl-new-btn" onclick="wlToggleExport(event)">Export ▾</button>
+                    <div id="wl-export-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:140px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
+                        <div class="wl-export-item" onclick="wlExport('csv')">CSV file</div>
+                        <div class="wl-export-item" onclick="wlExport('tickers')">Comma separated</div>
+                    </div>
+                </div>
             </div>
             <div id="wl-new-row" class="wl-new-row" style="display:none;">
                 <input id="wl-new-input" class="wl-new-input" type="text" placeholder="List name…" maxlength="40" autocomplete="off" spellcheck="false">
@@ -4232,6 +4241,71 @@
     }
 
     // Single delegated listener on the scroll container — registered once at startup
+    window.wlToggleExport = function(e) {
+        e.stopPropagation();
+        var dd = document.getElementById('wl-export-dropdown');
+        dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.addEventListener('click', function() {
+        var dd = document.getElementById('wl-export-dropdown');
+        if (dd) dd.style.display = 'none';
+    });
+
+    window.wlExport = function(format) {
+        document.getElementById('wl-export-dropdown').style.display = 'none';
+        var name = document.getElementById('wl-selector-name').textContent || 'watchlist';
+        var all  = wlGetAll();
+        var stocks = all[name] || [];
+
+        if (!stocks.length) { alert('No stocks in this watchlist.'); return; }
+
+        if (format === 'tickers') {
+            var text = stocks.join(',');
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            // Brief visual feedback
+            var btn = document.querySelector('#wl-export-dropdown').previousElementSibling;
+            var orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(function(){ btn.textContent = orig; }, 1500);
+            return;
+        }
+
+        if (format === 'csv') {
+            // Build CSV with snapshot data if available
+            var rows = ['Symbol,Price,Change%,RS,Industry'];
+            stocks.forEach(function(ticker) {
+                var data = null;
+                if (snapshot && snapshot.by_industry) {
+                    Object.values(snapshot.by_industry).forEach(function(arr) {
+                        arr.forEach(function(r) { if (r.ticker === ticker) data = r; });
+                    });
+                }
+                if (data) {
+                    rows.push([
+                        ticker,
+                        data.price != null ? data.price.toFixed(2) : '',
+                        data.daily != null ? data.daily.toFixed(2) : '',
+                        data.Percentile != null ? Math.round(data.Percentile) : '',
+                        '"' + (data.industry || '') + '"'
+                    ].join(','));
+                } else {
+                    rows.push([ticker,'','','',''].join(','));
+                }
+            });
+            var blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name.replace(/[^a-z0-9]/gi,'_') + '.csv';
+            a.click();
+        }
+    };
+
     function wlAttachListeners() {
         var scroll = document.getElementById('wl-list-scroll');
         if (!scroll) return;
