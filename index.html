@@ -3930,6 +3930,15 @@
             if (!result) return null;
             var price     = result.meta && result.meta.regularMarketPrice;
             var prevClose = result.meta && result.meta.previousClose;
+            // If meta.previousClose is missing, derive it from the first bar in the chart data
+            if ((!prevClose || prevClose <= 0) && result.indicators) {
+                var closes = result.indicators.quote &&
+                             result.indicators.quote[0] &&
+                             result.indicators.quote[0].close;
+                if (closes && closes.length >= 2) {
+                    prevClose = closes[0];
+                }
+            }
             if (!price || price <= 0) return null;
             return { price: price, prevClose: prevClose || null };
         }).catch(function() { return null; });
