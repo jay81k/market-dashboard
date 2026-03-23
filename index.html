@@ -385,6 +385,14 @@
         .queue-add-btn:hover { background: #21262d; border-color: #484f58; color: #c8d0dc; }
         .queue-add-btn.added { background: #1a3a5c; border-color: #1f6feb; color: #58a6ff; }
         .queue-add-btn svg { opacity: 0.8; flex-shrink: 0; }
+        .queue-copy-btn {
+            display: none; align-items: center;
+            padding: 3px 9px; border-radius: 5px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.858em;
+            font-family: inherit; cursor: pointer; font-weight: 500;
+            letter-spacing: 0.04em; transition: all 0.12s;
+        }
+        .queue-copy-btn:hover { background: #161b22; color: #c8d0dc; }
 
 
 
@@ -1312,6 +1320,7 @@
                         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                         +
                     </button>
+                    <button class="queue-copy-btn" id="wl-chart-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
                 </div>
             </div>
             <div class="wl-chart-body" id="wl-chart-body">
@@ -1474,6 +1483,7 @@
                     <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                     +
                 </button>
+                <button class="queue-copy-btn" id="chart-modal-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
                 <button class="chart-modal-close" onclick="closeChartModal()">×</button>
             </div>
         </div>
@@ -1502,6 +1512,7 @@
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
                 +
             </button>
+            <button class="queue-copy-btn" id="mc-fullscreen-queue-copy" onclick="copyTickerQueue(this)" style="display:none;">copy</button>
             <button class="mc-fullscreen-close" onclick="closeMcFullscreen()">×</button>
         </div>
     </div>
@@ -1566,18 +1577,36 @@
         });
     }
 
-    function updateQueuePills() {}
+    var QUEUE_COPY_IDS = ['wl-chart-queue-copy', 'chart-modal-queue-copy', 'mc-fullscreen-queue-copy'];
 
-    window.copyTickerQueue = function() {
+    function updateQueuePills() {
+        var visible = tickerQueue.length > 0;
+        QUEUE_COPY_IDS.forEach(function(id) {
+            var btn = document.getElementById(id);
+            if (btn) btn.style.display = visible ? 'inline-flex' : 'none';
+        });
+    }
+
+    window.copyTickerQueue = function(btnEl) {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-        navigator.clipboard.writeText(text).catch(function() {
+        function flashCopied() {
+            QUEUE_COPY_IDS.forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (!btn || btn.style.display === 'none') return;
+                var orig = btn.textContent;
+                btn.textContent = 'copied!';
+                setTimeout(function() { btn.textContent = orig; }, 1500);
+            });
+        }
+        navigator.clipboard.writeText(text).then(flashCopied).catch(function() {
             var ta = document.createElement('textarea');
             ta.value = text;
             ta.style.position = 'fixed'; ta.style.opacity = '0';
             document.body.appendChild(ta);
             ta.select(); document.execCommand('copy');
             document.body.removeChild(ta);
+            flashCopied();
         });
     };
 
