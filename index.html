@@ -385,19 +385,8 @@
         .queue-add-btn:hover { background: #21262d; border-color: #484f58; color: #c8d0dc; }
         .queue-add-btn.added { background: #1a3a5c; border-color: #1f6feb; color: #58a6ff; }
         .queue-add-btn svg { opacity: 0.8; flex-shrink: 0; }
-        .queue-pill {
-            display: none;
-        }
-        .queue-pill.visible { display: inline-flex; }
-        .queue-copy-btn {
-            display: none; align-items: center; gap: 4px;
-            padding: 3px 9px; border-radius: 5px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.858em;
-            font-family: inherit; cursor: pointer; font-weight: 500;
-            letter-spacing: 0.04em; transition: all 0.12s; white-space: nowrap;
-        }
-        .queue-copy-btn:hover { background: #161b22; color: #c8d0dc; }
-        .queue-copy-btn.visible { display: inline-flex; }
+
+
 
         .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.935em; }
 
@@ -1310,10 +1299,7 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                    <button class="queue-copy-btn" id="wl-chart-queue-pill" onclick="copyTickerQueue()">
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/></svg>
-                        <span class="queue-copy-btn-label">copy</span>
-                    </button>
+
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                         Fundamentals
@@ -1475,10 +1461,7 @@
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                <button class="queue-copy-btn" id="chart-modal-queue-pill" onclick="copyTickerQueue()">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/></svg>
-                    <span class="queue-copy-btn-label">copy</span>
-                </button>
+
                 <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                     Fundamentals
@@ -1506,10 +1489,7 @@
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-            <button class="queue-copy-btn" id="mc-fullscreen-queue-pill" onclick="copyTickerQueue()">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/></svg>
-                <span class="queue-copy-btn-label">copy</span>
-            </button>
+
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                 Fundamentals
@@ -1556,8 +1536,7 @@
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
     var tickerQueue = [];
 
-    var QUEUE_BTN_IDS  = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
-    var QUEUE_PILL_IDS = ['wl-chart-queue-pill', 'chart-modal-queue-pill', 'mc-fullscreen-queue-pill'];
+    var QUEUE_BTN_IDS = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
 
     window.toggleTickerQueue = function(ticker, btnId) {
         ticker = (ticker || '').trim();
@@ -1587,37 +1566,18 @@
         });
     }
 
-    function updateQueuePills() {
-        var count = tickerQueue.length;
-        QUEUE_PILL_IDS.forEach(function(id) {
-            var btn = document.getElementById(id);
-            if (!btn) return;
-            btn.classList.toggle('visible', count > 0);
-        });
-    }
+    function updateQueuePills() {}
 
     window.copyTickerQueue = function() {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
-        function flashCopied() {
-            QUEUE_PILL_IDS.forEach(function(id) {
-                var btn = document.getElementById(id);
-                if (!btn || !btn.classList.contains('visible')) return;
-                var label = btn.querySelector('.queue-copy-btn-label');
-                if (label) {
-                    label.textContent = '✓';
-                    setTimeout(function() { label.textContent = 'copy'; }, 1500);
-                }
-            });
-        }
-        navigator.clipboard.writeText(text).then(flashCopied).catch(function() {
+        navigator.clipboard.writeText(text).catch(function() {
             var ta = document.createElement('textarea');
             ta.value = text;
             ta.style.position = 'fixed'; ta.style.opacity = '0';
             document.body.appendChild(ta);
             ta.select(); document.execCommand('copy');
             document.body.removeChild(ta);
-            flashCopied();
         });
     };
 
