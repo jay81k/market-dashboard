@@ -1599,7 +1599,7 @@
                 setTimeout(function() { btn.textContent = orig; }, 1500);
             });
         }
-        navigator.clipboard.writeText(text).then(flashCopied).catch(function() {
+        try {
             var ta = document.createElement('textarea');
             ta.value = text;
             ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -1607,7 +1607,9 @@
             ta.select(); document.execCommand('copy');
             document.body.removeChild(ta);
             flashCopied();
-        });
+        } catch(e) {
+            navigator.clipboard.writeText(text).then(flashCopied).catch(function(){});
+        }
     };
 
     window.clearTickerQueue = function() {
