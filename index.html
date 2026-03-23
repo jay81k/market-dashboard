@@ -1581,9 +1581,14 @@
 
     function updateQueuePills() {
         var visible = tickerQueue.length > 0;
+        var label = visible
+            ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="margin-right:3px"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>' + tickerQueue.length
+            : '';
         QUEUE_COPY_IDS.forEach(function(id) {
             var btn = document.getElementById(id);
-            if (btn) btn.style.display = visible ? 'inline-flex' : 'none';
+            if (!btn) return;
+            btn.style.display = visible ? 'inline-flex' : 'none';
+            if (visible) btn.innerHTML = label;
         });
     }
 
@@ -1594,9 +1599,10 @@
             QUEUE_COPY_IDS.forEach(function(id) {
                 var btn = document.getElementById(id);
                 if (!btn || btn.style.display === 'none') return;
-                var orig = btn.textContent;
-                btn.textContent = 'copied!';
-                setTimeout(function() { btn.textContent = orig; }, 1500);
+                var orig = btn.innerHTML;
+                btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" style="color:#3fb950"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/></svg>';
+                btn.style.borderColor = '#3fb950';
+                setTimeout(function() { btn.innerHTML = orig; btn.style.borderColor = ''; }, 1500);
             });
         }
         try {
