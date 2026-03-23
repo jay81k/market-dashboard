@@ -3185,6 +3185,11 @@
                     '</div>';
             });
         }
+        html += '<div style="border-top:1px solid #21262d;margin-top:4px;">' +
+            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;">' +
+            '<span style="flex:1;">Copy results</span>' +
+            '<span style="font-size:10px;color:#484f58;" id="sf-copy-feedback"></span>' +
+            '</div></div>';
         dd.innerHTML = html;
 
         // Delegated click handler — re-attached each render
@@ -3193,13 +3198,34 @@
             var applyEl  = e.target.closest('[data-sf-apply]');
             var exportEl = e.target.closest('[data-sf-export]');
             var deleteEl = e.target.closest('[data-sf-delete]');
-            var exportAll = e.target.closest('[data-sf-action="export-all"]');
-            if (applyEl)  { sfApplyPreset(applyEl.getAttribute('data-sf-apply')); return; }
-            if (exportEl) { sfExportOne(exportEl.getAttribute('data-sf-export')); return; }
-            if (deleteEl) { sfDeletePreset(deleteEl.getAttribute('data-sf-delete')); return; }
-            if (exportAll){ sfExportAll(); return; }
+            var exportAll  = e.target.closest('[data-sf-action="export-all"]');
+            var copyResults = e.target.closest('[data-sf-action="copy-results"]');
+            if (applyEl)    { sfApplyPreset(applyEl.getAttribute('data-sf-apply')); return; }
+            if (exportEl)   { sfExportOne(exportEl.getAttribute('data-sf-export')); return; }
+            if (deleteEl)   { sfDeletePreset(deleteEl.getAttribute('data-sf-delete')); return; }
+            if (exportAll)  { sfExportAll(); return; }
+            if (copyResults){ sfCopyResults(); return; }
         };
     }
+
+    window.sfCopyResults = function() {
+        var rows = document.querySelectorAll('#scans-tbody .stock-row');
+        if (!rows.length) { return; }
+        var tickers = [];
+        rows.forEach(function(r) {
+            var sym = r.getAttribute('data-symbol');
+            if (sym) tickers.push(sym);
+        });
+        var text = tickers.join(',');
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        var fb = document.getElementById('sf-copy-feedback');
+        if (fb) { fb.textContent = 'Copied ' + tickers.length + '!'; setTimeout(function(){ fb.textContent = ''; }, 2000); }
+    };
 
     window.sfApplyPreset = function(name) {
         var dd = document.getElementById('sf-preset-dropdown');
