@@ -385,17 +385,7 @@
         .queue-add-btn:hover { background: #21262d; border-color: #484f58; color: #c8d0dc; }
         .queue-add-btn.added { background: #1a3a5c; border-color: #1f6feb; color: #58a6ff; }
         .queue-add-btn svg { opacity: 0.8; flex-shrink: 0; }
-        .queue-pill {
-            display: none; align-items: center; gap: 5px;
-            padding: 3px 9px; border-radius: 5px; border: 1px solid #21262d;
-            background: #161b22; font-size: 0.792em; color: #8b949e;
-            font-family: inherit; white-space: nowrap;
-        }
-        .queue-pill.visible { display: inline-flex; }
-        .queue-pill-copy { color: #58a6ff; cursor: pointer; font-weight: 600; }
-        .queue-pill-copy:hover { color: #79b8ff; }
-        .queue-pill-clear { color: #484f58; cursor: pointer; margin-left: 2px; }
-        .queue-pill-clear:hover { color: #f85149; }
+
 
         .loading-msg { padding: 40px; text-align: center; color: #484f58; font-size: 0.935em; }
 
@@ -1308,12 +1298,6 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                    <span class="queue-pill" id="wl-chart-queue-pill">
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
-                        <span class="queue-pill-count"></span> queued ·
-                        <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
-                        <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
-                    </span>
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                         Fundamentals
@@ -1475,12 +1459,6 @@
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                <span class="queue-pill" id="chart-modal-queue-pill">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
-                    <span class="queue-pill-count"></span> queued ·
-                    <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
-                    <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
-                </span>
                 <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                     Fundamentals
@@ -1508,12 +1486,6 @@
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-            <span class="queue-pill" id="mc-fullscreen-queue-pill">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
-                <span class="queue-pill-count"></span> queued ·
-                <span class="queue-pill-copy" onclick="copyTickerQueue()">copy</span>
-                <span class="queue-pill-clear" onclick="clearTickerQueue()" title="Clear list">×</span>
-            </span>
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                 Fundamentals
@@ -1560,10 +1532,9 @@
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
     var tickerQueue = [];
 
-    var QUEUE_BTN_IDS  = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
-    var QUEUE_PILL_IDS = ['wl-chart-queue-pill', 'chart-modal-queue-pill', 'mc-fullscreen-queue-pill'];
+    var QUEUE_BTN_IDS = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
 
-    window.toggleTickerQueue = function(ticker, btnId) {
+    window.toggleTickerQueue = function(ticker) {
         ticker = (ticker || '').trim();
         if (!ticker || ticker === '—') return;
         var idx = tickerQueue.indexOf(ticker);
@@ -1572,11 +1543,11 @@
         } else {
             tickerQueue.splice(idx, 1);
         }
-        updateQueueButtons(ticker);
-        updateQueuePills();
+        updateQueueButtons();
+        copyTickerQueueSilent();
     };
 
-    function updateQueueButtons(activeTicker) {
+    function updateQueueButtons() {
         QUEUE_BTN_IDS.forEach(function(id) {
             var btn = document.getElementById(id);
             if (!btn) return;
@@ -1591,35 +1562,11 @@
         });
     }
 
-    function updateQueuePills() {
-        var count = tickerQueue.length;
-        QUEUE_PILL_IDS.forEach(function(id) {
-            var pill = document.getElementById(id);
-            if (!pill) return;
-            pill.classList.toggle('visible', count > 0);
-            var countEl = pill.querySelector('.queue-pill-count');
-            if (countEl) countEl.textContent = count;
-        });
-    }
-
-    window.copyTickerQueue = function() {
+    function copyTickerQueueSilent() {
         if (!tickerQueue.length) return;
         var text = tickerQueue.join(',');
 
-        function showCopiedFeedback() {
-            QUEUE_PILL_IDS.forEach(function(id) {
-                var pill = document.getElementById(id);
-                if (!pill || !pill.classList.contains('visible')) return;
-                var copyEl = pill.querySelector('.queue-pill-copy');
-                if (copyEl) {
-                    var orig = copyEl.textContent;
-                    copyEl.textContent = 'copied!';
-                    setTimeout(function() { copyEl.textContent = orig; }, 1500);
-                }
-            });
-        }
-
-        function fallbackCopy() {
+        function fallback() {
             var ta = document.createElement('textarea');
             ta.value = text;
             ta.style.position = 'fixed';
@@ -1632,20 +1579,18 @@
             ta.focus(); ta.select();
             try { document.execCommand('copy'); } catch(e) {}
             document.body.removeChild(ta);
-            showCopiedFeedback();
         }
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(showCopiedFeedback).catch(fallbackCopy);
+            navigator.clipboard.writeText(text).catch(fallback);
         } else {
-            fallbackCopy();
+            fallback();
         }
-    };
+    }
 
     window.clearTickerQueue = function() {
         tickerQueue = [];
         updateQueueButtons();
-        updateQueuePills();
     };
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -2184,7 +2129,6 @@
         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct);
         overlay.classList.add('open');
         updateQueueButtons();
-        updateQueuePills();
 
         var mappedSym = TV_MAP[sym] || sym;
         try {
@@ -2538,7 +2482,6 @@
 
         document.getElementById('chart-modal-overlay').classList.add('open');
         updateQueueButtons();
-        updateQueuePills();
         if (chartWidget) {
             try {
                 chartWidget.setSymbol(sym, null, function(){});
@@ -4643,7 +4586,6 @@
         // Update header — symbol, industry · rank, fundamentals/news links
         document.getElementById('wl-chart-sym').textContent = ticker;
         updateQueueButtons();
-        updateQueuePills();
         var metaEl = document.getElementById('wl-chart-meta');
         var fBtn   = document.getElementById('wl-chart-fundamentals-btn');
         var nBtn   = document.getElementById('wl-chart-news-btn');
