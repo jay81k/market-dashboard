@@ -3123,6 +3123,7 @@
 
     function sfSaveAllPresets(obj) {
         try { localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(obj)); } catch(e) {}
+        kvSet('scan_presets', JSON.stringify(obj));
     }
 
     window.sfOpenSaveModal = function() {
@@ -3970,6 +3971,26 @@
     var wlLivePrices   = {};   // { ticker: { price, prevClose, updatedAt } }
     var wlPriceTimer   = null;
     var WL_PROXY       = 'https://yahoo-proxy.jay69k.workers.dev';
+
+    // ── KV Storage helpers ────────────────────────────────────────────────
+    function kvGet(key) {
+        return fetch(WL_PROXY + '?action=kv_get&key=' + encodeURIComponent(key))
+            .then(function(r) { return r.json(); })
+            .then(function(d) { return d.value; })
+            .catch(function() { return null; });
+    }
+
+    function kvSet(key, value) {
+        return fetch(WL_PROXY + '?action=kv_set&key=' + encodeURIComponent(key), {
+            method: 'POST',
+            body: typeof value === 'string' ? value : JSON.stringify(value)
+        }).catch(function() {});
+    }
+
+    function kvDelete(key) {
+        return fetch(WL_PROXY + '?action=kv_delete&key=' + encodeURIComponent(key))
+            .catch(function() {});
+    }
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
@@ -3986,6 +4007,7 @@
     }
     function wlSetLastList(name) {
         try { localStorage.setItem(LS_WL_LAST_KEY, name); } catch(e) {}
+        kvSet('wl_last', name);
     }
 
     function wlGetAll() {
@@ -3995,16 +4017,17 @@
         try {
             var all = wlGetAll();
             var ord = JSON.parse(localStorage.getItem(LS_WL_ORD_KEY) || '[]');
-            // Add any missing keys
             Object.keys(all).forEach(function(k){ if (ord.indexOf(k) === -1) ord.push(k); });
             return ord.filter(function(k){ return k in all; });
         } catch(e) { return Object.keys(wlGetAll()); }
     }
     function wlSaveAll(obj) {
         try { localStorage.setItem(LS_WL_KEY, JSON.stringify(obj)); } catch(e) {}
+        kvSet('wl_data', JSON.stringify(obj));
     }
     function wlSaveOrder(arr) {
         try { localStorage.setItem(LS_WL_ORD_KEY, JSON.stringify(arr)); } catch(e) {}
+        kvSet('wl_order', JSON.stringify(arr));
     }
 
     function wlAllTickers() {
@@ -5512,9 +5535,41 @@
         document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === activeMAType); });
         document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === activeMALength); });
 
-        showView('industries');
-        sfRenderPills();
-        wlAttachListeners();
+        // Restore data from KV if localStorage is empty (fresh browser/device)
+        Promise.all([
+            kvGet('wl_data'),
+            kvGet('wl_order'),
+            kvGet('wl_last'),
+            kvGet('scan_presets'),
+        ]).then(function(results) {
+            var kvWlData    = results[0];
+            var kvWlOrder   = results[1];
+            var kvWlLast    = results[2];
+            var kvPresets   = results[3];
+
+            // Only restore from KV if localStorage doesn't already have data
+            if (kvWlData && !localStorage.getItem(LS_WL_KEY)) {
+                try { localStorage.setItem(LS_WL_KEY, kvWlData); } catch(e) {}
+            }
+            if (kvWlOrder && !localStorage.getItem(LS_WL_ORD_KEY)) {
+                try { localStorage.setItem(LS_WL_ORD_KEY, kvWlOrder); } catch(e) {}
+            }
+            if (kvWlLast && !localStorage.getItem(LS_WL_LAST_KEY)) {
+                try { localStorage.setItem(LS_WL_LAST_KEY, kvWlLast); } catch(e) {}
+            }
+            if (kvPresets && !localStorage.getItem(LS_PRESETS_KEY)) {
+                try { localStorage.setItem(LS_PRESETS_KEY, kvPresets); } catch(e) {}
+            }
+
+            showView('industries');
+            sfRenderPills();
+            wlAttachListeners();
+        }).catch(function() {
+            // KV unavailable — proceed normally with localStorage
+            showView('industries');
+            sfRenderPills();
+            wlAttachListeners();
+        });
 
         // Scans dblclick — attached once on the static container
         document.getElementById('scans-table-view').addEventListener('dblclick', function(e) {
