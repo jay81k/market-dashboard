@@ -4353,6 +4353,8 @@
             // Select ticker for chart
             var tickerRow = e.target.closest('[data-wl-ticker]');
             if (tickerRow && !e.target.closest('[data-wl-remove-ticker]')) {
+                var wlRows = Array.from(document.querySelectorAll('.wl-ticker-row'));
+                currentWlIndex = wlRows.indexOf(tickerRow);
                 wlSelectTicker(tickerRow.getAttribute('data-wl-ticker'));
             }
         });
