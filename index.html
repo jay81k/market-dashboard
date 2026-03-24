@@ -2538,7 +2538,7 @@
         _chartModalMsgHandler = function(e) {
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                // TradingView postMessage format varies — check common patterns
+                // Only respond to specific TradingView events that signal a symbol change
                 var sym = null;
                 if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
                     sym = data.data.symbol;
@@ -2546,11 +2546,9 @@
                     sym = data.data.symbol;
                 } else if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
                     sym = data.data.original_name;
-                } else if (data && data.symbolName) {
-                    sym = data.symbolName;
-                } else if (data && data.symbol) {
-                    sym = data.symbol;
                 }
+                // NOTE: removed broad data.symbolName / data.symbol fallbacks —
+                // they fire on every price tick and cause constant header re-renders
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
                     if (bare && bare !== _lastSym) {
