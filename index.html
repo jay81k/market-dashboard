@@ -851,12 +851,25 @@
         .mic-chg-abs.up, .mic-chg-pct.up   { color: #3fb950; }
         .mic-chg-abs.down, .mic-chg-pct.down { color: #f85149; }
         .mic-chg-abs.flat, .mic-chg-pct.flat { color: #484f58; }
-        .mic-from-open { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .mic-sub-row { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+        .mic-from-open { display: flex; align-items: center; gap: 5px; }
         .mic-from-open-lbl { font-size: 0.748em; color: #484f58; }
         .mic-from-open-val { font-size: 0.748em; font-weight: 600; font-variant-numeric: tabular-nums; }
         .mic-from-open-val.up   { color: #3fb950; }
         .mic-from-open-val.down { color: #f85149; }
         .mic-from-open-val.flat { color: #484f58; }
+        .mic-futures-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
+        .mic-futures-pill.up   { background: #0d2b0d; border-color: #2ea04322; }
+        .mic-futures-pill.down { background: #2b0d0d; border-color: #f8514922; }
+        .mic-futures-pill.flat { background: #161b22; border-color: #30363d; }
+        .mic-futures-sym { font-size: 0.682em; font-weight: 600; letter-spacing: 0.03em; }
+        .mic-futures-pill.up   .mic-futures-sym { color: #3fb95077; }
+        .mic-futures-pill.down .mic-futures-sym { color: #f8514977; }
+        .mic-futures-pill.flat .mic-futures-sym { color: #484f58; }
+        .mic-futures-val { font-size: 0.748em; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .mic-futures-pill.up   .mic-futures-val { color: #3fb950; }
+        .mic-futures-pill.down .mic-futures-val { color: #f85149; }
+        .mic-futures-pill.flat .mic-futures-val { color: #484f58; }
 
         /* Sparkline wrapper — positions y-axis labels alongside SVG */
         .mic-chart-wrap { position: relative; margin-top: 12px; }
@@ -4883,10 +4896,10 @@
     // ── Market Overview ───────────────────────────────────────────────────
 
     var MARKET_INDEXES = [
-        { id: 'GSPC', symbol: '^GSPC', label: 'SPX',  name: 'S&P 500' },
-        { id: 'IXIC', symbol: '^IXIC', label: 'NAS',  name: 'Nasdaq' },
-        { id: 'DJI',  symbol: '^DJI',  label: 'DJI',  name: 'Dow Jones' },
-        { id: 'RUT',  symbol: '^RUT',  label: 'RUT',  name: 'Russell 2000' },
+        { id: 'GSPC', symbol: '^GSPC', label: 'SPX',  name: 'S&P 500',      futures: 'ES=F' },
+        { id: 'IXIC', symbol: '^IXIC', label: 'NAS',  name: 'Nasdaq',        futures: 'NQ=F' },
+        { id: 'DJI',  symbol: '^DJI',  label: 'DJI',  name: 'Dow Jones',     futures: 'YM=F' },
+        { id: 'RUT',  symbol: '^RUT',  label: 'RUT',  name: 'Russell 2000',  futures: 'RTY=F' },
     ];
 
     var marketTf       = '1d';
@@ -5045,7 +5058,7 @@
         return '<div class="mic-chart-wrap">' + svg + '</div>';
     }
 
-    function marketRenderCard(idx, parsed) {
+    function marketRenderCard(idx, parsed, futuresParsed) {
         var card = document.getElementById('mc-' + idx.id);
         if (!card) return;
 
@@ -5075,9 +5088,30 @@
         var now     = new Date();
         var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        var fromOpenHtml = fromOpenStr != null
-            ? '<div class="mic-from-open"><span class="mic-from-open-lbl">from open</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>'
-            : '';
+        // Futures pill — only outside market hours
+        var futuresPillHtml = '';
+        var isOpen = wlIsMarketOpen();
+        if (!isOpen && futuresParsed && futuresParsed.price != null && futuresParsed.prevClose != null) {
+            var fChgPct = ((futuresParsed.price - futuresParsed.prevClose) / futuresParsed.prevClose) * 100;
+            var fDir    = fChgPct > 0 ? 'up' : fChgPct < 0 ? 'down' : 'flat';
+            var fStr    = (fChgPct >= 0 ? '▲ +' : '▼ ') + fChgPct.toFixed(2) + '%';
+            futuresPillHtml = '<div class="mic-futures-pill ' + fDir + '">' +
+                '<span class="mic-futures-sym">' + idx.futures + '</span>' +
+                '<span class="mic-futures-val">' + fStr + '</span>' +
+            '</div>';
+        }
+
+        // Sub-row: from open (left) + futures pill (right, market closed only)
+        var subRowHtml = '';
+        var fromOpenLbl = isOpen ? 'from open' : 'prev close';
+        if (fromOpenStr != null || futuresPillHtml) {
+            subRowHtml = '<div class="mic-sub-row">' +
+                (fromOpenStr != null
+                    ? '<div class="mic-from-open"><span class="mic-from-open-lbl">' + fromOpenLbl + '</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>'
+                    : '<div></div>') +
+                futuresPillHtml +
+            '</div>';
+        }
 
         card.className = 'market-index-card ' + direction;
         card.innerHTML =
@@ -5093,7 +5127,7 @@
                     '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
                 '</div>' +
             '</div>' +
-            fromOpenHtml +
+            subRowHtml +
             marketSparklineSVG(parsed.points, parsed.prevClose, direction) +
             '<div class="mic-xaxis">' + marketXLabels(parsed.points, parsed.timestamps) + '</div>';
     }
@@ -5107,12 +5141,13 @@
         document.getElementById('market-updated').textContent = '';
 
         Promise.all(MARKET_INDEXES.map(function(idx) {
-            return marketFetchOne(idx.symbol).then(function(data) {
-                return marketParseResult(data);
-            });
+            return Promise.all([
+                marketFetchOne(idx.symbol).then(function(data) { return marketParseResult(data); }),
+                marketFetchOne(idx.futures).then(function(data) { return marketParseResult(data); }),
+            ]);
         })).then(function(results) {
             MARKET_INDEXES.forEach(function(idx, i) {
-                marketRenderCard(idx, results[i]);
+                marketRenderCard(idx, results[i][0], results[i][1]);
             });
             renderMarketBreadth();
             renderMarketHL();
