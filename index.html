@@ -4916,17 +4916,25 @@
         var result     = data.chart.result[0];
         var meta       = result.meta || {};
         var timestamps = result.timestamp || [];
-        var closes     = (result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) || [];
+        var quote      = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
+        var closes     = quote.close  || [];
+        var opens      = quote.open   || [];
 
         var points = [], ts = [];
         for (var i = 0; i < timestamps.length; i++) {
             if (closes[i] != null) { points.push(closes[i]); ts.push(timestamps[i]); }
         }
 
+        // First real open value from the bars — most reliable source for intraday "from open"
+        var firstOpen = null;
+        for (var j = 0; j < opens.length; j++) {
+            if (opens[j] != null) { firstOpen = opens[j]; break; }
+        }
+
         return {
             price:      meta.regularMarketPrice                      || null,
             prevClose:  meta.previousClose || meta.chartPreviousClose || null,
-            marketOpen: meta.regularMarketOpen                       || null,
+            marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
         };
