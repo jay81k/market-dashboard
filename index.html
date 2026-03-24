@@ -3093,13 +3093,18 @@
         } else {
             if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
             row[field] = value;
-            if (field === 'maCondition') {
-                if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
-                if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
-                if (value === 'ma_cluster') { if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21']; if (row.clusterSpread == null) row.clusterSpread = 1; }
+            // For free-text input fields don't re-render the popover — it destroys the
+            // input element and kills focus after every keystroke. Just update state + pills.
+            var isTextInput = (field === 'val' || field === 'val2' || field === 'clusterSpread');
+            if (!isTextInput) {
+                if (field === 'maCondition') {
+                    if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
+                    if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
+                    if (value === 'ma_cluster') { if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21']; if (row.clusterSpread == null) row.clusterSpread = 1; }
+                }
+                var c2 = sfPopoverHtml(row); c2 = c2.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+                document.getElementById('sf-popover-content').innerHTML = c2;
             }
-            var c2 = sfPopoverHtml(row); c2 = c2.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
-            document.getElementById('sf-popover-content').innerHTML = c2;
         }
         sfRenderPills();
     };
