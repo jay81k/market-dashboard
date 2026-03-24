@@ -858,7 +858,7 @@
         .mic-from-open-val.up   { color: #3fb950; }
         .mic-from-open-val.down { color: #f85149; }
         .mic-from-open-val.flat { color: #484f58; }
-        .mic-futures-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
+        .mic-futures-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 3px; border: 1px solid; margin-left: auto; margin-right: 6px; }
         .mic-futures-pill.up   { background: #0d2b0d; border-color: #2ea04322; }
         .mic-futures-pill.down { background: #2b0d0d; border-color: #f8514922; }
         .mic-futures-pill.flat { background: #161b22; border-color: #30363d; }
@@ -5101,15 +5101,12 @@
             '</div>';
         }
 
-        // Sub-row: from open (left) + futures pill (right, market closed only)
+        // Sub-row: from open only
         var subRowHtml = '';
         var fromOpenLbl = isOpen ? 'from open' : 'prev close';
-        if (fromOpenStr != null || futuresPillHtml) {
+        if (fromOpenStr != null) {
             subRowHtml = '<div class="mic-sub-row">' +
-                (fromOpenStr != null
-                    ? '<div class="mic-from-open"><span class="mic-from-open-lbl">' + fromOpenLbl + '</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>'
-                    : '<div></div>') +
-                futuresPillHtml +
+                '<div class="mic-from-open"><span class="mic-from-open-lbl">' + fromOpenLbl + '</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>' +
             '</div>';
         }
 
@@ -5118,6 +5115,7 @@
             '<div class="mic-header">' +
                 '<span class="mic-label">' + idx.label + '</span>' +
                 '<span class="mic-name">' + idx.name + '</span>' +
+                (futuresPillHtml ? futuresPillHtml : '') +
                 '<span class="mic-date">' + dateStr + '</span>' +
             '</div>' +
             '<div class="mic-price-row">' +
