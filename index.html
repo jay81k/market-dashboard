@@ -851,6 +851,12 @@
         .mic-chg-abs.up, .mic-chg-pct.up   { color: #3fb950; }
         .mic-chg-abs.down, .mic-chg-pct.down { color: #f85149; }
         .mic-chg-abs.flat, .mic-chg-pct.flat { color: #484f58; }
+        .mic-from-open { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .mic-from-open-lbl { font-size: 0.748em; color: #484f58; }
+        .mic-from-open-val { font-size: 0.748em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mic-from-open-val.up   { color: #3fb950; }
+        .mic-from-open-val.down { color: #f85149; }
+        .mic-from-open-val.flat { color: #484f58; }
 
         /* Sparkline wrapper — positions y-axis labels alongside SVG */
         .mic-chart-wrap { position: relative; margin-top: 12px; }
@@ -4920,6 +4926,7 @@
         return {
             price:      meta.regularMarketPrice                      || null,
             prevClose:  meta.previousClose || meta.chartPreviousClose || null,
+            marketOpen: meta.regularMarketOpen                       || null,
             points:     points,
             timestamps: ts,
         };
@@ -5048,12 +5055,21 @@
         var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
+        var marketOpen   = parsed.marketOpen;
+        var fromOpenPct  = (price != null && marketOpen != null && marketOpen > 0) ? ((price - marketOpen) / marketOpen) * 100 : null;
+        var fromOpenDir  = fromOpenPct == null ? 'flat' : fromOpenPct > 0 ? 'up' : fromOpenPct < 0 ? 'down' : 'flat';
+        var fromOpenStr  = fromOpenPct != null ? (fromOpenPct >= 0 ? '▲ +' : '▼ ') + fromOpenPct.toFixed(2) + '%' : null;
+
         var priceStr  = marketFmtPrice(price);
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
         var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
 
         var now     = new Date();
         var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        var fromOpenHtml = fromOpenStr != null
+            ? '<div class="mic-from-open"><span class="mic-from-open-lbl">from open</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>'
+            : '';
 
         card.className = 'market-index-card ' + direction;
         card.innerHTML =
@@ -5069,6 +5085,7 @@
                     '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
                 '</div>' +
             '</div>' +
+            fromOpenHtml +
             marketSparklineSVG(parsed.points, parsed.prevClose, direction) +
             '<div class="mic-xaxis">' + marketXLabels(parsed.points, parsed.timestamps) + '</div>';
     }
