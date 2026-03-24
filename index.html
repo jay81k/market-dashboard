@@ -839,8 +839,8 @@
         /* Card header row */
         .mic-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
         .mic-label  { font-size: 0.825em; font-weight: 700; color: #c8d0dc; text-transform: uppercase; letter-spacing: 0.06em; }
-        .mic-name   { font-size: 0.792em; color: #6e7681; }
-        .mic-date   { font-size: 0.748em; color: #484f58; margin-left: auto; }
+        .mic-name   { font-size: 0.792em; color: #6e7681; flex: 1; }
+        .mic-date   { font-size: 0.748em; color: #484f58; }
 
         /* Price + change row */
         .mic-price-row { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
@@ -858,7 +858,7 @@
         .mic-from-open-val.up   { color: #3fb950; }
         .mic-from-open-val.down { color: #f85149; }
         .mic-from-open-val.flat { color: #484f58; }
-        .mic-futures-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 3px; border: 1px solid; margin-left: auto; margin-right: 6px; }
+        .mic-futures-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 3px; border: 1px solid; margin-right: 8px; }
         .mic-futures-pill.up   { background: #0d2b0d; border-color: #2ea04322; }
         .mic-futures-pill.down { background: #2b0d0d; border-color: #f8514922; }
         .mic-futures-pill.flat { background: #161b22; border-color: #30363d; }
@@ -5088,10 +5088,12 @@
         var now     = new Date();
         var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        // Futures pill — only outside market hours
+        var isOpen   = wlIsMarketOpen();
+        var is1D     = marketTf === '1d';
+
+        // Futures pill — 1D only, outside market hours
         var futuresPillHtml = '';
-        var isOpen = wlIsMarketOpen();
-        if (!isOpen && futuresParsed && futuresParsed.price != null && futuresParsed.prevClose != null) {
+        if (is1D && !isOpen && futuresParsed && futuresParsed.price != null && futuresParsed.prevClose != null) {
             var fChgPct = ((futuresParsed.price - futuresParsed.prevClose) / futuresParsed.prevClose) * 100;
             var fDir    = fChgPct > 0 ? 'up' : fChgPct < 0 ? 'down' : 'flat';
             var fStr    = (fChgPct >= 0 ? '▲ +' : '▼ ') + fChgPct.toFixed(2) + '%';
@@ -5101,10 +5103,10 @@
             '</div>';
         }
 
-        // Sub-row: from open only
+        // Sub-row: from open — 1D only, always shown
         var subRowHtml = '';
-        var fromOpenLbl = isOpen ? 'from open' : 'prev close';
-        if (fromOpenStr != null) {
+        if (is1D && fromOpenStr != null) {
+            var fromOpenLbl = isOpen ? 'from open' : 'from open';
             subRowHtml = '<div class="mic-sub-row">' +
                 '<div class="mic-from-open"><span class="mic-from-open-lbl">' + fromOpenLbl + '</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>' +
             '</div>';
