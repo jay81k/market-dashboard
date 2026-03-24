@@ -524,6 +524,19 @@ def main():
 
     os.makedirs(args.out_dir, exist_ok=True)
 
+    # Load fundamentals cache (written weekly by build_fundamentals.yml)
+    fundamentals_path = os.path.join(args.out_dir, "fundamentals.json")
+    fundamentals_cache: dict = {}
+    if os.path.exists(fundamentals_path):
+        try:
+            with open(fundamentals_path, "r", encoding="utf-8") as f:
+                fundamentals_cache = json.load(f).get("fundamentals", {})
+            print(f"Loaded fundamentals for {len(fundamentals_cache)} tickers")
+        except Exception as e:
+            print(f"Warning: could not load fundamentals.json: {e}")
+    else:
+        print("Warning: fundamentals.json not found, skipping fundamental fields")
+
     # 1. Load & filter universe
     universe = load_universe(args.csv_url)
 
@@ -596,6 +609,21 @@ def main():
             **passthrough,
             **metrics,
         }
+
+        # Merge fundamental fields if available
+        fund = fundamentals_cache.get(ticker)
+        if fund:
+            row["eps_next_y_pct"]    = fund.get("eps_next_y_pct")
+            row["eps_next_5y_pct"]   = fund.get("eps_next_5y_pct")
+            row["eps_qoq_pct"]       = fund.get("eps_qoq_pct")
+            row["sales_qoq_pct"]     = fund.get("sales_qoq_pct")
+            row["profit_margin_pct"] = fund.get("profit_margin_pct")
+        else:
+            row["eps_next_y_pct"]    = None
+            row["eps_next_5y_pct"]   = None
+            row["eps_qoq_pct"]       = None
+            row["sales_qoq_pct"]     = None
+            row["profit_margin_pct"] = None
 
         # For supplemental tickers, compute CSV passthrough fields from price history
         if ticker in supplemental_set and ticker in histories:
