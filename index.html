@@ -3296,10 +3296,13 @@
                     '</div>';
             });
         }
-        html += '<div style="border-top:1px solid #21262d;margin-top:4px;">' +
-            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;">' +
+        html += '<div style="border-top:1px solid #21262d;margin-top:4px;display:flex;align-items:center;">' +
+            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;flex:1;">' +
             '<span style="flex:1;">Copy results</span>' +
             '<span style="font-size:10px;color:#484f58;" id="sf-copy-feedback"></span>' +
+            '</div>' +
+            '<div class="sf-preset-item" data-sf-action="reset-filters" style="color:#f85149;cursor:pointer;border-left:1px solid #21262d;padding:0 12px;">' +
+            'Reset' +
             '</div></div>';
         dd.innerHTML = html;
 
@@ -3309,13 +3312,15 @@
             var applyEl  = e.target.closest('[data-sf-apply]');
             var exportEl = e.target.closest('[data-sf-export]');
             var deleteEl = e.target.closest('[data-sf-delete]');
-            var exportAll  = e.target.closest('[data-sf-action="export-all"]');
-            var copyResults = e.target.closest('[data-sf-action="copy-results"]');
-            if (applyEl)    { sfApplyPreset(applyEl.getAttribute('data-sf-apply')); return; }
-            if (exportEl)   { sfExportOne(exportEl.getAttribute('data-sf-export')); return; }
-            if (deleteEl)   { sfDeletePreset(deleteEl.getAttribute('data-sf-delete')); return; }
-            if (exportAll)  { sfExportAll(); return; }
-            if (copyResults){ sfCopyResults(); return; }
+            var exportAll    = e.target.closest('[data-sf-action="export-all"]');
+            var copyResults  = e.target.closest('[data-sf-action="copy-results"]');
+            var resetFilters = e.target.closest('[data-sf-action="reset-filters"]');
+            if (applyEl)      { sfApplyPreset(applyEl.getAttribute('data-sf-apply')); return; }
+            if (exportEl)     { sfExportOne(exportEl.getAttribute('data-sf-export')); return; }
+            if (deleteEl)     { sfDeletePreset(deleteEl.getAttribute('data-sf-delete')); return; }
+            if (exportAll)    { sfExportAll(); return; }
+            if (copyResults)  { sfCopyResults(); return; }
+            if (resetFilters) { sfResetFilters(); return; }
         };
     }
 
@@ -3336,6 +3341,15 @@
         document.body.removeChild(ta);
         var fb = document.getElementById('sf-copy-feedback');
         if (fb) { fb.textContent = 'Copied ' + tickers.length + '!'; setTimeout(function(){ fb.textContent = ''; }, 2000); }
+    };
+
+    window.sfResetFilters = function() {
+        sfRows = [];
+        sfRowId = 0;
+        var dd = document.getElementById('sf-preset-dropdown');
+        if (dd) dd.classList.remove('open');
+        sfRenderPills();
+        renderScans();
     };
 
     window.sfApplyPreset = function(name) {
