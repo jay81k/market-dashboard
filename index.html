@@ -241,8 +241,31 @@
         }
 
         /* Stocks table */
-        .stocks-table-wrap { flex: 1; overflow-y: auto; }
+        .stocks-table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; }
         .stocks-table { width: 100%; border-collapse: collapse; font-size: 0.968em; table-layout: fixed; }
+
+        /* Sticky first column */
+        .stocks-table td:first-child,
+        .stocks-table th:first-child {
+            position: sticky; left: 0; z-index: 3;
+            background: #0d1117;
+        }
+        .stocks-table tbody tr:hover td:first-child { background: #161b22; }
+        .stocks-table tbody tr.active td:first-child { background: #1c2128; }
+
+        /* Fundamental columns — hidden by default */
+        .fund-col { display: none; }
+        .fund-cols-visible .fund-col { display: table-cell; }
+
+        /* Fundamental toggle button */
+        .fund-toggle-btn {
+            padding: 2px 8px; border-radius: 4px; border: 1px solid #21262d;
+            background: transparent; color: #484f58; font-size: 0.792em;
+            font-family: inherit; cursor: pointer; font-weight: 600;
+            transition: all 0.12s; white-space: nowrap; margin-left: 6px;
+        }
+        .fund-toggle-btn:hover { border-color: #6e7681; color: #8b949e; }
+        .fund-toggle-btn.active { border-color: #2979c8; color: #58a6ff; background: #1a3a5c33; }
 
         /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vSPY|v3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
         .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
@@ -2223,11 +2246,23 @@
             { key:'adr_pct',    label:'ADR%',      tip:'Avg Daily Range %' },
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
+        var fundCols = [
+            { key:'eps_next_y_pct',    label:'EPS NY',    tip:'EPS Growth Next Year %' },
+            { key:'eps_next_5y_pct',   label:'EPS 5Y',    tip:'EPS Growth Next 5 Years %' },
+            { key:'eps_qoq_pct',       label:'EPS Q/Q',   tip:'EPS Growth Qtr over Qtr %' },
+            { key:'sales_qoq_pct',     label:'Sales Q/Q', tip:'Sales Growth Qtr over Qtr %' },
+            { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
+        ];
         var html = '<tr>';
         cols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
             html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
         });
+        fundCols.forEach(function(c) {
+            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
+            html += '<th class="sortable fund-col' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
+        });
+        html += '<th style="width:28px;padding:4px 6px;"><button class="fund-toggle-btn" id="fund-toggle-stocks" onclick="event.stopPropagation();toggleFundCols(\'stocks\')" title="Show/hide fundamental columns">⊞</button></th>';
         html += '</tr>';
         document.getElementById(theadId).innerHTML = html;
     }
@@ -2261,6 +2296,11 @@
                     ' data-avg_vol="' + (row.AvgVol50   != null ? row.AvgVol50   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
+                    ' data-eps_next_y_pct="'    + (row.eps_next_y_pct    != null ? row.eps_next_y_pct    : '') + '"' +
+                    ' data-eps_next_5y_pct="'   + (row.eps_next_5y_pct   != null ? row.eps_next_5y_pct   : '') + '"' +
+                    ' data-eps_qoq_pct="'       + (row.eps_qoq_pct       != null ? row.eps_qoq_pct       : '') + '"' +
+                    ' data-sales_qoq_pct="'     + (row.sales_qoq_pct     != null ? row.sales_qoq_pct     : '') + '"' +
+                    ' data-profit_margin_pct="' + (row.profit_margin_pct != null ? row.profit_margin_pct : '') + '"' +
                     ' data-sector="'  + esc(row.sector   || '') + '"' +
                     ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
@@ -2309,6 +2349,13 @@
                 else crColor = '#f85149';
             }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
+            // Fundamental columns (hidden until toggled)
+            html += '<td class="fund-col ' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
+            html += '<td style="width:28px;"></td>';
             html += '</tr>';
         });
         var tbody = document.getElementById(tbodyId);
@@ -2369,8 +2416,7 @@
         rows.sort(function(a,b) {
             if (sortBy === 'symbol') return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * currentStockSort.dir;
             var av = parseFloat(a.getAttribute('data-' + sortBy));
-            var bv = parseFloat(b.getAttribute('data-' + sortBy));
-            if (isNaN(av)) return 1; if (isNaN(bv)) return -1;
+            var bv = parseFloat(b.getAttribute('data-' + sortBy));            if (isNaN(av)) return 1; if (isNaN(bv)) return -1;
             return (av - bv) * currentStockSort.dir;
         });
         tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
@@ -2399,6 +2445,24 @@
             if (row) row.setAttribute('data-dist_ma', val);
         });
     }
+
+    // ── Fundamental columns toggle ────────────────────────────────────────
+    var fundColsVisible = { stocks: false, scans: false };
+
+    window.toggleFundCols = function(tableId) {
+        fundColsVisible[tableId] = !fundColsVisible[tableId];
+        var visible = fundColsVisible[tableId];
+
+        // Toggle class on the table wrapper to show/hide fund-col cells
+        var tableEl = tableId === 'stocks'
+            ? document.querySelector('.stocks-table')
+            : document.getElementById('scans-table');
+        if (tableEl) tableEl.classList.toggle('fund-cols-visible', visible);
+
+        // Update button state
+        var btn = document.getElementById('fund-toggle-' + tableId);
+        if (btn) btn.classList.toggle('active', visible);
+    };
 
     window.toggleDistMA = function(btn) {
         var dd = document.getElementById('dist-ma-dropdown');
@@ -3591,12 +3655,25 @@
             { key:'adr_pct',   label:'ADR%',    tip:'Avg Daily Range %' },
             { key:'cr',        label:'CR',      tip:'Closing range (100=high, 0=low)' },
         ];
+        var fundCols = [
+            { key:'eps_next_y_pct',    label:'EPS NY',    tip:'EPS Growth Next Year %' },
+            { key:'eps_next_5y_pct',   label:'EPS 5Y',    tip:'EPS Growth Next 5 Years %' },
+            { key:'eps_qoq_pct',       label:'EPS Q/Q',   tip:'EPS Growth Qtr over Qtr %' },
+            { key:'sales_qoq_pct',     label:'Sales Q/Q', tip:'Sales Growth Qtr over Qtr %' },
+            { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
+        ];
         var html = '<tr>';
         cols.forEach(function(c) {
             var sorted = scansSortState.by === c.key;
             var cl = sorted ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
             html += '<th class="sortable' + cl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
         });
+        fundCols.forEach(function(c) {
+            var sorted = scansSortState.by === c.key;
+            var cl = sorted ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
+            html += '<th class="sortable fund-col' + cl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
+        });
+        html += '<th style="width:28px;padding:4px 6px;"><button class="fund-toggle-btn" id="fund-toggle-scans" onclick="event.stopPropagation();toggleFundCols(\'scans\')" title="Show/hide fundamental columns">⊞</button></th>';
         html += '</tr>';
         document.getElementById('scans-thead').innerHTML = html;
 
@@ -3639,6 +3716,11 @@
             else if (key === 'adr_pct')  { av = a.adr_pct;   bv = b.adr_pct; }
             else if (key === 'cr')       { av = a.cr;        bv = b.cr; }
             else if (key === 'dist_ma')  { av = a.dist_ma ? a.dist_ma[activeMAType+activeMALength] : null; bv = b.dist_ma ? b.dist_ma[activeMAType+activeMALength] : null; }
+            else if (key === 'eps_next_y_pct')    { av = a.eps_next_y_pct;    bv = b.eps_next_y_pct; }
+            else if (key === 'eps_next_5y_pct')   { av = a.eps_next_5y_pct;   bv = b.eps_next_5y_pct; }
+            else if (key === 'eps_qoq_pct')       { av = a.eps_qoq_pct;       bv = b.eps_qoq_pct; }
+            else if (key === 'sales_qoq_pct')     { av = a.sales_qoq_pct;     bv = b.sales_qoq_pct; }
+            else if (key === 'profit_margin_pct') { av = a.profit_margin_pct; bv = b.profit_margin_pct; }
             else { av = null; bv = null; }
             if (av == null && bv == null) return 0;
             if (av == null) return 1;
@@ -3709,6 +3791,13 @@
             var crColor = '#484f58';
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
+            // Fundamental columns (hidden until toggled)
+            html += '<td class="fund-col ' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
+            html += '<td class="fund-col ' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
+            html += '<td style="width:28px;"></td>';
             html += '</tr>';
         });
 
