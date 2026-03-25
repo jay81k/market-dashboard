@@ -1273,6 +1273,7 @@
                 <textarea class="sf-export-textarea" id="sf-export-textarea" readonly></textarea>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span class="sf-export-copied" id="sf-export-copied">Copied!</span>
+                    <button class="sf-add-btn" onclick="sfClearExport()" style="color:#f85149;border-color:#f8514944;" title="Deselect all tickers">Clear All</button>
                     <button class="sf-export-btn" onclick="sfCopyExport()">Copy</button>
                     <button class="sf-add-btn" onclick="sfCloseExport()">Close</button>
                 </div>
@@ -3296,6 +3297,16 @@
         document.getElementById('sf-export-modal').classList.remove('open');
     };
 
+    window.sfClearExport = function() {
+        selectedScans.clear();
+        document.querySelectorAll('.scan-add-btn').forEach(function(btn) {
+            btn.classList.remove('added');
+            btn.innerHTML = SVG_PLUS;
+        });
+        sfUpdateExportBtn();
+        sfCloseExport();
+    };
+
     window.sfCopyExport = function() {
         var ta = document.getElementById('sf-export-textarea');
         ta.select();
@@ -3777,7 +3788,7 @@
                 ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
                 : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
             html += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
-                '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)">' + addIcon + '</button>' +
+                '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)" title="Select for export">' + addIcon + '</button>' +
                 '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button>' +
                 '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button>' +
                 '<span class="ticker-badge">' + esc(row.ticker) + '</span>' +
