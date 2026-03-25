@@ -253,62 +253,61 @@
         .stocks-table tbody tr:hover td:first-child { background: #161b22; }
         .stocks-table tbody tr.active td:first-child { background: #1c2128; }
 
-        /* Fundamental columns — hidden by default */
-        .fund-col { display: none; }
-        .fund-cols-visible .fund-col { display: table-cell; }
+        /* Fundamental columns — always visible */
+        .fund-col { display: table-cell; }
 
-        /* Fundamental toggle button */
-        .fund-toggle-btn {
-            padding: 2px 8px; border-radius: 4px; border: 1px solid #21262d;
-            background: transparent; color: #484f58; font-size: 0.792em;
-            font-family: inherit; cursor: pointer; font-weight: 600;
-            transition: all 0.12s; white-space: nowrap; margin-left: 6px;
-        }
-        .fund-toggle-btn:hover { border-color: #6e7681; color: #8b949e; }
-        .fund-toggle-btn.active { border-color: #2979c8; color: #58a6ff; background: #1a3a5c33; }
+        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        .stocks-table th:nth-child(1)  { width: 86px; }   /* Ticker */
+        .stocks-table th:nth-child(2)  { width: 62px; }   /* Price */
+        .stocks-table th:nth-child(3)  { width: 36px; }   /* RS */
+        .stocks-table th:nth-child(4)  { width: 56px; }   /* Chg */
+        .stocks-table th:nth-child(5)  { width: 54px; }   /* Chg% */
+        .stocks-table th:nth-child(6)  { width: 50px; }   /* 1W */
+        .stocks-table th:nth-child(7)  { width: 50px; }   /* 1M */
+        .stocks-table th:nth-child(8)  { width: 50px; }   /* 3M */
+        .stocks-table th:nth-child(9)  { width: 50px; }   /* YTD */
+        .stocks-table th:nth-child(10) { width: 54px; }   /* vs 1M */
+        .stocks-table th:nth-child(11) { width: 54px; }   /* vs 3M */
+        .stocks-table th:nth-child(12) { width: 72px; }   /* Dist/MA */
+        .stocks-table th:nth-child(13) { width: 60px; }   /* Avg Vol */
+        .stocks-table th:nth-child(14) { width: 54px; }   /* 52Wk% */
+        .stocks-table th:nth-child(15) { width: 46px; }   /* ADR% */
+        .stocks-table th:nth-child(16) { width: 36px; }   /* CR */
+        .stocks-table th:nth-child(17) { width: 58px; }   /* EPS NY */
+        .stocks-table th:nth-child(18) { width: 54px; }   /* EPS 5Y */
+        .stocks-table th:nth-child(19) { width: 60px; }   /* EPS Q/Q */
+        .stocks-table th:nth-child(20) { width: 68px; }   /* Sales Q/Q */
+        .stocks-table th:nth-child(21) { width: 58px; }   /* Margin */
 
-        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vSPY|v3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
-        .stocks-table th:nth-child(1)  { width: 90px; }   /* Ticker */
-        .stocks-table th:nth-child(2)  { width: 68px; }   /* Price */
-        .stocks-table th:nth-child(3)  { width: 40px; }   /* RS */
-        .stocks-table th:nth-child(4)  { width: 62px; }   /* Chg */
-        .stocks-table th:nth-child(5)  { width: 62px; }   /* Chg% */
-        .stocks-table th:nth-child(6)  { width: 62px; }   /* 1W */
-        .stocks-table th:nth-child(7)  { width: 62px; }   /* 1M */
-        .stocks-table th:nth-child(8)  { width: 62px; }   /* 3M */
-        .stocks-table th:nth-child(9)  { width: 62px; }   /* YTD */
-        .stocks-table th:nth-child(10) { width: 62px; }   /* vs 1M */
-        .stocks-table th:nth-child(11) { width: 62px; }   /* vs 3M */
-        .stocks-table th:nth-child(12) { width: 62px; }   /* Dist/MA */
-        .stocks-table th:nth-child(13) { width: 68px; }   /* Avg Vol */
-        .stocks-table th:nth-child(14) { width: 58px; }   /* 52Wk% */
-        .stocks-table th:nth-child(15) { width: 50px; }   /* ADR% */
-        .stocks-table th:nth-child(16) { width: 40px; }   /* CR */
-
-        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR */
-        #scans-table th:nth-child(1)  { width: 110px; }  /* Ticker */
-        #scans-table th:nth-child(2)  { width: 140px; }  /* Industry */
-        #scans-table th:nth-child(3)  { width: 64px; }   /* Price */
-        #scans-table th:nth-child(4)  { width: 38px; }   /* RS */
-        #scans-table th:nth-child(5)  { width: 60px; }   /* Chg */
-        #scans-table th:nth-child(6)  { width: 60px; }   /* Chg% */
-        #scans-table th:nth-child(7)  { width: 60px; }   /* 1W */
-        #scans-table th:nth-child(8)  { width: 60px; }   /* 1M */
-        #scans-table th:nth-child(9)  { width: 60px; }   /* 3M */
-        #scans-table th:nth-child(10) { width: 60px; }   /* YTD */
-        #scans-table th:nth-child(11) { width: 60px; }   /* vs 1M */
-        #scans-table th:nth-child(12) { width: 60px; }   /* 3M RS */
-        #scans-table th:nth-child(13) { width: 60px; }   /* Dist/MA */
-        #scans-table th:nth-child(14) { width: 64px; }   /* Avg Vol */
-        #scans-table th:nth-child(15) { width: 56px; }   /* 52Wk% */
-        #scans-table th:nth-child(16) { width: 48px; }   /* ADR% */
-        #scans-table th:nth-child(17) { width: 38px; }   /* CR */
+        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        #scans-table th:nth-child(1)  { width: 108px; }  /* Ticker */
+        #scans-table th:nth-child(2)  { width: 130px; }  /* Industry */
+        #scans-table th:nth-child(3)  { width: 58px; }   /* Price */
+        #scans-table th:nth-child(4)  { width: 34px; }   /* RS */
+        #scans-table th:nth-child(5)  { width: 54px; }   /* Chg */
+        #scans-table th:nth-child(6)  { width: 50px; }   /* Chg% */
+        #scans-table th:nth-child(7)  { width: 48px; }   /* 1W */
+        #scans-table th:nth-child(8)  { width: 48px; }   /* 1M */
+        #scans-table th:nth-child(9)  { width: 48px; }   /* 3M */
+        #scans-table th:nth-child(10) { width: 48px; }   /* YTD */
+        #scans-table th:nth-child(11) { width: 52px; }   /* vs 1M */
+        #scans-table th:nth-child(12) { width: 52px; }   /* 3M RS */
+        #scans-table th:nth-child(13) { width: 70px; }   /* Dist/MA */
+        #scans-table th:nth-child(14) { width: 58px; }   /* Avg Vol */
+        #scans-table th:nth-child(15) { width: 52px; }   /* 52Wk% */
+        #scans-table th:nth-child(16) { width: 44px; }   /* ADR% */
+        #scans-table th:nth-child(17) { width: 34px; }   /* CR */
+        #scans-table th:nth-child(18) { width: 56px; }   /* EPS NY */
+        #scans-table th:nth-child(19) { width: 52px; }   /* EPS 5Y */
+        #scans-table th:nth-child(20) { width: 58px; }   /* EPS Q/Q */
+        #scans-table th:nth-child(21) { width: 66px; }   /* Sales Q/Q */
+        #scans-table th:nth-child(22) { width: 56px; }   /* Margin */
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
-            text-align: left; padding: 7px 10px;
+            text-align: left; padding: 7px 6px;
             background: #0d1117; border-bottom: 1px solid #21262d;
-            font-size: 0.902em; font-weight: 600; letter-spacing: 0.04em;
+            font-size: 0.858em; font-weight: 600; letter-spacing: 0.03em;
             text-transform: uppercase; color: #6e7681; cursor: pointer;
             user-select: none; white-space: nowrap;
         }
@@ -317,7 +316,7 @@
         .stocks-table th.sort-asc::after  { content: " ↑"; color: #388bfd; }
         .stocks-table th.sorted { color: #c8d0dc; }
 
-        .stocks-table td { padding: 8px 10px; border-bottom: 1px solid #161b22; color: #8b949e; vertical-align: middle; overflow: hidden; }
+        .stocks-table td { padding: 7px 6px; border-bottom: 1px solid #161b22; color: #8b949e; vertical-align: middle; overflow: hidden; }
         .stock-row { cursor: pointer; transition: background 0.1s; }
         .stock-row:hover { background: #161b22; }
         .stock-row.active { background: #1c2128; }
@@ -1222,7 +1221,7 @@
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap">
-                <table class="stocks-table" id="stocks-table" style="min-width:1100px;">
+                <table class="stocks-table" id="stocks-table" style="min-width:1230px;">
                     <thead id="stocks-thead"></thead>
                     <tbody id="stocks-tbody"></tbody>
                 </table>
@@ -1314,7 +1313,7 @@
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap" style="overflow-x:auto;">
-                <table class="stocks-table" id="scans-table" style="min-width:1260px;">
+                <table class="stocks-table" id="scans-table" style="min-width:1430px;">
                     <thead id="scans-thead"></thead>
                     <tbody id="scans-tbody"></tbody>
                 </table>
@@ -2260,9 +2259,8 @@
         });
         fundCols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
-            html += '<th class="sortable fund-col' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
+            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
         });
-        html += '<th style="width:28px;padding:4px 6px;"><button class="fund-toggle-btn" id="fund-toggle-stocks" onclick="event.stopPropagation();toggleFundCols(\'stocks\')" title="Show/hide fundamental columns">⊞</button></th>';
         html += '</tr>';
         document.getElementById(theadId).innerHTML = html;
     }
@@ -2349,13 +2347,12 @@
                 else crColor = '#f85149';
             }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
-            // Fundamental columns (hidden until toggled)
-            html += '<td class="fund-col ' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
-            html += '<td style="width:28px;"></td>';
+            // Fundamental columns
+            html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
+            html += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
+            html += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
+            html += '<td class="' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
             html += '</tr>';
         });
         var tbody = document.getElementById(tbodyId);
@@ -2445,24 +2442,6 @@
             if (row) row.setAttribute('data-dist_ma', val);
         });
     }
-
-    // ── Fundamental columns toggle ────────────────────────────────────────
-    var fundColsVisible = { stocks: false, scans: false };
-
-    window.toggleFundCols = function(tableId) {
-        fundColsVisible[tableId] = !fundColsVisible[tableId];
-        var visible = fundColsVisible[tableId];
-
-        // Toggle class on the table wrapper to show/hide fund-col cells
-        var tableEl = tableId === 'stocks'
-            ? document.querySelector('.stocks-table')
-            : document.getElementById('scans-table');
-        if (tableEl) tableEl.classList.toggle('fund-cols-visible', visible);
-
-        // Update button state
-        var btn = document.getElementById('fund-toggle-' + tableId);
-        if (btn) btn.classList.toggle('active', visible);
-    };
 
     window.toggleDistMA = function(btn) {
         var dd = document.getElementById('dist-ma-dropdown');
@@ -3671,9 +3650,8 @@
         fundCols.forEach(function(c) {
             var sorted = scansSortState.by === c.key;
             var cl = sorted ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
-            html += '<th class="sortable fund-col' + cl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
+            html += '<th class="sortable' + cl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
         });
-        html += '<th style="width:28px;padding:4px 6px;"><button class="fund-toggle-btn" id="fund-toggle-scans" onclick="event.stopPropagation();toggleFundCols(\'scans\')" title="Show/hide fundamental columns">⊞</button></th>';
         html += '</tr>';
         document.getElementById('scans-thead').innerHTML = html;
 
@@ -3791,13 +3769,12 @@
             var crColor = '#484f58';
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
-            // Fundamental columns (hidden until toggled)
-            html += '<td class="fund-col ' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
-            html += '<td class="fund-col ' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
-            html += '<td style="width:28px;"></td>';
+            // Fundamental columns
+            html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
+            html += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
+            html += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
+            html += '<td class="' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
+            html += '<td class="' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
             html += '</tr>';
         });
 
