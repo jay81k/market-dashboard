@@ -2485,17 +2485,19 @@
         el.style.display = '';
     }
 
-    function updateChartModalHeader(symbol) {
-        var sector = '', industry = '', percentile = null;
-        // Look up from snapshot
-        if (snapshot && snapshot.by_industry) {
+    function updateChartModalHeader(symbol, sector, industry, percentile) {
+        sector     = sector     || '';
+        industry   = industry   || '';
+        percentile = (percentile != null) ? percentile : null;
+        // Only look up from snapshot when caller didn't supply the values
+        if ((!sector || !industry || percentile == null) && snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
                     if (rows[i].ticker === symbol) {
-                        sector     = rows[i].sector     || '';
-                        industry   = rows[i].industry   || '';
-                        percentile = rows[i].Percentile != null ? rows[i].Percentile : null;
+                        if (!sector)           sector     = rows[i].sector     || '';
+                        if (!industry)         industry   = rows[i].industry   || '';
+                        if (percentile == null) percentile = rows[i].Percentile != null ? rows[i].Percentile : null;
                         break outer;
                     }
                 }
@@ -2540,8 +2542,8 @@
                 industry = industry || clickedRow.getAttribute('data-industry') || '';
             }
         }
-        // Use updateChartModalHeader for snapshot lookup + DOM update
-        updateChartModalHeader(symbol);
+        // Pass resolved sector/industry directly; snapshot lookup only as fallback
+        updateChartModalHeader(symbol, sector, industry, null);
 
         document.getElementById('chart-modal-overlay').classList.add('open');
         updateQueueButtons();
@@ -2595,7 +2597,8 @@
                 // they fire on every price tick and cause constant header re-renders
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
-                    if (bare && bare !== _lastSym) {
+                    // Only update header if the symbol genuinely changed from what was opened
+                    if (bare && bare !== _lastSym && bare !== initialSym) {
                         _lastSym = bare;
                         updateChartModalHeader(bare);
                     }
