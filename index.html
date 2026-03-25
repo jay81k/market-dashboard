@@ -1262,6 +1262,7 @@
 
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
+            <button class="sf-add-btn" id="scans-select-all-btn" onclick="sfSelectAll()">Select All</button>
             <button class="sf-export-btn" id="scans-export-btn" onclick="sfOpenExport()" disabled>Export ▾</button>
             <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
         </div>
@@ -3305,6 +3306,21 @@
         });
         sfUpdateExportBtn();
         sfCloseExport();
+    };
+
+    window.sfSelectAll = function() {
+        document.querySelectorAll('#scans-tbody .stock-row').forEach(function(row) {
+            if (row.style.display === 'none') return; // skip filtered-out rows
+            var btn = row.querySelector('.scan-add-btn');
+            if (!btn) return;
+            var ticker = btn.getAttribute('data-ticker');
+            if (!selectedScans.has(ticker)) {
+                selectedScans.add(ticker);
+                btn.classList.add('added');
+                btn.innerHTML = SVG_CHECK;
+            }
+        });
+        sfUpdateExportBtn();
     };
 
     window.sfCopyExport = function() {
