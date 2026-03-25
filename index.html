@@ -3740,7 +3740,7 @@
         ];
         var html = '<tr>';
         html += '<th style="text-align:left;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
-            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:#388bfd;">' +
+            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;">' +
             '</th>';
         cols.slice(1).forEach(function(c) {
             var sorted = scansSortState.by === c.key;
