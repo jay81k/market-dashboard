@@ -1207,21 +1207,6 @@
         <div id="industry-heatmap" style="display:none;overflow-y:auto;flex:1;"></div>
     </div>
 
-    <!-- Industry stocks export modal -->
-    <div class="sf-export-modal" id="ind-export-modal" onclick="if(event.target===this)indCloseExport()">
-        <div class="sf-export-modal-box">
-            <div class="sf-export-modal-title">Export Tickers</div>
-            <div class="sf-export-modal-sub" id="ind-export-sub"></div>
-            <textarea class="sf-export-textarea" id="ind-export-textarea" readonly></textarea>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <span class="sf-export-copied" id="ind-export-copied">Copied!</span>
-                <button class="sf-add-btn" onclick="indClearExport()" style="color:#f85149;border-color:#f8514944;">Clear All</button>
-                <button class="sf-export-btn" onclick="indCopyExport()">Copy</button>
-                <button class="sf-add-btn" onclick="indCloseExport()">Close</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Stocks for a specific industry -->
     <div id="view-industry-stocks" class="stocks-view">
         <div class="stocks-header">
@@ -1233,13 +1218,12 @@
                 </div>
                 <div class="stocks-rs-badge" id="si-rs"></div>
             </div>
-            <button class="sf-export-btn" id="ind-export-btn" onclick="indOpenExport()" disabled style="margin-left:auto;flex-shrink:0;">Export ▾</button>
-            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="flex-shrink:0;">⊞ Multichart</button>
+            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="margin-left:auto;flex-shrink:0;">⊞ Multichart</button>
         </div>
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap">
-                <table class="stocks-table" id="stocks-table" style="min-width:1230px;">
+                <table class="stocks-table" id="stocks-table" style="min-width:1258px;">
                     <thead id="stocks-thead"></thead>
                     <tbody id="stocks-tbody"></tbody>
                 </table>
@@ -2062,8 +2046,6 @@
         document.getElementById('multichart-grid').innerHTML = '';
 
         currentStockSort = { by: null, dir: 1, count: 0 };
-        selectedIndustryStocks.clear();
-        indUpdateExportBtn();
 
         if (!rows || rows.length === 0) {
             document.getElementById('stocks-thead').innerHTML = '';
@@ -2274,13 +2256,9 @@
             { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
         ];
         var html = '<tr>';
-        html += '<th style="width:28px;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="indToggleSelectAll()">' +
-            '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll()" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;opacity:0.35;">' +
-            '</th>';
         cols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
-            var label = c.key === 'symbol' ? '' : c.label;
-            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + label + (c.extra||'') + '</th>';
+            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
         });
         fundCols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
@@ -2327,10 +2305,6 @@
                     ' data-sector="'  + esc(row.sector   || '') + '"' +
                     ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
-            var _isAdded = selectedIndustryStocks.has(row.ticker);
-            html += '<td onclick="event.stopPropagation()" style="padding-left:8px;width:28px;">' +
-                '<button class="scan-add-btn' + (_isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();indToggleAdd(this)" title="Select for export">' +
-                (_isAdded ? SVG_IND_CHECK : SVG_IND_PLUS) + '</button></td>';
             html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button><button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
@@ -2392,7 +2366,7 @@
         tbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
-            if (e.target.closest('.wl-add-btn') || e.target.closest('.wl-pick-btn') || e.target.closest('.scan-add-btn')) return;
+            if (e.target.closest('.wl-add-btn') || e.target.closest('.wl-pick-btn')) return;
             tbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
             row.classList.add('active');
             allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
@@ -3292,97 +3266,6 @@
     };
 
     // ── Scan selection & export ──────────────────────────────────────────
-    // ── Industry stocks selection & export ───────────────────────────────
-    var selectedIndustryStocks = new Set();
-
-    var SVG_IND_PLUS  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
-    var SVG_IND_CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
-
-    function indUpdateExportBtn() {
-        var btn = document.getElementById('ind-export-btn');
-        if (btn) btn.disabled = selectedIndustryStocks.size === 0;
-    }
-
-    window.indToggleAdd = function(btn) {
-        var ticker = btn.getAttribute('data-ticker');
-        if (selectedIndustryStocks.has(ticker)) {
-            selectedIndustryStocks.delete(ticker);
-            btn.innerHTML = SVG_IND_PLUS;
-            btn.classList.remove('added');
-        } else {
-            selectedIndustryStocks.add(ticker);
-            btn.innerHTML = SVG_IND_CHECK;
-            btn.classList.add('added');
-        }
-        indUpdateExportBtn();
-    };
-
-    window.indToggleSelectAll = function() {
-        var chk = document.getElementById('ind-select-all-chk');
-        var allVisible = Array.from(document.querySelectorAll('#stocks-tbody .stock-row'))
-            .filter(function(r) { return r.style.display !== 'none'; });
-        var allSelected = allVisible.length > 0 && allVisible.every(function(row) {
-            var btn = row.querySelector('.scan-add-btn');
-            return btn && selectedIndustryStocks.has(btn.getAttribute('data-ticker'));
-        });
-        if (allSelected) {
-            allVisible.forEach(function(row) {
-                var btn = row.querySelector('.scan-add-btn');
-                if (!btn) return;
-                selectedIndustryStocks.delete(btn.getAttribute('data-ticker'));
-                btn.classList.remove('added');
-                btn.innerHTML = SVG_IND_PLUS;
-            });
-            if (chk) { chk.checked = false; chk.style.opacity = '0.35'; }
-        } else {
-            allVisible.forEach(function(row) {
-                var btn = row.querySelector('.scan-add-btn');
-                if (!btn) return;
-                var ticker = btn.getAttribute('data-ticker');
-                if (!selectedIndustryStocks.has(ticker)) {
-                    selectedIndustryStocks.add(ticker);
-                    btn.classList.add('added');
-                    btn.innerHTML = SVG_IND_CHECK;
-                }
-            });
-            if (chk) { chk.checked = true; chk.style.opacity = '1'; }
-        }
-        indUpdateExportBtn();
-    };
-
-    window.indOpenExport = function() {
-        var tickers = Array.from(selectedIndustryStocks);
-        document.getElementById('ind-export-sub').textContent =
-            tickers.length + ' selected ticker' + (tickers.length !== 1 ? 's' : '');
-        document.getElementById('ind-export-textarea').value = tickers.join(',');
-        document.getElementById('ind-export-modal').classList.add('open');
-    };
-
-    window.indCloseExport = function() {
-        document.getElementById('ind-export-modal').classList.remove('open');
-    };
-
-    window.indClearExport = function() {
-        selectedIndustryStocks.clear();
-        document.querySelectorAll('#stocks-tbody .scan-add-btn').forEach(function(btn) {
-            btn.classList.remove('added');
-            btn.innerHTML = SVG_IND_PLUS;
-        });
-        var chk = document.getElementById('ind-select-all-chk');
-        if (chk) { chk.checked = false; chk.style.opacity = '0.35'; }
-        indUpdateExportBtn();
-        indCloseExport();
-    };
-
-    window.indCopyExport = function() {
-        var ta = document.getElementById('ind-export-textarea');
-        ta.select();
-        document.execCommand('copy');
-        var copied = document.getElementById('ind-export-copied');
-        copied.classList.add('show');
-        setTimeout(function() { copied.classList.remove('show'); }, 2000);
-    };
-
     var selectedScans = new Set();
 
     function sfUpdateExportBtn() {
