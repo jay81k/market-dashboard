@@ -2913,15 +2913,18 @@
         bar.innerHTML = html;
     }
 
-    function sfPopoverHtml(row) {
+    function sfPopoverHtml(row, noTypeRow) {
         var id = row.id;
-        var typeOpts = SF_TYPES.map(function(t){
-            return '<option value="'+t.value+'"'+(row.type===t.value?' selected':'')+'>'+t.label+'</option>';
-        }).join('');
-        var html = '<div class="sf-popover-row">' +
-            '<span class="sf-popover-label">Type</span>' +
-            '<select class="sf-select" onchange="sfPopChange('+id+',\'type\',this.value)">'+typeOpts+'</select>' +
-            '</div>';
+        var html = '';
+        if (!noTypeRow) {
+            var typeOpts = SF_TYPES.map(function(t){
+                return '<option value="'+t.value+'"'+(row.type===t.value?' selected':'')+'>'+t.label+'</option>';
+            }).join('');
+            html = '<div class="sf-popover-row">' +
+                '<span class="sf-popover-label">Type</span>' +
+                '<select class="sf-select" onchange="sfPopChange('+id+',\'type\',this.value)">'+typeOpts+'</select>' +
+                '</div>';
+        }
         if (row.type === 'ma') {
             var MA_P = ['5','8','10','21','50','65','150','200'];
             var cond = row.maCondition || 'above_price';
@@ -3035,10 +3038,8 @@
                        fund: 'Fundamental' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
 
-        // Build content — strip the Type selector row, show only relevant controls
-        var content = sfPopoverHtml(row);
-        // Remove the Type selector row (first sf-popover-row) since type is fixed per pill
-        content = content.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+        // Build content — type row omitted since type is fixed per pill
+        var content = sfPopoverHtml(row, true);
         document.getElementById('sf-popover-content').innerHTML = content;
 
         var pop  = document.getElementById('sf-popover');
@@ -3067,8 +3068,7 @@
                               type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0;
             row.val2        = null;
             // Re-render popover content with reset values
-            var c = sfPopoverHtml(row);
-            c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+            var c = sfPopoverHtml(row, true);
             var contentEl = document.getElementById('sf-popover-content');
             if (contentEl) contentEl.innerHTML = c;
         }
@@ -3110,7 +3110,7 @@
         var idx = row.clusterMAs.indexOf(key);
         if (idx !== -1) { if (row.clusterMAs.length > 2) row.clusterMAs.splice(idx, 1); }
         else row.clusterMAs.push(key);
-        var c = sfPopoverHtml(row); c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+        var c = sfPopoverHtml(row, true);
         document.getElementById('sf-popover-content').innerHTML = c;
     };
 
@@ -3156,7 +3156,7 @@
             row.maType2     = 'SMA';
             row.maPeriod1   = 5;
             row.maPeriod2   = 50;
-            var c = sfPopoverHtml(row); c = c.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+            var c = sfPopoverHtml(row, true);
             document.getElementById('sf-popover-content').innerHTML = c;
         } else {
             if (field === 'maPeriod' || field === 'maPeriod1' || field === 'maPeriod2') value = parseInt(value);
@@ -3170,7 +3170,7 @@
                     if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
                     if (value === 'ma_cluster') { if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21']; if (row.clusterSpread == null) row.clusterSpread = 1; }
                 }
-                var c2 = sfPopoverHtml(row); c2 = c2.replace(/^<div class="sf-popover-row">.*?<\/div>/, '');
+                var c2 = sfPopoverHtml(row, true);
                 document.getElementById('sf-popover-content').innerHTML = c2;
             }
         }
