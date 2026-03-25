@@ -1262,7 +1262,6 @@
 
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
-            <button class="sf-export-btn" id="scans-select-all-btn" onclick="sfSelectAll()">Select All</button>
             <button class="sf-export-btn" id="scans-export-btn" onclick="sfOpenExport()" disabled>Export ▾</button>
             <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
         </div>
@@ -3304,13 +3303,15 @@
             btn.classList.remove('added');
             btn.innerHTML = SVG_PLUS;
         });
+        var chk = document.getElementById('scans-select-all-chk');
+        if (chk) chk.checked = false;
         sfUpdateExportBtn();
         sfCloseExport();
     };
 
     window.sfSelectAll = function() {
         document.querySelectorAll('#scans-tbody .stock-row').forEach(function(row) {
-            if (row.style.display === 'none') return; // skip filtered-out rows
+            if (row.style.display === 'none') return;
             var btn = row.querySelector('.scan-add-btn');
             if (!btn) return;
             var ticker = btn.getAttribute('data-ticker');
@@ -3320,6 +3321,33 @@
                 btn.innerHTML = SVG_CHECK;
             }
         });
+        var chk = document.getElementById('scans-select-all-chk');
+        if (chk) chk.checked = true;
+        sfUpdateExportBtn();
+    };
+
+    window.sfToggleSelectAll = function(el) {
+        // el is either the checkbox or the th — derive checked state
+        var chk = document.getElementById('scans-select-all-chk');
+        var allVisible = Array.from(document.querySelectorAll('#scans-tbody .stock-row'))
+            .filter(function(r){ return r.style.display !== 'none'; });
+        var allSelected = allVisible.every(function(row) {
+            var btn = row.querySelector('.scan-add-btn');
+            return btn && selectedScans.has(btn.getAttribute('data-ticker'));
+        });
+        if (allSelected) {
+            // deselect all
+            allVisible.forEach(function(row) {
+                var btn = row.querySelector('.scan-add-btn');
+                if (!btn) return;
+                selectedScans.delete(btn.getAttribute('data-ticker'));
+                btn.classList.remove('added');
+                btn.innerHTML = SVG_PLUS;
+            });
+            if (chk) chk.checked = false;
+        } else {
+            sfSelectAll();
+        }
         sfUpdateExportBtn();
     };
 
@@ -3708,7 +3736,10 @@
             { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
         ];
         var html = '<tr>';
-        cols.forEach(function(c) {
+        html += '<th style="text-align:center;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
+            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:#388bfd;">' +
+            '</th>';
+        cols.slice(1).forEach(function(c) {
             var sorted = scansSortState.by === c.key;
             var cl = sorted ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
             html += '<th class="sortable' + cl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
