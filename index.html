@@ -3050,8 +3050,6 @@
         pop.style.top  = top + 'px';
         pop.style.left = left + 'px';
         pop.style.display = 'block';
-
-        sfRenderPills();
     };
 
     window.sfClearPillType = function(type) {
@@ -3174,7 +3172,9 @@
                 document.getElementById('sf-popover-content').innerHTML = c2;
             }
         }
-        sfRenderPills();
+        // Don't call sfRenderPills here — it destroys the pill bar while the popover
+        // is open, which breaks the outside-click listener and resets the popover.
+        // Pills are refreshed when the popover closes (sfClosePopover / sfCancelPill).
     };
 
     window.sfAddRow = function() {
