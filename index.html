@@ -1215,7 +1215,7 @@
             <textarea class="sf-export-textarea" id="ind-export-textarea" readonly></textarea>
             <div style="display:flex;align-items:center;gap:8px;">
                 <span class="sf-export-copied" id="ind-export-copied">Copied!</span>
-                <button class="sf-add-btn" onclick="indClearExport()" style="color:#f85149;border-color:#f8514944;" title="Deselect all tickers">Clear All</button>
+                <button class="sf-add-btn" onclick="indClearExport()" style="color:#f85149;border-color:#f8514944;">Clear All</button>
                 <button class="sf-export-btn" onclick="indCopyExport()">Copy</button>
                 <button class="sf-add-btn" onclick="indCloseExport()">Close</button>
             </div>
@@ -2274,12 +2274,13 @@
             { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
         ];
         var html = '<tr>';
-        html += '<th style="text-align:left;padding-left:8px;cursor:pointer;width:32px;" title="Select / deselect all" onclick="indToggleSelectAll(this)">' +
-            '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll(this)" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;opacity:0.35;">' +
+        html += '<th style="width:28px;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="indToggleSelectAll()">' +
+            '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll()" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;opacity:0.35;">' +
             '</th>';
         cols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
-            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + (c.extra||'') + '</th>';
+            var label = c.key === 'symbol' ? '' : c.label;
+            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + label + (c.extra||'') + '</th>';
         });
         fundCols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
@@ -2326,9 +2327,10 @@
                     ' data-sector="'  + esc(row.sector   || '') + '"' +
                     ' data-industry="'+ esc(row.industry || '') + '"' +
                     '>';
-            html += '<td onclick="event.stopPropagation()" style="white-space:nowrap;padding-left:8px;">' +
-                '<button class="scan-add-btn' + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();indToggleAdd(this)" title="Select for export">' + SVG_IND_PLUS + '</button>' +
-                '</td>';
+            var _isAdded = selectedIndustryStocks.has(row.ticker);
+            html += '<td onclick="event.stopPropagation()" style="padding-left:8px;width:28px;">' +
+                '<button class="scan-add-btn' + (_isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();indToggleAdd(this)" title="Select for export">' +
+                (_isAdded ? SVG_IND_CHECK : SVG_IND_PLUS) + '</button></td>';
             html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button><button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
@@ -3319,7 +3321,7 @@
         var chk = document.getElementById('ind-select-all-chk');
         var allVisible = Array.from(document.querySelectorAll('#stocks-tbody .stock-row'))
             .filter(function(r) { return r.style.display !== 'none'; });
-        var allSelected = allVisible.every(function(row) {
+        var allSelected = allVisible.length > 0 && allVisible.every(function(row) {
             var btn = row.querySelector('.scan-add-btn');
             return btn && selectedIndustryStocks.has(btn.getAttribute('data-ticker'));
         });
