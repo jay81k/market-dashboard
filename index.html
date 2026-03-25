@@ -4791,19 +4791,22 @@
             });
             // Listen for symbol changes in watchlist panel via postMessage
             var _wlLastSym = ticker;
+            var _wlChartIframe = null;
+            setTimeout(function() {
+                var container = document.getElementById('wl-chart-widget');
+                if (container) _wlChartIframe = container.querySelector('iframe');
+            }, 500);
             if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); }
             window._wlChartMsgHandler = function(e) {
                 try {
+                    // Only handle messages from this specific chart iframe
+                    if (_wlChartIframe && e.source !== _wlChartIframe.contentWindow) return;
                     var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                     var sym = null;
                     if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
                         sym = data.data.original_name;
                     } else if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
                         sym = data.data.symbol;
-                    } else if (data && data.symbolName) {
-                        sym = data.symbolName;
-                    } else if (data && data.symbol) {
-                        sym = data.symbol;
                     }
                     if (sym) {
                         var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
