@@ -533,7 +533,7 @@
         .sf-preset-dropdown {
             display: none; position: fixed; z-index: 9999;
             background: #161b22; border: 1px solid #30363d; border-radius: 7px;
-            min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            min-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             overflow: hidden; flex-direction: column;
         }
         .sf-preset-dropdown.open { display: flex; }
@@ -3405,12 +3405,14 @@
         var rect = btn.getBoundingClientRect();
         var vpH  = window.innerHeight;
         var vpW  = window.innerWidth;
-        var ddW  = 240;
+        var ddW  = 280;
         var ddMaxH = 320;
         sfRenderPresetsDropdown();
-        var rightEdge = Math.min(vpW - 8, rect.right);
-        dd.style.left  = Math.max(8, rightEdge - ddW) + 'px';
-        dd.style.right = 'auto';
+        // Anchor right edge of dropdown to right edge of button, never off-screen
+        var btnRight = rect.right;
+        var dropRight = vpW - btnRight; // distance from viewport right to button right
+        dd.style.right = Math.max(8, vpW - btnRight) + 'px';
+        dd.style.left  = 'auto';
         var spaceBelow = vpH - rect.bottom - 8;
         if (spaceBelow < ddMaxH && rect.top > spaceBelow) {
             var maxH = Math.min(ddMaxH, rect.top - 8);
