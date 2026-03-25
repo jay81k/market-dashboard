@@ -533,10 +533,12 @@
         .sf-preset-dropdown {
             display: none; position: fixed; z-index: 9999;
             background: #161b22; border: 1px solid #30363d; border-radius: 7px;
-            min-width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            max-height: 320px; overflow-y: auto;
+            min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            overflow: hidden; flex-direction: column;
         }
-        .sf-preset-dropdown.open { display: block; }
+        .sf-preset-dropdown.open { display: flex; }
+        .sf-preset-dropdown-scroll { overflow-y: auto; flex: 1; }
+        .sf-preset-dropdown-footer { border-top: 1px solid #21262d; flex-shrink: 0; display: flex; align-items: center; }
         .sf-preset-item {
             display: flex; align-items: center; justify-content: space-between;
             padding: 8px 12px; cursor: pointer; font-size: 0.858em; color: #c8d0dc;
@@ -3401,9 +3403,25 @@
         var dd = document.getElementById('sf-preset-dropdown');
         if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
         var rect = btn.getBoundingClientRect();
-        dd.style.top  = (rect.bottom + 6) + 'px';
-        dd.style.left = Math.max(8, rect.right - 240) + 'px';
+        var vpH  = window.innerHeight;
+        var vpW  = window.innerWidth;
+        var ddW  = 240;
+        var ddMaxH = 320;
         sfRenderPresetsDropdown();
+        var rightEdge = Math.min(vpW - 8, rect.right);
+        dd.style.left  = Math.max(8, rightEdge - ddW) + 'px';
+        dd.style.right = 'auto';
+        var spaceBelow = vpH - rect.bottom - 8;
+        if (spaceBelow < ddMaxH && rect.top > spaceBelow) {
+            var maxH = Math.min(ddMaxH, rect.top - 8);
+            dd.style.top    = 'auto';
+            dd.style.bottom = (vpH - rect.top + 6) + 'px';
+            dd.style.maxHeight = maxH + 'px';
+        } else {
+            dd.style.bottom    = 'auto';
+            dd.style.top       = (rect.bottom + 6) + 'px';
+            dd.style.maxHeight = Math.min(ddMaxH, spaceBelow) + 'px';
+        }
         dd.classList.add('open');
     };
 
@@ -3411,10 +3429,12 @@
         var dd = document.getElementById('sf-preset-dropdown');
         var presets = sfGetAllPresets();
         var names = Object.keys(presets).sort();
-        var html = '<div style="padding:8px 12px 4px;border-bottom:1px solid #21262d;display:flex;gap:6px;">' +
+        var scrollHtml = '<div class="sf-preset-dropdown-scroll">';
+        scrollHtml += '<div style="padding:8px 12px 4px;border-bottom:1px solid #21262d;display:flex;gap:6px;">' +
             '<button class="sf-preset-btn save" style="flex:1;font-size:0.792em;padding:3px 0;" data-sf-action="export-all">Export all</button>' +
             '<label class="sf-preset-btn" style="flex:1;font-size:0.792em;padding:3px 0;text-align:center;cursor:pointer;">Import file<input type="file" accept=".json" style="display:none" onchange="sfImportFile(this)"></label>' +
             '</div>';
+        var html = scrollHtml;
         if (!names.length) {
             html += '<div class="sf-preset-empty">No saved presets yet.</div>';
         } else {
@@ -3427,15 +3447,16 @@
                     '</div>';
             });
         }
-        html += '<div style="border-top:1px solid #21262d;margin-top:4px;display:flex;align-items:center;">' +
-            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;flex:1;">' +
+        html += '</div>'; // close sf-preset-dropdown-scroll
+        var footer = '<div class="sf-preset-dropdown-footer">' +
+            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;flex:1;border-bottom:none;">' +
             '<span style="flex:1;">Copy results</span>' +
             '<span style="font-size:10px;color:#484f58;" id="sf-copy-feedback"></span>' +
             '</div>' +
-            '<div class="sf-preset-item" data-sf-action="reset-filters" style="color:#f85149;cursor:pointer;border-left:1px solid #21262d;padding:0 12px;">' +
+            '<div class="sf-preset-item" data-sf-action="reset-filters" style="color:#f85149;cursor:pointer;border-left:1px solid #21262d;padding:0 12px;border-bottom:none;">' +
             'Reset' +
             '</div></div>';
-        dd.innerHTML = html;
+        dd.innerHTML = html + footer;
 
         // Delegated click handler — re-attached each render
         dd.onclick = function(e) {
