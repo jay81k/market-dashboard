@@ -3736,7 +3736,7 @@
             { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
         ];
         var html = '<tr>';
-        html += '<th style="text-align:center;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
+        html += '<th style="text-align:left;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
             '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:#388bfd;">' +
             '</th>';
         cols.slice(1).forEach(function(c) {
