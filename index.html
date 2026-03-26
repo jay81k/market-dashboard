@@ -2659,8 +2659,6 @@
                     sym = data.data.symbol;
                 } else if (data && data.name === 'widgetReady' && data.data && data.data.symbol) {
                     sym = data.data.symbol;
-                } else if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                    sym = data.data.original_name;
                 }
                 // NOTE: removed broad data.symbolName / data.symbol fallbacks —
                 // they fire on every price tick and cause constant header re-renders
