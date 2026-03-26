@@ -2846,6 +2846,7 @@
         { value: 'rvol',    label: 'Rel. Volume' },
         { value: 'pattern', label: 'Pattern' },
         { value: 'fund',    label: 'Fundamental' },
+        { value: 'gap',     label: 'Gap' },
     ];
 
     var FUND_METRICS = [
@@ -2905,6 +2906,10 @@
             var dirLabel2 = row.dir === 'gt' ? '>' : '<';
             return mLabel + ' ' + dirLabel2 + ' ' + (row.val !== '' && row.val != null ? row.val : '—') + '%';
         }
+        if (row.type === 'gap') {
+            var gapDir = row.dir === 'up' ? 'Up' : 'Down';
+            return 'Gap ' + gapDir + ' ≥ ' + (row.val != null ? row.val : 0) + '%';
+        }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
         if (row.type === 'adr' || row.type === 'cr') valLabel += '%';
@@ -2961,9 +2966,9 @@
 
         var fixedTypes = PILL_TYPES.map(function(pt){ return pt.type; });
 
-        // Render any extra rows added via + Filter (duplicates of existing types)
+        // Render any extra rows added via + Filter (duplicates of existing types, or non-fixed types)
         var extraRows = sfRows.filter(function(r) {
-            // Extra if there are multiple rows of same type, or type not in fixed list
+            if (fixedTypes.indexOf(r.type) === -1) return true; // non-fixed type (e.g. gap)
             var sameType = sfRows.filter(function(r2){ return r2.type === r.type; });
             return sameType.length > 1 && sameType.indexOf(r) > 0;
         });
@@ -3074,6 +3079,10 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" style="max-width:160px;" onchange="sfPopChange('+id+',\'fundMetric\',this.value)">'+metricOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts3+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+        } else if (row.type === 'gap') {
+            var gapDirOpts = '<option value="up"'+(row.dir==='up'?' selected':'')+'>Gap Up</option><option value="down"'+(row.dir==='down'?' selected':'')+'>Gap Down</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+gapDirOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" min="0" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
@@ -3103,7 +3112,8 @@
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0 };
+                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : 0,
+                dir: type === 'gap' ? 'up' : 'gt' };
             sfRows.push(defaults);
             row = defaults;
         }
@@ -3111,7 +3121,7 @@
         var TITLES = { rs: 'RS Percentile', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', pattern: 'Pattern', ma: 'Moving Average',
-                       fund: 'Fundamental' };
+                       fund: 'Fundamental', gap: 'Gap' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
 
         // Build content — type row omitted since type is fixed per pill
@@ -3269,6 +3279,7 @@
             { value: 'rvol',    label: 'Rel. Volume' },
             { value: 'pattern', label: 'Pattern' },
             { value: 'fund',    label: 'Fundamental' },
+            { value: 'gap',     label: 'Gap' },
         ];
 
         var picker = document.createElement('div');
@@ -3885,6 +3896,13 @@
                         if (f.dir === 'gt' && fv <= fthresh) return false;
                         if (f.dir === 'lt' && fv >= fthresh) return false;
                     }
+                } else if (f.type === 'gap') {
+                    var gv = r.gap_pct;
+                    if (gv == null) return false;
+                    var gthresh = parseFloat(f.val);
+                    if (isNaN(gthresh)) gthresh = 0;
+                    if (f.dir === 'up'   && gv < gthresh)  return false;
+                    if (f.dir === 'down' && gv > -gthresh) return false;
                 }
             }
             return true;
