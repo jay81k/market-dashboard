@@ -1190,6 +1190,7 @@
             <span class="ind-col-hdr sortable-ind" data-col="avg_1m"     onclick="setIndSort('avg_1m')">1M</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_3m"     onclick="setIndSort('avg_3m')">3M</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_ytd"    onclick="setIndSort('avg_ytd')">YTD</span>
+            <span class="ind-col-hdr sortable-ind" data-col="rs"         onclick="setIndSort('rs')">RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_1m"      onclick="setIndSort('rs_1m')">1M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_3m"      onclick="setIndSort('rs_3m')">3M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_6m"      onclick="setIndSort('rs_6m')">6M RS</span>
@@ -1859,6 +1860,7 @@
         if (col === 'avg_3m')    return summary ? summary.avg_3m    : null;
         if (col === 'avg_ytd')   return summary ? summary.avg_ytd   : null;
         if (col === 'rs_1m')     return ind['1m_rs_pct'] != null ? ind['1m_rs_pct'] : null;
+        if (col === 'rs')        return ind['percentile'] != null ? ind['percentile'] : null;
         if (col === 'rs_3m')     return ind['3m_rs_pct'] != null ? ind['3m_rs_pct'] : null;
         if (col === 'rs_6m')     return ind['6m_rs_pct'] != null ? ind['6m_rs_pct'] : null;
         return null;
@@ -2010,6 +2012,7 @@
                 ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
             var rs1m = ind['1m_rs_pct']; var rs3m = ind['3m_rs_pct']; var rs6m = ind['6m_rs_pct'];
+            var rsCurr = ind['percentile'] != null ? ind['percentile'] : null;
 
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
@@ -2026,6 +2029,7 @@
             html += '</div>';
             // RS columns
             html += '<div class="industry-rs-cols">';
+            html += '<span class="industry-rs-col ' + rsColClass(rsCurr) + '">' + (rsCurr != null ? rsCurr : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs1m) + '">' + (rs1m != null ? rs1m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs3m) + '">' + (rs3m != null ? rs3m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs6m) + '">' + (rs6m != null ? rs6m : '—') + '</span>';
