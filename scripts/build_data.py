@@ -280,6 +280,23 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 elif prev1 >= prev2 and today1 < today2:
                     ma_crossovers.add(f"{k1}|{k2}|below")
 
+        # Price MA crossovers today: store set of "MAkey|direction" strings
+        # e.g. "SMA50|above" means price crossed above SMA50 today
+        price_ma_crossovers: set[str] = set()
+        for ma_type, period in DIST_MA_COMBOS:
+            key = ma_type + str(period)
+            dist_today = dist_ma.get(key)          # today: (price - MA) / MA * 100
+            ma_prev    = ma_val_prev.get(key)       # yesterday's MA value
+            if dist_today is None or ma_prev is None or ma_prev == 0:
+                continue
+            dist_prev = (close_prev.iloc[-1] - ma_prev) / ma_prev * 100
+            # Crossed above: was at or below MA yesterday, above today
+            if dist_prev <= 0 and dist_today > 0:
+                price_ma_crossovers.add(f"{key}|above")
+            # Crossed below: was at or above MA yesterday, below today
+            elif dist_prev >= 0 and dist_today < 0:
+                price_ma_crossovers.add(f"{key}|below")
+
         # Inside day: today's high < prev high AND today's low > prev low
         inside_day = bool(
             hist["High"].iloc[-1] < hist["High"].iloc[-2] and
@@ -386,7 +403,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "rel_vol":   rel_vol,
             "dist_ma":   dist_ma,
             "ma_val":    ma_val,
-            "ma_crossovers": list(ma_crossovers),
+            "ma_crossovers":       list(ma_crossovers),
+            "price_ma_crossovers": list(price_ma_crossovers),
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
