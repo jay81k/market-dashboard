@@ -297,6 +297,25 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             elif dist_prev >= 0 and dist_today < 0:
                 price_ma_crossovers.add(f"{key}|below")
 
+        # Gap %: today's open vs prior day's high/low (true gap — no range overlap)
+        # Gap up:   today_open > prev_high  → gap_pct = (today_open - prev_high) / prev_high * 100  (positive)
+        # Gap down: today_open < prev_low   → gap_pct = (today_open - prev_low)  / prev_low  * 100  (negative)
+        # No gap: today_open within prev range → gap_pct = 0
+        gap_pct = None
+        try:
+            today_open = hist["Open"].iloc[-1]
+            prev_high  = hist["High"].iloc[-2]
+            prev_low   = hist["Low"].iloc[-2]
+            if prev_high > 0 and prev_low > 0:
+                if today_open > prev_high:
+                    gap_pct = round((today_open - prev_high) / prev_high * 100, 2)
+                elif today_open < prev_low:
+                    gap_pct = round((today_open - prev_low) / prev_low * 100, 2)
+                else:
+                    gap_pct = 0.0
+        except Exception:
+            pass
+
         # Inside day: today's high < prev high AND today's low > prev low
         inside_day = bool(
             hist["High"].iloc[-1] < hist["High"].iloc[-2] and
@@ -405,6 +424,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "ma_val":    ma_val,
             "ma_crossovers":       list(ma_crossovers),
             "price_ma_crossovers": list(price_ma_crossovers),
+            "gap_pct":             gap_pct,
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
