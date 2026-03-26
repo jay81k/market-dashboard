@@ -2,7 +2,7 @@ name: Build Fundamentals Data
 
 on:
   schedule:
-    - cron: '0 21 * * 0'  # 9 PM UTC every Sunday
+    - cron: '0 21 * * 5'  # 9 PM UTC = 5 PM EDT every Friday
   workflow_dispatch:       # allow manual trigger from GitHub UI
 
 permissions:
