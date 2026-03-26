@@ -3204,7 +3204,7 @@
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
         document.getElementById('sf-popover-title').textContent = row.type;
-        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row);
+        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, row.type === 'gap');
         var rect = pillEl.getBoundingClientRect();
         pop.style.top  = (rect.bottom + 6) + 'px';
         pop.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
