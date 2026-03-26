@@ -1553,6 +1553,7 @@
 <div class="mc-fullscreen-overlay" id="mc-fullscreen-overlay">
     <div class="mc-fullscreen-header">
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
+        <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
@@ -2190,17 +2191,45 @@
         var mcNBtn = document.getElementById('mc-fullscreen-news-btn');
         if (mcFBtn) mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
         if (mcNBtn) mcNBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker + '#news';
-        // RS badge
+        // RS badge + industry meta
         var mcPct = null;
+        var mcIndustry = '';
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].ticker === sym) { mcPct = rows[i].Percentile; break outer; }
+                    if (rows[i].ticker === sym) {
+                        mcPct      = rows[i].Percentile;
+                        mcIndustry = rows[i].industry || '';
+                        break outer;
+                    }
                 }
             }
         }
         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct);
+        var mcMetaEl = document.getElementById('mc-fullscreen-meta');
+        if (mcMetaEl) {
+            var mcIndRankHtml = '';
+            if (mcIndustry && industriesData && industriesData.industries) {
+                var mcIndData = industriesData.industries.find(function(x){ return x.industry === mcIndustry; });
+                var mcTotal   = industriesData.industries.length;
+                if (mcIndData && mcIndData.rank != null) {
+                    var mcPctile  = mcIndData.percentile != null ? mcIndData.percentile : null;
+                    var mcRankClr = mcPctile != null ? (mcPctile >= 75 ? '#3fb950' : mcPctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    mcIndRankHtml = '<span class="meta-sep">·</span>' +
+                        '<span class="meta-ind-rank" style="color:' + mcRankClr + '">' +
+                        '(' + mcIndData.rank + '/' + mcTotal + ')' +
+                        '</span>';
+                }
+            }
+            if (mcIndustry) {
+                mcMetaEl.innerHTML = '<span class="meta-sector">' + esc(mcIndustry) + '</span>' + mcIndRankHtml;
+                mcMetaEl.style.display = '';
+            } else {
+                mcMetaEl.innerHTML = '';
+                mcMetaEl.style.display = 'none';
+            }
+        }
         overlay.classList.add('open');
         updateQueueButtons();
 
