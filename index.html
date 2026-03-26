@@ -2878,8 +2878,10 @@
             var cond = row.maCondition || 'above_price';
             var mt = row.maType || 'SMA'; var mp = row.maPeriod || 50;
             var mt2 = row.maType2 || 'SMA'; var mp1 = row.maPeriod1 || 5; var mp2 = row.maPeriod2 || 50;
-            if (cond === 'above_price')   return 'Price above ' + mt + ' ' + mp;
-            if (cond === 'below_price')   return 'Price below ' + mt + ' ' + mp;
+            if (cond === 'above_price')         return 'Price above ' + mt + ' ' + mp;
+            if (cond === 'below_price')         return 'Price below ' + mt + ' ' + mp;
+            if (cond === 'price_crossed_above') return 'Price crossed above ' + mt + ' ' + mp;
+            if (cond === 'price_crossed_below') return 'Price crossed below ' + mt + ' ' + mp;
             if (cond === 'above_pct')     return mt + ' ' + mp + ' dist greater than ' + (row.val||0) + '%';
             if (cond === 'below_pct')     return mt + ' ' + mp + ' dist less than ' + (row.val||0) + '%';
             if (cond === 'between_pct')   return mt + ' ' + mp + ' dist between ' + (row.val||0) + '% and ' + (row.val2!=null?row.val2:10) + '%';
@@ -3000,20 +3002,22 @@
             var MA_P = ['5','8','10','21','50','65','150','200'];
             var cond = row.maCondition || 'above_price';
             var condOpts = [
-                ['above_price',   'Price Above'],
-                ['below_price',   'Price Below'],
-                ['above_pct',     'Above % (Dist)'],
-                ['below_pct',     'Below % (Dist)'],
-                ['between_pct',   'Between % (Dist)'],
-                ['ma_above',      'MA Above MA'],
-                ['ma_below',      'MA Below MA'],
-                ['crosses_above', 'Crosses Above'],
-                ['crosses_below', 'Crosses Below'],
-                ['ma_cluster',    'MA Cluster'],
+                ['above_price',         'Price Above'],
+                ['below_price',         'Price Below'],
+                ['price_crossed_above', 'Price Crossed Above'],
+                ['price_crossed_below', 'Price Crossed Below'],
+                ['above_pct',           'Above % (Dist)'],
+                ['below_pct',           'Below % (Dist)'],
+                ['between_pct',         'Between % (Dist)'],
+                ['ma_above',            'MA Above MA'],
+                ['ma_below',            'MA Below MA'],
+                ['crosses_above',       'Crosses Above'],
+                ['crosses_below',       'Crosses Below'],
+                ['ma_cluster',          'MA Cluster'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
-            var usesSingleMA = ['above_price','below_price','above_pct','below_pct','between_pct'].indexOf(cond) !== -1;
+            var usesSingleMA = ['above_price','below_price','price_crossed_above','price_crossed_below','above_pct','below_pct','between_pct'].indexOf(cond) !== -1;
             var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
             var usesPct      = ['above_pct','below_pct'].indexOf(cond) !== -1;
             var usesBetween  = cond === 'between_pct';
@@ -3762,6 +3766,12 @@
                     } else if (cond === 'below_price') {
                         var dist = r.dist_ma ? r.dist_ma[key] : null;
                         if (dist == null || dist >= 0) return false;
+                    } else if (cond === 'price_crossed_above') {
+                        var xKey = key + '|above';
+                        if ((r.price_ma_crossovers || []).indexOf(xKey) === -1) return false;
+                    } else if (cond === 'price_crossed_below') {
+                        var xKey = key + '|below';
+                        if ((r.price_ma_crossovers || []).indexOf(xKey) === -1) return false;
                     } else if (cond === 'above_pct') {
                         var dist = r.dist_ma ? r.dist_ma[key] : null;
                         var thresh = parseFloat(f.val);
