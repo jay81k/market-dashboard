@@ -297,6 +297,29 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             elif dist_prev >= 0 and dist_today < 0:
                 price_ma_crossovers.add(f"{key}|below")
 
+        # Narrow range metrics
+        # range_vs_adr: today's H-L range as % of price, divided by ADR% — ratio of today vs average
+        # range_rank: how many consecutive prior days today's range is narrower than (up to 20)
+        range_vs_adr = None
+        range_rank   = None
+        try:
+            today_range_pct = (_h - _l) / current * 100 if current > 0 else None
+            if today_range_pct is not None and adr_pct and adr_pct > 0:
+                range_vs_adr = round(today_range_pct / adr_pct * 100, 1)  # e.g. 45 means 45% of ADR
+            if len(hist) >= 2:
+                today_hl = _h - _l
+                max_lookback = min(20, len(hist) - 1)
+                rank = 0
+                for k in range(1, max_lookback + 1):
+                    prev_hl = hist["High"].iloc[-1 - k] - hist["Low"].iloc[-1 - k]
+                    if today_hl < prev_hl:
+                        rank = k
+                    else:
+                        break
+                range_rank = rank  # e.g. 7 means today is narrowest of last 7 days
+        except Exception:
+            pass
+
         # Gap %: today's open vs prior day's high/low (true gap — no range overlap)
         # Gap up:   today_open > prev_high  → gap_pct = (today_open - prev_high) / prev_high * 100  (positive)
         # Gap down: today_open < prev_low   → gap_pct = (today_open - prev_low)  / prev_low  * 100  (negative)
@@ -425,6 +448,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "ma_crossovers":       list(ma_crossovers),
             "price_ma_crossovers": list(price_ma_crossovers),
             "gap_pct":             gap_pct,
+            "range_vs_adr":        range_vs_adr,
+            "range_rank":          range_rank,
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
