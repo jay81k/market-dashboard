@@ -263,53 +263,55 @@
         /* Fundamental columns — always visible */
         .fund-col { display: table-cell; }
 
-        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
         .stocks-table th:nth-child(1)  { width: 28px; }   /* Checkbox */
-        .stocks-table th:nth-child(2)  { width: 86px; }   /* Ticker */
-        .stocks-table th:nth-child(3)  { width: 62px; }   /* Price */
-        .stocks-table th:nth-child(4)  { width: 36px; }   /* RS */
-        .stocks-table th:nth-child(5)  { width: 56px; }   /* Chg */
-        .stocks-table th:nth-child(6)  { width: 54px; }   /* Chg% */
-        .stocks-table th:nth-child(7)  { width: 50px; }   /* 1W */
-        .stocks-table th:nth-child(8)  { width: 50px; }   /* 1M */
-        .stocks-table th:nth-child(9)  { width: 50px; }   /* 3M */
-        .stocks-table th:nth-child(10) { width: 50px; }   /* YTD */
-        .stocks-table th:nth-child(11) { width: 54px; }   /* vs 1M */
-        .stocks-table th:nth-child(12) { width: 54px; }   /* vs 3M */
-        .stocks-table th:nth-child(13) { width: 72px; }   /* Dist/MA */
-        .stocks-table th:nth-child(14) { width: 60px; }   /* Avg Vol */
-        .stocks-table th:nth-child(15) { width: 54px; }   /* 52Wk% */
-        .stocks-table th:nth-child(16) { width: 46px; }   /* ADR% */
-        .stocks-table th:nth-child(17) { width: 36px; }   /* CR */
-        .stocks-table th:nth-child(18) { width: 58px; }   /* EPS NY */
-        .stocks-table th:nth-child(19) { width: 54px; }   /* EPS 5Y */
-        .stocks-table th:nth-child(20) { width: 60px; }   /* EPS Q/Q */
-        .stocks-table th:nth-child(21) { width: 68px; }   /* Sales Q/Q */
-        .stocks-table th:nth-child(22) { width: 58px; }   /* Margin */
+        .stocks-table th:nth-child(2)  { width: 82px; }   /* Ticker */
+        .stocks-table th:nth-child(3)  { width: 58px; }   /* Price */
+        .stocks-table th:nth-child(4)  { width: 34px; }   /* RS */
+        .stocks-table th:nth-child(5)  { width: 52px; }   /* Chg */
+        .stocks-table th:nth-child(6)  { width: 50px; }   /* Chg% */
+        .stocks-table th:nth-child(7)  { width: 46px; }   /* 1W */
+        .stocks-table th:nth-child(8)  { width: 46px; }   /* 1M */
+        .stocks-table th:nth-child(9)  { width: 46px; }   /* 3M */
+        .stocks-table th:nth-child(10) { width: 46px; }   /* YTD */
+        .stocks-table th:nth-child(11) { width: 50px; }   /* vs 1M */
+        .stocks-table th:nth-child(12) { width: 50px; }   /* vs 3M */
+        .stocks-table th:nth-child(13) { width: 68px; }   /* Dist/MA */
+        .stocks-table th:nth-child(14) { width: 56px; }   /* Avg Vol */
+        .stocks-table th:nth-child(15) { width: 50px; }   /* 52Wk% */
+        .stocks-table th:nth-child(16) { width: 44px; }   /* ADR% */
+        .stocks-table th:nth-child(17) { width: 34px; }   /* CR */
+        .stocks-table th:nth-child(18) { width: 54px; }   /* EPS TY */
+        .stocks-table th:nth-child(19) { width: 54px; }   /* EPS NY */
+        .stocks-table th:nth-child(20) { width: 50px; }   /* EPS 5Y */
+        .stocks-table th:nth-child(21) { width: 56px; }   /* EPS Q/Q */
+        .stocks-table th:nth-child(22) { width: 64px; }   /* Sales Q/Q */
+        .stocks-table th:nth-child(23) { width: 54px; }   /* Margin */
 
-        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
-        #scans-table th:nth-child(1)  { width: 108px; }  /* Ticker */
-        #scans-table th:nth-child(2)  { width: 130px; }  /* Industry */
-        #scans-table th:nth-child(3)  { width: 58px; }   /* Price */
-        #scans-table th:nth-child(4)  { width: 34px; }   /* RS */
-        #scans-table th:nth-child(5)  { width: 54px; }   /* Chg */
-        #scans-table th:nth-child(6)  { width: 50px; }   /* Chg% */
-        #scans-table th:nth-child(7)  { width: 48px; }   /* 1W */
-        #scans-table th:nth-child(8)  { width: 48px; }   /* 1M */
-        #scans-table th:nth-child(9)  { width: 48px; }   /* 3M */
-        #scans-table th:nth-child(10) { width: 48px; }   /* YTD */
-        #scans-table th:nth-child(11) { width: 52px; }   /* vs 1M */
-        #scans-table th:nth-child(12) { width: 52px; }   /* 3M RS */
-        #scans-table th:nth-child(13) { width: 70px; }   /* Dist/MA */
-        #scans-table th:nth-child(14) { width: 58px; }   /* Avg Vol */
-        #scans-table th:nth-child(15) { width: 52px; }   /* 52Wk% */
-        #scans-table th:nth-child(16) { width: 44px; }   /* ADR% */
-        #scans-table th:nth-child(17) { width: 34px; }   /* CR */
-        #scans-table th:nth-child(18) { width: 56px; }   /* EPS NY */
-        #scans-table th:nth-child(19) { width: 52px; }   /* EPS 5Y */
-        #scans-table th:nth-child(20) { width: 58px; }   /* EPS Q/Q */
-        #scans-table th:nth-child(21) { width: 66px; }   /* Sales Q/Q */
-        #scans-table th:nth-child(22) { width: 56px; }   /* Margin */
+        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        #scans-table th:nth-child(1)  { width: 104px; }  /* Ticker */
+        #scans-table th:nth-child(2)  { width: 126px; }  /* Industry */
+        #scans-table th:nth-child(3)  { width: 54px; }   /* Price */
+        #scans-table th:nth-child(4)  { width: 32px; }   /* RS */
+        #scans-table th:nth-child(5)  { width: 50px; }   /* Chg */
+        #scans-table th:nth-child(6)  { width: 46px; }   /* Chg% */
+        #scans-table th:nth-child(7)  { width: 44px; }   /* 1W */
+        #scans-table th:nth-child(8)  { width: 44px; }   /* 1M */
+        #scans-table th:nth-child(9)  { width: 44px; }   /* 3M */
+        #scans-table th:nth-child(10) { width: 44px; }   /* YTD */
+        #scans-table th:nth-child(11) { width: 48px; }   /* vs 1M */
+        #scans-table th:nth-child(12) { width: 48px; }   /* 3M RS */
+        #scans-table th:nth-child(13) { width: 66px; }   /* Dist/MA */
+        #scans-table th:nth-child(14) { width: 54px; }   /* Avg Vol */
+        #scans-table th:nth-child(15) { width: 48px; }   /* 52Wk% */
+        #scans-table th:nth-child(16) { width: 42px; }   /* ADR% */
+        #scans-table th:nth-child(17) { width: 32px; }   /* CR */
+        #scans-table th:nth-child(18) { width: 52px; }   /* EPS TY */
+        #scans-table th:nth-child(19) { width: 52px; }   /* EPS NY */
+        #scans-table th:nth-child(20) { width: 48px; }   /* EPS 5Y */
+        #scans-table th:nth-child(21) { width: 54px; }   /* EPS Q/Q */
+        #scans-table th:nth-child(22) { width: 62px; }   /* Sales Q/Q */
+        #scans-table th:nth-child(23) { width: 52px; }   /* Margin */
 
         .stocks-table thead { position: sticky; top: 0; z-index: 2; }
         .stocks-table th {
@@ -1248,7 +1250,7 @@
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap">
-                <table class="stocks-table" id="stocks-table" style="min-width:1258px;">
+                <table class="stocks-table" id="stocks-table" style="min-width:1310px;">
                     <thead id="stocks-thead"></thead>
                     <tbody id="stocks-tbody"></tbody>
                 </table>
@@ -1341,7 +1343,7 @@
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
             <div class="stocks-table-wrap" style="overflow-x:auto;">
-                <table class="stocks-table" id="scans-table" style="min-width:1430px;">
+                <table class="stocks-table" id="scans-table" style="min-width:1480px;">
                     <thead id="scans-thead"></thead>
                     <tbody id="scans-tbody"></tbody>
                 </table>
