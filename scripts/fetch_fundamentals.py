@@ -2,6 +2,7 @@
 Fetch fundamental data for all tickers in snapshot.json via finvizfinance.
 
 Fields fetched per ticker:
+  - eps_this_y_pct   : EPS Growth This Year (%)
   - eps_next_y_pct   : EPS Growth Next Year (%)
   - eps_next_5y_pct  : EPS Growth Next 5 Years (%)
   - eps_qoq_pct      : EPS Growth Quarter over Quarter (%)
@@ -33,6 +34,7 @@ from finvizfinance.quote import finvizfinance
 
 DELAY_BETWEEN_REQUESTS = 0.5   # seconds — keeps Finviz happy
 FIELD_MAP = {
+    "eps_this_y_pct":    "EPS this Y",
     "eps_next_y_pct":    "EPS next Y Percentage",
     "eps_next_5y_pct":   "EPS next 5Y",
     "eps_qoq_pct":       "EPS Q/Q",
@@ -63,6 +65,7 @@ def fetch_fundamentals(ticker: str) -> dict | None:
         stock     = finvizfinance(ticker)
         fundament = stock.ticker_fundament()
         return {
+            "eps_this_y_pct":    parse_pct(fundament.get("EPS this Y")),
             "eps_next_y_pct":    parse_pct(fundament.get("EPS next Y Percentage")),
             "eps_next_5y_pct":   parse_pct(fundament.get("EPS next 5Y")),
             "eps_qoq_pct":       parse_pct(fundament.get("EPS Q/Q")),
@@ -110,6 +113,7 @@ def main():
         if data:
             results[ticker] = data
             print(f"  [{i:04d}/{total}] {ticker:<8} "
+                  f"EPS_TY={str(data['eps_this_y_pct']):<8} "
                   f"EPS_NY={str(data['eps_next_y_pct']):<8} "
                   f"EPS_5Y={str(data['eps_next_5y_pct']):<8} "
                   f"EPS_QQ={str(data['eps_qoq_pct']):<8} "
