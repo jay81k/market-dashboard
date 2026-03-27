@@ -1366,6 +1366,7 @@
                 <span class="wl-chart-sym" id="wl-chart-sym">—</span>
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
+                <span id="wl-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <a id="wl-chart-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
@@ -1527,7 +1528,8 @@
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <span id="chart-modal-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
                 <a id="chart-modal-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
                     Fundamentals
@@ -1555,6 +1557,7 @@
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
         <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
+        <span id="mc-fullscreen-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <a id="mc-fullscreen-fundamentals-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2z"/></svg>
@@ -2194,6 +2197,7 @@
         // RS badge + industry meta
         var mcPct = null;
         var mcIndustry = '';
+        var mcFundRow = null;
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
@@ -2201,12 +2205,15 @@
                     if (rows[i].ticker === sym) {
                         mcPct      = rows[i].Percentile;
                         mcIndustry = rows[i].industry || '';
+                        mcFundRow  = rows[i];
                         break outer;
                     }
                 }
             }
         }
         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct);
+        var mcFundStatsEl = document.getElementById('mc-fullscreen-fund-stats');
+        if (mcFundStatsEl) mcFundStatsEl.innerHTML = fundStatsHtml(mcFundRow);
         var mcMetaEl = document.getElementById('mc-fullscreen-meta');
         if (mcMetaEl) {
             var mcIndRankHtml = '';
@@ -2554,12 +2561,40 @@
         el.style.display = '';
     }
 
+    function fundStatsHtml(row) {
+        if (!row) return '';
+        var stats = [
+            { label: 'EPS NY',   val: row.eps_next_y_pct,    pct: true  },
+            { label: 'EPS 5Y',   val: row.eps_next_5y_pct,   pct: true  },
+            { label: 'EPS Q/Q',  val: row.eps_qoq_pct,       pct: true  },
+            { label: 'Sales Q/Q',val: row.sales_qoq_pct,     pct: true  },
+            { label: 'Margin',   val: row.profit_margin_pct, pct: false },
+        ];
+        var hasAny = stats.some(function(s){ return s.val != null; });
+        if (!hasAny) return '';
+        var divider = '<span style="display:inline-block;width:1px;height:12px;background:#21262d;margin:0 4px;vertical-align:middle;flex-shrink:0;"></span>';
+        var html = divider;
+        stats.forEach(function(s, i) {
+            if (s.val == null) return;
+            var v = parseFloat(s.val);
+            var color = !s.pct ? '#8b949e' : (v >= 0 ? '#3fb950' : '#f85149');
+            var sign  = s.pct && v > 0 ? '+' : '';
+            html += '<span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">' +
+                '<span style="font-size:0.748em;color:#484f58;text-transform:uppercase;letter-spacing:0.04em;">' + s.label + '</span>' +
+                '<span style="font-size:0.858em;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;">' + sign + v.toFixed(1) + '%</span>' +
+            '</span>';
+            if (i < stats.length - 1) html += divider;
+        });
+        return html;
+    }
+
     function updateChartModalHeader(symbol, sector, industry, percentile) {
         sector     = sector     || '';
         industry   = industry   || '';
         percentile = (percentile != null) ? percentile : null;
+        var fundRow = null;
         // Only look up from snapshot when caller didn't supply the values
-        if ((!sector || !industry || percentile == null) && snapshot && snapshot.by_industry) {
+        if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
@@ -2567,12 +2602,15 @@
                         if (!sector)           sector     = rows[i].sector     || '';
                         if (!industry)         industry   = rows[i].industry   || '';
                         if (percentile == null) percentile = rows[i].Percentile != null ? rows[i].Percentile : null;
+                        fundRow = rows[i];
                         break outer;
                     }
                 }
             }
         }
         document.getElementById('chart-modal-sym').textContent = symbol;
+        var fundStatsEl = document.getElementById('chart-modal-fund-stats');
+        if (fundStatsEl) fundStatsEl.innerHTML = fundStatsHtml(fundRow);
         var metaEl = document.getElementById('chart-modal-meta');
         if (metaEl) {
             var indRankHtml = '';
@@ -5004,15 +5042,16 @@
         if (nBtn) { nBtn.href = 'https://finviz.com/quote.ashx?t=' + t + '#news'; nBtn.style.display = ''; }
 
         // Populate industry · rank from snapshot/industriesData
-        var industry = '', sector = '', wlPct = null;
+        var industry = '', sector = '', wlPct = null, wlFundRow = null;
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
                     if (rows[i].ticker === ticker) {
-                        industry = rows[i].industry || '';
-                        sector   = rows[i].sector   || '';
-                        wlPct    = rows[i].Percentile != null ? rows[i].Percentile : null;
+                        industry  = rows[i].industry || '';
+                        sector    = rows[i].sector   || '';
+                        wlPct     = rows[i].Percentile != null ? rows[i].Percentile : null;
+                        wlFundRow = rows[i];
                         break outer;
                     }
                 }
@@ -5033,6 +5072,8 @@
             metaEl.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml : '';
         }
         applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct);
+        var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
+        if (wlFundStatsEl) wlFundStatsEl.innerHTML = fundStatsHtml(wlFundRow);
 
         // Show chart widget
         document.getElementById('wl-chart-empty').style.display = 'none';
@@ -5081,14 +5122,15 @@
                         if (bare && bare !== _wlLastSym) {
                             _wlLastSym = bare;
                             document.getElementById('wl-chart-sym').textContent = bare;
-                            var industry = '', msgPct = null;
+                            var industry = '', msgPct = null, msgFundRow = null;
                             if (snapshot && snapshot.by_industry) {
                                 outer2: for (var ind2 in snapshot.by_industry) {
                                     var rows2 = snapshot.by_industry[ind2];
                                     for (var j = 0; j < rows2.length; j++) {
                                         if (rows2[j].ticker === bare) {
-                                            industry = rows2[j].industry||'';
-                                            msgPct   = rows2[j].Percentile != null ? rows2[j].Percentile : null;
+                                            industry   = rows2[j].industry||'';
+                                            msgPct     = rows2[j].Percentile != null ? rows2[j].Percentile : null;
+                                            msgFundRow = rows2[j];
                                             break outer2;
                                         }
                                     }
@@ -5110,6 +5152,8 @@
                                 metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
                             }
                             applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct);
+                            var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
+                            if (wlMsgFundStatsEl) wlMsgFundStatsEl.innerHTML = fundStatsHtml(msgFundRow);
                             var t2 = bare.replace(/[^A-Z0-9]/gi,'');
                             var fb = document.getElementById('wl-chart-fundamentals-btn');
                             var nb = document.getElementById('wl-chart-news-btn');
