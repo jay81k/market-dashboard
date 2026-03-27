@@ -2863,6 +2863,7 @@
     var SF_TYPES = [
         { value: 'ma',    label: 'Moving Average' },
         { value: 'rs',    label: 'RS' },
+        { value: 'perf',  label: 'Performance' },
         { value: 'price', label: 'Price' },
         { value: 'vol',   label: 'Avg Vol' },
         { value: 'adr',   label: 'ADR%' },
@@ -2921,6 +2922,13 @@
                 return 'Cluster ' + cms.join('/') + ' ≤' + (row.clusterSpread!=null?row.clusterSpread:1) + '%';
             }
             return 'MA filter';
+        }
+        if (row.type === 'perf') {
+            var perfTfLabels = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M' };
+            var perfTf = perfTfLabels[row.perfTf || '1d'] || '1D';
+            var perfDir = row.perfDir === 'down' ? '↓' : '↑';
+            var perfVal = row.val != null && row.val !== '' ? row.val : '0';
+            return 'Perf ' + perfTf + ' ' + perfDir + ' ≥ ' + perfVal + '%';
         }
         if (row.type === 'pattern') {
             var patLabels = { inside_day: 'Inside Day', bullish_outside: 'Bullish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
@@ -3115,6 +3123,19 @@
             var gapDirOpts = '<option value="up"'+(row.dir==='up'?' selected':'')+'>Gap Up</option><option value="down"'+(row.dir==='down'?' selected':'')+'>Gap Down</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+gapDirOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" min="0" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+        } else if (row.type === 'perf') {
+            var perfTf = row.perfTf || '1d';
+            var perfDir = row.perfDir || 'up';
+            var tfs = [['1d','1D'],['1w','1W'],['1m','1M'],['3m','3M']];
+            var tfBtns = tfs.map(function(t){
+                return '<button class="sf-seg-btn'+(perfTf===t[0]?' active':'')+'" onclick="sfPopChange('+id+',\'perfTf\',\''+t[0]+'\')">'+t[1]+'</button>';
+            }).join('');
+            var dirBtns =
+                '<button class="sf-seg-btn'+(perfDir==='up'?' active':'')+'" onclick="sfPopChange('+id+',\'perfDir\',\'up\')">↑ Up</button>' +
+                '<button class="sf-seg-btn'+(perfDir==='down'?' active':'')+'" onclick="sfPopChange('+id+',\'perfDir\',\'down\')">↓ Down</button>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><div class="sf-seg">'+dirBtns+'</div></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+tfBtns+'</div></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
         } else if (row.type === 'range') {
             var rc = row.rangeCondition || 'relative';
             var rcOpts = '<option value="relative"'+(rc==='relative'?' selected':'')+'>Relative Range</option><option value="nr"'+(rc==='nr'?' selected':'')+'>Narrow Range (NR)</option>';
@@ -3151,6 +3172,8 @@
                 maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
                 maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
+                perfTf: type === 'perf' ? '1d' : null,
+                perfDir: type === 'perf' ? 'up' : null,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
                      type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : 0,
@@ -3162,7 +3185,7 @@
         var TITLES = { rs: 'RS Percentile', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', pattern: 'Pattern', ma: 'Moving Average',
-                       fund: 'Fundamental', gap: 'Gap' };
+                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
 
         // Build content — type row omitted since type is fixed per pill
@@ -3188,9 +3211,11 @@
             row.maType      = 'SMA'; row.maPeriod  = 50;
             row.maType2     = 'SMA'; row.maPeriod1 = 5; row.maPeriod2 = 50;
             row.fundMetric  = type === 'fund' ? 'eps_next_y_pct' : null;
+            row.perfTf      = '1d';
+            row.perfDir     = 'up';
             row.val         = type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                               type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                              type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : 0;
+                              type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : 0;
             row.val2        = null;
             // Re-render popover content with reset values
             var c = sfPopoverHtml(row, true);
@@ -3314,6 +3339,7 @@
         var TYPES = [
             { value: 'ma',      label: 'Moving Average' },
             { value: 'rs',      label: 'RS' },
+            { value: 'perf',    label: 'Performance' },
             { value: 'price',   label: 'Price' },
             { value: 'vol',     label: 'Avg Vol' },
             { value: 'adr',     label: 'ADR%' },
@@ -3365,9 +3391,10 @@
             maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
             rangeCondition: type === 'range' ? 'relative' : null,
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
+            perfTf: '1d', perfDir: 'up',
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : null };
+                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -3948,6 +3975,15 @@
                     if (isNaN(gthresh)) gthresh = 0;
                     if (f.dir === 'up'   && gv < gthresh)  return false;
                     if (f.dir === 'down' && gv > -gthresh) return false;
+                } else if (f.type === 'perf') {
+                    var perfTf = f.perfTf || '1d';
+                    var perfField = perfTf === '1d' ? 'daily' : perfTf === '1w' ? '1w' : perfTf === '1m' ? '1m' : '3m';
+                    var pv = r[perfField];
+                    if (pv == null) return false;
+                    var pthresh = parseFloat(f.val);
+                    if (isNaN(pthresh)) pthresh = 0;
+                    if (f.perfDir === 'up'   && pv < pthresh)  return false;
+                    if (f.perfDir === 'down' && pv > -pthresh) return false;
                 } else if (f.type === 'range') {
                     var rc = f.rangeCondition || 'relative';
                     if (f.val == null || f.val === '') return true;
