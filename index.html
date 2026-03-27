@@ -2417,6 +2417,7 @@
             }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
             // Fundamental columns
+            html += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
             html += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
@@ -4190,6 +4191,7 @@
             if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
             // Fundamental columns
+            html += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
             html += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
