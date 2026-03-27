@@ -2569,7 +2569,7 @@
             var color = !s.pct ? (v >= 5 ? '#3fb950' : v < 0 ? '#f85149' : '#8b949e') : (v >= 0 ? '#3fb950' : '#f85149');
             var sign  = s.pct && v > 0 ? '+' : '';
             html += '<span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">' +
-                '<span style="font-size:0.748em;color:#484f58;text-transform:uppercase;letter-spacing:0.04em;">' + s.label + '</span>' +
+                '<span style="font-size:0.748em;color:#6e7681;text-transform:uppercase;letter-spacing:0.04em;">' + s.label + '</span>' +
                 '<span style="font-size:0.858em;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;">' + sign + v.toFixed(1) + '%</span>' +
             '</span>';
             if (i < stats.length - 1) html += divider;
