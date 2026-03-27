@@ -2304,6 +2304,7 @@
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
         var fundCols = [
+            { key:'eps_this_y_pct',    label:'EPS TY',    tip:'EPS Growth This Year %' },
             { key:'eps_next_y_pct',    label:'EPS NY',    tip:'EPS Growth Next Year %' },
             { key:'eps_next_5y_pct',   label:'EPS 5Y',    tip:'EPS Growth Next 5 Years %' },
             { key:'eps_qoq_pct',       label:'EPS Q/Q',   tip:'EPS Growth Qtr over Qtr %' },
@@ -2877,6 +2878,7 @@
     ];
 
     var FUND_METRICS = [
+        { value: 'eps_this_y_pct',    label: 'EPS This Year %' },
         { value: 'eps_next_y_pct',    label: 'EPS Next Year %' },
         { value: 'eps_next_5y_pct',   label: 'EPS Next 5Y %' },
         { value: 'eps_qoq_pct',       label: 'EPS Q/Q %' },
@@ -4046,6 +4048,7 @@
             { key:'cr',        label:'CR',      tip:'Closing range (100=high, 0=low)' },
         ];
         var fundCols = [
+            { key:'eps_this_y_pct',    label:'EPS TY',    tip:'EPS Growth This Year %' },
             { key:'eps_next_y_pct',    label:'EPS NY',    tip:'EPS Growth Next Year %' },
             { key:'eps_next_5y_pct',   label:'EPS 5Y',    tip:'EPS Growth Next 5 Years %' },
             { key:'eps_qoq_pct',       label:'EPS Q/Q',   tip:'EPS Growth Qtr over Qtr %' },
@@ -4108,6 +4111,7 @@
             else if (key === 'adr_pct')  { av = a.adr_pct;   bv = b.adr_pct; }
             else if (key === 'cr')       { av = a.cr;        bv = b.cr; }
             else if (key === 'dist_ma')  { av = a.dist_ma ? a.dist_ma[activeMAType+activeMALength] : null; bv = b.dist_ma ? b.dist_ma[activeMAType+activeMALength] : null; }
+            else if (key === 'eps_this_y_pct')    { av = a.eps_this_y_pct;    bv = b.eps_this_y_pct; }
             else if (key === 'eps_next_y_pct')    { av = a.eps_next_y_pct;    bv = b.eps_next_y_pct; }
             else if (key === 'eps_next_5y_pct')   { av = a.eps_next_5y_pct;   bv = b.eps_next_5y_pct; }
             else if (key === 'eps_qoq_pct')       { av = a.eps_qoq_pct;       bv = b.eps_qoq_pct; }
