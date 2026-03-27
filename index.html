@@ -3153,7 +3153,7 @@
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : 0,
+                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : 0,
                 dir: type === 'gap' ? 'up' : 'gt' };
             sfRows.push(defaults);
             row = defaults;
@@ -3275,7 +3275,7 @@
             row.dir         = (value === 'ma') ? 'above' : (value === 'gap') ? 'up' : 'gt';
             row.maCondition = 'above_price';
             row.rangeCondition = value === 'range' ? 'relative' : null;
-            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : null;
+            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : null;
             row.fundMetric  = value === 'fund' ? 'eps_next_y_pct' : null;
             row.maType      = 'SMA';
             row.maPeriod    = 50;
@@ -3367,7 +3367,7 @@
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : null };
+                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -3950,8 +3950,9 @@
                     if (f.dir === 'down' && gv > -gthresh) return false;
                 } else if (f.type === 'range') {
                     var rc = f.rangeCondition || 'relative';
+                    if (f.val == null || f.val === '') return true;
                     var rval = parseFloat(f.val);
-                    if (isNaN(rval) || f.val == null || f.val === '') return false;
+                    if (isNaN(rval)) return true;
                     if (rc === 'relative') {
                         var rva = r.range_vs_adr;
                         if (rva == null) return false;
