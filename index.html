@@ -3013,11 +3013,9 @@
             return sameType.length > 1 && sameType.indexOf(r) > 0;
         });
         var extraHtml = extraRows.map(function(row) {
-            var typeLabel = (PILL_TYPES.find(function(pt){ return pt.type === row.type; }) || {}).label || row.type;
             var val = sfPillLabel(row);
             return '<div class="sf-pill active" onclick="sfOpenPopover(' + row.id + ',this)">' +
-                '<span class="sf-pill-name">' + esc(typeLabel) + '</span>' +
-                '<span class="sf-pill-val">' + esc(val) + '</span>' +
+                '<span class="sf-pill-val" style="padding-left:8px;">' + esc(val) + '</span>' +
                 '<span class="sf-pill-caret">▾</span>' +
                 '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">✕</button>' +
             '</div>';
@@ -3128,11 +3126,11 @@
             var perfDir = row.perfDir || 'up';
             var tfs = [['1d','1D'],['1w','1W'],['1m','1M'],['3m','3M']];
             var tfBtns = tfs.map(function(t){
-                return '<button class="sf-seg-btn'+(perfTf===t[0]?' active':'')+'" onclick="sfPopChange('+id+',\'perfTf\',\''+t[0]+'\')">'+t[1]+'</button>';
+                return '<button class="sf-seg-btn'+(perfTf===t[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'perfTf\',\''+t[0]+'\')">'+t[1]+'</button>';
             }).join('');
             var dirBtns =
-                '<button class="sf-seg-btn'+(perfDir==='up'?' active':'')+'" onclick="sfPopChange('+id+',\'perfDir\',\'up\')">↑ Up</button>' +
-                '<button class="sf-seg-btn'+(perfDir==='down'?' active':'')+'" onclick="sfPopChange('+id+',\'perfDir\',\'down\')">↓ Down</button>';
+                '<button class="sf-seg-btn'+(perfDir==='up'?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'perfDir\',\'up\')">↑ Up</button>' +
+                '<button class="sf-seg-btn'+(perfDir==='down'?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'perfDir\',\'down\')">↓ Down</button>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><div class="sf-seg">'+dirBtns+'</div></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+tfBtns+'</div></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
@@ -3225,7 +3223,20 @@
     };
 
     window.sfResetPill = function() {
-        if (sfActivePillType) sfClearPillType(sfActivePillType);
+        if (sfActivePillType) {
+            sfClearPillType(sfActivePillType);
+        } else if (sfActivePopoverId != null) {
+            var row = sfRows.find(function(r){ return r.id === sfActivePopoverId; });
+            if (!row) return;
+            row.perfTf  = '1d';
+            row.perfDir = 'up';
+            row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : 0;
+            row.val2    = null;
+            row.rangeCondition = row.type === 'range' ? 'relative' : null;
+            var c = sfPopoverHtml(row, true);
+            var contentEl = document.getElementById('sf-popover-content');
+            if (contentEl) contentEl.innerHTML = c;
+        }
     };
 
     window.sfRemovePillType = function(type) {
@@ -3269,8 +3280,9 @@
         var pop = document.getElementById('sf-popover');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
-        document.getElementById('sf-popover-title').textContent = row.type;
-        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, row.type === 'gap' || row.type === 'range');
+        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range' };
+        document.getElementById('sf-popover-title').textContent = EXTRA_TITLES[row.type] || row.type;
+        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
         var rect = pillEl.getBoundingClientRect();
         pop.style.top  = (rect.bottom + 6) + 'px';
         pop.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
