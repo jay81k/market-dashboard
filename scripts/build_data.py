@@ -73,8 +73,8 @@ SUPPLEMENTAL_TICKERS = [
         "Industry": "Computer Hardware",
         "Percentile": 99,
         "Relative Strength": 99.0,
-        "1M_RS_Percentile": 99,
-        "3M_RS_Percentile": 99,
+        "1M_RS_Percentile": 97,
+        "3M_RS_Percentile": 97,
         "6M_RS_Percentile": 99,
     },
     {
