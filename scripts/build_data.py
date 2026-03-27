@@ -297,6 +297,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             elif dist_prev >= 0 and dist_today < 0:
                 price_ma_crossovers.add(f"{key}|below")
 
+        # Today's OHLC — needed for range metrics and candle patterns below
+        _o, _c = hist["Open"].iloc[-1], hist["Close"].iloc[-1]
+        _h, _l = hist["High"].iloc[-1], hist["Low"].iloc[-1]
+
         # Narrow range metrics
         # range_vs_adr: today's H-L range as % of price, divided by ADR% — ratio of today vs average
         # range_rank: how many consecutive prior days today's range is narrower than (up to 20)
@@ -352,8 +356,6 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         ) if len(hist) >= 2 else False
 
         # Hammer / Bullish Hammer
-        _o, _c = hist["Open"].iloc[-1], hist["Close"].iloc[-1]
-        _h, _l = hist["High"].iloc[-1], hist["Low"].iloc[-1]
         _body        = abs(_c - _o)
         _candle_range = _h - _l
         _lower_shadow = min(_o, _c) - _l
