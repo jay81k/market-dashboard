@@ -3186,7 +3186,15 @@
         if (_sfJustClosed) { _sfJustClosed = false; return; }
         if (sfActivePillType === type) {
             _sfJustClosed = true;
-            sfClosePopover();
+            // If the row was freshly created (never applied), remove it — same as cancel
+            if (!sfPillWasPreExisting) {
+                sfRows = sfRows.filter(function(r){ return r.type !== type; });
+            }
+            document.getElementById('sf-popover').style.display = 'none';
+            sfActivePillType = null;
+            sfPillWasPreExisting = false;
+            sfRenderPills();
+            // Don't call renderScans — nothing was applied
             setTimeout(function(){ _sfJustClosed = false; }, 200);
             return;
         }
