@@ -2937,7 +2937,8 @@
         }
         if (row.type === 'pattern') {
             var patLabels = { inside_day: 'Inside Day', bullish_outside: 'Bullish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
-            return patLabels[row.val] || row.val;
+            var ptfLabel = { d: 'D', w: 'W', m: 'M' }[row.patternTf || 'd'];
+            return (patLabels[row.val] || row.val) + ' · ' + ptfLabel;
         }
         if (row.type === 'fund') {
             var m = FUND_METRICS.find(function(x){ return x.value === row.fundMetric; });
@@ -2955,9 +2956,14 @@
             }
             return 'Range ≤ ' + (row.val != null ? row.val : '?') + '% of ADR';
         }
+        if (row.type === 'cr') {
+            var crTfLabel = { d: 'D', w: 'W', m: 'M' }[row.crTf || 'd'];
+            var crDir = row.dir === 'gt' ? '>' : '<';
+            return 'CR ' + crTfLabel + ' ' + crDir + ' ' + (row.val != null ? row.val : '—') + '%';
+        }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
-        if (row.type === 'adr' || row.type === 'cr') valLabel += '%';
+        if (row.type === 'adr') valLabel += '%';
         if (row.type === 'rvol') valLabel += 'x';
         return typeLabel + ' ' + dirLabel + valLabel;
     }
@@ -3001,7 +3007,7 @@
             var xBtn = isActive
                 ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemovePillType(\'' + pt.type + '\')">✕</button>'
                 : '';
-            return '<div class="' + cls + '" onclick="sfTogglePill(\'' + pt.type + '\',this)">' +
+            return '<div class="' + cls + '" onclick="sfTogglePill(\'' + pt.type + '\',this,event)">' +
                 '<span class="sf-pill-name">' + pt.label + '</span>' +
                 valHtml +
                 '<span class="sf-pill-caret">' + (isOpen ? '▴' : '▾') + '</span>' +
@@ -3114,6 +3120,11 @@
                 ['pocket_pivot',        'Pocket Pivot'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(row.val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Pattern</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
+            var ptf = row.patternTf || 'd';
+            var ptfBtns = [['d','D'],['w','W'],['m','M']].map(function(t){
+                return '<button class="sf-seg-btn'+(ptf===t[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'patternTf\',\''+t[0]+'\')">'+t[1]+'</button>';
+            }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+ptfBtns+'</div></div>';
         } else if (row.type === 'fund') {
             var metricOpts = FUND_METRICS.map(function(m){
                 return '<option value="'+m.value+'"'+(row.fundMetric===m.value?' selected':'')+'>'+m.label+'</option>';
@@ -3148,18 +3159,28 @@
             } else {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Days</span><input class="sf-input" type="number" min="2" max="60" step="1" value="'+(row.val!=null?row.val:'')+'" placeholder="e.g. 7" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">days</span></div>';
             }
+        } else if (row.type === 'cr') {
+            var crTf = row.crTf || 'd';
+            var crTfBtns = [['d','D'],['w','W'],['m','M']].map(function(t){
+                return '<button class="sf-seg-btn'+(crTf===t[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'crTf\',\''+t[0]+'\')">'+t[1]+'</button>';
+            }).join('');
+            var crDirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+crDirOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="0" max="100" step="1" value="'+(row.val!=null?row.val:50)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+crTfBtns+'</div></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
             var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
-            var minMax = row.type === 'cr' ? ' min="0" max="100" step="1"' : row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : row.type === 'adr' ? ' min="0" step="0.1"' : row.type === 'price' ? ' min="0" step="0.01"' : '';
-            var suffix = (row.type === 'adr' || row.type === 'cr') ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">x</span>' : '';
+            var minMax = row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : row.type === 'adr' ? ' min="0" step="0.1"' : row.type === 'price' ? ' min="0" step="0.01"' : '';
+            var suffix = row.type === 'adr' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">x</span>' : '';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'"'+minMax+' value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
         }
         return html;
     }
 
-    window.sfTogglePill = function(type, pillEl) {
+    window.sfTogglePill = function(type, pillEl, e) {
+        if (e) e.stopPropagation();
         if (sfActivePillType === type) {
             sfClosePopover();
             return;
@@ -3177,6 +3198,8 @@
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
                 perfTf: type === 'perf' ? '1d' : null,
                 perfDir: type === 'perf' ? 'up' : null,
+                patternTf: 'd',
+                crTf: 'd',
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
                      type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : 0,
@@ -3216,6 +3239,8 @@
             row.fundMetric  = type === 'fund' ? 'eps_next_y_pct' : null;
             row.perfTf      = '1d';
             row.perfDir     = 'up';
+            row.patternTf   = 'd';
+            row.crTf        = 'd';
             row.val         = type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                               type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
                               type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : 0;
@@ -3319,6 +3344,8 @@
             row.rangeCondition = value === 'range' ? 'relative' : null;
             row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : null;
             row.fundMetric  = value === 'fund' ? 'eps_next_y_pct' : null;
+            row.patternTf   = 'd';
+            row.crTf        = 'd';
             row.maType      = 'SMA';
             row.maPeriod    = 50;
             row.maType2     = 'SMA';
@@ -3408,7 +3435,7 @@
             maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
             rangeCondition: type === 'range' ? 'relative' : null,
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
-            perfTf: '1d', perfDir: 'up',
+            perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd',
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
                  type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : null };
@@ -3945,13 +3972,9 @@
                         if (f.dir === 'lt' && adr >= av) return false;
                     }
                 } else if (f.type === 'pattern') {
-                    if (f.val === 'inside_day'      && !r.inside_day)      return false;
-                    if (f.val === 'bullish_outside' && !r.bullish_outside) return false;
-                    if (f.val === 'hammer'               && !r.hammer)               return false;
-                    if (f.val === 'bullish_reversal_bar' && !r.bullish_reversal_bar) return false;
-                    if (f.val === 'upside_reversal'      && !r.upside_reversal)      return false;
-                    if (f.val === 'oops_reversal'        && !r.oops_reversal)        return false;
-                    if (f.val === 'pocket_pivot'         && !r.pocket_pivot)          return false;
+                    var ptfSuffix = (f.patternTf === 'w') ? '_w' : (f.patternTf === 'm') ? '_m' : '';
+                    var patKey = f.val + ptfSuffix;
+                    if (!r[patKey]) return false;
                 } else if (f.type === 'rvol') {
                     var rv = r.rel_vol;
                     if (rv == null) return false;
@@ -3961,7 +3984,8 @@
                         if (f.dir === 'lt' && rv >= rvThresh) return false;
                     }
                 } else if (f.type === 'cr') {
-                    var cr = r.cr;
+                    var crField = (f.crTf === 'w') ? 'cr_w' : (f.crTf === 'm') ? 'cr_m' : 'cr';
+                    var cr = r[crField];
                     if (cr == null) return false;
                     var cv = parseFloat(f.val);
                     if (!isNaN(cv)) {
