@@ -405,6 +405,81 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _c > _prev_low2
         ) if len(hist) >= 2 else False
 
+        # ── Weekly & Monthly pattern detection ────────────────────────────
+        def detect_patterns(h: pd.DataFrame) -> dict:
+            """Run all pattern checks on the last 2 bars of a resampled DataFrame."""
+            out = {k: False for k in [
+                "inside_day", "bullish_outside", "hammer",
+                "bullish_reversal_bar", "upside_reversal",
+                "oops_reversal", "pocket_pivot",
+            ]}
+            if len(h) < 2:
+                return out
+            h = h.dropna(subset=["Open", "High", "Low", "Close"])
+            if len(h) < 2:
+                return out
+            try:
+                o, c = h["Open"].iloc[-1], h["Close"].iloc[-1]
+                hi, lo = h["High"].iloc[-1], h["Low"].iloc[-1]
+                p_hi, p_lo = h["High"].iloc[-2], h["Low"].iloc[-2]
+                p_close = h["Close"].iloc[-2]
+                body         = abs(c - o)
+                candle_range = hi - lo
+                lower_shadow = min(o, c) - lo
+                upper_shadow = hi - max(o, c)
+                out["inside_day"]     = bool(hi < p_hi and lo > p_lo)
+                out["bullish_outside"]= bool(hi > p_hi and lo < p_lo)
+                out["hammer"]         = bool(
+                    candle_range > 0 and body <= 0.3 * candle_range and
+                    lower_shadow >= 2 * body and upper_shadow <= 0.1 * candle_range
+                )
+                out["bullish_reversal_bar"] = bool(lo < p_lo and c > p_close)
+                out["upside_reversal"]      = bool(
+                    candle_range > 0 and lo < p_lo and c >= (lo + candle_range * 0.5)
+                )
+                out["oops_reversal"]  = bool(o < p_lo and c > p_lo)
+                # Pocket pivot on weekly/monthly: close up AND volume > max down-bar vol of prior 10 bars
+                if len(h) >= 11:
+                    today_vol2  = h["Volume"].iloc[-1]
+                    prior_10_2  = h.iloc[-11:-1]
+                    down_bars   = prior_10_2[prior_10_2["Close"] < prior_10_2["Open"]]
+                    max_dv      = down_bars["Volume"].max() if len(down_bars) > 0 else 0
+                    out["pocket_pivot"] = bool(c > p_close and today_vol2 > max_dv)
+            except Exception:
+                pass
+            return out
+
+        # Resample to weekly (week ending Friday) and monthly
+        weekly_hist  = hist.resample("W-FRI").agg({
+            "Open": "first", "High": "max", "Low": "min",
+            "Close": "last", "Volume": "sum",
+        }).dropna(subset=["Close"])
+        monthly_hist = hist.resample("ME").agg({
+            "Open": "first", "High": "max", "Low": "min",
+            "Close": "last", "Volume": "sum",
+        }).dropna(subset=["Close"])
+
+        weekly_patterns  = detect_patterns(weekly_hist)
+        monthly_patterns = detect_patterns(monthly_hist)
+
+        # Weekly and monthly closing range
+        def calc_cr(h: pd.DataFrame):
+            if len(h) < 1:
+                return None
+            h = h.dropna(subset=["High", "Low", "Close"])
+            if len(h) < 1:
+                return None
+            try:
+                hi = h["High"].iloc[-1]
+                lo = h["Low"].iloc[-1]
+                cl = h["Close"].iloc[-1]
+                return round((cl - lo) / (hi - lo) * 100, 1) if (hi - lo) > 0 else None
+            except Exception:
+                return None
+
+        cr_w = calc_cr(weekly_hist)
+        cr_m = calc_cr(monthly_hist)
+
         # 52-week high/low — compare today's bar against the prior 252 sessions (excluding today)
         new_52wk_high = False
         new_52wk_low  = False
@@ -432,6 +507,22 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "upside_reversal":      upside_reversal,
             "oops_reversal":        oops_reversal,
             "pocket_pivot":         pocket_pivot,
+            # Weekly patterns
+            "inside_day_w":          weekly_patterns["inside_day"],
+            "bullish_outside_w":     weekly_patterns["bullish_outside"],
+            "hammer_w":              weekly_patterns["hammer"],
+            "bullish_reversal_bar_w":weekly_patterns["bullish_reversal_bar"],
+            "upside_reversal_w":     weekly_patterns["upside_reversal"],
+            "oops_reversal_w":       weekly_patterns["oops_reversal"],
+            "pocket_pivot_w":        weekly_patterns["pocket_pivot"],
+            # Monthly patterns
+            "inside_day_m":          monthly_patterns["inside_day"],
+            "bullish_outside_m":     monthly_patterns["bullish_outside"],
+            "hammer_m":              monthly_patterns["hammer"],
+            "bullish_reversal_bar_m":monthly_patterns["bullish_reversal_bar"],
+            "upside_reversal_m":     monthly_patterns["upside_reversal"],
+            "oops_reversal_m":       monthly_patterns["oops_reversal"],
+            "pocket_pivot_m":        monthly_patterns["pocket_pivot"],
             "new_52wk_high":        new_52wk_high,
             "new_52wk_low":         new_52wk_low,
             "PctFrom52WkLow":       pct_from_52wk_low,
@@ -443,6 +534,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "vs_spy":    vs_spy_1m,
             "vs_spy_3m": vs_spy_3m,
             "cr":        round(cr, 1)          if cr          is not None else None,
+            "cr_w":      cr_w,
+            "cr_m":      cr_m,
             "adr_pct":   adr_pct,
             "rel_vol":   rel_vol,
             "dist_ma":   dist_ma,
@@ -678,14 +771,12 @@ def main():
         # Merge fundamental fields if available
         fund = fundamentals_cache.get(ticker)
         if fund:
-            row["eps_this_y_pct"]    = fund.get("eps_this_y_pct")
             row["eps_next_y_pct"]    = fund.get("eps_next_y_pct")
             row["eps_next_5y_pct"]   = fund.get("eps_next_5y_pct")
             row["eps_qoq_pct"]       = fund.get("eps_qoq_pct")
             row["sales_qoq_pct"]     = fund.get("sales_qoq_pct")
             row["profit_margin_pct"] = fund.get("profit_margin_pct")
         else:
-            row["eps_this_y_pct"]    = None
             row["eps_next_y_pct"]    = None
             row["eps_next_5y_pct"]   = None
             row["eps_qoq_pct"]       = None
