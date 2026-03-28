@@ -2359,6 +2359,7 @@
                     ' data-avg_vol="' + (row.AvgVol50   != null ? row.AvgVol50   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
+                    ' data-eps_this_y_pct="'     + (row.eps_this_y_pct    != null ? row.eps_this_y_pct    : '') + '"' +
                     ' data-eps_next_y_pct="'    + (row.eps_next_y_pct    != null ? row.eps_next_y_pct    : '') + '"' +
                     ' data-eps_next_5y_pct="'   + (row.eps_next_5y_pct   != null ? row.eps_next_5y_pct   : '') + '"' +
                     ' data-eps_qoq_pct="'       + (row.eps_qoq_pct       != null ? row.eps_qoq_pct       : '') + '"' +
@@ -2685,9 +2686,7 @@
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 // Only respond to specific TradingView events that signal a symbol change
                 var sym = null;
-                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                    sym = data.data.original_name;
-                } else if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
+                if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
                     sym = data.data.symbol;
                 } else if (data && data.name === 'widgetReady' && data.data && data.data.symbol) {
                     sym = data.data.symbol;
@@ -2696,8 +2695,8 @@
                 // they fire on every price tick and cause constant header re-renders
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
-                    // Only update header if the symbol genuinely changed
-                    if (bare && bare !== _lastSym) {
+                    // Only update header if the symbol genuinely changed from what was opened
+                    if (bare && bare !== _lastSym && bare !== initialSym) {
                         _lastSym = bare;
                         updateChartModalHeader(bare);
                     }
