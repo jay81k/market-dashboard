@@ -2559,9 +2559,30 @@
         if (!industry) return '';
         var escaped = esc(industry);
         var style = 'color:#8b949e;cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
-        var onclick = (closeFn ? 'if(window.' + closeFn + ')window.' + closeFn + '();' : '') + 'openIndustry(' + JSON.stringify(industry) + ');showView(\'industry-stocks\');';
-        return '<span style="' + style + '" onmouseover="this.style.color=\'#c8d0dc\';this.style.borderBottomColor=\'#6e7681\';" onmouseout="this.style.color=\'#8b949e\';this.style.borderBottomColor=\'transparent\';" onclick="' + onclick + '">' + escaped + '</span>';
+        var closeFnAttr = closeFn ? ' data-close-fn="' + closeFn + '"' : '';
+        return '<span class="industry-nav-link" data-industry-name="' + escaped + '"' + closeFnAttr + ' style="' + style + '">' + escaped + '</span>';
     }
+
+    document.addEventListener('click', function(e) {
+        var el = e.target.closest('.industry-nav-link');
+        if (!el) return;
+        var industry = el.getAttribute('data-industry-name');
+        var closeFn  = el.getAttribute('data-close-fn');
+        if (closeFn && window[closeFn]) window[closeFn]();
+        if (industry) openIndustry(industry);
+    });
+    document.addEventListener('mouseover', function(e) {
+        var el = e.target.closest('.industry-nav-link');
+        if (!el) return;
+        el.style.color = '#c8d0dc';
+        el.style.borderBottomColor = '#6e7681';
+    });
+    document.addEventListener('mouseout', function(e) {
+        var el = e.target.closest('.industry-nav-link');
+        if (!el) return;
+        el.style.color = '#8b949e';
+        el.style.borderBottomColor = 'transparent';
+    });
 
     function fundStatsHtml(row) {
         if (!row) return '';
