@@ -3179,10 +3179,15 @@
         return html;
     }
 
+    var _sfJustClosed = false;
+
     window.sfTogglePill = function(type, pillEl, e) {
         if (e) e.stopPropagation();
+        if (_sfJustClosed) { _sfJustClosed = false; return; }
         if (sfActivePillType === type) {
+            _sfJustClosed = true;
             sfClosePopover();
+            setTimeout(function(){ _sfJustClosed = false; }, 200);
             return;
         }
         sfActivePillType = type;
