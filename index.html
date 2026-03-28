@@ -2221,7 +2221,7 @@
                 }
             }
             if (mcIndustry) {
-                mcMetaEl.innerHTML = '<span class="meta-sector">' + esc(mcIndustry) + '</span>' + mcIndRankHtml;
+                mcMetaEl.innerHTML = industryLinkHtml(mcIndustry, 'closeMcFullscreen') + mcIndRankHtml;
                 mcMetaEl.style.display = '';
             } else {
                 mcMetaEl.innerHTML = '';
@@ -2555,6 +2555,14 @@
         el.style.display = '';
     }
 
+    function industryLinkHtml(industry, closeFn) {
+        if (!industry) return '';
+        var escaped = esc(industry);
+        var style = 'color:#8b949e;cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
+        var onclick = (closeFn ? 'if(window.' + closeFn + ')window.' + closeFn + '();' : '') + 'openIndustry(' + JSON.stringify(industry) + ');showView(\'industry-stocks\');';
+        return '<span style="' + style + '" onmouseover="this.style.color=\'#c8d0dc\';this.style.borderBottomColor=\'#6e7681\';" onmouseout="this.style.color=\'#8b949e\';this.style.borderBottomColor=\'transparent\';" onclick="' + onclick + '">' + escaped + '</span>';
+    }
+
     function fundStatsHtml(row) {
         if (!row) return '';
         var stats = [
@@ -2622,7 +2630,7 @@
                 }
             }
             metaEl.innerHTML = industry
-                ? '<span class="meta-sector">' + esc(industry) + '</span>' + indRankHtml
+                ? industryLinkHtml(industry, 'closeChartModal') + indRankHtml
                 : '';
         }
         applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile);
@@ -5181,7 +5189,7 @@
                         '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
                 }
             }
-            metaEl.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml : '';
+            metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
         }
         applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct);
         var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
