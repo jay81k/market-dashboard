@@ -678,12 +678,14 @@ def main():
         # Merge fundamental fields if available
         fund = fundamentals_cache.get(ticker)
         if fund:
+            row["eps_this_y_pct"]    = fund.get("eps_this_y_pct")
             row["eps_next_y_pct"]    = fund.get("eps_next_y_pct")
             row["eps_next_5y_pct"]   = fund.get("eps_next_5y_pct")
             row["eps_qoq_pct"]       = fund.get("eps_qoq_pct")
             row["sales_qoq_pct"]     = fund.get("sales_qoq_pct")
             row["profit_margin_pct"] = fund.get("profit_margin_pct")
         else:
+            row["eps_this_y_pct"]    = None
             row["eps_next_y_pct"]    = None
             row["eps_next_5y_pct"]   = None
             row["eps_qoq_pct"]       = None
