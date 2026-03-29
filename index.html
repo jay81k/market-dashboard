@@ -2248,6 +2248,57 @@
         overlay.classList.add('open');
         updateQueueButtons();
 
+        var _mcLastSym = sym;
+        if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); }
+        window._mcFullscreenMsgHandler = function(e) {
+            try {
+                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                var newSym = null;
+                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
+                    newSym = data.data.original_name;
+                }
+                if (newSym) {
+                    var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
+                    if (bare && bare !== _mcLastSym) {
+                        _mcLastSym = bare;
+                        document.getElementById('mc-fullscreen-sym').textContent = bare;
+                        var mcPct2 = null, mcIndustry2 = '', mcFundRow2 = null;
+                        if (snapshot && snapshot.by_industry) {
+                            outer3: for (var ind3 in snapshot.by_industry) {
+                                var rows3 = snapshot.by_industry[ind3];
+                                for (var k = 0; k < rows3.length; k++) {
+                                    if (rows3[k].ticker === bare) {
+                                        mcPct2      = rows3[k].Percentile;
+                                        mcIndustry2 = rows3[k].industry || '';
+                                        mcFundRow2  = rows3[k];
+                                        break outer3;
+                                    }
+                                }
+                            }
+                        }
+                        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct2, mcFundRow2 ? mcFundRow2.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
+                        var mcMetaEl2 = document.getElementById('mc-fullscreen-meta');
+                        if (mcMetaEl2) {
+                            var mcIndRankHtml2 = '';
+                            if (mcIndustry2 && industriesData && industriesData.industries) {
+                                var mcIndData2 = industriesData.industries.find(function(x){ return x.industry === mcIndustry2; });
+                                var mcTotal2   = industriesData.industries.length;
+                                if (mcIndData2 && mcIndData2.rank != null) {
+                                    var mcPctile2  = mcIndData2.percentile != null ? mcIndData2.percentile : null;
+                                    var mcRankClr2 = mcPctile2 != null ? (mcPctile2 >= 75 ? '#3fb950' : mcPctile2 >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                                    mcIndRankHtml2 = '<span class="meta-sep">·</span>' +
+                                        '<span class="meta-ind-rank" style="color:' + mcRankClr2 + '">(' + mcIndData2.rank + '/' + mcTotal2 + ')</span>';
+                                }
+                            }
+                            mcMetaEl2.innerHTML = mcIndustry2 ? industryLinkHtml(mcIndustry2, 'closeMcFullscreen') + mcIndRankHtml2 : '';
+                            mcMetaEl2.style.display = mcIndustry2 ? '' : 'none';
+                        }
+                    }
+                }
+            } catch(err) {}
+        };
+        window.addEventListener('message', window._mcFullscreenMsgHandler);
+
         var mappedSym = TV_MAP[sym] || sym;
         try {
             mcFullscreenWidget = new TradingView.widget({
@@ -2270,6 +2321,7 @@
 
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
+        if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); window._mcFullscreenMsgHandler = null; }
         mcFullscreenWidget = null;
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
     };
@@ -2752,10 +2804,6 @@
                 var sym = null;
                 if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
                     sym = data.data.original_name;
-                } else if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
-                    sym = data.data.symbol;
-                } else if (data && data.name === 'widgetReady' && data.data && data.data.symbol) {
-                    sym = data.data.symbol;
                 }
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
@@ -5312,8 +5360,6 @@
                     var sym = null;
                     if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
                         sym = data.data.original_name;
-                    } else if (data && data.name === 'tv-widget-load' && data.data && data.data.symbol) {
-                        sym = data.data.symbol;
                     }
                     if (sym) {
                         var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
