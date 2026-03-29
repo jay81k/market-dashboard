@@ -37,8 +37,6 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 
 DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
-DEFAULT_INDUSTRIES_CSV_URL = os.environ.get("INDUSTRIES_CSV_URL", "")
-
 MIN_AVG_VOLUME  = 90_000     # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
@@ -654,38 +652,11 @@ def sanitize(obj):
 # Main
 # ---------------------------------------------------------------------------
 
-def load_industries(csv_url: str) -> list:
-    """Download and parse the industries RS CSV."""
-    print(f"Fetching industries CSV: {csv_url}")
-    df = pd.read_csv(csv_url)
-    required = {"Industry", "Sector", "Percentile", "Tickers"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"Industries CSV missing columns: {missing}")
-
-    industries = []
-    for _, row in df.iterrows():
-        tickers = [t.strip() for t in str(row.get("Tickers", "")).split(",") if t.strip()]
-        industries.append({
-            "rank":          int(row["Rank"])             if pd.notna(row.get("Rank"))             else None,
-            "industry":      str(row["Industry"]).strip(),
-            "sector":        str(row["Sector"]).strip(),
-            "rs":            round(float(row["Relative Strength"]), 2) if pd.notna(row.get("Relative Strength")) else None,
-            "percentile":    int(row["Percentile"])       if pd.notna(row.get("Percentile"))       else None,
-            "1m_rs_pct":     int(row["1M_RS_Percentile"]) if pd.notna(row.get("1M_RS_Percentile")) else None,
-            "3m_rs_pct":     int(row["3M_RS_Percentile"]) if pd.notna(row.get("3M_RS_Percentile")) else None,
-            "6m_rs_pct":     int(row["6M_RS_Percentile"]) if pd.notna(row.get("6M_RS_Percentile")) else None,
-            "tickers":       tickers,
-        })
-    print(f"Loaded {len(industries)} industries")
-    return industries
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir",           default="data",                      help="Output directory")
     parser.add_argument("--csv-url",           default=DEFAULT_CSV_URL,             help="URL of RS stock universe CSV")
-    parser.add_argument("--industries-csv-url",default=DEFAULT_INDUSTRIES_CSV_URL,  help="URL of RS industries CSV")
+
     parser.add_argument("--workers",           type=int, default=10,                help="Threads for fallback fetches")
     args = parser.parse_args()
 
@@ -976,12 +947,38 @@ def main():
         "min_avg_volume":       MIN_AVG_VOLUME,
     }
 
-    # Fetch industries if URL provided
+    # 9. Build industries list with self-computed rank/percentile
+    # Blend score: 65% avg_vs_spy_3m + 35% avg_vs_spy_6m
+    def blend_score(s):
+        v3 = s.get("avg_vs_spy_3m")
+        v6 = s.get("avg_vs_spy_6m")
+        if v3 is None and v6 is None:
+            return None
+        if v3 is None:
+            return v6
+        if v6 is None:
+            return v3
+        return round(v3 * 0.65 + v6 * 0.35, 4)
+
+    scored = [
+        (industry, blend_score(s))
+        for industry, s in industry_summary.items()
+    ]
+    scored.sort(key=lambda x: x[1] if x[1] is not None else float("-inf"), reverse=True)
+
+    total_industries = len(scored)
     industries_list = []
-    if args.industries_csv_url:
-        industries_list = load_industries(args.industries_csv_url)
-    else:
-        print("Warning: --industries-csv-url not set, skipping industries data")
+    for rank_idx, (industry, score) in enumerate(scored, start=1):
+        percentile = round((1 - (rank_idx - 1) / max(total_industries - 1, 1)) * 99)
+        industries_list.append({
+            "rank":        rank_idx,
+            "industry":    industry,
+            "sector":      industry_to_sector.get(industry, ""),
+            "percentile":  percentile,
+            "blend_score": score,
+        })
+
+    print(f"Computed ranks for {len(industries_list)} industries (65% 3M vs SPY / 35% 6M vs SPY)")
 
     def write_json(filename, obj):
         path = os.path.join(args.out_dir, filename)
