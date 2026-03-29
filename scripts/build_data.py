@@ -914,6 +914,7 @@ def main():
             "avg_ytd":         avg(rows, "ytd"),
             "avg_vs_spy":      avg(rows, "vs_spy"),
             "avg_vs_spy_3m":   avg(rows, "vs_spy_3m"),
+            "avg_6m":           avg(rows, "6m"),
             "avg_vs_spy_6m":   avg(rows, "vs_spy_6m"),
             "avg_vs_spy_12m":  avg(rows, "vs_spy_12m"),
             "avg_dist_ma50":   avg_dist_ma50(rows),
