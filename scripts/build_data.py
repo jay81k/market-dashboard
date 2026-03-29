@@ -212,8 +212,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         year_rows = hist[hist.index.year == hist.index[-1].year]
         ytd = (current / year_rows["Close"].iloc[0] - 1) * 100 if len(year_rows) >= 1 else None
 
-        # vs SPY relative strength (1m and 3m)
-        vs_spy_1m = vs_spy_3m = None
+        # vs SPY relative strength (1m, 3m, 6m, 12m)
+        vs_spy_1m = vs_spy_3m = vs_spy_6m = vs_spy_12m = None
+        six_month    = (current / close.iloc[-126] - 1) * 100 if len(close) >= 126 else None
+        twelve_month = (current / close.iloc[-252] - 1) * 100 if len(close) >= 252 else None
         if spy_hist is not None:
             spy_close = spy_hist["Close"]
             if len(spy_close) >= 22 and len(close) >= 22:
@@ -222,6 +224,12 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             if len(spy_close) >= 63 and len(close) >= 63:
                 spy_3m    = (spy_close.iloc[-1] / spy_close.iloc[-63] - 1) * 100
                 vs_spy_3m = round(three_month - spy_3m, 2) if three_month is not None else None
+            if len(spy_close) >= 126 and len(close) >= 126:
+                spy_6m    = (spy_close.iloc[-1] / spy_close.iloc[-126] - 1) * 100
+                vs_spy_6m = round(six_month - spy_6m, 2) if six_month is not None else None
+            if len(spy_close) >= 252 and len(close) >= 252:
+                spy_12m    = (spy_close.iloc[-1] / spy_close.iloc[-252] - 1) * 100
+                vs_spy_12m = round(twelve_month - spy_12m, 2) if twelve_month is not None else None
 
         # Closing range
         today_high = hist["High"].iloc[-1]
@@ -531,8 +539,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "1m":         round(one_month, 2)   if one_month   is not None else None,
             "3m":        round(three_month, 2) if three_month is not None else None,
             "ytd":       round(ytd, 2)         if ytd         is not None else None,
-            "vs_spy":    vs_spy_1m,
-            "vs_spy_3m": vs_spy_3m,
+            "vs_spy":     vs_spy_1m,
+            "vs_spy_3m":  vs_spy_3m,
+            "vs_spy_6m":  vs_spy_6m,
+            "vs_spy_12m": vs_spy_12m,
             "cr":        round(cr, 1)          if cr          is not None else None,
             "cr_w":      cr_w,
             "cr_m":      cr_m,
@@ -904,12 +914,42 @@ def main():
             "avg_ytd":         avg(rows, "ytd"),
             "avg_vs_spy":      avg(rows, "vs_spy"),
             "avg_vs_spy_3m":   avg(rows, "vs_spy_3m"),
+            "avg_vs_spy_6m":   avg(rows, "vs_spy_6m"),
+            "avg_vs_spy_12m":  avg(rows, "vs_spy_12m"),
             "avg_dist_ma50":   avg_dist_ma50(rows),
         }
         for industry, rows in by_industry.items()
     }
 
-    # 7. Sector → industries index
+    # 7. Compute industry RS ratings from vs_spy performance
+    def ind_rs_thresholds(val, thresholds):
+        if val is None:
+            return None
+        def f_interp(v, hi_v, lo_v, hi_r, lo_r):
+            if hi_v == lo_v: return hi_r
+            t = (v - lo_v) / (hi_v - lo_v)
+            return min(99, max(1, round(lo_r + t * (hi_r - lo_r))))
+        if val >= thresholds[0][0]: return 99
+        if val <= thresholds[-1][0]: return 1
+        for i in range(len(thresholds) - 1):
+            hi_v, hi_r = thresholds[i]
+            lo_v, lo_r = thresholds[i + 1]
+            if val >= lo_v:
+                return f_interp(val, hi_v, lo_v, hi_r, lo_r)
+        return 1
+
+    RS_THRESHOLDS_1M  = [(31.9,99),(16.9,95),(9.5,90),(4.6,80),(0.9,70),(-0.2,60),(-2.1,50),(-3.5,40),(-4.5,30),(-5.9,20),(-8.6,10),(-20.5,1)]
+    RS_THRESHOLDS_3M  = [(65.0,99),(40.0,95),(25.0,90),(13.0,80),(11.0,70),(7.0,60),(4.0,50),(0.0,40),(-3.0,30),(-6.0,20),(-11.0,10),(-20.0,1)]
+    RS_THRESHOLDS_6M  = [(80.0,99),(55.0,95),(35.0,90),(20.0,80),(15.0,70),(10.0,60),(5.0,50),(0.0,40),(-5.0,30),(-10.0,20),(-18.0,10),(-30.0,1)]
+    RS_THRESHOLDS_12M = [(100.0,99),(70.0,95),(45.0,90),(25.0,80),(18.0,70),(12.0,60),(6.0,50),(0.0,40),(-6.0,30),(-12.0,20),(-22.0,10),(-40.0,1)]
+
+    for ind, s in industry_summary.items():
+        s["rs_1m"]  = ind_rs_thresholds(s.get("avg_vs_spy"),     RS_THRESHOLDS_1M)
+        s["rs_3m"]  = ind_rs_thresholds(s.get("avg_vs_spy_3m"),  RS_THRESHOLDS_3M)
+        s["rs_6m"]  = ind_rs_thresholds(s.get("avg_vs_spy_6m"),  RS_THRESHOLDS_6M)
+        s["rs_12m"] = ind_rs_thresholds(s.get("avg_vs_spy_12m"), RS_THRESHOLDS_12M)
+
+    # 8. Sector → industries index
     sector_to_industries: dict[str, list[str]] = defaultdict(list)
     for industry, sector in industry_to_sector.items():
         sector_to_industries[sector].append(industry)
