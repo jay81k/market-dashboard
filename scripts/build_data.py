@@ -538,6 +538,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
             "3m":        round(three_month, 2) if three_month is not None else None,
+            "6m":        round(six_month, 2)   if six_month   is not None else None,
             "1y":         round(twelve_month, 2) if twelve_month is not None else None,
             "ytd":       round(ytd, 2)         if ytd         is not None else None,
             "vs_spy":     vs_spy_1m,
