@@ -736,9 +736,9 @@ def main():
     tickers  = universe["Ticker"].tolist()
     print(f"Universe after filters: {len(tickers)} stocks\n")
 
-    # 2. SPY baseline
-    print("Fetching SPY history...")
-    spy_hist  = yf.Ticker("SPY").history(period="14mo").dropna(subset=["Close"])
+    # 2. SPX baseline
+    print("Fetching ^GSPC history...")
+    spy_hist  = yf.Ticker("^GSPC").history(period="14mo").dropna(subset=["Close"])
 
     # 3. Batch-fetch price histories
     histories = fetch_history_batch(tickers, max_workers=args.workers)
@@ -1014,7 +1014,7 @@ def main():
             "blend_score": score,
         })
 
-    print(f"Computed ranks for {len(industries_list)} industries (65% 3M vs SPY / 35% 6M vs SPY)")
+    print(f"Computed ranks for {len(industries_list)} industries (65% 3M vs SPX / 35% 6M vs SPX)")
 
     def write_json(filename, obj):
         path = os.path.join(args.out_dir, filename)
