@@ -392,10 +392,20 @@
         .chart-rs-badge {
             font-size: 0.825em; font-weight: 700; margin-left: 10px;
             padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 0; position: relative;
         }
         .chart-rs-badge.rs-high   { background: #0d2b0d; color: #3fb950; border: 1px solid #2ea04322; }
         .chart-rs-badge.rs-mid    { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
         .chart-rs-badge.rs-low    { background: #2b0d0d; color: #f85149; border: 1px solid #f8514922; }
+        .chart-rs-badge-sep { width: 1px; height: 10px; background: currentColor; opacity: 0.2; margin: 0 7px; flex-shrink: 0; }
+        .chart-rs-badge-3m { opacity: 0.75; position: relative; cursor: default; }
+        .chart-rs-badge-3m-tip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+            background: #1c2128; border: 1px solid #30363d; border-radius: 4px;
+            font-size: 0.8em; font-weight: 500; color: #8b949e;
+            padding: 3px 8px; white-space: nowrap; pointer-events: none; z-index: 100;
+        }
+        .chart-rs-badge-3m:hover .chart-rs-badge-3m-tip { display: block; }
         .chart-modal-ext-btn {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 10px; border-radius: 5px; border: 1px solid #30363d;
@@ -2208,7 +2218,7 @@
                 }
             }
         }
-        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct);
+        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct, mcFundRow ? mcFundRow.weighted_rs_pct : null);
         var mcFundStatsEl = document.getElementById('mc-fullscreen-fund-stats');
         if (mcFundStatsEl) mcFundStatsEl.innerHTML = fundStatsHtml(mcFundRow);
         var mcMetaEl = document.getElementById('mc-fullscreen-meta');
@@ -2556,13 +2566,22 @@
         return { text: 'RS ' + pct, cls: cls };
     }
 
-    function applyRsBadge(el, percentile) {
+    function applyRsBadge(el, percentile, weightedRsPct) {
         if (!el) return;
         var b = rsBadge(percentile);
         if (!b) { el.style.display = 'none'; return; }
-        el.textContent = b.text;
         el.className = 'chart-rs-badge ' + b.cls;
         el.style.display = '';
+        if (weightedRsPct != null) {
+            var wrs = Math.round(weightedRsPct);
+            el.innerHTML = 'RS ' + b.text +
+                '<span class="chart-rs-badge-sep"></span>' +
+                '<span class="chart-rs-badge-3m">' + wrs +
+                '<span class="chart-rs-badge-3m-tip">3M RS</span>' +
+                '</span>';
+        } else {
+            el.textContent = b.text;
+        }
     }
 
     function industryLinkHtml(industry, closeFn) {
@@ -2664,7 +2683,7 @@
                 ? industryLinkHtml(industry, 'closeChartModal') + indRankHtml
                 : '';
         }
-        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile);
+        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile, fundRow ? fundRow.weighted_rs_pct : null);
         var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
         var fBtn = document.getElementById('chart-modal-details-btn');
         if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
@@ -5243,7 +5262,7 @@
             }
             metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
         }
-        applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct);
+        applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct, wlFundRow ? wlFundRow.weighted_rs_pct : null);
         var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
         if (wlFundStatsEl) wlFundStatsEl.innerHTML = fundStatsHtml(wlFundRow);
 
@@ -5323,7 +5342,7 @@
                                 }
                                 metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
                             }
-                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct);
+                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null);
                             var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
                             if (wlMsgFundStatsEl) wlMsgFundStatsEl.innerHTML = fundStatsHtml(msgFundRow);
                             var t2 = bare.replace(/[^A-Z0-9]/gi,'');
