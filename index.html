@@ -3000,7 +3000,11 @@
             }
             return 'Range ≤ ' + (row.val != null ? row.val : '?') + '% of ADR';
         }
-        if (row.type === 'cr') {
+        if (row.type === 'rs') {
+            var rsMetricLabel = (row.rsMetric === 'weighted_rs_pct') ? '3M RS' : 'RS';
+            var rsDir = row.dir === 'gt' ? '>' : '<';
+            return rsMetricLabel + ' ' + rsDir + ' ' + (row.val != null ? row.val : '—');
+        }
             var crTfLabel = { d: 'D', w: 'W', m: 'M' }[row.crTf || 'd'];
             var crDir = row.dir === 'gt' ? '>' : '<';
             return 'CR ' + crTfLabel + ' ' + crDir + ' ' + (row.val != null ? row.val : '—') + '%';
@@ -3212,6 +3216,14 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+crDirOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="0" max="100" step="1" value="'+(row.val!=null?row.val:50)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+crTfBtns+'</div></div>';
+        } else if (row.type === 'rs') {
+            var rsMetric = row.rsMetric || 'Percentile';
+            var rsMetricOpts = '<option value="Percentile"'+(rsMetric==='Percentile'?' selected':'')+'>RS</option>' +
+                               '<option value="weighted_rs_pct"'+(rsMetric==='weighted_rs_pct'?' selected':'')+'>3M RS</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" onchange="sfPopChange('+id+',\'rsMetric\',this.value)">'+rsMetricOpts+'</select></div>';
+            var dirOptsRs = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOptsRs+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="1" max="99" step="1" value="'+(row.val!=null?row.val:70)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
@@ -3253,6 +3265,7 @@
                 maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
                 maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
+                rsMetric: 'Percentile',
                 perfTf: type === 'perf' ? '1d' : null,
                 perfDir: type === 'perf' ? 'up' : null,
                 patternTf: 'd',
@@ -3265,7 +3278,7 @@
             row = defaults;
         }
 
-        var TITLES = { rs: 'RS Percentile', price: 'Price', vol: 'Avg Volume',
+        var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', pattern: 'Pattern', ma: 'Moving Average',
                        fund: 'Fundamental', gap: 'Gap', perf: 'Performance' };
@@ -3294,6 +3307,7 @@
             row.maType      = 'SMA'; row.maPeriod  = 50;
             row.maType2     = 'SMA'; row.maPeriod1 = 5; row.maPeriod2 = 50;
             row.fundMetric  = type === 'fund' ? 'eps_next_y_pct' : null;
+            row.rsMetric    = 'Percentile';
             row.perfTf      = '1d';
             row.perfDir     = 'up';
             row.patternTf   = 'd';
@@ -3492,6 +3506,7 @@
             maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
             rangeCondition: type === 'range' ? 'relative' : null,
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
+            rsMetric: 'Percentile',
             perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd',
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
@@ -3997,7 +4012,8 @@
                         if (((maxV - minV) / minV * 100) > spread) return false;
                     }
                 } else if (f.type === 'rs') {
-                    var rs = r.Percentile;
+                    var rsField = f.rsMetric || 'Percentile';
+                    var rs = r[rsField];
                     if (rs == null) return false;
                     var rv = parseFloat(f.val);
                     if (!isNaN(rv)) {
