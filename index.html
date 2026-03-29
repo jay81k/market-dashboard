@@ -1856,10 +1856,10 @@
         if (col === 'avg_1m')    return summary ? summary.avg_1m    : null;
         if (col === 'avg_3m')    return summary ? summary.avg_3m    : null;
         if (col === 'avg_ytd')   return summary ? summary.avg_ytd   : null;
-        if (col === 'rs_1m')     return ind['1m_rs_pct'] != null ? ind['1m_rs_pct'] : null;
-        if (col === 'rs')        return ind['percentile'] != null ? ind['percentile'] : null;
-        if (col === 'rs_3m')     return ind['3m_rs_pct'] != null ? ind['3m_rs_pct'] : null;
-        if (col === 'rs_6m')     return ind['6m_rs_pct'] != null ? ind['6m_rs_pct'] : null;
+        if (col === 'rs_1m')     { var s1 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s1 ? s1.rs_1m  : null; }
+        if (col === 'rs')        { var s2 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s2 ? s2.rs_12m : null; }
+        if (col === 'rs_3m')     { var s3 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s3 ? s3.rs_3m  : null; }
+        if (col === 'rs_6m')     { var s4 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s4 ? s4.rs_6m  : null; }
         return null;
     }
 
@@ -2008,8 +2008,11 @@
             var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
                 ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
-            var rs1m = ind['1m_rs_pct']; var rs3m = ind['3m_rs_pct']; var rs6m = ind['6m_rs_pct'];
-            var rsCurr = ind['percentile'] != null ? ind['percentile'] : null;
+            var _indSum = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
+            var rs1m = _indSum ? _indSum.rs_1m  : null;
+            var rs3m = _indSum ? _indSum.rs_3m  : null;
+            var rs6m = _indSum ? _indSum.rs_6m  : null;
+            var rsCurr = _indSum ? _indSum.rs_12m : null;
 
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
