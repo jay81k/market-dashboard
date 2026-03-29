@@ -229,7 +229,41 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 spy_12m    = (spy_close.iloc[-1] / spy_close.iloc[-252] - 1) * 100
                 vs_spy_12m = round(twelve_month - spy_12m, 2) if twelve_month is not None else None
 
-        # Closing range
+        # Weighted 3M RS (4×16-day periods, weights 40/20/20/20, vs SPX)
+        # Replicates TradingView Pine Script formula
+        weighted_rs_score = None
+        weighted_rs_pct   = None
+        WRS_THRESHOLDS = [
+            (165.00, 99), (125.00, 95), (115.00, 90), (108.00, 80),
+            (103.00, 70), (100.30, 60), (99.50,  50), (98.50,  40),
+            (97.50,  30), (92.00,  20), (82.00,  10), (70.00,   1),
+        ]
+        try:
+            if spy_hist is not None and len(close) >= 65 and len(spy_hist["Close"]) >= 65:
+                sc = spy_hist["Close"]
+                c, s = close.iloc[-1], sc.iloc[-1]
+                stock_w = 0.40*(c/close.iloc[-17]) + 0.20*(c/close.iloc[-33]) + 0.20*(c/close.iloc[-49]) + 0.20*(c/close.iloc[-65])
+                ref_w   = 0.40*(s/sc.iloc[-17])    + 0.20*(s/sc.iloc[-33])    + 0.20*(s/sc.iloc[-49])    + 0.20*(s/sc.iloc[-65])
+                if abs(ref_w) >= 0.001:
+                    raw = (stock_w / ref_w) * 100
+                    weighted_rs_score = round(raw, 2)
+                    # Map to percentile via thresholds
+                    if raw >= WRS_THRESHOLDS[0][0]:
+                        weighted_rs_pct = 99
+                    elif raw <= WRS_THRESHOLDS[-1][0]:
+                        weighted_rs_pct = 1
+                    else:
+                        for i in range(len(WRS_THRESHOLDS) - 1):
+                            hi_v, hi_r = WRS_THRESHOLDS[i]
+                            lo_v, lo_r = WRS_THRESHOLDS[i + 1]
+                            if raw >= lo_v:
+                                t = (raw - lo_v) / (hi_v - lo_v)
+                                weighted_rs_pct = round(lo_r + t * (hi_r - lo_r))
+                                break
+        except Exception:
+            pass
+
+
         today_high = hist["High"].iloc[-1]
         today_low  = hist["Low"].iloc[-1]
         cr = ((current - today_low) / (today_high - today_low) * 100) \
@@ -542,6 +576,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "vs_spy_3m":  vs_spy_3m,
             "vs_spy_6m":  vs_spy_6m,
             "vs_spy_12m": vs_spy_12m,
+            "weighted_rs_score": weighted_rs_score,
+            "weighted_rs_pct":   weighted_rs_pct,
             "cr":        round(cr, 1)          if cr          is not None else None,
             "cr_w":      cr_w,
             "cr_m":      cr_m,
@@ -701,7 +737,7 @@ def main():
 
     # 2. SPY baseline
     print("Fetching SPY history...")
-    spy_hist = yf.Ticker("SPY").history(period="14mo").dropna(subset=["Close"])
+    spy_hist  = yf.Ticker("SPY").history(period="14mo").dropna(subset=["Close"])
 
     # 3. Batch-fetch price histories
     histories = fetch_history_batch(tickers, max_workers=args.workers)
