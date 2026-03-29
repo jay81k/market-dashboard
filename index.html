@@ -1374,6 +1374,7 @@
                 <span class="wl-chart-sym" id="wl-chart-sym">—</span>
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
+                <span class="chart-rs-badge" id="wl-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <span id="wl-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
                     <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -1533,6 +1534,7 @@
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
+            <span class="chart-rs-badge" id="chart-modal-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
                 <span id="chart-modal-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
                 <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -1559,6 +1561,7 @@
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
         <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
+        <span class="chart-rs-badge" id="mc-fullscreen-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <span id="mc-fullscreen-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
             <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -2216,7 +2219,7 @@
                 }
             }
         }
-        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct, mcFundRow ? mcFundRow.weighted_rs_pct : null);
+        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct, mcFundRow ? mcFundRow.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
         var mcFundStatsEl = document.getElementById('mc-fullscreen-fund-stats');
         if (mcFundStatsEl) mcFundStatsEl.innerHTML = fundStatsHtml(mcFundRow);
         var mcMetaEl = document.getElementById('mc-fullscreen-meta');
@@ -2564,21 +2567,27 @@
         return { text: 'RS ' + pct, cls: cls };
     }
 
-    function applyRsBadge(el, percentile, weightedRsPct) {
+    function applyRsBadge(el, percentile, weightedRsPct, el3m) {
         if (!el) return;
         var b = rsBadge(percentile);
-        if (!b) { el.style.display = 'none'; return; }
+        if (!b) {
+            el.style.display = 'none';
+            if (el3m) el3m.style.display = 'none';
+            return;
+        }
         el.className = 'chart-rs-badge ' + b.cls;
+        el.textContent = b.text;
         el.style.display = '';
-        if (weightedRsPct != null) {
-            var wrs = Math.round(weightedRsPct);
-            var wCls = wrs >= 75 ? 'rs-high' : wrs >= 40 ? 'rs-mid' : 'rs-low';
-            el.innerHTML = b.text +
-                '<span class="chart-rs-badge-3m-wrap">' +
-                '<span class="chart-rs-badge ' + wCls + '" data-rs-tip="3M RS" style="margin-left:4px;cursor:default;">' + wrs + '</span>' +
-                '</span>';
-        } else {
-            el.textContent = b.text;
+        if (el3m) {
+            if (weightedRsPct != null) {
+                var wrs = Math.round(weightedRsPct);
+                var wCls = wrs >= 75 ? 'rs-high' : wrs >= 40 ? 'rs-mid' : 'rs-low';
+                el3m.className = 'chart-rs-badge ' + wCls;
+                el3m.textContent = wrs;
+                el3m.style.display = '';
+            } else {
+                el3m.style.display = 'none';
+            }
         }
     }
 
@@ -2681,7 +2690,7 @@
                 ? industryLinkHtml(industry, 'closeChartModal') + indRankHtml
                 : '';
         }
-        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile, fundRow ? fundRow.weighted_rs_pct : null);
+        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile, fundRow ? fundRow.weighted_rs_pct : null, document.getElementById('chart-modal-3mrs-badge'));
         var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
         var fBtn = document.getElementById('chart-modal-details-btn');
         if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
@@ -5260,7 +5269,7 @@
             }
             metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
         }
-        applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct, wlFundRow ? wlFundRow.weighted_rs_pct : null);
+        applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct, wlFundRow ? wlFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
         var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
         if (wlFundStatsEl) wlFundStatsEl.innerHTML = fundStatsHtml(wlFundRow);
 
@@ -5340,7 +5349,7 @@
                                 }
                                 metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
                             }
-                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null);
+                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
                             var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
                             if (wlMsgFundStatsEl) wlMsgFundStatsEl.innerHTML = fundStatsHtml(msgFundRow);
                             var t2 = bare.replace(/[^A-Z0-9]/gi,'');
