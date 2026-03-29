@@ -2249,8 +2249,11 @@
         updateQueueButtons();
 
         var _mcLastSym = sym;
+        var _mcReady = false;
+        setTimeout(function() { _mcReady = true; }, 2000);
         if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); }
         window._mcFullscreenMsgHandler = function(e) {
+            if (!_mcReady) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var newSym = null;
@@ -2797,8 +2800,11 @@
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
 
         var _lastSym = initialSym;
+        var _modalReady = false;
+        setTimeout(function() { _modalReady = true; }, 2000);
 
         _chartModalMsgHandler = function(e) {
+            if (!_modalReady) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var sym = null;
@@ -5346,6 +5352,8 @@
             });
             // Listen for symbol changes in watchlist panel via postMessage
             var _wlLastSym = ticker;
+            var _wlReady = false;
+            setTimeout(function() { _wlReady = true; }, 2000);
             var _wlChartIframe = null;
             setTimeout(function() {
                 var container = document.getElementById('wl-chart-widget');
@@ -5353,6 +5361,7 @@
             }, 500);
             if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); }
             window._wlChartMsgHandler = function(e) {
+                if (!_wlReady) return;
                 try {
                     // Only handle messages from this specific chart iframe
                     if (_wlChartIframe && e.source !== _wlChartIframe.contentWindow) return;
