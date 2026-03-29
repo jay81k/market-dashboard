@@ -393,6 +393,7 @@
             font-size: 0.825em; font-weight: 700; margin-left: 10px;
             padding: 2px 8px; border-radius: 4px; white-space: nowrap;
             display: inline-flex; align-items: center; gap: 0; position: relative;
+            overflow: visible;
         }
         .chart-rs-badge.rs-high   { background: #0d2b0d; color: #3fb950; border: 1px solid #2ea04322; }
         .chart-rs-badge.rs-mid    { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
@@ -2574,7 +2575,7 @@
         el.style.display = '';
         if (weightedRsPct != null) {
             var wrs = Math.round(weightedRsPct);
-            el.innerHTML = 'RS ' + b.text +
+            el.innerHTML = b.text +
                 '<span class="chart-rs-badge-sep"></span>' +
                 '<span class="chart-rs-badge-3m">' + wrs +
                 '<span class="chart-rs-badge-3m-tip">3M RS</span>' +
