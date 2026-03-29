@@ -596,11 +596,6 @@
         .sf-cluster-chip { display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;border:1px solid #21262d;background:#0d1117;color:#6e7681;font-size:0.748em;font-weight:600;cursor:pointer;margin:2px;user-select:none; }
         .sf-cluster-chip.on { border-color:#2979c8;background:#1a3a5c;color:#58a6ff; }
         .sf-cluster-chip:hover { border-color:#30363d;color:#c8d0dc; }
-            display: inline-flex; align-items: center; gap: 4px;
-            background: #1a3a5c33; border: 1px solid #2979c844;
-            border-radius: 4px; padding: 2px 7px;
-            font-size: 0.748em; color: #58a6ff; flex-shrink: 0;
-        }
         .sf-pill-x { color: #484f58; cursor: pointer; font-size: 0.9em; line-height:1; margin-left:2px; }
         .sf-pill-x:hover { color: #c8d0dc; }
 
@@ -2309,8 +2304,8 @@
             { key:'1m',         label:'1M',        tip:'21-day return' },
             { key:'3m',         label:'3M',        tip:'63-day return' },
             { key:'ytd',        label:'1Y',        tip:'1-year return' },
-            { key:'vs_spy',     label:'vs 1M',     tip:'1M return vs SPY' },
-            { key:'vs_spy_3m',  label:'vs 3M',     tip:'3M return vs SPY' },
+            { key:'vs_spy',     label:'vs 1M',     tip:'1M return vs SPX' },
+            { key:'vs_spy_3m',  label:'vs 3M',     tip:'3M return vs SPX' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',    label:'Avg Vol',   tip:'50-day average volume' },
             { key:'pct_52wk',   label:'52Wk%',     tip:'% from 52-week high' },
@@ -4141,8 +4136,8 @@
             { key:'1m',        label:'1M',      tip:'21-day return' },
             { key:'3m',        label:'3M',      tip:'63-day return' },
             { key:'ytd',       label:'1Y',      tip:'1-year return' },
-            { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPY' },
-            { key:'vs_spy_3m', label:'vs 3M',   tip:'3M return vs SPY' },
+            { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPX' },
+            { key:'vs_spy_3m', label:'vs 3M',   tip:'3M return vs SPX' },
             { key:'dist_ma',   label:'Dist/MA', tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
             { key:'avg_vol',   label:'Avg Vol', tip:'50-day average volume' },
             { key:'pct_52wk',  label:'52Wk%',   tip:'% from 52-week high' },
@@ -4199,6 +4194,7 @@
             if (key === 'sector')   { av = a.sector;    bv = b.sector;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'industry') { av = a.industry;  bv = b.industry;  return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'rs')       { av = a.Percentile; bv = b.Percentile; }
+            else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct; bv = b.weighted_rs_pct; }
             else if (key === 'chg')      { av = a.price != null && a.daily != null ? (a.price/(1+a.daily/100))*(a.daily/100) : null; bv = b.price != null && b.daily != null ? (b.price/(1+b.daily/100))*(b.daily/100) : null; }
             else if (key === 'price')    { av = a.price;     bv = b.price; }
             else if (key === 'daily')    { av = a.daily;     bv = b.daily; }
