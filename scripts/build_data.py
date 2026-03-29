@@ -382,8 +382,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             if len(hist) >= 11:
                 today_vol  = hist["Volume"].iloc[-1]
                 prior_10   = hist.iloc[-11:-1]
-                down_days  = prior_10[prior_10["Close"] < prior_10["Open"]]
-                max_down_vol = down_days["Volume"].max() if len(down_days) > 0 else 0
+                down_days  = prior_10[prior_10["Close"] < prior_10["Close"].shift(1)]                max_down_vol = down_days["Volume"].max() if len(down_days) > 0 else 0
                 pocket_pivot = bool(
                     _c > _prev_close and
                     today_vol > max_down_vol
@@ -448,7 +447,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 if len(h) >= 11:
                     today_vol2  = h["Volume"].iloc[-1]
                     prior_10_2  = h.iloc[-11:-1]
-                    down_bars   = prior_10_2[prior_10_2["Close"] < prior_10_2["Open"]]
+                    down_bars   = prior_10_2[prior_10_2["Close"] < prior_10_2["Close"].shift(1)]
                     max_dv      = down_bars["Volume"].max() if len(down_bars) > 0 else 0
                     out["pocket_pivot"] = bool(c > p_close and today_vol2 > max_dv)
             except Exception:
