@@ -23,8 +23,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build data
-        run: python scripts/build_data.py --out-dir data --csv-url "${{ secrets.CSV_URL }}" --industries-csv-url "${{ secrets.INDUSTRIES_CSV_URL }}"
-        # Add CSV_URL as a repository secret in Settings → Secrets → Actions
+        run: python scripts/build_data.py --out-dir data --csv-url "${{ secrets.CSV_URL }}"
 
       - name: Commit and push data
         run: |
