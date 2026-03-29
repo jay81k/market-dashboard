@@ -1191,11 +1191,12 @@
             <span class="ind-col-hdr sortable-ind" data-col="avg_1w"     onclick="setIndSort('avg_1w')">1W</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_1m"     onclick="setIndSort('avg_1m')">1M</span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_3m"     onclick="setIndSort('avg_3m')">3M</span>
-            <span class="ind-col-hdr sortable-ind" data-col="avg_ytd"    onclick="setIndSort('avg_ytd')">YTD</span>
+            <span class="ind-col-hdr sortable-ind" data-col="avg_6m"     onclick="setIndSort('avg_6m')">6M</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs"         onclick="setIndSort('rs')">RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_1m"      onclick="setIndSort('rs_1m')">1M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_3m"      onclick="setIndSort('rs_3m')">3M RS</span>
             <span class="ind-col-hdr sortable-ind" data-col="rs_6m"      onclick="setIndSort('rs_6m')">6M RS</span>
+            <span class="ind-col-hdr sortable-ind" data-col="rs_12m"     onclick="setIndSort('rs_12m')">1Y RS</span>
             <span style="width:14px;flex-shrink:0;"></span>
         </div>
         <!-- Heatmap toolbar (hidden in list mode) -->
@@ -1810,7 +1811,7 @@
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1w    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1m    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_3m    : null) + '</span>';
-            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_ytd   : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_6m    : null) + '</span>';
             html += '</div>';
             html += '</div>';
         });
@@ -1855,6 +1856,7 @@
         if (col === 'avg_1w')    return summary ? summary.avg_1w    : null;
         if (col === 'avg_1m')    return summary ? summary.avg_1m    : null;
         if (col === 'avg_3m')    return summary ? summary.avg_3m    : null;
+        if (col === 'avg_6m')    { var _s6 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return _s6 ? _s6.avg_6m : null; }
         if (col === 'avg_ytd')   return summary ? summary.avg_ytd   : null;
         if (col === 'rs_1m')     { var s1 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s1 ? s1.rs_1m  : null; }
         if (col === 'rs')        { var s2 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s2 ? s2.rs_12m : null; }
@@ -1897,7 +1899,7 @@
     }
 
     function heatmapValLabel(tf) {
-        var map = { avg_daily:'Day', avg_1w:'1W', avg_1m:'1M', avg_3m:'3M', avg_ytd:'YTD' };
+        var map = { avg_daily:'Day', avg_1w:'1W', avg_1m:'1M', avg_3m:'3M', avg_6m:'6M', avg_ytd:'YTD' };
         return map[tf] || tf;
     }
 
@@ -2009,10 +2011,11 @@
                 ? snapshot.by_industry[ind.industry].length : (ind.tickers ? ind.tickers.length : 0);
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
             var _indSum = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
-            var rs1m = _indSum ? _indSum.rs_1m  : null;
-            var rs3m = _indSum ? _indSum.rs_3m  : null;
-            var rs6m = _indSum ? _indSum.rs_6m  : null;
-            var rsCurr = _indSum ? _indSum.rs_12m : null;
+            var rs1m  = _indSum ? _indSum.rs_1m  : null;
+            var rs3m  = _indSum ? _indSum.rs_3m  : null;
+            var rs6m  = _indSum ? _indSum.rs_6m  : null;
+            var rs12m = _indSum ? _indSum.rs_12m : null;
+            var rsCurr = rs12m;
 
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
@@ -2025,7 +2028,7 @@
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1w    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1m    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_3m    : null) + '</span>';
-            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_ytd   : null) + '</span>';
+            html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_6m    : null) + '</span>';
             html += '</div>';
             // RS columns
             html += '<div class="industry-rs-cols">';
@@ -2033,6 +2036,7 @@
             html += '<span class="industry-rs-col ' + rsColClass(rs1m) + '">' + (rs1m != null ? rs1m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs3m) + '">' + (rs3m != null ? rs3m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs6m) + '">' + (rs6m != null ? rs6m : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs12m) + '">' + (rs12m != null ? rs12m : '—') + '</span>';
             html += '</div>';
 
             html += '</div>';
