@@ -390,23 +390,20 @@
         .chart-modal-meta .meta-sector { color: #8b949e; }
         .chart-modal-meta .meta-industry { color: #6e7681; }
         .chart-rs-badge {
-            font-size: 0.825em; font-weight: 700; margin-left: 10px;
+            font-size: 0.825em; font-weight: 700; margin-left: 6px;
             padding: 2px 8px; border-radius: 4px; white-space: nowrap;
-            display: inline-flex; align-items: center; gap: 0; position: relative;
-            overflow: visible;
+            display: inline-flex; align-items: center; position: relative;
         }
         .chart-rs-badge.rs-high   { background: #0d2b0d; color: #3fb950; border: 1px solid #2ea04322; }
         .chart-rs-badge.rs-mid    { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
         .chart-rs-badge.rs-low    { background: #2b0d0d; color: #f85149; border: 1px solid #f8514922; }
-        .chart-rs-badge-sep { width: 1px; height: 10px; background: currentColor; opacity: 0.2; margin: 0 7px; flex-shrink: 0; }
-        .chart-rs-badge-3m { opacity: 0.75; position: relative; cursor: default; }
-        .chart-rs-badge-3m-tip {
-            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+        .chart-rs-badge-3m-wrap { display: inline-flex; align-items: center; margin-left: 4px; }
+        #rs-float-tip {
+            display: none; position: fixed; z-index: 99999;
             background: #1c2128; border: 1px solid #30363d; border-radius: 4px;
-            font-size: 0.8em; font-weight: 500; color: #8b949e;
-            padding: 3px 8px; white-space: nowrap; pointer-events: none; z-index: 100;
+            font-size: 0.748em; font-weight: 500; color: #8b949e;
+            padding: 3px 8px; white-space: nowrap; pointer-events: none;
         }
-        .chart-rs-badge-3m:hover .chart-rs-badge-3m-tip { display: block; }
         .chart-modal-ext-btn {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 10px; border-radius: 5px; border: 1px solid #30363d;
@@ -2575,10 +2572,10 @@
         el.style.display = '';
         if (weightedRsPct != null) {
             var wrs = Math.round(weightedRsPct);
+            var wCls = wrs >= 75 ? 'rs-high' : wrs >= 40 ? 'rs-mid' : 'rs-low';
             el.innerHTML = b.text +
-                '<span class="chart-rs-badge-sep"></span>' +
-                '<span class="chart-rs-badge-3m">' + wrs +
-                '<span class="chart-rs-badge-3m-tip">3M RS</span>' +
+                '<span class="chart-rs-badge-3m-wrap">' +
+                '<span class="chart-rs-badge ' + wCls + '" data-rs-tip="3M RS" style="margin-left:4px;cursor:default;">' + wrs + '</span>' +
                 '</span>';
         } else {
             el.textContent = b.text;
@@ -6474,6 +6471,29 @@
             openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         });
     });
+    // ── Floating tooltip for 3M RS badge ─────────────────────────────────
+    (function() {
+        var tip = document.createElement('div');
+        tip.id = 'rs-float-tip';
+        document.body.appendChild(tip);
+        document.addEventListener('mouseover', function(e) {
+            var el = e.target.closest('[data-rs-tip]');
+            if (!el) return;
+            tip.textContent = el.getAttribute('data-rs-tip');
+            tip.style.display = 'block';
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (tip.style.display === 'none') return;
+            tip.style.left = (e.clientX + 10) + 'px';
+            tip.style.top  = (e.clientY - 28) + 'px';
+        });
+        document.addEventListener('mouseout', function(e) {
+            var el = e.target.closest('[data-rs-tip]');
+            if (!el) return;
+            tip.style.display = 'none';
+        });
+    })();
+
 })();
 </script>
 </body>
