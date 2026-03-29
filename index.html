@@ -3005,6 +3005,7 @@
             var rsDir = row.dir === 'gt' ? '>' : '<';
             return rsMetricLabel + ' ' + rsDir + ' ' + (row.val != null ? row.val : '—');
         }
+        if (row.type === 'cr') {
             var crTfLabel = { d: 'D', w: 'W', m: 'M' }[row.crTf || 'd'];
             var crDir = row.dir === 'gt' ? '>' : '<';
             return 'CR ' + crTfLabel + ' ' + crDir + ' ' + (row.val != null ? row.val : '—') + '%';
