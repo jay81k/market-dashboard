@@ -263,7 +263,7 @@
         /* Fundamental columns — always visible */
         .fund-col { display: table-cell; }
 
-        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        /* Stocks tab: Ticker|Price|RS|Chg|Chg%|1W|1M|3M|1Y|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
         .stocks-table th:nth-child(1)  { width: 28px; }   /* Checkbox */
         .stocks-table th:nth-child(2)  { width: 82px; }   /* Ticker */
         .stocks-table th:nth-child(3)  { width: 58px; }   /* Price */
@@ -273,7 +273,7 @@
         .stocks-table th:nth-child(7)  { width: 46px; }   /* 1W */
         .stocks-table th:nth-child(8)  { width: 46px; }   /* 1M */
         .stocks-table th:nth-child(9)  { width: 46px; }   /* 3M */
-        .stocks-table th:nth-child(10) { width: 46px; }   /* YTD */
+        .stocks-table th:nth-child(10) { width: 46px; }   /* 1Y */
         .stocks-table th:nth-child(11) { width: 50px; }   /* vs 1M */
         .stocks-table th:nth-child(12) { width: 50px; }   /* vs 3M */
         .stocks-table th:nth-child(13) { width: 68px; }   /* Dist/MA */
@@ -288,7 +288,7 @@
         .stocks-table th:nth-child(22) { width: 64px; }   /* Sales Q/Q */
         .stocks-table th:nth-child(23) { width: 54px; }   /* Margin */
 
-        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|YTD|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        /* Scans tab: Ticker+btn|Industry|Price|RS|Chg|Chg%|1W|1M|3M|1Y|vs1M|3MRS|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
         #scans-table th:nth-child(1)  { width: 104px; }  /* Ticker */
         #scans-table th:nth-child(2)  { width: 126px; }  /* Industry */
         #scans-table th:nth-child(3)  { width: 54px; }   /* Price */
@@ -298,7 +298,7 @@
         #scans-table th:nth-child(7)  { width: 44px; }   /* 1W */
         #scans-table th:nth-child(8)  { width: 44px; }   /* 1M */
         #scans-table th:nth-child(9)  { width: 44px; }   /* 3M */
-        #scans-table th:nth-child(10) { width: 44px; }   /* YTD */
+        #scans-table th:nth-child(10) { width: 44px; }   /* 1Y */
         #scans-table th:nth-child(11) { width: 48px; }   /* vs 1M */
         #scans-table th:nth-child(12) { width: 48px; }   /* 3M RS */
         #scans-table th:nth-child(13) { width: 66px; }   /* Dist/MA */
@@ -2305,7 +2305,7 @@
             { key:'1w',         label:'1W',        tip:'5-day return' },
             { key:'1m',         label:'1M',        tip:'21-day return' },
             { key:'3m',         label:'3M',        tip:'63-day return' },
-            { key:'ytd',        label:'YTD',       tip:'Year-to-date return' },
+            { key:'ytd',        label:'1Y',        tip:'1-year return' },
             { key:'vs_spy',     label:'vs 1M',     tip:'1M return vs SPY' },
             { key:'vs_spy_3m',  label:'vs 3M',     tip:'3M return vs SPY' },
             { key:'dist_ma',    label:'Dist/MA',   tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
@@ -2361,7 +2361,7 @@
                     ' data-1w="'      + (row['1w']      != null ? row['1w']      : '')  + '"' +
                     ' data-1m="'      + (row['1m']      != null ? row['1m']      : '')  + '"' +
                     ' data-3m="'      + (row['3m']      != null ? row['3m']      : '')  + '"' +
-                    ' data-ytd="'     + (row.ytd        != null ? row.ytd        : '')  + '"' +
+                    ' data-ytd="'     + (row['1y']       != null ? row['1y']       : '')  + '"' +
                     ' data-vs_spy="'  + (row.vs_spy     != null ? row.vs_spy     : '')  + '"' +
                     ' data-vs_spy_3m="'+(row.vs_spy_3m  != null ? row.vs_spy_3m  : '') + '"' +
                     ' data-dist_ma="' + (distVal        != null ? distVal        : '')  + '"' +
@@ -2394,7 +2394,7 @@
             html += '<td class="' + cc(row['1w'])      + '">' + (row['1w']      != null ? fmt(row['1w'],2,'%')      : '—') + '</td>';
             html += '<td class="' + cc(row['1m'])      + '">' + (row['1m']      != null ? fmt(row['1m'],2,'%')      : '—') + '</td>';
             html += '<td class="' + cc(row['3m'])      + '">' + (row['3m']      != null ? fmt(row['3m'],2,'%')      : '—') + '</td>';
-            html += '<td class="' + cc(row.ytd)        + '">' + (row.ytd        != null ? fmt(row.ytd,2,'%')        : '—') + '</td>';
+            html += '<td class="' + cc(row['1y'])      + '">' + (row['1y']      != null ? fmt(row['1y'],2,'%')      : '—') + '</td>';
             html += '<td class="' + cc(row.vs_spy)     + '">' + (row.vs_spy     != null ? fmt(row.vs_spy,2,'%')     : '—') + '</td>';
             html += '<td class="' + cc(row.vs_spy_3m)  + '">' + (row.vs_spy_3m  != null ? fmt(row.vs_spy_3m,2,'%')  : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
@@ -4116,7 +4116,7 @@
             { key:'1w',        label:'1W',      tip:'5-day return' },
             { key:'1m',        label:'1M',      tip:'21-day return' },
             { key:'3m',        label:'3M',      tip:'63-day return' },
-            { key:'ytd',       label:'YTD',     tip:'Year-to-date return' },
+            { key:'ytd',       label:'1Y',      tip:'1-year return' },
             { key:'vs_spy',    label:'vs 1M',   tip:'1M return vs SPY' },
             { key:'vs_spy_3m', label:'vs 3M',   tip:'3M return vs SPY' },
             { key:'dist_ma',   label:'Dist/MA', tip:dmaTooltip, extra:'<span class="dist-ma-btn" onclick="event.stopPropagation();toggleDistMA(this)">⋯</span>' },
@@ -4181,7 +4181,7 @@
             else if (key === '1w')       { av = a['1w'];     bv = b['1w']; }
             else if (key === '1m')       { av = a['1m'];     bv = b['1m']; }
             else if (key === '3m')       { av = a['3m'];     bv = b['3m']; }
-            else if (key === 'ytd')      { av = a.ytd;       bv = b.ytd; }
+            else if (key === 'ytd')      { av = a['1y'];     bv = b['1y']; }
             else if (key === 'vs_spy')   { av = a.vs_spy;    bv = b.vs_spy; }
             else if (key === 'vs_spy_3m'){ av = a.vs_spy_3m; bv = b.vs_spy_3m; }
             else if (key === 'avg_vol')  { av = a.AvgVol50;  bv = b.AvgVol50; }
@@ -4249,7 +4249,7 @@
             html += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
             html += '<td class="' + cc(row['1m'])     + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
             html += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row.ytd)       + '">' + (row.ytd       != null ? fmt(row.ytd,2,'%')       : '—') + '</td>';
+            html += '<td class="' + cc(row['1y'])      + '">' + (row['1y']      != null ? fmt(row['1y'],2,'%')      : '—') + '</td>';
             html += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '—') + '</td>';
             html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
