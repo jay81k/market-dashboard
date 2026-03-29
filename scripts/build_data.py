@@ -567,7 +567,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
 
 def fetch_history_batch(tickers: list[str], max_workers: int = 10) -> dict[str, pd.DataFrame]:
     """
-    Fetch 1y daily history for all tickers using yf.download() in 100-ticker chunks.
+    Fetch 14mo daily history for all tickers using yf.download() in 100-ticker chunks.
     Falls back to per-ticker ThreadPoolExecutor for any chunk that fails.
     Returns dict of ticker -> DataFrame.
     """
@@ -583,7 +583,7 @@ def fetch_history_batch(tickers: list[str], max_workers: int = 10) -> dict[str, 
         try:
             raw = yf.download(
                 chunk,
-                period="1y",
+                period="14mo",
                 interval="1d",
                 group_by="ticker",
                 auto_adjust=True,
@@ -610,7 +610,7 @@ def fetch_history_batch(tickers: list[str], max_workers: int = 10) -> dict[str, 
             print(f"batch failed ({e}), falling back to per-ticker...")
             def _fetch_one(t: str):
                 try:
-                    df = yf.Ticker(t).history(period="1y")
+                    df = yf.Ticker(t).history(period="14mo")
                     return t, df if len(df) >= 10 else None
                 except Exception:
                     return t, None
@@ -729,7 +729,7 @@ def main():
 
     # 2. SPY baseline
     print("Fetching SPY history...")
-    spy_hist = yf.Ticker("SPY").history(period="1y").dropna(subset=["Close"])
+    spy_hist = yf.Ticker("SPY").history(period="14mo").dropna(subset=["Close"])
 
     # 3. Batch-fetch price histories
     histories = fetch_history_batch(tickers, max_workers=args.workers)
