@@ -46,10 +46,8 @@ ETF_SUFFIXES = ()  # yfinance universe shouldn't have ETFs, but just in case
 
 # Columns to pass through from CSV into snapshot as-is (if present)
 CSV_PASSTHROUGH = [
-    "Rank", "Relative Strength", "Percentile",
-    "1M_RS_Percentile", "3M_RS_Percentile", "6M_RS_Percentile",
-    "MarketCap", "Float", "ShortFloatPct", "PctFrom52WkHigh",
-    "AvgVol10", "AvgVol30", "AvgVol50", "RevenueGrowth", "Exchange",
+    "Rank", "Percentile",
+    "MarketCap", "PctFrom52WkHigh", "AvgVol50",
 ]
 
 # MA combos for Dist/MA column (matches ETF dashboard)
@@ -69,21 +67,11 @@ SUPPLEMENTAL_TICKERS = [
         "Ticker": "SNDK",
         "Sector": "Technology",
         "Industry": "Computer Hardware",
-        "Percentile": 99,
-        "Relative Strength": 99.0,
-        "1M_RS_Percentile": 97,
-        "3M_RS_Percentile": 97,
-        "6M_RS_Percentile": 99,
     },
     {
         "Ticker": "Q",
         "Sector": "Technology",
         "Industry": "Semiconductor Equipment & Materials",
-        "Percentile": 89,
-        "Relative Strength": 89.0,
-        "1M_RS_Percentile": 89,
-        "3M_RS_Percentile": 90,
-        "6M_RS_Percentile": 90,
     },
     # Add more rows here as needed:
     # {"Ticker": "XYZ", "Sector": "Healthcare", "Industry": "Biotechnology"},
