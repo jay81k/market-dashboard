@@ -2792,33 +2792,6 @@
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
         if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
-
-        var _lastSym = initialSym;
-        var _openedAt = Date.now();
-        var SETTLE_MS = 3000; // ignore all messages for 3s after open
-
-        _chartModalMsgHandler = function(e) {
-            // Ignore all messages while modal is still loading
-            if (Date.now() - _openedAt < SETTLE_MS) return;
-            // Ignore if modal isn't actually open
-            if (!document.getElementById('chart-modal-overlay').classList.contains('open')) return;
-            try {
-                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                var sym = null;
-                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                    sym = data.data.original_name;
-                }
-                if (sym) {
-                    var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
-                    // Only update if symbol is genuinely different (not just exchange prefix noise)
-                    if (bare && bare !== _lastSym && bare !== initialSym) {
-                        _lastSym = bare;
-                        updateChartModalHeader(bare);
-                    }
-                }
-            } catch(err) {}
-        };
-        window.addEventListener('message', _chartModalMsgHandler);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
