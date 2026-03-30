@@ -2799,6 +2799,9 @@
 
         _chartModalMsgHandler = function(e) {
             if (!_modalReady) return;
+            // Only accept messages from the modal chart iframe, ignore multichart widgets
+            var modalIframe = document.querySelector('#tradingview-chart iframe');
+            if (modalIframe && e.source !== modalIframe.contentWindow) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var sym = null;
