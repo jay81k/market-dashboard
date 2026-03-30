@@ -2794,14 +2794,11 @@
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
 
         var _lastSym = initialSym;
-        var _modalReady = false;
-        setTimeout(function() { _modalReady = true; }, 2000);
 
         _chartModalMsgHandler = function(e) {
-            if (!_modalReady) return;
             // Only accept messages from the modal chart iframe, ignore multichart widgets
             var modalIframe = document.querySelector('#tradingview-chart iframe');
-            if (modalIframe && e.source !== modalIframe.contentWindow) return;
+            if (!modalIframe || e.source !== modalIframe.contentWindow) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var sym = null;
@@ -2817,7 +2814,23 @@
                 }
             } catch(err) {}
         };
-        window.addEventListener('message', _chartModalMsgHandler);
+
+        // Wait for the modal iframe to actually exist before attaching the listener
+        var _iframeWait = setInterval(function() {
+            var modalIframe = document.querySelector('#tradingview-chart iframe');
+            if (modalIframe) {
+                clearInterval(_iframeWait);
+                window.addEventListener('message', _chartModalMsgHandler);
+            }
+        }, 100);
+
+        // Safety: attach anyway after 5s in case iframe detection fails
+        setTimeout(function() {
+            clearInterval(_iframeWait);
+            if (_chartModalMsgHandler && !_chartModalMsgHandler._attached) {
+                window.addEventListener('message', _chartModalMsgHandler);
+            }
+        }, 5000);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
