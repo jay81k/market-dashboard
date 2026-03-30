@@ -2794,11 +2794,14 @@
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
 
         var _lastSym = initialSym;
+        var _openedAt = Date.now();
+        var SETTLE_MS = 3000; // ignore all messages for 3s after open
 
         _chartModalMsgHandler = function(e) {
-            // Only accept messages from the modal chart iframe, ignore multichart widgets
-            var modalIframe = document.querySelector('#tradingview-chart iframe');
-            if (!modalIframe || e.source !== modalIframe.contentWindow) return;
+            // Ignore all messages while modal is still loading
+            if (Date.now() - _openedAt < SETTLE_MS) return;
+            // Ignore if modal isn't actually open
+            if (!document.getElementById('chart-modal-overlay').classList.contains('open')) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var sym = null;
@@ -2807,30 +2810,15 @@
                 }
                 if (sym) {
                     var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
-                    if (bare && bare !== _lastSym) {
+                    // Only update if symbol is genuinely different (not just exchange prefix noise)
+                    if (bare && bare !== _lastSym && bare !== initialSym) {
                         _lastSym = bare;
                         updateChartModalHeader(bare);
                     }
                 }
             } catch(err) {}
         };
-
-        // Wait for the modal iframe to actually exist before attaching the listener
-        var _iframeWait = setInterval(function() {
-            var modalIframe = document.querySelector('#tradingview-chart iframe');
-            if (modalIframe) {
-                clearInterval(_iframeWait);
-                window.addEventListener('message', _chartModalMsgHandler);
-            }
-        }, 100);
-
-        // Safety: attach anyway after 5s in case iframe detection fails
-        setTimeout(function() {
-            clearInterval(_iframeWait);
-            if (_chartModalMsgHandler && !_chartModalMsgHandler._attached) {
-                window.addEventListener('message', _chartModalMsgHandler);
-            }
-        }, 5000);
+        window.addEventListener('message', _chartModalMsgHandler);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
