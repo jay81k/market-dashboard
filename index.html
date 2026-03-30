@@ -1588,6 +1588,7 @@
 (function() {
     // ── State ──────────────────────────────────────────────────────────────
     var snapshot      = null;
+    var tickerMap     = {};
     var industriesData= null;
     var currentView   = 'industries';
     var activeSort    = 'rank';
@@ -2708,20 +2709,13 @@
         industry   = industry   || '';
         percentile = (percentile != null) ? percentile : null;
         var fundRow = null;
-        // Only look up from snapshot when caller didn't supply the values
-        if (snapshot && snapshot.by_industry) {
-            outer: for (var ind in snapshot.by_industry) {
-                var rows = snapshot.by_industry[ind];
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].ticker === symbol) {
-                        if (!sector)           sector     = rows[i].sector     || '';
-                        if (!industry)         industry   = rows[i].industry   || '';
-                        if (percentile == null) percentile = rows[i].Percentile != null ? rows[i].Percentile : null;
-                        fundRow = rows[i];
-                        break outer;
-                    }
-                }
-            }
+        // O(1) lookup using pre-built tickerMap
+        if (tickerMap[symbol]) {
+            var r = tickerMap[symbol];
+            if (!sector)           sector     = r.sector     || '';
+            if (!industry)         industry   = r.industry   || '';
+            if (percentile == null) percentile = r.Percentile != null ? r.Percentile : null;
+            fundRow = r;
         }
         document.getElementById('chart-modal-sym').textContent = symbol;
         var fundStatsEl = document.getElementById('chart-modal-fund-stats');
@@ -2926,17 +2920,20 @@
     // ── Search ────────────────────────────────────────────────────────────
     document.getElementById('search-input').addEventListener('input', function() {
         var q = this.value;
-        if (currentView === 'industries') {
-            searchQuery = q;
-            if (indView === 'heatmap') renderHeatmap();
-            else renderIndustries();
-        } else if (currentView === 'industry-stocks') {
-            filterStocksTable(q);
-        } else if (currentView === 'scans') {
-            filterScansTable(q);
-        } else if (currentView === 'watchlists') {
-            wlSearchQuery(q);
-        }
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(function() {
+            if (currentView === 'industries') {
+                searchQuery = q;
+                if (indView === 'heatmap') renderHeatmap();
+                else renderIndustries();
+            } else if (currentView === 'industry-stocks') {
+                filterStocksTable(q);
+            } else if (currentView === 'scans') {
+                filterScansTable(q);
+            } else if (currentView === 'watchlists') {
+                wlSearchQuery(q);
+            }
+        }, 150);
     });
 
     // ── Column tooltips ───────────────────────────────────────────────────
@@ -6478,6 +6475,16 @@
     ]).then(function(res) {
         snapshot       = res[0];
         industriesData = res[1];
+
+        // Build ticker lookup map for O(1) access in chart modal
+        tickerMap = {};
+        if (snapshot && snapshot.by_industry) {
+            Object.keys(snapshot.by_industry).forEach(function(ind) {
+                snapshot.by_industry[ind].forEach(function(row) {
+                    if (row.ticker) tickerMap[row.ticker] = row;
+                });
+            });
+        }
 
         document.getElementById('loading-msg').style.display = 'none';
 
