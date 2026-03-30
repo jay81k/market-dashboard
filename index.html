@@ -2360,7 +2360,7 @@
     function buildTableHeader(theadId, industryName) {
         var dmaTooltip = '% distance from ' + activeMAType + activeMALength;
         var cols = [
-            { key:'symbol',     label:'Ticker',   tip:'Ticker symbol' },
+            { key:'symbol',     label:'Symbol',   tip:'Ticker symbol' },
             { key:'price',      label:'Price',     tip:'Last closing price' },
             { key:'rs',         label:'RS',        tip:'RS Percentile (1–99)' },
             { key:'weighted_rs_pct', label:'3M RS',  tip:'Weighted 3M RS Percentile' },
@@ -2392,7 +2392,7 @@
             '</th>';
         cols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
-            var label = c.key === 'symbol' ? '' : c.label;
+            var label = c.label;
             html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + label + (c.extra||'') + '</th>';
         });
         fundCols.forEach(function(c) {
@@ -4205,7 +4205,7 @@
     function buildScansHeader() {
         var dmaTooltip = '% distance from ' + activeMAType + activeMALength;
         var cols = [
-            { key:'symbol',    label:'Ticker',  tip:'Ticker symbol' },
+            { key:'symbol',    label:'Symbol',  tip:'Ticker symbol' },
             { key:'industry',  label:'Industry',tip:'Industry' },
             { key:'price',     label:'Price',   tip:'Last closing price' },
             { key:'rs',        label:'RS',      tip:'RS Percentile (1-99)' },
