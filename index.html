@@ -2252,9 +2252,15 @@
         var _mcLastSym = sym;
         var _mcReady = false;
         setTimeout(function() { _mcReady = true; }, 2000);
+        var _mcFullscreenIframe = null;
+        setTimeout(function() {
+            var container = document.getElementById('mc-fullscreen-chart');
+            if (container) _mcFullscreenIframe = container.querySelector('iframe');
+        }, 500);
         if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); }
         window._mcFullscreenMsgHandler = function(e) {
             if (!_mcReady) return;
+            if (_mcFullscreenIframe && e.source !== _mcFullscreenIframe.contentWindow) return;
             try {
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 var newSym = null;
