@@ -6393,91 +6393,132 @@
         var el = document.getElementById('market-rs-dist');
         if (!el || !snapshot || !snapshot.by_industry) return;
 
-        var buckets = [0,0,0,0,0,0,0,0,0,0];
-        var all = [], total = 0;
-
-        Object.values(snapshot.by_industry).forEach(function(rows) {
-            rows.forEach(function(r) {
-                if (r.Percentile == null) return;
-                var p = Math.min(99, Math.max(0, r.Percentile));
-                buckets[Math.min(9, Math.floor(p / 10))]++;
-                all.push(p);
-                total++;
-            });
-        });
-
-        var maxBucket = Math.max.apply(null, buckets) || 1;
-        var median = 0, avg = 0;
-        if (all.length) {
-            all.sort(function(a,b){return a-b;});
-            median = Math.round(all[Math.floor(all.length/2)]);
-            avg    = Math.round(all.reduce(function(s,v){return s+v;},0) / all.length);
-        }
-        var above80  = buckets[8] + buckets[9];
-        var below20  = buckets[0] + buckets[1];
-        var skew     = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
-        var skewLabel = skew === 'top' ? 'Top Heavy' : skew === 'bot' ? 'Bot Heavy' : 'Balanced';
-        var COLORS   = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
-        var XLABELS  = ['0','10','20','30','40','50','60','70','80','90'];
-
-        // Y-axis: pick 4 nice ticks up to maxBucket
-        var yMax  = Math.ceil(maxBucket / 100) * 100 || 100;
-        var yStep = yMax / 4;
-        var yTicks = [yMax, yMax*0.75, yMax*0.5, yMax*0.25, 0];
-
-        // Build SVG histogram
+        var COLORS  = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
+        var XLABELS = ['0','10','20','30','40','50','60','70','80','90'];
         var W = 400, H = 160, padL = 36, padB = 22, padT = 8, padR = 4;
         var chartW = W - padL - padR;
         var chartH = H - padB - padT;
         var barW   = chartW / 10;
 
-        var barsHtml = '';
-        for (var i = 0; i < 10; i++) {
-            var bh   = (buckets[i] / yMax) * chartH;
-            var bx   = padL + i * barW;
-            var by   = padT + chartH - bh;
-            barsHtml += '<rect x="' + (bx+2) + '" y="' + by + '" width="' + (barW-4) + '" height="' + bh + '" fill="' + COLORS[i] + '" rx="2"/>';
+        // ── Pre-compute both datasets ──────────────────────────────────────
+        function computeDataset(field) {
+            var buckets = [0,0,0,0,0,0,0,0,0,0];
+            var all = [], total = 0;
+            Object.values(snapshot.by_industry).forEach(function(rows) {
+                rows.forEach(function(r) {
+                    var v = r[field];
+                    if (v == null) return;
+                    var p = Math.min(99, Math.max(0, v));
+                    buckets[Math.min(9, Math.floor(p / 10))]++;
+                    all.push(p);
+                    total++;
+                });
+            });
+            var median = 0, avg = 0;
+            if (all.length) {
+                all.sort(function(a,b){return a-b;});
+                median = Math.round(all[Math.floor(all.length/2)]);
+                avg    = Math.round(all.reduce(function(s,v){return s+v;},0) / all.length);
+            }
+            var above80 = buckets[8] + buckets[9];
+            var below20 = buckets[0] + buckets[1];
+            var skew    = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
+            return { buckets: buckets, total: total, median: median, avg: avg, above80: above80, below20: below20, skew: skew };
         }
 
-        // Y grid lines + labels
-        var gridHtml = '';
-        yTicks.forEach(function(v) {
-            var y = padT + chartH - (v / yMax) * chartH;
-            gridHtml += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="#21262d" stroke-width="1"/>';
-            gridHtml += '<text x="' + (padL-4) + '" y="' + (y+3.5) + '" fill="#484f58" font-size="9" text-anchor="end" font-family="inherit">' + v + '</text>';
-        });
+        var datasets = {
+            rs:   computeDataset('Percentile'),
+            rs3m: computeDataset('weighted_rs_pct'),
+        };
+        var activeDs = 'rs';
 
-        // X labels
-        var xlHtml = '';
-        for (var j = 0; j < 10; j++) {
-            var lx = padL + j * barW + barW / 2;
-            xlHtml += '<text x="' + lx + '" y="' + (H-4) + '" fill="#484f58" font-size="9" text-anchor="middle" font-family="inherit">' + XLABELS[j] + '</text>';
+        // ── SVG builder (grid + bars only; x-labels are static) ───────────
+        function buildSvgInner(ds) {
+            var maxBucket = Math.max.apply(null, ds.buckets) || 1;
+            var yMax  = Math.ceil(maxBucket / 100) * 100 || 100;
+            var yTicks = [yMax, yMax*0.75, yMax*0.5, yMax*0.25, 0];
+
+            var gridHtml = '';
+            yTicks.forEach(function(v) {
+                var y = padT + chartH - (v / yMax) * chartH;
+                gridHtml += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="#21262d" stroke-width="1"/>';
+                gridHtml += '<text x="' + (padL-4) + '" y="' + (y+3.5) + '" fill="#484f58" font-size="9" text-anchor="end" font-family="inherit">' + v + '</text>';
+            });
+
+            var barsHtml = '';
+            for (var i = 0; i < 10; i++) {
+                var bh = (ds.buckets[i] / yMax) * chartH;
+                var bx = padL + i * barW;
+                var by = padT + chartH - bh;
+                barsHtml += '<rect x="' + (bx+2) + '" y="' + by + '" width="' + (barW-4) + '" height="' + bh + '" fill="' + COLORS[i] + '" rx="2"/>';
+            }
+
+            var xlHtml = '';
+            for (var j = 0; j < 10; j++) {
+                var lx = padL + j * barW + barW / 2;
+                xlHtml += '<text x="' + lx + '" y="' + (H-4) + '" fill="#484f58" font-size="9" text-anchor="middle" font-family="inherit">' + XLABELS[j] + '</text>';
+            }
+            return gridHtml + barsHtml + xlHtml;
         }
 
-        var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block;margin-top:8px;" xmlns="http://www.w3.org/2000/svg">' +
-            gridHtml + barsHtml + xlHtml + '</svg>';
+        // ── Footer HTML builder ────────────────────────────────────────────
+        function buildFooter(ds) {
+            var skewLabel = ds.skew === 'top' ? 'Top Heavy' : ds.skew === 'bot' ? 'Bot Heavy' : 'Balanced';
+            return '<div class="rs-foot-stat"><div class="rs-foot-label">Median</div><div class="rs-foot-val">' + ds.median + '</div></div>' +
+                   '<div class="rs-foot-stat"><div class="rs-foot-label">Avg</div><div class="rs-foot-val">' + ds.avg + '</div></div>' +
+                   '<div class="rs-foot-stat"><div class="rs-foot-label">Above 80</div><div class="rs-foot-val up">' + ds.above80 + '</div></div>' +
+                   '<div class="rs-foot-stat"><div class="rs-foot-label">Below 20</div><div class="rs-foot-val down">' + ds.below20 + '</div></div>' +
+                   '<div class="rs-foot-stat"><div class="rs-foot-label">Skew</div><div class="rs-skew-pill ' + ds.skew + '">' + skewLabel + '</div></div>';
+        }
 
-        // Legend
+        // ── Initial render ─────────────────────────────────────────────────
         var legend =
             '<div style="display:flex;gap:12px;margin-top:6px;">' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#3fb950;flex-shrink:0;"></div>RS ≥ 60</div>' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#484f58;flex-shrink:0;"></div>RS 40–60</div>' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#f85149;flex-shrink:0;"></div>RS ≤ 40</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#3fb950;flex-shrink:0;"></div>≥ 60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#484f58;flex-shrink:0;"></div>40–60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#f85149;flex-shrink:0;"></div>≤ 40</div>' +
             '</div>';
 
+        var toggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;margin-left:8px;';
+        var btnBase     = 'padding:1px 7px;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;border:none;letter-spacing:0.03em;transition:background 0.1s,color 0.1s;';
+        var btnActive   = btnBase + 'background:#1f6feb;color:#fff;';
+        var btnInactive = btnBase + 'background:transparent;color:#6e7681;';
+
         el.innerHTML =
-            '<div style="display:flex;justify-content:space-between;align-items:baseline;">' +
-                '<div class="analytics-title">RS Distribution</div>' +
-                '<div class="analytics-sub">' + total.toLocaleString() + ' stocks</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div style="display:flex;align-items:center;">' +
+                    '<div class="analytics-title" id="rs-dist-title">RS Distribution</div>' +
+                    '<div style="' + toggleStyle + '">' +
+                        '<button id="rs-dist-btn-rs"   style="' + btnActive   + '" onclick="rsDistSwitch(\'rs\')">RS</button>' +
+                        '<button id="rs-dist-btn-rs3m" style="' + btnInactive + '" onclick="rsDistSwitch(\'rs3m\')">3M RS</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="analytics-sub" id="rs-dist-count">' + datasets.rs.total.toLocaleString() + ' stocks</div>' +
             '</div>' +
-            svg + legend +
-            '<div class="rs-footer">' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Median</div><div class="rs-foot-val">' + median + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Avg</div><div class="rs-foot-val">' + avg + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Above 80</div><div class="rs-foot-val up">' + above80 + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Below 20</div><div class="rs-foot-val down">' + below20 + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Skew</div><div class="rs-skew-pill ' + skew + '">' + skewLabel + '</div></div>' +
-            '</div>';
+            '<svg id="rs-dist-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block;margin-top:8px;" xmlns="http://www.w3.org/2000/svg">' +
+                buildSvgInner(datasets.rs) +
+            '</svg>' +
+            legend +
+            '<div class="rs-footer" id="rs-dist-footer">' + buildFooter(datasets.rs) + '</div>';
+
+        // ── Toggle handler ─────────────────────────────────────────────────
+        window.rsDistSwitch = function(which) {
+            if (which === activeDs) return;
+            activeDs = which;
+            var ds = datasets[which];
+            var svg = document.getElementById('rs-dist-svg');
+            if (svg) svg.innerHTML = buildSvgInner(ds);
+            var footer = document.getElementById('rs-dist-footer');
+            if (footer) footer.innerHTML = buildFooter(ds);
+            var title = document.getElementById('rs-dist-title');
+            if (title) title.textContent = which === 'rs3m' ? '3M RS Distribution' : 'RS Distribution';
+            var count = document.getElementById('rs-dist-count');
+            if (count) count.textContent = ds.total.toLocaleString() + ' stocks';
+            var btnRs   = document.getElementById('rs-dist-btn-rs');
+            var btnRs3m = document.getElementById('rs-dist-btn-rs3m');
+            if (btnRs)   btnRs.style.cssText   = (which === 'rs'   ? btnActive : btnInactive);
+            if (btnRs3m) btnRs3m.style.cssText = (which === 'rs3m' ? btnActive : btnInactive);
+        };
     }
 
     // ── Load data ─────────────────────────────────────────────────────────
