@@ -2798,6 +2798,35 @@
         if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
         if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
         if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
+
+        var _chartModalLastSym = initialSym;
+        var _chartModalReady = false;
+        setTimeout(function() { _chartModalReady = true; }, 2000);
+        var _chartModalIframe = null;
+        setTimeout(function() {
+            var container = document.getElementById('tradingview-chart');
+            if (container) _chartModalIframe = container.querySelector('iframe');
+        }, 500);
+        _chartModalMsgHandler = function(e) {
+            if (!_chartModalReady) return;
+            if (_chartModalIframe && e.source !== _chartModalIframe.contentWindow) return;
+            try {
+                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                var newSym = null;
+                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
+                    newSym = data.data.original_name;
+                }
+                if (newSym) {
+                    var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
+                    if (bare && bare !== _chartModalLastSym) {
+                        _chartModalLastSym = bare;
+                        updateChartModalHeader(bare, '', '', null);
+                        updateQueueButtons();
+                    }
+                }
+            } catch(err) {}
+        };
+        window.addEventListener('message', _chartModalMsgHandler);
     }
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
