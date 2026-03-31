@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Dashboard</title>
-    <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c8d0dc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -3007,6 +3006,7 @@
         { value: 'fund',    label: 'Fundamental' },
         { value: 'gap',     label: 'Gap' },
         { value: 'range',   label: 'Range' },
+        { value: 'sector',  label: 'Sector' },
     ];
 
     var FUND_METRICS = [
@@ -3094,6 +3094,13 @@
             var crTfLabel = { d: 'D', w: 'W', m: 'M' }[row.crTf || 'd'];
             var crDir = row.dir === 'gt' ? '>' : '<';
             return 'CR ' + crTfLabel + ' ' + crDir + ' ' + (row.val != null ? row.val : '—') + '%';
+        }
+        if (row.type === 'sector') {
+            var secs = row.sectors || [];
+            var inds = row.industries || [];
+            if (inds.length > 0) return inds.length <= 2 ? inds.join(', ') : inds[0] + ' +' + (inds.length - 1);
+            if (secs.length > 0) return secs.length <= 2 ? secs.join(', ') : secs[0] + ' +' + (secs.length - 1);
+            return 'Sector';
         }
         var dirLabel = row.dir === 'gt' ? 'greater than' : 'less than';
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
@@ -3310,6 +3317,40 @@
             var dirOptsRs = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOptsRs+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="1" max="99" step="1" value="'+(row.val!=null?row.val:70)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
+        } else if (row.type === 'sector') {
+            var allSectors = [];
+            var sectorIndustries = {};
+            if (industriesData && industriesData.industries) {
+                industriesData.industries.forEach(function(ind) {
+                    if (allSectors.indexOf(ind.sector) === -1) {
+                        allSectors.push(ind.sector);
+                        sectorIndustries[ind.sector] = [];
+                    }
+                    sectorIndustries[ind.sector].push(ind.industry);
+                });
+                allSectors.sort();
+                allSectors.forEach(function(s){ sectorIndustries[s].sort(); });
+            }
+            var selSectors = row.sectors || [];
+            var selIndustries = row.industries || [];
+            var sectorChips = allSectors.map(function(s) {
+                var on = selSectors.indexOf(s) !== -1;
+                return '<span class="sf-cluster-chip'+(on?' on':'')+'" data-val="'+esc(s)+'" data-id="'+id+'" onclick="event.stopPropagation();sfToggleSectorChip(this)">'+esc(s)+'</span>';
+            }).join('');
+            var visibleIndustries = [];
+            if (selSectors.length > 0) {
+                selSectors.forEach(function(s){ if (sectorIndustries[s]) visibleIndustries = visibleIndustries.concat(sectorIndustries[s]); });
+                visibleIndustries.sort();
+            } else {
+                allSectors.forEach(function(s){ visibleIndustries = visibleIndustries.concat(sectorIndustries[s] || []); });
+                visibleIndustries.sort();
+            }
+            var industryChips = visibleIndustries.map(function(ind) {
+                var on = selIndustries.indexOf(ind) !== -1;
+                return '<span class="sf-cluster-chip'+(on?' on':'')+'" data-val="'+esc(ind)+'" data-id="'+id+'" onclick="event.stopPropagation();sfToggleIndustryChip(this)">'+esc(ind)+'</span>';
+            }).join('');
+            html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;align-items:flex-start;"><span class="sf-popover-label" style="width:100%;margin-bottom:3px;">Sector</span>'+sectorChips+'</div>';
+            html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:3px;">Industry</span>'+(industryChips||'<span style="color:#484f58;font-size:0.748em;">No industry data</span>')+'</div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
@@ -3356,9 +3397,11 @@
                 perfDir: type === 'perf' ? 'up' : null,
                 patternTf: 'd',
                 crTf: 'd',
+                sectors: type === 'sector' ? [] : undefined,
+                industries: type === 'sector' ? [] : undefined,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : 0,
+                     type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'sector' ? null : 0,
                 dir: type === 'gap' ? 'up' : 'gt' };
             sfRows.push(defaults);
             row = defaults;
@@ -3367,8 +3410,10 @@
         var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', pattern: 'Pattern', ma: 'Moving Average',
-                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance' };
+                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
+        var pop  = document.getElementById('sf-popover');
+        pop.style.maxWidth = (type === 'sector') ? '380px' : '260px';
 
         // Build content — type row omitted since type is fixed per pill
         var content = sfPopoverHtml(row, true);
@@ -3398,9 +3443,11 @@
             row.perfDir     = 'up';
             row.patternTf   = 'd';
             row.crTf        = 'd';
+            row.sectors     = [];
+            row.industries  = [];
             row.val         = type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                               type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                              type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : 0;
+                              type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : type === 'sector' ? null : 0;
             row.val2        = null;
             // Re-render popover content with reset values
             var c = sfPopoverHtml(row, true);
@@ -3417,7 +3464,9 @@
             if (!row) return;
             row.perfTf  = '1d';
             row.perfDir = 'up';
-            row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : 0;
+            row.sectors    = [];
+            row.industries = [];
+            row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : row.type === 'sector' ? null : 0;
             row.val2    = null;
             row.rangeCondition = row.type === 'range' ? 'relative' : null;
             var c = sfPopoverHtml(row, true);
@@ -3449,6 +3498,39 @@
         sfRenderPills();
         // Do NOT call renderScans — nothing changed
     };
+    window.sfToggleSectorChip = function(el) {
+        var id  = parseInt(el.getAttribute('data-id'));
+        var val = el.getAttribute('data-val');
+        var row = sfRows.find(function(r){ return r.id === id; });
+        if (!row) return;
+        if (!row.sectors)    row.sectors    = [];
+        if (!row.industries) row.industries = [];
+        var idx = row.sectors.indexOf(val);
+        if (idx !== -1) { row.sectors.splice(idx, 1); }
+        else { row.sectors.push(val); }
+        // Drop any industry selections that no longer belong to the remaining sectors
+        if (row.sectors.length > 0 && row.industries.length > 0) {
+            row.industries = row.industries.filter(function(ind) {
+                var indObj = industriesData && industriesData.industries &&
+                    industriesData.industries.find(function(i){ return i.industry === ind; });
+                return indObj && row.sectors.indexOf(indObj.sector) !== -1;
+            });
+        }
+        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
+    };
+
+    window.sfToggleIndustryChip = function(el) {
+        var id  = parseInt(el.getAttribute('data-id'));
+        var val = el.getAttribute('data-val');
+        var row = sfRows.find(function(r){ return r.id === id; });
+        if (!row) return;
+        if (!row.industries) row.industries = [];
+        var idx = row.industries.indexOf(val);
+        if (idx !== -1) { row.industries.splice(idx, 1); }
+        else { row.industries.push(val); }
+        document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
+    };
+
     window.sfToggleClusterMA = function(el) {
         var id  = parseInt(el.getAttribute('data-id'));
         var key = el.getAttribute('data-key');
@@ -3467,9 +3549,11 @@
         var pop = document.getElementById('sf-popover');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
-        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range' };
+        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry' };
         document.getElementById('sf-popover-title').textContent = EXTRA_TITLES[row.type] || row.type;
         document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
+        var pop = document.getElementById('sf-popover');
+        pop.style.maxWidth = (row.type === 'sector') ? '380px' : '260px';
         var rect = pillEl.getBoundingClientRect();
         pop.style.top  = (rect.bottom + 6) + 'px';
         pop.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
@@ -3499,7 +3583,9 @@
             row.dir         = (value === 'ma') ? 'above' : (value === 'gap') ? 'up' : 'gt';
             row.maCondition = 'above_price';
             row.rangeCondition = value === 'range' ? 'relative' : null;
-            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : null;
+            row.sectors    = value === 'sector' ? [] : undefined;
+            row.industries = value === 'sector' ? [] : undefined;
+            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : value === 'sector' ? null : null;
             row.fundMetric  = value === 'fund' ? 'eps_next_y_pct' : null;
             row.patternTf   = 'd';
             row.crTf        = 'd';
@@ -3551,6 +3637,7 @@
             { value: 'fund',    label: 'Fundamental' },
             { value: 'gap',     label: 'Gap' },
             { value: 'range',   label: 'Range' },
+            { value: 'sector',  label: 'Sector' },
         ];
 
         var picker = document.createElement('div');
@@ -3594,9 +3681,11 @@
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
             rsMetric: 'Percentile',
             perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd',
+            sectors: type === 'sector' ? [] : undefined,
+            industries: type === 'sector' ? [] : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : null };
+                 type === 'rvol' ? 1 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -4197,6 +4286,14 @@
                         var rrk = r.range_rank;
                         if (rrk == null) return false;
                         if (rrk < rval) return false;
+                    }
+                } else if (f.type === 'sector') {
+                    var secs = f.sectors || [];
+                    var inds = f.industries || [];
+                    if (inds.length > 0) {
+                        if (inds.indexOf(r.industry) === -1) return false;
+                    } else if (secs.length > 0) {
+                        if (secs.indexOf(r.sector) === -1) return false;
                     }
                 }
             }
