@@ -3349,8 +3349,8 @@
                 var on = selIndustries.indexOf(ind) !== -1;
                 return '<span class="sf-cluster-chip'+(on?' on':'')+'" data-val="'+esc(ind)+'" data-id="'+id+'" onclick="event.stopPropagation();sfToggleIndustryChip(this)">'+esc(ind)+'</span>';
             }).join('');
-            html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;align-items:flex-start;"><span class="sf-popover-label" style="width:100%;margin-bottom:3px;">Sector</span>'+sectorChips+'</div>';
-            html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:3px;">Industry</span>'+(industryChips||'<span style="color:#484f58;font-size:0.748em;">No industry data</span>')+'</div>';
+            html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Sector</span><div style="display:flex;flex-wrap:wrap;gap:3px;">'+sectorChips+'</div></div>';
+            html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Industry</span><div style="display:flex;flex-wrap:wrap;gap:3px;max-height:160px;overflow-y:auto;padding-right:2px;">'+(industryChips||'<span style="color:#484f58;font-size:0.748em;">No industry data</span>')+'</div></div>';
         } else {
             var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
