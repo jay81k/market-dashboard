@@ -2771,9 +2771,7 @@
         updateQueueButtons();
         if (chartWidget) {
             try {
-                setTimeout(function() {
-                    chartWidget.setSymbol(sym, null, function(){});
-                }, 50);
+                chartWidget.setSymbol(sym, null, function(){});
                 startChartModalPoll(symbol);
                 return;
             } catch(e) {}
