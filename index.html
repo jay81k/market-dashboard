@@ -4422,7 +4422,13 @@
         });
     }
 
+    var _renderScansTimer = null;
     function renderScans() {
+        if (_renderScansTimer) clearTimeout(_renderScansTimer);
+        _renderScansTimer = setTimeout(_doRenderScans, 100);
+    }
+    function _doRenderScans() {
+        _renderScansTimer = null;
         var stocks = getAllStocks();
         var filtered = activeScan
             ? stocks.filter(function(r) { return r[activeScan] === true; })
