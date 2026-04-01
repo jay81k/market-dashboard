@@ -163,6 +163,26 @@ def calculate_ma_value(close: pd.Series, ma_type: str, period: int) -> float | N
         return None
 
 
+def calculate_slope_ma(close: pd.Series, ma_type: str, period: int) -> float | None:
+    """% change of MA from N periods ago to today, where N = period."""
+    if len(close) < period:
+        return None
+    try:
+        if ma_type == "EMA":
+            ma_series = close.ewm(span=period, adjust=False).mean()
+        else:
+            ma_series = close.rolling(window=period).mean()
+        ma_today = ma_series.iloc[-1]
+        # Use whatever history is available for the lookback point
+        lookback = min(period, len(ma_series) - 1)
+        ma_prev  = ma_series.iloc[-1 - lookback]
+        if ma_prev == 0 or pd.isna(ma_prev) or pd.isna(ma_today):
+            return None
+        return round(((ma_today - ma_prev) / ma_prev) * 100, 2)
+    except Exception:
+        return None
+
+
 def calculate_adr_pct(hist: pd.DataFrame, period: int = 20) -> float | None:
     try:
         capped = min(period, len(hist))
@@ -273,6 +293,12 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         # Dist/MA for all combos
         dist_ma = {
             ma_type + str(period): calculate_dist_ma(close, ma_type, period)
+            for ma_type, period in DIST_MA_COMBOS
+        }
+
+        # Slope/MA for all combos (% change of MA over N periods, N = MA period)
+        slope_ma = {
+            ma_type + str(period): calculate_slope_ma(close, ma_type, period)
             for ma_type, period in DIST_MA_COMBOS
         }
 
@@ -573,6 +599,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "adr_pct":   adr_pct,
             "rel_vol":   rel_vol,
             "dist_ma":   dist_ma,
+            "slope_ma":  slope_ma,
             "ma_val":    ma_val,
             "ma_crossovers":       list(ma_crossovers),
             "price_ma_crossovers": list(price_ma_crossovers),
