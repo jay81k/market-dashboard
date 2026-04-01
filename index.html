@@ -3117,7 +3117,8 @@
         var valLabel = row.val !== '' && row.val != null ? ' ' + row.val : '';
         if (row.type === 'adr') valLabel += '%';
         if (row.type === 'rvol') valLabel += 'x';
-        if (row.type === 'udv') valLabel += '';
+        if (row.type === 'udv') valLabel = ' (' + (row.udvPeriod || 50) + 'D) >' + (row.val !== '' && row.val != null ? ' ' + row.val : '');
+        if (row.type === 'udv') return 'U/D Vol' + valLabel;
         return typeLabel + ' ' + dirLabel + valLabel;
     }
 
@@ -3381,6 +3382,14 @@
             if (row.type !== 'udv') {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
             }
+            if (row.type === 'udv') {
+                var p20 = (row.udvPeriod || 50) === 20;
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span>' +
+                    '<div class="sf-seg">' +
+                    '<button class="sf-seg-btn'+(p20?' active':'')+'" onclick="sfPopChange('+id+',\'udvPeriod\',20)">20D</button>' +
+                    '<button class="sf-seg-btn'+(!p20?' active':'')+'" onclick="sfPopChange('+id+',\'udvPeriod\',50)">50D</button>' +
+                    '</div></div>';
+            }
             var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
             var minMax = row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : row.type === 'udv' ? ' min="0.1" max="20" step="0.1"' : row.type === 'adr' ? ' min="0" step="0.1"' : row.type === 'price' ? ' min="0" step="0.01"' : '';
             var suffix = row.type === 'adr' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">x</span>' : '';
@@ -3424,6 +3433,7 @@
                 perfDir: type === 'perf' ? 'up' : null,
                 patternTf: 'd',
                 crTf: 'd',
+                udvPeriod: 50,
                 sectors: type === 'sector' ? [] : undefined,
                 industries: type === 'sector' ? [] : undefined,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
@@ -3712,7 +3722,7 @@
             rangeCondition: type === 'range' ? 'relative' : null,
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
             rsMetric: 'Percentile',
-            perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd',
+            perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd', udvPeriod: 50,
             sectors: type === 'sector' ? [] : undefined,
             industries: type === 'sector' ? [] : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
@@ -4272,7 +4282,8 @@
                         if (f.dir === 'lt' && rv >= rvThresh) return false;
                     }
                 } else if (f.type === 'udv') {
-                    var udv = r.ud_vol_ratio;
+                    var udvField = (f.udvPeriod === 20) ? 'ud_vol_ratio_20' : 'ud_vol_ratio_50';
+                    var udv = r[udvField];
                     if (udv == null) return false;
                     var udvThresh = parseFloat(f.val);
                     if (!isNaN(udvThresh) && udv <= udvThresh) return false;
