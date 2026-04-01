@@ -163,9 +163,15 @@ def calculate_ma_value(close: pd.Series, ma_type: str, period: int) -> float | N
         return None
 
 
+SLOPE_LOOKBACK_RATIO = 0.15   # 15% of MA period
+SLOPE_LOOKBACK_MIN   = 5      # floor: don't go below 5 bars
+SLOPE_LOOKBACK_MAX   = 20     # ceiling: don't go above 20 bars
+
 def calculate_slope_ma(close: pd.Series, ma_type: str, period: int) -> float | None:
-    """% change of MA from N periods ago to today, where N = period."""
-    if len(close) < period:
+    """% change of MA over a scaled lookback window (15% of period, clamped 5–20 bars)."""
+    lookback = int(round(period * SLOPE_LOOKBACK_RATIO))
+    lookback = max(SLOPE_LOOKBACK_MIN, min(SLOPE_LOOKBACK_MAX, lookback))
+    if len(close) < period + lookback:
         return None
     try:
         if ma_type == "EMA":
@@ -173,8 +179,6 @@ def calculate_slope_ma(close: pd.Series, ma_type: str, period: int) -> float | N
         else:
             ma_series = close.rolling(window=period).mean()
         ma_today = ma_series.iloc[-1]
-        # Use whatever history is available for the lookback point
-        lookback = min(period, len(ma_series) - 1)
         ma_prev  = ma_series.iloc[-1 - lookback]
         if ma_prev == 0 or pd.isna(ma_prev) or pd.isna(ma_today):
             return None
