@@ -2199,7 +2199,6 @@
     window.openMcFullscreen = function(sym) {
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = sym;
-        document.getElementById('mc-fullscreen-chart').innerHTML = '';
         var mcTicker = sym.replace(/[^A-Z0-9]/gi, '');
         var mcFBtn = document.getElementById('mc-fullscreen-details-btn');
         if (mcFBtn) mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
@@ -2312,6 +2311,7 @@
         var mappedSym = TV_MAP[sym] || sym;
         setTimeout(function() {
             try {
+                document.getElementById('mc-fullscreen-chart').innerHTML = '';
                 mcFullscreenWidget = new TradingView.widget({
                     symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
                     theme: 'dark', timezone: 'America/Toronto',
@@ -5473,11 +5473,11 @@
         document.getElementById('wl-chart-empty').style.display = 'none';
         var widgetDiv = document.getElementById('wl-chart-widget');
         widgetDiv.style.display = 'block';
-        widgetDiv.innerHTML = '';
         wlChartWidget = null;
         var mappedSym = TV_MAP[ticker] || ticker;
         setTimeout(function() {
             try {
+                widgetDiv.innerHTML = '';
                 wlChartWidget = new TradingView.widget({
                     symbol: mappedSym, interval: wlChartTf, locale: 'en', style: '1',
                     theme: 'dark', timezone: 'America/Toronto',
