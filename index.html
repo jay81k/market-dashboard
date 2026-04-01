@@ -3386,8 +3386,8 @@
                 var p20 = (row.udvPeriod || 50) === 20;
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span>' +
                     '<div class="sf-seg">' +
-                    '<button class="sf-seg-btn'+(p20?' active':'')+'" onclick="sfPopChange('+id+',\'udvPeriod\',20)">20D</button>' +
-                    '<button class="sf-seg-btn'+(!p20?' active':'')+'" onclick="sfPopChange('+id+',\'udvPeriod\',50)">50D</button>' +
+                    '<button class="sf-seg-btn'+(p20?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'udvPeriod\',20)">20D</button>' +
+                    '<button class="sf-seg-btn'+(!p20?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'udvPeriod\',50)">50D</button>' +
                     '</div></div>';
             }
             var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
