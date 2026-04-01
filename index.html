@@ -4429,6 +4429,9 @@
     }
     function _doRenderScans() {
         _renderScansTimer = null;
+        document.getElementById('scans-tbody').innerHTML =
+            '<tr><td colspan="24" style="padding:40px;text-align:center;color:#484f58;font-size:0.935em;">⏳ Loading…</td></tr>';
+        setTimeout(function() {
         var stocks = getAllStocks();
         var filtered = activeScan
             ? stocks.filter(function(r) { return r[activeScan] === true; })
@@ -4565,6 +4568,7 @@
 
         if (scansMultichartActive) renderScansMc();
         wlRefreshStars();
+        }, 0); // end setTimeout — allows "Loading…" to paint before heavy render
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
