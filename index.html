@@ -3055,9 +3055,12 @@
                 var cms = row.clusterMAs || ['SMA50','SMA200','EMA21'];
                 return 'Cluster ' + cms.join('/') + ' ≤' + (row.clusterSpread!=null?row.clusterSpread:1) + '%';
             }
-            if (cond === 'slope_rising')  return mt + ' ' + mp + ' Slope ↑ ≥' + (row.val!=null?row.val:1) + '%';
-            if (cond === 'slope_falling') return mt + ' ' + mp + ' Slope ↓ ≥' + (row.val!=null?row.val:1) + '%';
-            if (cond === 'slope_flat')    return mt + ' ' + mp + ' Slope Flat ±' + (row.val!=null?row.val:0.5) + '%';
+            if (cond === 'slope') {
+                var sd = row.slopeDir || 'rising';
+                var sdLabel = sd === 'rising' ? '↑' : sd === 'falling' ? '↓' : '—';
+                var sdSuffix = sd === 'flat' ? '±' : '≥';
+                return mt + ' ' + mp + ' Slope ' + sdLabel + ' ' + sdSuffix + (row.val!=null?row.val:(sd==='flat'?0.5:1)) + '%';
+            }
             return 'MA filter';
         }
         if (row.type === 'perf') {
@@ -3212,18 +3215,14 @@
                 ['crosses_above',       'Crosses Above'],
                 ['crosses_below',       'Crosses Below'],
                 ['ma_cluster',          'MA Cluster'],
-                ['slope_rising',        'Slope Rising'],
-                ['slope_falling',       'Slope Falling'],
-                ['slope_flat',          'Slope Flat'],
+                ['slope',               'Slope'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
-            var usesSingleMA = ['above_price','below_price','price_crossed_above','price_crossed_below','above_pct','below_pct','between_pct','slope_rising','slope_falling','slope_flat'].indexOf(cond) !== -1;
+            var usesSingleMA = ['above_price','below_price','price_crossed_above','price_crossed_below','above_pct','below_pct','between_pct','slope'].indexOf(cond) !== -1;
             var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
             var usesPct      = ['above_pct','below_pct'].indexOf(cond) !== -1;
             var usesBetween  = cond === 'between_pct';
-            var usesSlope    = cond === 'slope_rising' || cond === 'slope_falling';
-            var usesSlopeFlat = cond === 'slope_flat';
             var mt  = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType===t?' selected':'')+'>'+t+'</option>'; }).join('');
             var mp  = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             var mt2 = ['SMA','EMA'].map(function(t){ return '<option value="'+t+'"'+(row.maType2===t?' selected':'')+'>'+t+'</option>'; }).join('');
@@ -3244,11 +3243,17 @@
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
-            if (usesSlope) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
-            }
-            if (usesSlopeFlat) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            if (cond === 'slope') {
+                var slopeDir = row.slopeDir || 'rising';
+                var slopeBtns = [['rising','↑ Rising'],['falling','↓ Falling'],['flat','— Flat']].map(function(s){
+                    return '<button class="sf-seg-btn'+(slopeDir===s[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'slopeDir\',\''+s[0]+'\')">'+s[1]+'</button>';
+                }).join('');
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><div class="sf-seg">'+slopeBtns+'</div></div>';
+                if (slopeDir === 'flat') {
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                } else {
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                }
             }
             if (cond === 'ma_cluster') {
                 var clusterMAs = [
@@ -3621,6 +3626,10 @@
                     if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
                     if (value === 'between_pct') { if (row.val == null) row.val = 0; if (row.val2 == null) row.val2 = 10; }
                     if (value === 'ma_cluster') { if (!row.clusterMAs) row.clusterMAs = ['SMA50','SMA200','EMA21']; if (row.clusterSpread == null) row.clusterSpread = 1; }
+                    if (value === 'slope') { if (!row.slopeDir) row.slopeDir = 'rising'; row.val = 1; }
+                }
+                if (field === 'slopeDir') {
+                    row.val = value === 'flat' ? 0.5 : 1;
                 }
                 if (field === 'rangeCondition') { row.val = null; }
                 var c2 = sfPopoverHtml(row, true);
@@ -4199,21 +4208,14 @@
                         var maxV = Math.max.apply(null, vals);
                         if (minV <= 0) return false;
                         if (((maxV - minV) / minV * 100) > spread) return false;
-                    } else if (cond === 'slope_rising') {
+                    } else if (cond === 'slope') {
+                        var slopeDir = f.slopeDir || 'rising';
                         var slope = r.slope_ma ? r.slope_ma[key] : null;
                         var thresh = parseFloat(f.val);
                         if (slope == null) return false;
-                        if (!isNaN(thresh) && slope < thresh) return false;
-                    } else if (cond === 'slope_falling') {
-                        var slope = r.slope_ma ? r.slope_ma[key] : null;
-                        var thresh = parseFloat(f.val);
-                        if (slope == null) return false;
-                        if (!isNaN(thresh) && slope > -thresh) return false;
-                    } else if (cond === 'slope_flat') {
-                        var slope = r.slope_ma ? r.slope_ma[key] : null;
-                        var maxAbs = parseFloat(f.val);
-                        if (slope == null) return false;
-                        if (!isNaN(maxAbs) && Math.abs(slope) > maxAbs) return false;
+                        if (slopeDir === 'rising'  && !isNaN(thresh) && slope < thresh)        return false;
+                        if (slopeDir === 'falling' && !isNaN(thresh) && slope > -thresh)       return false;
+                        if (slopeDir === 'flat'    && !isNaN(thresh) && Math.abs(slope) > thresh) return false;
                     }
                 } else if (f.type === 'rs') {
                     var rsField = f.rsMetric || 'Percentile';
