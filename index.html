@@ -2310,23 +2310,25 @@
         window.addEventListener('message', window._mcFullscreenMsgHandler);
 
         var mappedSym = TV_MAP[sym] || sym;
-        try {
-            mcFullscreenWidget = new TradingView.widget({
-                symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
-                theme: 'dark', timezone: 'America/Toronto',
-                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                gridColor: 'rgba(255,255,255,0.06)',
-                hide_side_toolbar: false, hide_top_toolbar: false,
-                hide_legend: false, hide_volume: true,
-                details: true, hotlist: false, calendar: false,
-                withdateranges: true, allow_symbol_change: true,
-                save_image: false, enable_publishing: false,
-                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                right_bar_margin: 1,
-                autosize: true,
-                container_id: 'mc-fullscreen-chart',
-            });
-        } catch(e) {}
+        setTimeout(function() {
+            try {
+                mcFullscreenWidget = new TradingView.widget({
+                    symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
+                    theme: 'dark', timezone: 'America/Toronto',
+                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                    gridColor: 'rgba(255,255,255,0.06)',
+                    hide_side_toolbar: false, hide_top_toolbar: false,
+                    hide_legend: false, hide_volume: true,
+                    details: true, hotlist: false, calendar: false,
+                    withdateranges: true, allow_symbol_change: true,
+                    save_image: false, enable_publishing: false,
+                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                    right_bar_margin: 1,
+                    autosize: true,
+                    container_id: 'mc-fullscreen-chart',
+                });
+            } catch(e) {}
+        }, 50);
     };
 
     window.closeMcFullscreen = function() {
@@ -2774,20 +2776,22 @@
                 return;
             } catch(e) {}
         }
-        chartWidget = new TradingView.widget({
-            symbol: sym, interval: 'D', locale: 'en', style: '1',
-            theme: 'dark', timezone: 'America/Toronto',
-            toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-            gridColor: 'rgba(255,255,255,0.06)',
-            hide_side_toolbar: false, hide_top_toolbar: false,
-            hide_legend: false, hide_volume: true,
-            details: true, hotlist: false, calendar: false,
-            withdateranges: true, allow_symbol_change: true,
-            studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-            save_image: false, enable_publishing: false,
-            autosize: true, container_id: 'tradingview-chart',
-        });
-        startChartModalPoll(symbol);
+        setTimeout(function() {
+            chartWidget = new TradingView.widget({
+                symbol: sym, interval: 'D', locale: 'en', style: '1',
+                theme: 'dark', timezone: 'America/Toronto',
+                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                gridColor: 'rgba(255,255,255,0.06)',
+                hide_side_toolbar: false, hide_top_toolbar: false,
+                hide_legend: false, hide_volume: true,
+                details: true, hotlist: false, calendar: false,
+                withdateranges: true, allow_symbol_change: true,
+                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                save_image: false, enable_publishing: false,
+                autosize: true, container_id: 'tradingview-chart',
+            });
+            startChartModalPoll(symbol);
+        }, 50);
     }
 
     var _chartModalPoll = null;
@@ -5472,22 +5476,23 @@
         widgetDiv.innerHTML = '';
         wlChartWidget = null;
         var mappedSym = TV_MAP[ticker] || ticker;
-        try {
-            wlChartWidget = new TradingView.widget({
-                symbol: mappedSym, interval: wlChartTf, locale: 'en', style: '1',
-                theme: 'dark', timezone: 'America/Toronto',
-                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                gridColor: 'rgba(255,255,255,0.04)',
-                hide_side_toolbar: false, hide_top_toolbar: false,
-                hide_legend: false, hide_volume: true,
-                details: true, hotlist: false, calendar: false,
-                withdateranges: true, allow_symbol_change: true,
-                save_image: false, enable_publishing: false,
-                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                right_bar_margin: 1,
-                autosize: true,
-                container_id: 'wl-chart-widget',
-            });
+        setTimeout(function() {
+            try {
+                wlChartWidget = new TradingView.widget({
+                    symbol: mappedSym, interval: wlChartTf, locale: 'en', style: '1',
+                    theme: 'dark', timezone: 'America/Toronto',
+                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                    gridColor: 'rgba(255,255,255,0.04)',
+                    hide_side_toolbar: false, hide_top_toolbar: false,
+                    hide_legend: false, hide_volume: true,
+                    details: true, hotlist: false, calendar: false,
+                    withdateranges: true, allow_symbol_change: true,
+                    save_image: false, enable_publishing: false,
+                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                    right_bar_margin: 1,
+                    autosize: true,
+                    container_id: 'wl-chart-widget',
+                });
             // Listen for symbol changes in watchlist panel via postMessage
             var _wlLastSym = ticker;
             var _wlReady = false;
@@ -5554,6 +5559,7 @@
             };
             window.addEventListener('message', window._wlChartMsgHandler);
         } catch(e) {}
+        }, 50);
 
         // Update active row highlight
         document.querySelectorAll('.wl-ticker-row').forEach(function(r){
