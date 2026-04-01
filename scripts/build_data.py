@@ -294,15 +294,22 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         except Exception:
             pass
 
-        # U/D Volume Ratio: sum of up-day volume / sum of down-day volume over 50 days
-        ud_vol_ratio = None
+        # U/D Volume Ratio: sum of up-day volume / sum of down-day volume over 20 and 50 days
+        ud_vol_ratio_20 = None
+        ud_vol_ratio_50 = None
         try:
+            if len(hist) >= 21:
+                h20 = hist.iloc[-21:]
+                up_vol_20 = h20["Volume"].where(h20["Close"] > h20["Close"].shift(1), 0).iloc[1:].sum()
+                dn_vol_20 = h20["Volume"].where(h20["Close"] < h20["Close"].shift(1), 0).iloc[1:].sum()
+                if dn_vol_20 and dn_vol_20 > 0:
+                    ud_vol_ratio_20 = round(float(up_vol_20) / float(dn_vol_20), 1)
             if len(hist) >= 51:
-                h50 = hist.iloc[-51:]  # last 50 days + 1 prior close for comparison
-                up_vol = h50["Volume"].where(h50["Close"] > h50["Close"].shift(1), 0).iloc[1:].sum()
-                dn_vol = h50["Volume"].where(h50["Close"] < h50["Close"].shift(1), 0).iloc[1:].sum()
-                if dn_vol and dn_vol > 0:
-                    ud_vol_ratio = round(float(up_vol) / float(dn_vol), 1)
+                h50 = hist.iloc[-51:]
+                up_vol_50 = h50["Volume"].where(h50["Close"] > h50["Close"].shift(1), 0).iloc[1:].sum()
+                dn_vol_50 = h50["Volume"].where(h50["Close"] < h50["Close"].shift(1), 0).iloc[1:].sum()
+                if dn_vol_50 and dn_vol_50 > 0:
+                    ud_vol_ratio_50 = round(float(up_vol_50) / float(dn_vol_50), 1)
         except Exception:
             pass
 
@@ -613,8 +620,9 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "cr_w":      cr_w,
             "cr_m":      cr_m,
             "adr_pct":   adr_pct,
-            "rel_vol":   rel_vol,
-            "ud_vol_ratio": ud_vol_ratio,
+            "rel_vol":        rel_vol,
+            "ud_vol_ratio_20": ud_vol_ratio_20,
+            "ud_vol_ratio_50": ud_vol_ratio_50,
             "dist_ma":   dist_ma,
             "slope_ma":  slope_ma,
             "ma_val":    ma_val,
