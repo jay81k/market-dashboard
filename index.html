@@ -1737,7 +1737,7 @@
         }
 
         // Show/hide toolbar elements
-        document.getElementById('industry-list-header').style.display = (view === 'industries') ? 'flex' : 'none';
+        document.getElementById('industry-list-header').style.display = (view === 'industries' && indView === 'list') ? 'flex' : 'none';
         document.getElementById('wl-multichart-toggle-btn').style.display = (view === 'watchlists') ? '' : 'none';
 
         if (view === 'industries') {
