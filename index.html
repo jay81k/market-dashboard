@@ -3245,7 +3245,7 @@
                 ['ma_cluster',          'MA Cluster'],
                 ['slope',               'Slope'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
-            html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="How price relates to the moving average. Crossed conditions only trigger on today's candle.">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="How price relates to the moving average. Crossed conditions only trigger on today\'s candle.">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
             var usesSingleMA = ['above_price','below_price','price_crossed_above','price_crossed_below','above_pct','below_pct','between_pct','slope'].indexOf(cond) !== -1;
             var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
