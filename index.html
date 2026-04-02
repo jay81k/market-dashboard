@@ -4469,30 +4469,142 @@
     }
 
     var _renderScansTimer = null;
+
+    // ── Virtual scroll state ──────────────────────────────────────────────
+    var _vsData          = [];   // full sorted+filtered row data
+    var _vsRowHeight     = 34;   // px per row (measured after first render)
+    var _vsBuffer        = 15;   // extra rows above/below viewport
+    var _vsRenderedStart = -1;
+    var _vsRenderedEnd   = -1;
+    var _vsScrollBound   = false;
+
     function renderScans() {
         if (_renderScansTimer) clearTimeout(_renderScansTimer);
-        _renderScansTimer = setTimeout(_doRenderScans, 100);
+        _renderScansTimer = setTimeout(_doRenderScans, 60);
     }
+
+    function _buildScanRow(row) {
+        var rsVal    = row.Percentile != null ? row.Percentile : '\u2014';
+        var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '\u2014';
+        var distAll  = row.dist_ma || {};
+        var adrVal   = row.adr_pct != null ? row.adr_pct.toFixed(1)+'%' : '\u2014';
+        var volVal   = '\u2014';
+        if (row.AvgVol50 != null) {
+            var v = row.AvgVol50;
+            volVal = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
+        }
+        var adrColor = '#484f58';
+        if (row.adr_pct != null) {
+            if (row.adr_pct < 4) adrColor = '#3fb950';
+            else if (row.adr_pct < 8) adrColor = '#e3852b';
+            else adrColor = '#f85149';
+        }
+        var crVal   = row.cr != null ? Math.round(row.cr)+'%' : '\u2014';
+        var isAdded = selectedScans.has(row.ticker);
+        var addIcon = isAdded
+            ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
+            : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
+        var wrsVal2 = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '\u2014';
+        var chgAbs  = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
+        var chgStr  = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014';
+        var pct52Val = '\u2014', pct52Color = '#484f58';
+        if (row.PctFrom52WkHigh != null) {
+            pct52Val   = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
+            pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
+        }
+        var crColor = '#484f58';
+        if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
+
+        var h = '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">';
+        h += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
+            '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)" title="Select for export">' + addIcon + '</button>' +
+            '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">\u2606</button>' +
+            '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">\u25be</button>' +
+            '<span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
+        h += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'\u2014') + '</td>';
+        h += '<td style="color:#c8d0dc;font-weight:500;">'  + priceVal + '</td>';
+        h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
+        h += '<td style="color:#c8d0dc;font-weight:600;">'  + wrsVal2  + '</td>';
+        h += '<td class="' + cc(row.daily)     + '">' + chgStr + '</td>';
+        h += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row['1m'])     + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row['1y'])     + '">' + (row['1y']     != null ? fmt(row['1y'],2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '\u2014') + '</td>';
+        h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
+        h += '<td style="color:#8b949e;">' + volVal + '</td>';
+        h += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
+        h += '<td><span style="color:' + adrColor   + ';font-weight:600;">' + adrVal   + '</span></td>';
+        h += '<td><span style="color:' + crColor    + ';font-weight:600;">' + crVal    + '</span></td>';
+        h += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '\u2014') + '</td>';
+        h += '</tr>';
+        return h;
+    }
+
+    function _vsRenderWindow(scrollTop) {
+        var tbody    = document.getElementById('scans-tbody');
+        var data     = _vsData;
+        var total    = data.length;
+        if (!total) return;
+
+        var rh       = _vsRowHeight;
+        var wrap     = document.querySelector('#scans-table-view .stocks-table-wrap');
+        var viewH    = wrap ? wrap.clientHeight : 600;
+        var visible  = Math.ceil(viewH / rh);
+        var startIdx = Math.max(0, Math.floor(scrollTop / rh) - _vsBuffer);
+        var endIdx   = Math.min(total - 1, startIdx + visible + _vsBuffer * 2);
+
+        if (startIdx === _vsRenderedStart && endIdx === _vsRenderedEnd) return;
+        _vsRenderedStart = startIdx;
+        _vsRenderedEnd   = endIdx;
+
+        var topPad    = startIdx * rh;
+        var bottomPad = Math.max(0, (total - endIdx - 1) * rh);
+
+        var html = '';
+        if (topPad > 0)    html += '<tr id="vs-top-spacer" style="height:' + topPad    + 'px;"><td colspan="24"></td></tr>';
+        for (var i = startIdx; i <= endIdx; i++) html += _buildScanRow(data[i]);
+        if (bottomPad > 0) html += '<tr id="vs-bot-spacer" style="height:' + bottomPad + 'px;"><td colspan="24"></td></tr>';
+
+        tbody.innerHTML = html;
+        applyDistMA(document.getElementById('scans-table'));
+        wlRefreshStars();
+
+        allStockRows  = { length: _vsData.length };
+        currentStockIndex = -1;
+    }
+
     function _doRenderScans() {
-        _renderScansTimer = null;
-        document.getElementById('scans-tbody').innerHTML =
-            '<tr><td colspan="24" style="padding:40px;text-align:center;color:#484f58;font-size:0.935em;">⏳ Loading…</td></tr>';
-        setTimeout(function() {
+        _renderScansTimer    = null;
+        _vsRenderedStart     = -1;
+        _vsRenderedEnd       = -1;
+
         var stocks = getAllStocks();
         var filtered = activeScan
             ? stocks.filter(function(r) { return r[activeScan] === true; })
             : stocks.slice();
         filtered = applyFilters(filtered);
 
-        // Sort
+        if (window._scansSearchQuery) {
+            var sq = window._scansSearchQuery.toLowerCase();
+            filtered = filtered.filter(function(r){ return r.ticker && r.ticker.toLowerCase().includes(sq); });
+        }
+
         filtered.sort(function(a, b) {
             var key = scansSortState.by;
             var av, bv;
             if (key === 'symbol')   { av = a.ticker;    bv = b.ticker;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'sector')   { av = a.sector;    bv = b.sector;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'industry') { av = a.industry;  bv = b.industry;  return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
-            if (key === 'rs')       { av = a.Percentile; bv = b.Percentile; }
-            else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct; bv = b.weighted_rs_pct; }
+            if (key === 'rs')                   { av = a.Percentile;          bv = b.Percentile; }
+            else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct;     bv = b.weighted_rs_pct; }
             else if (key === 'chg')      { av = a.price != null && a.daily != null ? (a.price/(1+a.daily/100))*(a.daily/100) : null; bv = b.price != null && b.daily != null ? (b.price/(1+b.daily/100))*(b.daily/100) : null; }
             else if (key === 'price')    { av = a.price;     bv = b.price; }
             else if (key === 'daily')    { av = a.daily;     bv = b.daily; }
@@ -4520,110 +4632,55 @@
             return (av - bv) * scansSortState.dir;
         });
 
+        _vsData = filtered;
         scansMcTickers = filtered.map(function(r) { return r.ticker; });
         document.getElementById('scans-result-count').textContent = filtered.length + ' stocks';
-
         buildScansHeader();
 
-        var html = '';
-        filtered.forEach(function(row) {
-            var rsVal = row.Percentile != null ? row.Percentile : '—';
-            var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
-            var distVal = (row.dist_ma && row.dist_ma[activeMAType+activeMALength] != null) ? row.dist_ma[activeMAType+activeMALength] : null;
-            var distAll = row.dist_ma || {};
-            var adrVal = row.adr_pct != null ? row.adr_pct.toFixed(1)+'%' : '—';
-            var volVal = '—';
-            if (row.AvgVol50 != null) {
-                var v = row.AvgVol50;
-                volVal = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
-            }
-            var adrColor = '#484f58';
-            if (row.adr_pct != null) {
-                if (row.adr_pct < 4) adrColor = '#3fb950';
-                else if (row.adr_pct < 8) adrColor = '#e3852b';
-                else adrColor = '#f85149';
-            }
-            var crVal = row.cr != null ? Math.round(row.cr)+'%' : '—';
-            var secCl = sectorClass(row.sector);
+        if (!filtered.length) {
+            document.getElementById('scans-tbody').innerHTML =
+                '<tr><td colspan="24" style="padding:40px;text-align:center;color:#484f58;font-size:0.935em;">No results</td></tr>';
+            allStockRows = [];
+            currentStockIndex = -1;
+            return;
+        }
 
-            var isAdded = selectedScans.has(row.ticker);
-            html += '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">';
-            var addIcon = isAdded
-                ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
-                : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
-            html += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
-                '<button class="scan-add-btn' + (isAdded ? ' added' : '') + '" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();sfToggleAdd(this)" title="Select for export">' + addIcon + '</button>' +
-                '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button>' +
-                '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button>' +
-                '<span class="ticker-badge">' + esc(row.ticker) + '</span>' +
-                '</td>';
-            html += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'—') + '</td>';
-            html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
-            html += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
-            var wrsVal2 = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '—';
-            html += '<td style="color:#c8d0dc;font-weight:600;">' + wrsVal2 + '</td>';
-            var chgAbs = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
-            var chgStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
-            html += '<td class="' + cc(row.daily) + '">' + chgStr + '</td>';
-            html += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row['1m'])     + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row['1y'])      + '">' + (row['1y']      != null ? fmt(row['1y'],2,'%')      : '—') + '</td>';
-            html += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '—') + '</td>';
-            html += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '—') + '</td>';
-            html += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
-            html += '<td style="color:#8b949e;">' + volVal + '</td>';
-            var pct52Val = '—';
-            var pct52Color = '#484f58';
-            if (row.PctFrom52WkHigh != null) {
-                pct52Val = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
-                pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
-            }
-            html += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
-            html += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
-            var crColor = '#484f58';
-            if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
-            html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
-            // Fundamental columns
-            html += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '—') + '</td>';
-            html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
-            html += '<td class="' + cc(row.eps_next_5y_pct)   + '">' + (row.eps_next_5y_pct   != null ? fmt(row.eps_next_5y_pct,2,'%')   : '—') + '</td>';
-            html += '<td class="' + cc(row.eps_qoq_pct)       + '">' + (row.eps_qoq_pct       != null ? fmt(row.eps_qoq_pct,2,'%')       : '—') + '</td>';
-            html += '<td class="' + cc(row.sales_qoq_pct)     + '">' + (row.sales_qoq_pct     != null ? fmt(row.sales_qoq_pct,2,'%')     : '—') + '</td>';
-            html += '<td class="' + cc(row.profit_margin_pct) + '">' + (row.profit_margin_pct != null ? fmt(row.profit_margin_pct,2,'%') : '—') + '</td>';
-            html += '</tr>';
-        });
+        var wrap = document.querySelector('#scans-table-view .stocks-table-wrap');
+        if (wrap) wrap.scrollTop = 0;
+        _vsRenderWindow(0);
+
+        var firstRow = document.querySelector('#scans-tbody .stock-row');
+        if (firstRow && firstRow.offsetHeight > 0) _vsRowHeight = firstRow.offsetHeight;
+
+        if (!_vsScrollBound && wrap) {
+            _vsScrollBound = true;
+            wrap.addEventListener('scroll', function() {
+                _vsRenderWindow(wrap.scrollTop);
+            }, { passive: true });
+        }
 
         var scansTbody = document.getElementById('scans-tbody');
-        scansTbody.innerHTML = html;
-        applyDistMA(document.getElementById('scans-table'));
-
-        // Wire keyboard nav
-        allStockRows = Array.from(scansTbody.querySelectorAll('.stock-row'));
-        currentStockIndex = -1;
-
         scansTbody.onclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row || e.target.classList.contains('scan-add-btn')) return;
             scansTbody.querySelectorAll('.stock-row.active').forEach(function(r){ r.classList.remove('active'); });
             row.classList.add('active');
-            allStockRows = Array.from(scansTbody.querySelectorAll('.stock-row'));
-            currentStockIndex = allStockRows.indexOf(row);
+            var topSpacer = document.getElementById('vs-top-spacer');
+            var topRows   = topSpacer ? Math.round(topSpacer.offsetHeight / _vsRowHeight) : 0;
+            var visRows   = Array.from(scansTbody.querySelectorAll('.stock-row'));
+            currentStockIndex = topRows + visRows.indexOf(row);
+            allStockRows = { length: _vsData.length };
         };
 
         if (scansMultichartActive) renderScansMc();
-        wlRefreshStars();
-        }, 0); // end setTimeout — allows "Loading…" to paint before heavy render
     }
+
 
     // ── Scans search filter ───────────────────────────────────────────────
     function filterScansTable(q) {
-        q = (q || '').toLowerCase();
-        document.querySelectorAll('#scans-tbody .stock-row').forEach(function(row) {
-            var sym = (row.getAttribute('data-symbol') || '').toLowerCase();
-            row.style.display = (!q || sym.includes(q)) ? '' : 'none';
-        });
+        // With virtual scroll, filter by re-rendering against the data array
+        window._scansSearchQuery = (q || '').trim();
+        renderScans();
     }
 
     // ── Scans Multichart ─────────────────────────────────────────────────
