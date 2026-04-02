@@ -2883,26 +2883,54 @@
         // ── Industry stocks + Scans views ────────────────────────────────
         if (currentView === 'industry-stocks' || currentView === 'scans') {
             if (!allStockRows.length) return;
-            if (e.key === 'ArrowDown') {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                currentStockIndex = Math.min(currentStockIndex + 1, allStockRows.length - 1);
-                var r = allStockRows[currentStockIndex];
-                allStockRows.forEach(function(x){ x.classList.remove('active'); });
-                r.classList.add('active');
-                r.scrollIntoView({ block: 'nearest' });
-                if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                currentStockIndex = Math.max(currentStockIndex - 1, 0);
-                var r = allStockRows[currentStockIndex];
-                allStockRows.forEach(function(x){ x.classList.remove('active'); });
-                r.classList.add('active');
-                r.scrollIntoView({ block: 'nearest' });
-                if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                if (e.key === 'ArrowDown') currentStockIndex = Math.min(currentStockIndex + 1, allStockRows.length - 1);
+                else                       currentStockIndex = Math.max(currentStockIndex - 1, 0);
+
+                if (currentView === 'scans') {
+                    // Virtual scroll: scroll the wrap to bring the row into view, then highlight
+                    var rowData = _vsData[currentStockIndex];
+                    if (!rowData) return;
+                    var wrap = document.querySelector('#scans-table-view .stocks-table-wrap');
+                    if (wrap) {
+                        var targetScrollTop = currentStockIndex * _vsRowHeight;
+                        var wrapH = wrap.clientHeight;
+                        var curScroll = wrap.scrollTop;
+                        // Scroll only if row is outside visible area
+                        if (targetScrollTop < curScroll + 40) {
+                            wrap.scrollTop = Math.max(0, targetScrollTop - 40);
+                        } else if (targetScrollTop + _vsRowHeight > curScroll + wrapH - 40) {
+                            wrap.scrollTop = targetScrollTop + _vsRowHeight - wrapH + 40;
+                        }
+                        // After scroll re-render, highlight the correct DOM row
+                        setTimeout(function() {
+                            var tbody = document.getElementById('scans-tbody');
+                            tbody.querySelectorAll('.stock-row.active').forEach(function(x){ x.classList.remove('active'); });
+                            var topSpacer = document.getElementById('vs-top-spacer');
+                            var topRows   = topSpacer ? Math.round(topSpacer.offsetHeight / _vsRowHeight) : 0;
+                            var visRows   = Array.from(tbody.querySelectorAll('.stock-row'));
+                            var localIdx  = currentStockIndex - topRows;
+                            if (visRows[localIdx]) visRows[localIdx].classList.add('active');
+                            if (modalOpen) openChartModal(rowData.ticker, rowData.sector||'', rowData.industry||'');
+                        }, 0);
+                    }
+                } else {
+                    var r = allStockRows[currentStockIndex];
+                    allStockRows.forEach(function(x){ x.classList.remove('active'); });
+                    r.classList.add('active');
+                    r.scrollIntoView({ block: 'nearest' });
+                    if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                }
             } else if (e.key === 'Enter' && currentStockIndex >= 0) {
                 e.preventDefault();
-                var r = allStockRows[currentStockIndex];
-                openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                if (currentView === 'scans') {
+                    var rowData = _vsData[currentStockIndex];
+                    if (rowData) openChartModal(rowData.ticker, rowData.sector||'', rowData.industry||'');
+                } else {
+                    var r = allStockRows[currentStockIndex];
+                    openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                }
             }
             return;
         }
