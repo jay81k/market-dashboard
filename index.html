@@ -2995,6 +2995,7 @@
     var sfRowId = 0;
     var sfActivePillType = null;
     var sfPillWasPreExisting = false;
+    var sfPopoverIsNew = false;
 
     var SF_TYPES = [
         { value: 'ma',    label: 'Moving Average' },
@@ -3528,10 +3529,15 @@
         if (!sfPillWasPreExisting && sfActivePillType) {
             sfRows = sfRows.filter(function(r){ return r.type !== sfActivePillType; });
         }
+        // Also remove freshly-added extra rows (e.g. U/D Vol via + Filter)
+        if (sfPopoverIsNew && sfActivePopoverId != null) {
+            sfRows = sfRows.filter(function(r){ return r.id !== sfActivePopoverId; });
+        }
         document.getElementById('sf-popover').style.display = 'none';
         sfActivePopoverId = null;
         sfActivePillType = null;
         sfPillWasPreExisting = false;
+        sfPopoverIsNew = false;
         sfRenderPills();
         // Do NOT call renderScans — nothing changed
     };
@@ -3602,6 +3608,7 @@
         sfActivePopoverId = null;
         sfActivePillType = null;
         sfPillWasPreExisting = false;
+        sfPopoverIsNew = false;
         sfRenderPills();
         renderScans();
     };
@@ -3736,6 +3743,7 @@
             var pills = document.querySelectorAll('.sf-pill');
             for (var i = 0; i < pills.length; i++) {
                 if (pills[i].getAttribute('onclick') && pills[i].getAttribute('onclick').indexOf(sfRowId) !== -1) {
+                    sfPopoverIsNew = true;
                     sfOpenPopover(sfRowId, pills[i]);
                     return;
                 }
