@@ -3150,19 +3150,38 @@
             { type: 'fund',    label: 'Fundamental' },
         ];
 
+        var SF_TOOLTIPS = {
+            rs:      'Relative Strength percentile vs all stocks (1–99). Higher = stronger price action.',
+            price:   'Filter by current stock price.',
+            vol:     'Average daily trading volume over 50 days.',
+            adr:     'Average Daily Range % — measures a stock\'s typical daily price volatility.',
+            cr:      'Closing Range % — where price closed within the day\'s high/low. 100% = closed at the high.',
+            mcap:    'Market Cap — total market value of the company.',
+            rvol:    'Relative Volume — today\'s volume vs the average for this time of day.',
+            pattern: 'Filter by candlestick or price pattern.',
+            ma:      'Moving Average — filter by price position relative to a moving average.',
+            fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
+            udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
+            perf:    'Price performance over a selected timeframe.',
+            gap:     'Filter stocks that gapped up or down at the open.',
+            range:   'Filter by where price sits within its 52-week or recent range.',
+            sector:  'Filter by market sector or specific industry.',
+        };
+
         var html = PILL_TYPES.map(function(pt) {
             var row   = sfRowForType(pt.type);
             var isOpen   = sfActivePillType === pt.type;
             var isActive = !!row;
             var cls   = 'sf-pill' + (isActive ? ' active' : '') + (isOpen ? ' open' : '');
             var val   = isActive ? sfPillValueLabel(row) : '';
+            var tip   = SF_TOOLTIPS[pt.type] || '';
             var valHtml = isActive
                 ? '<span class="sf-pill-val">' + esc(val.replace(pt.label + ' ', '').replace(pt.label, '').trim()) + '</span>'
                 : '';
             var xBtn = isActive
                 ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemovePillType(\'' + pt.type + '\')">✕</button>'
                 : '';
-            return '<div class="' + cls + '" onclick="sfTogglePill(\'' + pt.type + '\',this,event)">' +
+            return '<div class="' + cls + '" data-rs-tip="' + tip + '" onclick="sfTogglePill(\'' + pt.type + '\',this,event)">' +
                 '<span class="sf-pill-name">' + pt.label + '</span>' +
                 valHtml +
                 '<span class="sf-pill-caret">' + (isOpen ? '▴' : '▾') + '</span>' +
@@ -3180,7 +3199,8 @@
         });
         var extraHtml = extraRows.map(function(row) {
             var val = sfPillLabel(row);
-            return '<div class="sf-pill active" onclick="sfOpenPopover(' + row.id + ',this)">' +
+            var tip = SF_TOOLTIPS[row.type] || '';
+            return '<div class="sf-pill active" data-rs-tip="' + tip + '" onclick="sfOpenPopover(' + row.id + ',this)">' +
                 '<span class="sf-pill-val" style="padding-left:8px;">' + esc(val) + '</span>' +
                 '<span class="sf-pill-caret">▾</span>' +
                 '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">✕</button>' +
@@ -3225,7 +3245,7 @@
                 ['ma_cluster',          'MA Cluster'],
                 ['slope',               'Slope'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(cond===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="How price relates to the moving average. Crossed conditions only trigger on today's candle.">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'maCondition\',this.value)">'+condOpts+'</select></div>';
             // Single MA pickers (price above/below, dist)
             var usesSingleMA = ['above_price','below_price','price_crossed_above','price_crossed_below','above_pct','below_pct','between_pct','slope'].indexOf(cond) !== -1;
             var usesDualMA   = ['ma_above','ma_below','crosses_above','crosses_below'].indexOf(cond) !== -1;
@@ -3237,30 +3257,30 @@
             var mp1 = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod1)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             var mp2 = MA_P.map(function(p){ return '<option value="'+p+'"'+(String(row.maPeriod2)===p?' selected':'')+'>'+p+'</option>'; }).join('');
             if (usesSingleMA) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select></div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+mp+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="SMA weights all days equally. EMA weights recent days more heavily.">MA Type</span><select class="sf-select" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Number of days in the moving average calculation.">Period</span><select class="sf-select" onchange="sfPopChange('+id+',\'maPeriod\',this.value)">'+mp+'</select></div>';
             }
             if (usesDualMA) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Fast MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod1\',this.value)">'+mp1+'</select></div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="The shorter, more responsive moving average.">Fast MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType\',this.value)">'+mt+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod1\',this.value)">'+mp1+'</select></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="The longer, slower-moving average used as the trend baseline.">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
             }
             if (usesPct) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum % distance between price and the moving average.">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
             if (usesBetween) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Lower bound: minimum % the price must be below the MA.">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Upper bound: maximum % the price can be above the MA.">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
             if (cond === 'slope') {
                 var slopeDir = row.slopeDir || 'rising';
                 var slopeBtns = [['rising','↑ Rising'],['falling','↓ Falling'],['flat','— Flat']].map(function(s){
                     return '<button class="sf-seg-btn'+(slopeDir===s[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'slopeDir\',\''+s[0]+'\')">'+s[1]+'</button>';
                 }).join('');
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><div class="sf-seg">'+slopeBtns+'</div></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Whether the MA is angling up, down, or staying flat.">Direction</span><div class="sf-seg">'+slopeBtns+'</div></div>';
                 if (slopeDir === 'flat') {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % change per day for the slope to still qualify as flat.">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
                 } else {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum slope steepness required, as % change per day.">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
                 }
             }
             if (cond === 'ma_cluster') {
@@ -3274,8 +3294,8 @@
                     var on  = selectedMAs.indexOf(key) !== -1;
                     return '<span class="sf-cluster-chip' + (on ? ' on' : '') + '" data-key="' + key + '" data-id="' + id + '" onclick="event.stopPropagation();sfToggleClusterMA(this)">' + m[0] + ' ' + m[1] + '</span>';
                 }).join('');
-                html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;"><span class="sf-popover-label" style="width:100%;margin-bottom:2px;">MAs</span>'+checks+'</div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;"><span class="sf-popover-label" style="width:100%;margin-bottom:2px;" data-rs-tip="Select which moving averages must be grouped tightly together.">MAs</span>'+checks+'</div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % spread allowed between the highest and lowest selected MA.">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'pattern') {
             var patOpts = [
@@ -3693,8 +3713,26 @@
         picker.id = 'sf-add-picker';
         picker.style.cssText = 'position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:4px 0;';
 
+        var PICKER_TOOLTIPS = {
+            ma:      'Moving Average — filter by price position relative to a moving average.',
+            rs:      'Relative Strength percentile vs all stocks (1–99). Higher = stronger price action.',
+            perf:    'Price performance over a selected timeframe.',
+            price:   'Filter by current stock price.',
+            vol:     'Average daily trading volume over 50 days.',
+            adr:     'Average Daily Range % — measures a stock\'s typical daily price volatility.',
+            cr:      'Closing Range % — where price closed within the day\'s high/low. 100% = closed at the high.',
+            mcap:    'Market Cap — total market value of the company.',
+            rvol:    'Relative Volume — today\'s volume vs the average for this time of day.',
+            udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
+            pattern: 'Filter by candlestick or price pattern.',
+            fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
+            gap:     'Filter stocks that gapped up or down at the open.',
+            range:   'Filter by where price sits within its 52-week or recent range.',
+            sector:  'Filter by market sector or specific industry.',
+        };
         picker.innerHTML = TYPES.map(function(t) {
-            return '<div class="sf-add-picker-item" onclick="sfAddPickerSelect(\'' + t.value + '\')" style="padding:7px 14px;font-size:0.825em;color:#c8d0dc;cursor:pointer;" onmouseover="this.style.background=\'#21262d\'" onmouseout="this.style.background=\'\'">' + t.label + '</div>';
+            var tip = PICKER_TOOLTIPS[t.value] || '';
+            return '<div class="sf-add-picker-item" data-rs-tip="' + tip + '" onclick="sfAddPickerSelect(\'' + t.value + '\')" style="padding:7px 14px;font-size:0.825em;color:#c8d0dc;cursor:pointer;" onmouseover="this.style.background=\'#21262d\'" onmouseout="this.style.background=\'\'">' + t.label + '</div>';
         }).join('');
 
         document.body.appendChild(picker);
