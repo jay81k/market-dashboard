@@ -6892,26 +6892,27 @@
             openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         });
     });
-    // ── Floating tooltip for 3M RS badge ─────────────────────────────────
+    // ── Floating tooltip for data-rs-tip elements ────────────────────────
     (function() {
         var tip = document.createElement('div');
         tip.id = 'rs-float-tip';
         document.body.appendChild(tip);
+        var _tipTarget = null;
         document.addEventListener('mouseover', function(e) {
             var el = e.target.closest('[data-rs-tip]');
-            if (!el) return;
-            tip.textContent = el.getAttribute('data-rs-tip');
-            tip.style.display = 'block';
+            if (el === _tipTarget) return;
+            _tipTarget = el;
+            if (!el) {
+                tip.style.display = 'none';
+            } else {
+                tip.textContent = el.getAttribute('data-rs-tip');
+                tip.style.display = 'block';
+            }
         });
         document.addEventListener('mousemove', function(e) {
-            if (tip.style.display === 'none') return;
-            tip.style.left = (e.clientX + 10) + 'px';
-            tip.style.top  = (e.clientY - 28) + 'px';
-        });
-        document.addEventListener('mouseout', function(e) {
-            var el = e.target.closest('[data-rs-tip]');
-            if (!el) return;
-            tip.style.display = 'none';
+            if (!_tipTarget) return;
+            tip.style.left = (e.clientX + 12) + 'px';
+            tip.style.top  = (e.clientY - 32) + 'px';
         });
     })();
 
