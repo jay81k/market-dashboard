@@ -73,6 +73,12 @@ SUPPLEMENTAL_TICKERS = [
         "Sector": "Technology",
         "Industry": "Semiconductor Equipment & Materials",
     },
+      {
+        "Ticker": "YSS",
+        "Sector": "industrials",
+        "Industry": "Aerospace & Defense",
+    },
+    
     # Add more rows here as needed:
     # {"Ticker": "XYZ", "Sector": "Healthcare", "Industry": "Biotechnology"},
 ]
