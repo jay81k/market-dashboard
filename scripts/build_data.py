@@ -75,7 +75,7 @@ SUPPLEMENTAL_TICKERS = [
     },
       {
         "Ticker": "YSS",
-        "Sector": "industrials",
+        "Sector": "Industrials",
         "Industry": "Aerospace & Defense",
     },
     
