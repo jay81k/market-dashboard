@@ -379,17 +379,15 @@
         /* Chart modal */
         .chart-modal-overlay {
             position: fixed; inset: 91px 0 0 0; background: rgba(0,0,0,0.8);
-            z-index: 9990; display: none; align-items: flex-start; justify-content: center;
+            z-index: 9990; display: none; align-items: stretch; justify-content: center;
         }
         .chart-modal-overlay.open { display: flex; }
 
         /* ── SCAN NAV PANEL (removable block) ── */
         #scan-nav-panel {
-            display: none; position: fixed;
-            right: 0; top: 91px; bottom: 0;
+            display: none;
             width: 4vw; min-width: 64px; max-width: 110px;
-            z-index: 9991;
-            flex-direction: column; overflow: hidden;
+            flex-direction: column; overflow: hidden; flex-shrink: 0;
             background: #0d1117; border-left: 1px solid #21262d;
         }
         #scan-nav-panel.snp-open { display: flex; }
@@ -426,7 +424,7 @@
         /* ── END SCAN NAV PANEL ── */
         .chart-modal {
             width: calc(98vw - 70px); height: calc(100vh - 111px); background: #0d1117;
-            margin-right: 70px;
+            align-self: flex-start;
             border-radius: 8px; border: 1px solid #30363d;
             box-shadow: 0 20px 60px rgba(0,0,0,0.9);
             display: flex; flex-direction: column; overflow: hidden;
@@ -1583,21 +1581,6 @@
 </div>
 
 <!-- Chart modal -->
-<!-- SCAN NAV PANEL (removable block) -->
-<div id="scan-nav-panel">
-    <div class="snp-header">
-        <span class="snp-title" id="snp-title">List</span>
-    </div>
-    <div class="snp-col-hdr">
-        <span class="snp-col-ticker">Symbol</span>
-    </div>
-    <div class="snp-list" id="snp-list"></div>
-    <div class="snp-footer">
-        <span class="snp-kbd">↑↓</span>
-        <span class="snp-kbd-hint">nav</span>
-    </div>
-</div>
-<!-- END SCAN NAV PANEL -->
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
         <div class="chart-modal-header">
@@ -1623,6 +1606,21 @@
             <div id="tradingview-chart" style="height:100%;width:100%;"></div>
         </div>
     </div>
+    <!-- SCAN NAV PANEL (removable block) -->
+    <div id="scan-nav-panel">
+        <div class="snp-header">
+            <span class="snp-title" id="snp-title">List</span>
+        </div>
+        <div class="snp-col-hdr">
+            <span class="snp-col-ticker">Symbol</span>
+        </div>
+        <div class="snp-list" id="snp-list"></div>
+        <div class="snp-footer">
+            <span class="snp-kbd">↑↓</span>
+            <span class="snp-kbd-hint">nav</span>
+        </div>
+    </div>
+    <!-- END SCAN NAV PANEL -->
 </div>
 
 <!-- Multichart fullscreen overlay -->
