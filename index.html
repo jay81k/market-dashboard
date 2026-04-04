@@ -4566,9 +4566,12 @@
                     if (wSide === 'high') {
                         if (wNewOnly && !r.new_52wk_high) return false;
                         if (!wNewOnly && wDist !== null && !isNaN(wDist)) {
-                            var distHigh = r.PctFrom52WkHigh != null ? -r.PctFrom52WkHigh : null;
-                            if (distHigh == null) return false;
-                            if (distHigh > wDist) return false;
+                            // PctFrom52WkHigh is negative or 0 (e.g. -3.5 = 3.5% below high)
+                            // user enters e.g. 5 meaning "within 5% of the high"
+                            // so we want PctFrom52WkHigh >= -wDist
+                            var pct = r.PctFrom52WkHigh != null ? r.PctFrom52WkHigh : null;
+                            if (pct == null) return false;
+                            if (pct < -wDist) return false;
                         }
                     } else {
                         if (wNewOnly && !r.new_52wk_low) return false;
