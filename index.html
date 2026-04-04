@@ -1585,7 +1585,7 @@
 <!-- SCAN NAV PANEL (removable block) -->
 <div id="scan-nav-panel">
     <div class="snp-header">
-        <span class="snp-title">List</span>
+        <span class="snp-title" id="snp-title">List</span>
         <span class="snp-count" id="snp-count"></span>
     </div>
     <div class="snp-col-hdr">
@@ -6996,6 +6996,21 @@
 
         var data = [];
         _snpSource = currentView;
+
+        // Set title and font-size based on view
+        var titleEl = document.getElementById('snp-title');
+        if (titleEl) {
+            if (currentView === 'scans') {
+                titleEl.textContent = 'Results';
+                titleEl.style.fontSize = '9px';
+            } else if (currentView === 'industry-stocks') {
+                titleEl.textContent = 'Group';
+                titleEl.style.fontSize = '10px';
+            } else {
+                titleEl.textContent = 'List';
+                titleEl.style.fontSize = '10px';
+            }
+        }
 
         if (currentView === 'scans') {
             if (!sfRows.length) { snpHide(); return; }
