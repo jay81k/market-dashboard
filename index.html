@@ -611,6 +611,9 @@
         }
         .sf-preset-item:last-child { border-bottom: none; }
         .sf-preset-item:hover { background: #21262d; }
+        .sf-preset-item.sf-preset-active { background: #1a3a5c; border-left: 3px solid #388bfd; padding-left: 9px; }
+        .sf-preset-item.sf-preset-active .sf-preset-item-name { color: #79c0ff; font-weight: 600; }
+        .sf-preset-item.sf-preset-active:hover { background: #1f446e; }
         .sf-preset-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .sf-preset-delete { color: #484f58; font-size: 1em; padding: 0 4px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
         .sf-preset-delete:hover { color: #f85149; }
@@ -4101,6 +4104,7 @@
     // ── Presets (persistent storage) ─────────────────────────────────────
     // ── Preset helpers ───────────────────────────────────────────────────
     var LS_PRESETS_KEY = 'dashboard-scan-presets';
+    var _activePresetName = null;
 
     function sfGetAllPresets() {
         try { return JSON.parse(localStorage.getItem(LS_PRESETS_KEY) || '{}'); }
@@ -4175,7 +4179,8 @@
         } else {
             names.forEach(function(name) {
                 var n = esc(name);
-                html += '<div class="sf-preset-item">' +
+                var isActive = (_activePresetName === name) ? ' sf-preset-active' : '';
+                html += '<div class="sf-preset-item' + isActive + '">' +
                     '<span class="sf-preset-item-name" data-sf-apply="' + n + '">' + n + '</span>' +
                     '<button class="sf-preset-delete" data-sf-export="' + n + '" title="Export" style="font-size:0.75em;color:#6e7681;padding:0 5px;">↓</button>' +
                     '<button class="sf-preset-delete" data-sf-delete="' + n + '" title="Delete">×</button>' +
@@ -4233,6 +4238,7 @@
     window.sfResetFilters = function() {
         sfRows = [];
         sfRowId = 0;
+        _activePresetName = null;
         var dd = document.getElementById('sf-preset-dropdown');
         if (dd) dd.classList.remove('open');
         sfRenderPills();
@@ -4245,6 +4251,7 @@
         var presets = sfGetAllPresets();
         var preset = presets[name];
         if (!preset) return;
+        _activePresetName = name;
         sfRows = preset.rows || [];
         sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
         sfRenderPills();
