@@ -394,14 +394,13 @@
         .snp-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 7px 6px; border-bottom: 1px solid #21262d; flex-shrink: 0;
-            background: #1f2d3d; min-height: 35px;
+            background: #161b22; min-height: 35px; box-sizing: border-box;
         }
         .snp-title { font-size: 10px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; }
         .snp-count { font-size: 9px; font-weight: 600; color: #8b949e; font-variant-numeric: tabular-nums; }
         .snp-col-hdr {
             display: flex; align-items: center; padding: 4px 4px 3px;
-            border-bottom: 1px solid #21262d; flex-shrink: 0;
-            background: #0d1117; gap: 2px;
+            flex-shrink: 0; background: #0d1117; gap: 2px;
         }
         .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.04em; }
         .snp-sym-hdr {
@@ -7117,6 +7116,15 @@
         }
         var idx = _snpData.findIndex(function(d) { return d.ticker === symbol; });
         if (idx !== -1) snpSetActive(idx);
+        // Sync spacer height to actual chart modal header height
+        requestAnimationFrame(function() {
+            var modalHdr = document.querySelector('.chart-modal-header');
+            var snpHdr   = document.getElementById('scan-nav-panel').querySelector('.snp-header');
+            if (modalHdr && snpHdr) {
+                snpHdr.style.height = modalHdr.getBoundingClientRect().height + 'px';
+                snpHdr.style.minHeight = '';
+            }
+        });
     };
 
     // Wrap closeChartModal to hide panel
