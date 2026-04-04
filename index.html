@@ -429,58 +429,47 @@
 
         /* ── SCAN NAV PANEL (removable block) ── */
         #scan-nav-panel {
-            position: absolute; left: 0; top: 0; bottom: 0;
-            width: 152px; z-index: 10;
-            background: rgba(13,17,23,0.96);
-            border-right: 1px solid #388bfd33;
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: calc(4vw - 2px);
+            min-width: 60px; max-width: 120px;
+            z-index: 10;
+            background: transparent;
             display: flex; flex-direction: column;
-            transition: transform 0.18s ease;
+            overflow: hidden;
         }
-        #scan-nav-panel.snp-hidden { transform: translateX(-100%); pointer-events: none; }
+        #scan-nav-panel.snp-hidden { display: none; }
         .snp-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 6px 8px 5px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+            padding: 6px 4px 5px; border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .snp-title { font-size: 10px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
-        .snp-count { font-size: 10px; color: #484f58; }
+        .snp-title { font-size: 9px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
+        .snp-count { font-size: 9px; color: #484f58; }
         .snp-col-hdr {
-            display: flex; align-items: center; padding: 4px 8px;
+            display: flex; align-items: center; padding: 3px 4px;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
-        .snp-col-rs3m   { width: 30px; text-align: right; font-size: 9px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
-        .snp-col-rs     { width: 26px; text-align: right; font-size: 9px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
+        .snp-col-ticker { flex: 1; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
+        .snp-col-rs3m   { width: 22px; text-align: right; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
         .snp-list { flex: 1; overflow-y: auto; overflow-x: hidden; }
-        .snp-list::-webkit-scrollbar { width: 3px; }
+        .snp-list::-webkit-scrollbar { width: 2px; }
         .snp-list::-webkit-scrollbar-track { background: transparent; }
         .snp-list::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
         .snp-row {
-            display: flex; align-items: center; padding: 5px 8px;
+            display: flex; align-items: center; padding: 4px 4px;
             border-bottom: 1px solid #161b22; cursor: pointer; transition: background 0.08s;
         }
         .snp-row:hover:not(.snp-active) { background: #161b22; }
-        .snp-row.snp-active { background: #1f2d3d; border-left: 2px solid #388bfd; padding-left: 6px; }
-        .snp-rank  { font-size: 10px; color: #484f58; width: 16px; flex-shrink: 0; text-align: right; padding-right: 4px; }
-        .snp-ticker { flex: 1; font-size: 11px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .snp-rs3m  { width: 30px; text-align: right; font-size: 11px; font-weight: 600; color: #58a6ff; flex-shrink: 0; }
-        .snp-rs    { width: 26px; text-align: right; font-size: 10px; color: #6e7681; flex-shrink: 0; }
+        .snp-row.snp-active { background: #1f2d3d; border-left: 2px solid #388bfd; padding-left: 2px; }
+        .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 3px; }
+        .snp-ticker { flex: 1; font-size: 10px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .snp-rs3m   { width: 22px; text-align: right; font-size: 10px; font-weight: 600; color: #58a6ff; flex-shrink: 0; }
         .snp-footer {
-            padding: 4px 8px; border-top: 1px solid #21262d; flex-shrink: 0;
-            display: flex; align-items: center; gap: 4px;
+            padding: 3px 4px; border-top: 1px solid #21262d; flex-shrink: 0;
+            display: flex; align-items: center; gap: 3px;
         }
-        .snp-kbd { background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 4px; font-size: 9px; color: #6e7681; }
-        .snp-kbd-hint { font-size: 9px; color: #484f58; }
-        /* Collapse toggle button */
-        #scan-nav-toggle {
-            position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-            z-index: 11; background: #161b22; border: 1px solid #21262d;
-            border-left: none; border-radius: 0 4px 4px 0;
-            width: 14px; height: 36px; cursor: pointer;
-            display: none; align-items: center; justify-content: center;
-            color: #484f58; font-size: 9px; transition: color 0.1s;
-        }
-        #scan-nav-toggle:hover { color: #c8d0dc; }
-        #scan-nav-toggle.snp-visible { display: flex; }
+        .snp-kbd { background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 3px; font-size: 8px; color: #6e7681; }
+        .snp-kbd-hint { font-size: 8px; color: #484f58; }
         /* ── END SCAN NAV PANEL ── */
         .queue-add-btn {
             display: inline-flex; align-items: center; gap: 4px;
@@ -1597,8 +1586,24 @@
 
 <!-- Chart modal -->
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
+    <!-- SCAN NAV PANEL (removable block) -->
+    <div id="scan-nav-panel" class="snp-hidden">
+        <div class="snp-header">
+            <span class="snp-title">Scan</span>
+            <span class="snp-count" id="snp-count"></span>
+        </div>
+        <div class="snp-col-hdr">
+            <span class="snp-col-ticker">Sym</span>
+            <span class="snp-col-rs3m">3M</span>
+        </div>
+        <div class="snp-list" id="snp-list"></div>
+        <div class="snp-footer">
+            <span class="snp-kbd">↑↓</span>
+            <span class="snp-kbd-hint">navigate</span>
+        </div>
+    </div>
+    <!-- END SCAN NAV PANEL -->
     <div class="chart-modal">
-        <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
@@ -1617,26 +1622,7 @@
                 <button class="chart-modal-close" onclick="closeChartModal()">×</button>
             </div>
         </div>
-        <div class="chart-modal-body" style="position:relative;">
-            <!-- SCAN NAV PANEL (removable block) -->
-            <div id="scan-nav-panel" class="snp-hidden">
-                <div class="snp-header">
-                    <span class="snp-title">List</span>
-                    <span class="snp-count" id="snp-count"></span>
-                </div>
-                <div class="snp-col-hdr">
-                    <span class="snp-col-ticker">Ticker</span>
-                    <span class="snp-col-rs3m">3M</span>
-                    <span class="snp-col-rs">RS</span>
-                </div>
-                <div class="snp-list" id="snp-list"></div>
-                <div class="snp-footer">
-                    <span class="snp-kbd">↑↓</span>
-                    <span class="snp-kbd-hint">navigate</span>
-                </div>
-            </div>
-            <button id="scan-nav-toggle" title="Toggle list panel" onclick="snpToggle()">›</button>
-            <!-- END SCAN NAV PANEL -->
+        <div class="chart-modal-body">
             <div id="tradingview-chart" style="height:100%;width:100%;"></div>
         </div>
     </div>
@@ -7005,8 +6991,7 @@
     var _snpSource  = '';   // 'scans' | 'industry-stocks'
 
     function snpBuild() {
-        var panel  = document.getElementById('scan-nav-panel');
-        var toggle = document.getElementById('scan-nav-toggle');
+        var panel = document.getElementById('scan-nav-panel');
         if (!panel) return;
 
         var data = [];
@@ -7048,12 +7033,10 @@
         var html = '';
         data.forEach(function(d, i) {
             var rs3mStr = d.rs3m != null ? Math.round(d.rs3m) : '—';
-            var rsStr   = d.rs   != null ? Math.round(d.rs)   : '—';
             html += '<div class="snp-row" data-snp-idx="' + i + '">' +
                 '<span class="snp-rank">' + (i + 1) + '</span>' +
                 '<span class="snp-ticker">' + d.ticker + '</span>' +
                 '<span class="snp-rs3m">'  + rs3mStr  + '</span>' +
-                '<span class="snp-rs">'    + rsStr     + '</span>' +
             '</div>';
         });
         if (listEl) listEl.innerHTML = html;
@@ -7070,31 +7053,14 @@
 
         // Show panel
         panel.classList.remove('snp-hidden');
-        if (toggle) { toggle.classList.add('snp-visible'); toggle.textContent = '‹'; }
     }
 
     function snpHide() {
-        var panel  = document.getElementById('scan-nav-panel');
-        var toggle = document.getElementById('scan-nav-toggle');
-        if (panel)  panel.classList.add('snp-hidden');
-        if (toggle) { toggle.classList.remove('snp-visible'); toggle.textContent = '›'; }
+        var panel = document.getElementById('scan-nav-panel');
+        if (panel) panel.classList.add('snp-hidden');
         _snpData  = [];
         _snpIndex = -1;
     }
-
-    window.snpToggle = function() {
-        var panel  = document.getElementById('scan-nav-panel');
-        var toggle = document.getElementById('scan-nav-toggle');
-        if (!panel) return;
-        var hidden = panel.classList.contains('snp-hidden');
-        if (hidden) {
-            panel.classList.remove('snp-hidden');
-            if (toggle) toggle.textContent = '‹';
-        } else {
-            panel.classList.add('snp-hidden');
-            if (toggle) toggle.textContent = '›';
-        }
-    };
 
     function snpSetActive(idx) {
         _snpIndex = idx;
