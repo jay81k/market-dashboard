@@ -382,6 +382,48 @@
             z-index: 9990; display: none; align-items: center; justify-content: center;
         }
         .chart-modal-overlay.open { display: flex; }
+
+        /* ── SCAN NAV PANEL (removable block) ── */
+        #scan-nav-panel {
+            display: none; position: fixed;
+            left: 0; top: 5vh; bottom: 5vh;
+            width: 4vw; min-width: 64px; max-width: 110px;
+            z-index: 9991;
+            flex-direction: column; overflow: hidden;
+        }
+        #scan-nav-panel.snp-open { display: flex; }
+        .snp-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 5px 4px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .snp-title { font-size: 9px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.05em; }
+        .snp-count { font-size: 9px; color: #484f58; }
+        .snp-col-hdr {
+            display: flex; align-items: center; padding: 3px 4px;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
+        }
+        .snp-col-ticker { flex: 1; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; }
+        .snp-col-rs3m { width: 20px; text-align: right; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; }
+        .snp-list { flex: 1; overflow-y: auto; overflow-x: hidden; }
+        .snp-list::-webkit-scrollbar { width: 2px; }
+        .snp-list::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
+        .snp-row {
+            display: flex; align-items: center;
+            padding: 4px 4px; border-bottom: 1px solid #161b22;
+            cursor: pointer; transition: background 0.08s;
+        }
+        .snp-row:hover:not(.snp-active) { background: #161b22; }
+        .snp-row.snp-active { background: #1f2d3d; border-left: 2px solid #388bfd; padding-left: 2px; }
+        .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 2px; }
+        .snp-ticker { flex: 1; font-size: 10px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .snp-rs3m   { width: 20px; text-align: right; font-size: 10px; font-weight: 600; color: #58a6ff; flex-shrink: 0; }
+        .snp-footer {
+            padding: 3px 4px; border-top: 1px solid #21262d; flex-shrink: 0;
+            display: flex; align-items: center; gap: 3px;
+        }
+        .snp-kbd { background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 3px; font-size: 8px; color: #6e7681; }
+        .snp-kbd-hint { font-size: 8px; color: #484f58; }
+        /* ── END SCAN NAV PANEL ── */
         .chart-modal {
             width: 92vw; height: 90vh; background: #0d1117;
             border-radius: 8px; border: 1px solid #30363d;
@@ -426,51 +468,6 @@
         .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.32rem; padding: 0 4px; }
         .chart-modal-close:hover { color: #c8d0dc; }
         .chart-modal-body { flex: 1; min-height: 0; }
-
-        /* ── SCAN NAV PANEL (removable block) ── */
-        #scan-nav-panel {
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: calc(4vw - 2px);
-            min-width: 60px; max-width: 120px;
-            z-index: 10;
-            background: transparent;
-            display: flex; flex-direction: column;
-            overflow: hidden;
-        }
-        #scan-nav-panel.snp-hidden { display: none; }
-        .snp-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 6px 4px 5px; border-bottom: 1px solid #21262d; flex-shrink: 0;
-        }
-        .snp-title { font-size: 9px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
-        .snp-count { font-size: 9px; color: #484f58; }
-        .snp-col-hdr {
-            display: flex; align-items: center; padding: 3px 4px;
-            border-bottom: 1px solid #21262d; flex-shrink: 0;
-        }
-        .snp-col-ticker { flex: 1; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
-        .snp-col-rs3m   { width: 22px; text-align: right; font-size: 8px; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.05em; }
-        .snp-list { flex: 1; overflow-y: auto; overflow-x: hidden; }
-        .snp-list::-webkit-scrollbar { width: 2px; }
-        .snp-list::-webkit-scrollbar-track { background: transparent; }
-        .snp-list::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
-        .snp-row {
-            display: flex; align-items: center; padding: 4px 4px;
-            border-bottom: 1px solid #161b22; cursor: pointer; transition: background 0.08s;
-        }
-        .snp-row:hover:not(.snp-active) { background: #161b22; }
-        .snp-row.snp-active { background: #1f2d3d; border-left: 2px solid #388bfd; padding-left: 2px; }
-        .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 3px; }
-        .snp-ticker { flex: 1; font-size: 10px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .snp-rs3m   { width: 22px; text-align: right; font-size: 10px; font-weight: 600; color: #58a6ff; flex-shrink: 0; }
-        .snp-footer {
-            padding: 3px 4px; border-top: 1px solid #21262d; flex-shrink: 0;
-            display: flex; align-items: center; gap: 3px;
-        }
-        .snp-kbd { background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 3px; font-size: 8px; color: #6e7681; }
-        .snp-kbd-hint { font-size: 8px; color: #484f58; }
-        /* ── END SCAN NAV PANEL ── */
         .queue-add-btn {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 3px 8px; border-radius: 5px; border: 1px solid #30363d;
@@ -1585,25 +1582,26 @@
 </div>
 
 <!-- Chart modal -->
-<div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
-    <!-- SCAN NAV PANEL (removable block) -->
-    <div id="scan-nav-panel" class="snp-hidden">
-        <div class="snp-header">
-            <span class="snp-title">Scan</span>
-            <span class="snp-count" id="snp-count"></span>
-        </div>
-        <div class="snp-col-hdr">
-            <span class="snp-col-ticker">Sym</span>
-            <span class="snp-col-rs3m">3M</span>
-        </div>
-        <div class="snp-list" id="snp-list"></div>
-        <div class="snp-footer">
-            <span class="snp-kbd">↑↓</span>
-            <span class="snp-kbd-hint">navigate</span>
-        </div>
+<!-- SCAN NAV PANEL (removable block) -->
+<div id="scan-nav-panel">
+    <div class="snp-header">
+        <span class="snp-title">List</span>
+        <span class="snp-count" id="snp-count"></span>
     </div>
-    <!-- END SCAN NAV PANEL -->
+    <div class="snp-col-hdr">
+        <span class="snp-col-ticker">Sym</span>
+        <span class="snp-col-rs3m">3M</span>
+    </div>
+    <div class="snp-list" id="snp-list"></div>
+    <div class="snp-footer">
+        <span class="snp-kbd">↑↓</span>
+        <span class="snp-kbd-hint">nav</span>
+    </div>
+</div>
+<!-- END SCAN NAV PANEL -->
+<div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
+        <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
@@ -6984,49 +6982,38 @@
             openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         });
     });
-    // ── SCAN NAV PANEL — removable block ─────────────────────────────────
-    // To revert: remove this entire block and the HTML/CSS blocks marked the same.
-    var _snpData    = [];   // [{ticker, rs, rs3m}]
-    var _snpIndex   = -1;   // currently active row index
-    var _snpSource  = '';   // 'scans' | 'industry-stocks'
+    // ── SCAN NAV PANEL (removable block) ─────────────────────────────────
+    var _snpData   = [];
+    var _snpIndex  = -1;
+    var _snpSource = '';
 
     function snpBuild() {
         var panel = document.getElementById('scan-nav-panel');
         if (!panel) return;
 
         var data = [];
-        var source = currentView;
+        _snpSource = currentView;
 
-        if (source === 'scans') {
-            // Only show when filters are active
+        if (currentView === 'scans') {
             if (!sfRows.length) { snpHide(); return; }
             data = _vsData.map(function(r) {
-                return { ticker: r.ticker, rs: r.Percentile, rs3m: r.weighted_rs_pct };
+                return { ticker: r.ticker, rs3m: r.weighted_rs_pct };
             });
-        } else if (source === 'industry-stocks') {
-            // Only show when drilled into a specific industry
+        } else if (currentView === 'industry-stocks') {
             var rows = Array.from(document.querySelectorAll('#stocks-tbody .stock-row'));
             if (!rows.length) { snpHide(); return; }
             data = rows.map(function(r) {
                 var sym = r.getAttribute('data-symbol');
                 var sd  = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
-                return {
-                    ticker: sym,
-                    rs:   sd ? sd.Percentile        : null,
-                    rs3m: sd ? sd.weighted_rs_pct   : null
-                };
+                return { ticker: sym, rs3m: sd ? sd.weighted_rs_pct : null };
             });
         } else {
             snpHide(); return;
         }
 
         if (!data.length) { snpHide(); return; }
+        _snpData = data;
 
-        _snpData   = data;
-        _snpSource = source;
-
-        // Build rows HTML
-        var listEl = document.getElementById('snp-list');
         var countEl = document.getElementById('snp-count');
         if (countEl) countEl.textContent = data.length;
 
@@ -7036,28 +7023,26 @@
             html += '<div class="snp-row" data-snp-idx="' + i + '">' +
                 '<span class="snp-rank">' + (i + 1) + '</span>' +
                 '<span class="snp-ticker">' + d.ticker + '</span>' +
-                '<span class="snp-rs3m">'  + rs3mStr  + '</span>' +
+                '<span class="snp-rs3m">' + rs3mStr + '</span>' +
             '</div>';
         });
-        if (listEl) listEl.innerHTML = html;
 
-        // Row click handler
+        var listEl = document.getElementById('snp-list');
         if (listEl) {
+            listEl.innerHTML = html;
             listEl.onclick = function(e) {
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
-                var idx = parseInt(row.getAttribute('data-snp-idx'), 10);
-                snpNavigateTo(idx);
+                snpNavigateTo(parseInt(row.getAttribute('data-snp-idx'), 10));
             };
         }
 
-        // Show panel
-        panel.classList.remove('snp-hidden');
+        panel.classList.add('snp-open');
     }
 
     function snpHide() {
         var panel = document.getElementById('scan-nav-panel');
-        if (panel) panel.classList.add('snp-hidden');
+        if (panel) panel.classList.remove('snp-open');
         _snpData  = [];
         _snpIndex = -1;
     }
@@ -7069,7 +7054,6 @@
         listEl.querySelectorAll('.snp-row').forEach(function(r) {
             r.classList.toggle('snp-active', parseInt(r.getAttribute('data-snp-idx'), 10) === idx);
         });
-        // Scroll active row into view within the panel list
         var activeRow = listEl.querySelector('.snp-row.snp-active');
         if (activeRow) activeRow.scrollIntoView({ block: 'nearest' });
     }
@@ -7081,7 +7065,6 @@
         var d = _snpData[idx];
         if (!d) return;
 
-        // Also sync the main list selection so existing arrow-key logic stays in sync
         if (_snpSource === 'scans') {
             currentStockIndex = idx;
             allStockRows = { length: _vsData.length };
@@ -7095,45 +7078,36 @@
         openChartModal(d.ticker, '', '');
     }
 
-    // Hook into openChartModal to show/build panel
+    // Wrap openChartModal to show/sync panel
     var _origOpenChartModal = openChartModal;
     openChartModal = function(symbol, sector, industry) {
         _origOpenChartModal(symbol, sector, industry);
-        // Determine active index from current list
-        var idx = _snpData.findIndex(function(d) { return d.ticker === symbol; });
-        if (idx !== -1) {
-            snpSetActive(idx);
-        } else {
-            // Build fresh (covers first open)
+        if (!_snpData.length) {
             snpBuild();
-            idx = _snpData.findIndex(function(d) { return d.ticker === symbol; });
-            if (idx !== -1) snpSetActive(idx);
         }
+        var idx = _snpData.findIndex(function(d) { return d.ticker === symbol; });
+        if (idx !== -1) snpSetActive(idx);
     };
 
-    // Hook into closeChartModal to hide panel
+    // Wrap closeChartModal to hide panel
     var _origCloseChartModal = window.closeChartModal;
     window.closeChartModal = function() {
         _origCloseChartModal();
         snpHide();
     };
 
-    // Arrow key navigation inside the panel (when modal is open)
+    // Arrow key nav when modal is open — capture phase so it takes priority
     document.addEventListener('keydown', function(e) {
+        if (!_snpData.length) return;
         var modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
-        if (!modalOpen || !_snpData.length) return;
+        if (!modalOpen) return;
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            e.stopPropagation();
-            snpNavigateTo(_snpIndex + 1);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            e.stopPropagation();
-            snpNavigateTo(_snpIndex - 1);
-        }
-    }, true); // capture phase — runs before existing keydown handlers
+        if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); snpNavigateTo(_snpIndex + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); snpNavigateTo(_snpIndex - 1); }
+    }, true);
     // ── END SCAN NAV PANEL ───────────────────────────────────────────────
+
+    // ── Floating tooltip for data-rs-tip elements ────────────────────────
     (function() {
         var tip = document.createElement('div');
         tip.id = 'rs-float-tip';
