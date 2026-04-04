@@ -386,7 +386,7 @@
         /* ── SCAN NAV PANEL (removable block) ── */
         #scan-nav-panel {
             display: none; position: fixed;
-            left: 0; top: 90px; bottom: 0;
+            left: 0; top: 91px; bottom: 0;
             width: 4vw; min-width: 64px; max-width: 110px;
             z-index: 9991;
             flex-direction: column; overflow: hidden;
@@ -1785,7 +1785,7 @@
 
         document.getElementById('main-area').style.overflow = (view === 'watchlists') ? 'hidden' : '';
 
-        document.getElementById('tab-industries').classList.toggle('active', view === 'industries');
+        document.getElementById('tab-industries').classList.toggle('active', view === 'industries' || view === 'industry-stocks' || view === 'sector');
         document.getElementById('tab-scans').classList.toggle('active', view === 'scans');
         document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
         document.getElementById('tab-market').classList.toggle('active', view === 'market');
