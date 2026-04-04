@@ -385,14 +385,12 @@
 
         /* ── SCAN NAV PANEL (removable block) ── */
         #scan-nav-panel {
-            display: flex;
-            width: 0; min-width: 0;
-            overflow: hidden; flex-shrink: 0;
-            flex-direction: column;
+            display: none;
+            width: 4vw; min-width: 64px; max-width: 110px;
+            flex-direction: column; overflow: hidden; flex-shrink: 0;
             background: #0d1117; border-left: 1px solid #21262d;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        #scan-nav-panel.snp-open { width: 80px; }
+        #scan-nav-panel.snp-open { display: flex; }
         .snp-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 7px 6px; border-bottom: 1px solid #21262d; flex-shrink: 0;
@@ -417,20 +415,13 @@
         .snp-row.snp-active { background: #1f2d3d; border-right: 2px solid #388bfd; padding-right: 2px; }
         .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 4px; }
         .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .snp-footer {
-            padding: 3px 4px; border-top: 1px solid #21262d; flex-shrink: 0;
-            display: flex; align-items: center; gap: 3px;
-        }
-        .snp-kbd { background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 3px; font-size: 8px; color: #6e7681; }
-        .snp-kbd-hint { font-size: 8px; color: #484f58; }
         /* ── END SCAN NAV PANEL ── */
         .chart-modal {
-            width: calc(98vw - 80px); height: calc(100vh - 111px); background: #0d1117;
+            width: calc(98vw - 70px); height: calc(100vh - 111px); background: #0d1117;
             align-self: flex-start;
             border-radius: 8px; border: 1px solid #30363d;
             box-shadow: 0 20px 60px rgba(0,0,0,0.9);
             display: flex; flex-direction: column; overflow: hidden;
-            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .chart-modal-header {
             display: flex; align-items: center; gap: 10px;
