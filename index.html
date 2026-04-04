@@ -35,13 +35,22 @@
             border-bottom: 1px solid #21262d; flex-shrink: 0;
             position: relative; z-index: 50;
         }
+        .search-wrap { position: relative; display: inline-flex; align-items: center; }
         .search-input {
             background: #161b22; border: 1px solid #21262d; border-radius: 6px;
-            color: #c8d0dc; padding: 4px 12px; height: 28px; font-size: 0.902em; outline: none;
+            color: #c8d0dc; padding: 4px 28px 4px 12px; height: 28px; font-size: 0.902em; outline: none;
             font-family: inherit; width: 220px;
         }
         .search-input::placeholder { color: #484f58; }
         .search-input:focus { border-color: #388bfd44; }
+        .search-clear-btn {
+            position: absolute; right: 7px; background: none; border: none;
+            color: #484f58; cursor: pointer; font-size: 13px; line-height: 1;
+            padding: 0; display: none; align-items: center; justify-content: center;
+            width: 14px; height: 14px;
+        }
+        .search-clear-btn:hover { color: #c8d0dc; }
+        .search-clear-btn.visible { display: flex; }
 
         .tf-group { display: flex; gap: 3px; }
         .tf-btn {
@@ -1169,7 +1178,10 @@
 
 <!-- Toolbar -->
 <div class="toolbar">
-    <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
+    <div class="search-wrap">
+        <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
+        <button class="search-clear-btn" id="search-clear-btn" title="Clear search">×</button>
+    </div>
     <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;">&#x229E;</button>
 </div>
 
@@ -1722,6 +1734,10 @@
 
         var searchEl = document.getElementById('search-input');
         searchEl.style.display = (view === 'market') ? 'none' : '';
+        var _scb = document.getElementById('search-clear-btn');
+        if (_scb) _scb.classList.remove('visible');
+        var _sw = searchEl.closest('.search-wrap');
+        if (_sw) _sw.style.display = (view === 'market') ? 'none' : '';
         searchEl.value = '';
         searchQuery = '';
         if (view === 'industries') {
@@ -2962,22 +2978,37 @@
     });
 
     // ── Search ────────────────────────────────────────────────────────────
+    var _searchClearBtn = document.getElementById('search-clear-btn');
+    function _updateSearchClear(val) {
+        _searchClearBtn.classList.toggle('visible', val.length > 0);
+    }
+    function _applySearchQuery(q) {
+        if (currentView === 'industries') {
+            searchQuery = q;
+            if (indView === 'heatmap') renderHeatmap();
+            else renderIndustries();
+        } else if (currentView === 'industry-stocks') {
+            filterStocksTable(q);
+        } else if (currentView === 'scans') {
+            filterScansTable(q);
+        } else if (currentView === 'watchlists') {
+            wlSearchQuery(q);
+        }
+    }
     document.getElementById('search-input').addEventListener('input', function() {
         var q = this.value;
+        _updateSearchClear(q);
         clearTimeout(this._searchTimer);
         this._searchTimer = setTimeout(function() {
-            if (currentView === 'industries') {
-                searchQuery = q;
-                if (indView === 'heatmap') renderHeatmap();
-                else renderIndustries();
-            } else if (currentView === 'industry-stocks') {
-                filterStocksTable(q);
-            } else if (currentView === 'scans') {
-                filterScansTable(q);
-            } else if (currentView === 'watchlists') {
-                wlSearchQuery(q);
-            }
+            _applySearchQuery(q);
         }, 150);
+    });
+    _searchClearBtn.addEventListener('click', function() {
+        var el = document.getElementById('search-input');
+        el.value = '';
+        _updateSearchClear('');
+        _applySearchQuery('');
+        el.focus();
     });
 
     // ── Column tooltips ───────────────────────────────────────────────────
