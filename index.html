@@ -402,12 +402,13 @@
             display: flex; align-items: center; padding: 4px 4px 3px;
             flex-shrink: 0; background: #0d1117; gap: 2px;
         }
-        .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.04em; }
+        .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
         .snp-sym-hdr {
             display: flex; align-items: center; padding: 3px 4px;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #0d1117;
         }
+        .snp-sym-hdr .snp-col-ticker { color: #6e7681; }
         .snp-list { flex: 1; overflow-y: auto; overflow-x: hidden; }
         .snp-list::-webkit-scrollbar { width: 2px; }
         .snp-list::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
@@ -3229,6 +3230,16 @@
             var crDir = row.dir === 'gt' ? '>' : '<';
             return 'CR ' + crTfLabel + ' ' + crDir + ' ' + (row.val != null ? row.val : '—') + '%';
         }
+        if (row.type === 'wk52') {
+            var side    = row.wk52Side === 'low' ? '52W Low' : '52W High';
+            var newOnly = row.wk52NewOnly ? ' · New' : '';
+            var dMin    = row.wk52DistMin != null && row.wk52DistMin !== '' ? row.wk52DistMin : null;
+            var dMax    = row.wk52DistMax != null && row.wk52DistMax !== '' ? row.wk52DistMax : null;
+            var distPart = (dMin !== null || dMax !== null)
+                ? ' · ' + (dMin !== null ? dMin + '%' : '0%') + '–' + (dMax !== null ? dMax + '%' : '∞')
+                : '';
+            return side + newOnly + distPart;
+        }
         if (row.type === 'sector') {
             var secs = row.sectors || [];
             var inds = row.industries || [];
@@ -3288,6 +3299,7 @@
             gap:     'Filter stocks that gapped up or down at the open.',
             range:   'Filter by where price sits within its 52-week or recent range.',
             sector:  'Filter by market sector or specific industry.',
+            wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
         };
 
         var html = PILL_TYPES.map(function(pt) {
@@ -3486,6 +3498,29 @@
             var dirOptsRs = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOptsRs+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="1" max="99" step="1" value="'+(row.val!=null?row.val:70)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
+        } else if (row.type === 'wk52') {
+            var wk52Side    = row.wk52Side    || 'high';
+            var wk52NewOnly = row.wk52NewOnly || 0;
+            var wk52DistMin = row.wk52DistMin != null ? row.wk52DistMin : '';
+            var wk52DistMax = row.wk52DistMax != null ? row.wk52DistMax : '';
+            // Mutually exclusive chips: High / Low
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Side</span>' +
+                '<div class="sf-seg">' +
+                '<button class="sf-seg-btn'+(wk52Side==='high'?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52Side\',\'high\')">52W High</button>' +
+                '<button class="sf-seg-btn'+(wk52Side==='low'?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52Side\',\'low\')">52W Low</button>' +
+                '</div></div>';
+            // New only toggle — No = show distance rows, Yes = hide them
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">New only</span>' +
+                '<div class="sf-seg">' +
+                '<button class="sf-seg-btn'+(wk52NewOnly?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52NewOnly\',1)">Yes</button>' +
+                '<button class="sf-seg-btn'+(!wk52NewOnly?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52NewOnly\',0)">No</button>' +
+                '</div></div>';
+            // Distance rows only shown when New Only = No
+            if (!wk52NewOnly) {
+                var distLabel = wk52Side === 'high' ? '% below high' : '% above low';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Min ' + distLabel + '</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 0" value="'+wk52DistMin+'" oninput="sfPopChange('+id+',\'wk52DistMin\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max ' + distLabel + '</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 5" value="'+wk52DistMax+'" oninput="sfPopChange('+id+',\'wk52DistMax\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            }
         } else if (row.type === 'sector') {
             var allSectors = [];
             var sectorIndustries = {};
@@ -3787,7 +3822,7 @@
             row[field] = value;
             // For free-text input fields don't re-render the popover — it destroys the
             // input element and kills focus after every keystroke. Just update state + pills.
-            var isTextInput = (field === 'val' || field === 'val2' || field === 'clusterSpread');
+            var isTextInput = (field === 'val' || field === 'val2' || field === 'clusterSpread' || field === 'wk52DistMin' || field === 'wk52DistMax');
             if (!isTextInput) {
                 if (field === 'maCondition') {
                     if ((value === 'above_pct' || value === 'below_pct') && (row.val === '' || row.val == null)) row.val = 0;
@@ -3829,6 +3864,7 @@
             { value: 'gap',     label: 'Gap' },
             { value: 'range',   label: 'Range' },
             { value: 'sector',  label: 'Sector' },
+            { value: 'wk52',    label: '52-Week High/Low' },
         ];
 
         var picker = document.createElement('div');
@@ -3851,6 +3887,7 @@
             gap:     'Filter stocks that gapped up or down at the open.',
             range:   'Filter by where price sits within its 52-week or recent range.',
             sector:  'Filter by market sector or specific industry.',
+            wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
         };
         picker.innerHTML = TYPES.map(function(t) {
             var tip = PICKER_TOOLTIPS[t.value] || '';
@@ -3892,6 +3929,10 @@
             perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd', udvPeriod: 50,
             sectors: type === 'sector' ? [] : undefined,
             industries: type === 'sector' ? [] : undefined,
+            wk52Side: type === 'wk52' ? 'high' : undefined,
+            wk52NewOnly: type === 'wk52' ? 0 : undefined,
+            wk52DistMin: type === 'wk52' ? null : undefined,
+            wk52DistMax: type === 'wk52' ? null : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
                  type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : null };
@@ -4522,6 +4563,31 @@
                         if (inds.indexOf(r.industry) === -1) return false;
                     } else if (secs.length > 0) {
                         if (secs.indexOf(r.sector) === -1) return false;
+                    }
+                } else if (f.type === 'wk52') {
+                    var wSide = f.wk52Side || 'high';
+                    var wNewOnly = !!f.wk52NewOnly;
+                    var wDistMin = f.wk52DistMin != null && f.wk52DistMin !== '' ? parseFloat(f.wk52DistMin) : null;
+                    var wDistMax = f.wk52DistMax != null && f.wk52DistMax !== '' ? parseFloat(f.wk52DistMax) : null;
+                    if (wSide === 'high') {
+                        if (wNewOnly && !r.new_52wk_high) return false;
+                        if (wDistMin !== null || wDistMax !== null) {
+                            // PctFrom52WkHigh is negative (e.g. -3.5 means 3.5% below high)
+                            // we expose it as positive "% below high" to the user
+                            var distHigh = r.PctFrom52WkHigh != null ? -r.PctFrom52WkHigh : null;
+                            if (distHigh == null) return false;
+                            if (wDistMin !== null && !isNaN(wDistMin) && distHigh < wDistMin) return false;
+                            if (wDistMax !== null && !isNaN(wDistMax) && distHigh > wDistMax) return false;
+                        }
+                    } else {
+                        if (wNewOnly && !r.new_52wk_low) return false;
+                        if (wDistMin !== null || wDistMax !== null) {
+                            // PctFrom52WkLow is positive (e.g. 12 means 12% above low)
+                            var distLow = r.PctFrom52WkLow != null ? r.PctFrom52WkLow : null;
+                            if (distLow == null) return false;
+                            if (wDistMin !== null && !isNaN(wDistMin) && distLow < wDistMin) return false;
+                            if (wDistMax !== null && !isNaN(wDistMax) && distLow > wDistMax) return false;
+                        }
                     }
                 }
             }
