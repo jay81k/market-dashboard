@@ -404,6 +404,11 @@
             background: #0d1117; gap: 2px;
         }
         .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.04em; }
+        .snp-sym-hdr {
+            display: flex; align-items: center; padding: 3px 4px;
+            border-bottom: 1px solid #21262d; flex-shrink: 0;
+            background: #0d1117;
+        }
         .snp-list { flex: 1; overflow-y: auto; overflow-x: hidden; }
         .snp-list::-webkit-scrollbar { width: 2px; }
         .snp-list::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
@@ -1613,6 +1618,10 @@
             <span style="width:14px;flex-shrink:0;"></span>
             <span class="snp-col-ticker" id="snp-title">Results</span>
             <span class="snp-count" id="snp-count"></span>
+        </div>
+        <div class="snp-sym-hdr">
+            <span style="width:14px;flex-shrink:0;"></span>
+            <span class="snp-col-ticker">Symbol</span>
         </div>
         <div class="snp-list" id="snp-list"></div>
         </div>
