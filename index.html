@@ -79,7 +79,7 @@
             transition: all 0.12s;
         }
         .sort-btn:hover { background: #161b22; color: #c8d0dc; }
-        .sort-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
+        .sort-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
 
         .result-count { font-size: 0.825em; color: #484f58; margin-left: 4px; }
         .toolbar-divider { width: 1px; height: 16px; background: #21262d; flex-shrink: 0; }
@@ -443,11 +443,12 @@
         /* ── Industry heatmap ── */
         .ind-view-btn {
             padding: 3px 9px; border-radius: 4px; border: 1px solid #21262d;
-            background: transparent; color: #6e7681; font-size: 0.858em;
+            background: transparent; color: #6e7681;
             font-family: inherit; cursor: pointer; transition: all 0.12s;
+            display: inline-flex; align-items: center;
         }
         .ind-view-btn:hover { background: #161b22; color: #c8d0dc; }
-        .ind-view-btn.active { background: #161b22; border-color: #30363d; color: #c8d0dc; }
+        .ind-view-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
 
         .heatmap-tf-group { display: flex; gap: 3px; }
         .heatmap-tf-btn {
@@ -1182,7 +1183,7 @@
         <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
         <button class="search-clear-btn" id="search-clear-btn" title="Clear search">×</button>
     </div>
-    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
+    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg></button>
 </div>
 
 <!-- Main scrollable area -->
@@ -1198,10 +1199,9 @@
                 <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
                 <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
             </div>
-            <div style="display:flex;align-items:center;gap:4px;margin-left:16px;flex-shrink:0;">
-                <div style="width:1px;height:14px;background:#21262d;margin-right:2px;"></div>
-                <button class="ind-view-btn active" id="ind-view-list-btn" onclick="setIndView('list')" title="List view">&#9776;</button>
-                <button class="ind-view-btn" id="ind-view-heat-btn" onclick="setIndView('heatmap')" title="Heatmap view">&#9632;&#9632;</button>
+            <div style="display:flex;align-items:center;gap:4px;margin-left:16px;flex-shrink:0;"><div style="width:1px;height:14px;background:#21262d;margin-right:2px;"></div>
+                <button class="ind-view-btn active" id="ind-view-list-btn" onclick="setIndView('list')" title="List view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg></button>
+                <button class="ind-view-btn" id="ind-view-heat-btn" onclick="setIndView('heatmap')" title="Heatmap view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="10" width="3" height="3" rx="0.5" fill="currentColor"/></svg></button>
             </div>
             <span style="flex:1;min-width:0;"></span>
             <span class="ind-col-hdr sortable-ind" data-col="avg_daily"  onclick="setIndSort('avg_daily')">Day</span>
@@ -1219,8 +1219,8 @@
         <!-- Heatmap toolbar (hidden in list mode) -->
         <div id="heatmap-toolbar" style="display:none;align-items:center;gap:6px;padding:6px 16px;border-bottom:1px solid #21262d;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
-                <button class="ind-view-btn active" id="ind-view-list-btn2" onclick="setIndView('list')" title="List view">&#9776;</button>
-                <button class="ind-view-btn" id="ind-view-heat-btn2" onclick="setIndView('heatmap')" title="Heatmap view">&#9632;&#9632;</button>
+                <button class="ind-view-btn active" id="ind-view-list-btn2" onclick="setIndView('list')" title="List view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg></button>
+                <button class="ind-view-btn" id="ind-view-heat-btn2" onclick="setIndView('heatmap')" title="Heatmap view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="10" width="3" height="3" rx="0.5" fill="currentColor"/></svg></button>
             </div>
             <div style="width:1px;height:16px;background:#21262d;"></div>
             <div class="heatmap-tf-group">
