@@ -1182,7 +1182,7 @@
         <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
         <button class="search-clear-btn" id="search-clear-btn" title="Clear search">×</button>
     </div>
-    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;">&#x229E;</button>
+    <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
 </div>
 
 <!-- Main scrollable area -->
@@ -1263,7 +1263,7 @@
                 <div class="stocks-rs-badge" id="si-rs"></div>
             </div>
             <button class="sf-export-btn" id="ind-export-btn" onclick="indOpenExport()" disabled style="margin-left:auto;flex-shrink:0;">Export ▾</button>
-            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="flex-shrink:0;">⊞ Multichart</button>
+            <button class="back-btn" id="multichart-toggle-btn" onclick="toggleMultichart()" style="flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
         </div>
         <!-- Table view -->
         <div id="stocks-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -1310,7 +1310,7 @@
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
             <button class="sf-export-btn" id="scans-export-btn" onclick="sfOpenExport()" disabled>Export ▾</button>
-            <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;">&#x229E; Multichart</button>
+            <button class="back-btn" id="scans-multichart-toggle-btn" onclick="toggleScansMultichart()" style="margin-left:auto;"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
         </div>
         <!-- Export modal -->
         <div class="sf-export-modal" id="sf-export-modal" onclick="if(event.target===this)sfCloseExport()">
