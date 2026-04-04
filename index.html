@@ -428,7 +428,6 @@
         .chart-modal-body { flex: 1; min-height: 0; }
 
         /* ── SCAN NAV PANEL (removable block) ── */
-        .chart-modal { position: relative; }
         #scan-nav-panel {
             position: absolute; left: 0; top: 0; bottom: 0;
             width: 152px; z-index: 10;
@@ -1599,25 +1598,6 @@
 <!-- Chart modal -->
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
-        <!-- SCAN NAV PANEL (removable block) -->
-        <div id="scan-nav-panel" class="snp-hidden">
-            <div class="snp-header">
-                <span class="snp-title">List</span>
-                <span class="snp-count" id="snp-count"></span>
-            </div>
-            <div class="snp-col-hdr">
-                <span class="snp-col-ticker">Ticker</span>
-                <span class="snp-col-rs3m">3M</span>
-                <span class="snp-col-rs">RS</span>
-            </div>
-            <div class="snp-list" id="snp-list"></div>
-            <div class="snp-footer">
-                <span class="snp-kbd">↑↓</span>
-                <span class="snp-kbd-hint">navigate</span>
-            </div>
-        </div>
-        <button id="scan-nav-toggle" title="Toggle list panel" onclick="snpToggle()">›</button>
-        <!-- END SCAN NAV PANEL -->
         <div class="chart-modal-header">
             <span class="chart-modal-sym" id="chart-modal-sym"></span>
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
@@ -1637,7 +1617,26 @@
                 <button class="chart-modal-close" onclick="closeChartModal()">×</button>
             </div>
         </div>
-        <div class="chart-modal-body">
+        <div class="chart-modal-body" style="position:relative;">
+            <!-- SCAN NAV PANEL (removable block) -->
+            <div id="scan-nav-panel" class="snp-hidden">
+                <div class="snp-header">
+                    <span class="snp-title">List</span>
+                    <span class="snp-count" id="snp-count"></span>
+                </div>
+                <div class="snp-col-hdr">
+                    <span class="snp-col-ticker">Ticker</span>
+                    <span class="snp-col-rs3m">3M</span>
+                    <span class="snp-col-rs">RS</span>
+                </div>
+                <div class="snp-list" id="snp-list"></div>
+                <div class="snp-footer">
+                    <span class="snp-kbd">↑↓</span>
+                    <span class="snp-kbd-hint">navigate</span>
+                </div>
+            </div>
+            <button id="scan-nav-toggle" title="Toggle list panel" onclick="snpToggle()">›</button>
+            <!-- END SCAN NAV PANEL -->
             <div id="tradingview-chart" style="height:100%;width:100%;"></div>
         </div>
     </div>
