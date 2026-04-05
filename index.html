@@ -396,13 +396,13 @@
             padding: 7px 6px; border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #161b22; min-height: 35px; box-sizing: border-box;
         }
-        .snp-title { font-size: 10px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; }
+        .snp-title { font-size: 13px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; }
         .snp-count { font-size: 9px; font-weight: 600; color: #8b949e; font-variant-numeric: tabular-nums; }
         .snp-col-hdr {
             display: flex; align-items: center; padding: 4px 4px 3px;
             flex-shrink: 0; background: #0d1117; gap: 2px;
         }
-        .snp-col-ticker { flex: 1; font-size: 9px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+        .snp-col-ticker { flex: 1; font-size: 11px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
         .snp-sym-hdr {
             display: flex; align-items: center; padding: 3px 4px;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
@@ -1612,9 +1612,6 @@
     <!-- SCAN NAV PANEL (removable block) -->
     <div id="scan-nav-panel">
         <div class="snp-header">
-            <!-- blank spacer — matches chart-modal-header height -->
-        </div>
-        <div class="snp-col-hdr">
             <span class="snp-col-ticker" id="snp-title">Results</span>
             <span class="snp-count" id="snp-count"></span>
         </div>
@@ -7064,10 +7061,10 @@
         if (titleEl) {
             if (currentView === 'scans') {
                 titleEl.textContent = 'Results';
-                titleEl.style.fontSize = '9px';
+                titleEl.style.fontSize = '13px';
             } else if (currentView === 'industry-stocks') {
                 titleEl.textContent = 'Group';
-                titleEl.style.fontSize = '10px';
+                titleEl.style.fontSize = '13px';
             } else {
                 titleEl.textContent = 'List';
                 titleEl.style.fontSize = '10px';
