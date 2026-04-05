@@ -392,11 +392,10 @@
         }
         #scan-nav-panel.snp-open { display: flex; }
         .snp-header {
-            display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
-            padding: 7px 6px 4px; border-bottom: 1px solid #21262d; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 7px 6px; border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #161b22; min-height: 35px; box-sizing: border-box;
         }
-        .snp-header-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .snp-title { font-size: 13px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; }
         .snp-count { font-size: 9px; font-weight: 600; color: #8b949e; font-variant-numeric: tabular-nums; }
         .snp-col-hdr {
@@ -405,7 +404,7 @@
         }
         .snp-col-ticker { flex: 1; font-size: 12px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
         .snp-sym-hdr {
-            display: flex; align-items: center; padding: 3px 4px;
+            display: flex; align-items: center; padding: 10px 4px 3px;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
             background: #0d1117;
         }
@@ -1613,14 +1612,12 @@
     <!-- SCAN NAV PANEL (removable block) -->
     <div id="scan-nav-panel">
         <div class="snp-header">
-            <div class="snp-header-top">
-                <span class="snp-col-ticker" id="snp-title">Results</span>
-                <span class="snp-count" id="snp-count"></span>
-            </div>
-            <div class="snp-sym-hdr">
-                <span style="width:14px;flex-shrink:0;"></span>
-                <span class="snp-col-ticker">Symbol</span>
-            </div>
+            <span class="snp-col-ticker" id="snp-title">Results</span>
+            <span class="snp-count" id="snp-count"></span>
+        </div>
+        <div class="snp-sym-hdr">
+            <span style="width:14px;flex-shrink:0;"></span>
+            <span class="snp-col-ticker">Symbol</span>
         </div>
         <div class="snp-list" id="snp-list"></div>
         </div>
