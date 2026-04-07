@@ -745,7 +745,6 @@
         }
         .wl-selector-item:hover .wl-selector-item-clear { opacity: 1; }
         .wl-selector-item-clear:hover { color: #e3852b; }
-        .wl-selector-item-clear.confirming { color: #e3852b; opacity: 1; }
         .wl-side-title { font-size: 0.858em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
         .wl-new-btn {
             padding: 3px 10px; border-radius: 4px; border: 1px solid #21262d;
@@ -5480,18 +5479,30 @@
             if (clearBtn) {
                 e.stopPropagation();
                 var name = clearBtn.getAttribute('data-wl-clear-list');
-                if (!clearBtn.classList.contains('confirming')) {
-                    clearBtn.classList.add('confirming');
-                    clearBtn.textContent = '?';
-                    setTimeout(function(){ clearBtn.classList.remove('confirming'); clearBtn.textContent = '⊘'; }, 2000);
-                    return;
-                }
+                var rightEl = clearBtn.closest('.wl-selector-item-right');
+                rightEl.innerHTML =
+                    '<span style="font-size:0.78em;color:#8b949e;margin-right:4px;">Clear?</span>' +
+                    '<button class="wl-selector-item-confirm-yes" style="background:none;border:1px solid #3fb950;border-radius:3px;color:#3fb950;font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-clear="' + esc(name) + '">Yes</button>' +
+                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid #484f58;border-radius:3px;color:#6e7681;font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
+                return;
+            }
+            var confirmYes = e.target.closest('[data-wl-confirm-clear]');
+            if (confirmYes) {
+                e.stopPropagation();
+                var name = confirmYes.getAttribute('data-wl-confirm-clear');
                 var all = wlGetAll();
                 all[name] = [];
                 wlSaveAll(all);
                 wlToggleSelector();
                 wlRender();
                 wlRefreshStars();
+                return;
+            }
+            var confirmNo = e.target.closest('.wl-selector-item-confirm-no');
+            if (confirmNo) {
+                e.stopPropagation();
+                wlToggleSelector();
+                wlToggleSelector();
                 return;
             }
             var delBtn = e.target.closest('[data-wl-del-list]');
