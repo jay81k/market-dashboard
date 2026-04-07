@@ -5635,6 +5635,20 @@
     function wlAttachListeners() {
         var scroll = document.getElementById('wl-list-scroll');
         if (!scroll) return;
+        scroll.addEventListener('contextmenu', function(e) {
+            var tickerRow = e.target.closest('[data-wl-ticker]');
+            if (!tickerRow) return;
+            e.preventDefault();
+            var ticker = tickerRow.getAttribute('data-wl-ticker');
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() {
+                    return { bottom: e.clientY, top: e.clientY, left: e.clientX };
+                }
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        });
+
         scroll.addEventListener('click', function(e) {
             // Remove ticker from list
             var remBtn = e.target.closest('[data-wl-remove-ticker]');
