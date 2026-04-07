@@ -1786,6 +1786,8 @@
             if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; }
             var mcView = document.getElementById('wl-multichart-view');
             if (mcView) mcView.style.display = 'none';
+            var wlHdr = document.querySelector('.wl-chart-panel-header');
+            if (wlHdr) wlHdr.style.display = '';
             wlMcWidgets = {};
         }
 
@@ -5139,6 +5141,7 @@
         document.getElementById('wl-chart-empty').style.display  = wlMcActive ? 'none' : '';
         document.getElementById('wl-chart-widget').style.display = 'none';
         document.getElementById('wl-multichart-view').style.display = wlMcActive ? 'flex' : 'none';
+        document.querySelector('.wl-chart-panel-header').style.display = wlMcActive ? 'none' : '';
         if (wlMcActive) renderWlMc();
     };
 
