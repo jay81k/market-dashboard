@@ -5644,7 +5644,8 @@
                 getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
                 getBoundingClientRect: function() {
                     return { bottom: e.clientY, top: e.clientY, left: e.clientX };
-                }
+                },
+                _wlNoSwitch: true
             };
             wlOpenPicker(fakeBtn, e, false);
         });
@@ -6030,7 +6031,7 @@
             all[name].splice(idx, 1);
         } else {
             all[name].push(ticker);
-            wlSetLastList(name);
+            if (!btn || !btn._wlNoSwitch) wlSetLastList(name);
         }
         wlSaveAll(all);
         if (currentView === 'watchlists') wlRender();
