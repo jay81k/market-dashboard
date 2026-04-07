@@ -737,7 +737,6 @@
         }
         .wl-selector-item:hover .wl-selector-item-del { opacity: 1; }
         .wl-selector-item-del:hover { color: #f85149; }
-        .wl-selector-item-del.confirming { color: #e3852b; opacity: 1; }
         .wl-selector-item-clear {
             opacity: 0; background: none; border: none; color: #484f58;
             cursor: pointer; font-size: 0.78em; padding: 1px 4px; margin-left: 2px;
@@ -5509,12 +5508,17 @@
             if (delBtn) {
                 e.stopPropagation();
                 var name = delBtn.getAttribute('data-wl-del-list');
-                if (!delBtn.classList.contains('confirming')) {
-                    delBtn.classList.add('confirming');
-                    delBtn.textContent = '?';
-                    setTimeout(function(){ delBtn.classList.remove('confirming'); delBtn.textContent = '✕'; }, 2000);
-                    return;
-                }
+                var rightEl = delBtn.closest('.wl-selector-item-right');
+                rightEl.innerHTML =
+                    '<span style="font-size:0.78em;color:#8b949e;margin-right:4px;">Delete?</span>' +
+                    '<button style="background:none;border:1px solid #f85149;border-radius:3px;color:#f85149;font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-del="' + esc(name) + '">Yes</button>' +
+                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid #484f58;border-radius:3px;color:#6e7681;font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
+                return;
+            }
+            var confirmDel = e.target.closest('[data-wl-confirm-del]');
+            if (confirmDel) {
+                e.stopPropagation();
+                var name = confirmDel.getAttribute('data-wl-confirm-del');
                 var all = wlGetAll();
                 delete all[name];
                 wlSaveAll(all);
