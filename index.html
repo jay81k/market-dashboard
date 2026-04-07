@@ -2612,6 +2612,20 @@
             if (!row) return;
             openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
         };
+        tbody.oncontextmenu = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            e.preventDefault();
+            var ticker = row.getAttribute('data-symbol');
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() {
+                    return { bottom: e.clientY, top: e.clientY, left: e.clientX };
+                },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        };
 
         allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
         currentStockIndex = -1;
@@ -7183,6 +7197,22 @@
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
                 snpNavigateTo(parseInt(row.getAttribute('data-snp-idx'), 10));
+            };
+            listEl.oncontextmenu = function(e) {
+                var row = e.target.closest('.snp-row');
+                if (!row) return;
+                e.preventDefault();
+                var idx = parseInt(row.getAttribute('data-snp-idx'), 10);
+                var d = _snpData[idx];
+                if (!d) return;
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? d.ticker : null; },
+                    getBoundingClientRect: function() {
+                        return { bottom: e.clientY, top: e.clientY, left: e.clientX };
+                    },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
             };
         }
 
