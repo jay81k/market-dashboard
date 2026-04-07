@@ -6037,7 +6037,10 @@
         if (currentView === 'watchlists') wlRender();
         // Re-open picker using same btn reference — do NOT call wlRefreshStars here
         // because it rebuilds innerHTML and destroys btn
-        if (btn && document.contains(btn)) {
+        if (btn && btn.nodeType && document.contains(btn)) {
+            wlOpenPicker(btn, { stopPropagation: function(){} }, true);
+        } else if (btn && btn._wlNoSwitch) {
+            // Fake button from right-click — re-open picker at same position
             wlOpenPicker(btn, { stopPropagation: function(){} }, true);
         } else {
             wlClosePicker();
