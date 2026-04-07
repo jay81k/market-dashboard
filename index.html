@@ -737,6 +737,13 @@
         .wl-selector-item:hover .wl-selector-item-del { opacity: 1; }
         .wl-selector-item-del:hover { color: #f85149; }
         .wl-selector-item-del.confirming { color: #e3852b; opacity: 1; }
+        .wl-selector-item-clear {
+            opacity: 0; background: none; border: none; color: #484f58;
+            cursor: pointer; font-size: 0.78em; padding: 1px 4px; margin-left: 2px;
+            transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+        }
+        .wl-selector-item:hover .wl-selector-item-clear { opacity: 1; }
+        .wl-selector-item-clear:hover { color: #e3852b; }
         .wl-side-title { font-size: 0.858em; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
         .wl-new-btn {
             padding: 3px 10px; border-radius: 4px; border: 1px solid #21262d;
@@ -5454,6 +5461,7 @@
             html += '<span class="wl-selector-item-check">' + (isActive ? '✓' : '') + '</span>';
             html += esc(name);
             html += '<span class="wl-selector-item-count">' + count + '</span>';
+            html += '<button class="wl-selector-item-clear" data-wl-clear-list="' + esc(name) + '" title="Clear all tickers">⊘</button>';
             html += '<button class="wl-selector-item-del" data-wl-del-list="' + esc(name) + '" title="Delete">✕</button>';
             html += '</div>';
         });
@@ -5464,6 +5472,19 @@
 
         // Delegate clicks inside dropdown
         dd.onclick = function(e) {
+            var clearBtn = e.target.closest('[data-wl-clear-list]');
+            if (clearBtn) {
+                e.stopPropagation();
+                var name = clearBtn.getAttribute('data-wl-clear-list');
+                if (!confirm('Clear all tickers from "' + name + '"?')) return;
+                var all = wlGetAll();
+                all[name] = [];
+                wlSaveAll(all);
+                wlToggleSelector();
+                wlRender();
+                wlRefreshStars();
+                return;
+            }
             var delBtn = e.target.closest('[data-wl-del-list]');
             if (delBtn) {
                 e.stopPropagation();
