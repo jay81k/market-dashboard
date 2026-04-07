@@ -728,7 +728,8 @@
         .wl-selector-item:hover { background: #21262d; color: #c8d0dc; }
         .wl-selector-item.active { color: #c8d0dc; font-weight: 600; }
         .wl-selector-item-check { width: 14px; flex-shrink: 0; color: #378add; font-size: 0.85em; }
-        .wl-selector-item-count { font-size: 0.78em; color: #484f58; margin-left: auto; }
+        .wl-selector-item-count { font-size: 0.78em; color: #484f58; }
+        .wl-selector-item-right { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-shrink: 0; }
         .wl-selector-item-del {
             opacity: 0; background: none; border: none; color: #484f58;
             cursor: pointer; font-size: 0.78em; padding: 1px 4px; margin-left: 6px;
@@ -5460,9 +5461,11 @@
             html += '<div class="wl-selector-item' + (isActive ? ' active' : '') + '" data-wl-switch="' + esc(name) + '">';
             html += '<span class="wl-selector-item-check">' + (isActive ? '✓' : '') + '</span>';
             html += esc(name);
+            html += '<span class="wl-selector-item-right">';
             html += '<span class="wl-selector-item-count">' + count + '</span>';
             html += '<button class="wl-selector-item-clear" data-wl-clear-list="' + esc(name) + '" title="Clear all tickers">⊘</button>';
             html += '<button class="wl-selector-item-del" data-wl-del-list="' + esc(name) + '" title="Delete">✕</button>';
+            html += '</span>';
             html += '</div>';
         });
 
