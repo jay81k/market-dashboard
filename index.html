@@ -2619,9 +2619,7 @@
             var ticker = row.getAttribute('data-symbol');
             var fakeBtn = {
                 getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
-                getBoundingClientRect: function() {
-                    return { bottom: e.clientY, top: e.clientY, left: e.clientX };
-                },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
                 _wlNoSwitch: true
             };
             wlOpenPicker(fakeBtn, e, false);
@@ -4873,6 +4871,18 @@
             var visRows   = Array.from(scansTbody.querySelectorAll('.stock-row'));
             currentStockIndex = topRows + visRows.indexOf(row);
             allStockRows = { length: _vsData.length };
+        };
+        scansTbody.oncontextmenu = function(e) {
+            var row = e.target.closest('.stock-row');
+            if (!row) return;
+            e.preventDefault();
+            var ticker = row.getAttribute('data-symbol');
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
         };
 
         if (scansMultichartActive) renderScansMc();
@@ -7207,9 +7217,7 @@
                 if (!d) return;
                 var fakeBtn = {
                     getAttribute: function(attr) { return attr === 'data-ticker' ? d.ticker : null; },
-                    getBoundingClientRect: function() {
-                        return { bottom: e.clientY, top: e.clientY, left: e.clientX };
-                    },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
                     _wlNoSwitch: true
                 };
                 wlOpenPicker(fakeBtn, e, false);
