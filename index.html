@@ -102,7 +102,11 @@
 
         /* Fixed column widths — must match .ind-hdr-* exactly */
         .industry-rank   { font-size: 0.88em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
-        .industry-name   { font-size: 1.045em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
+        .industry-name   { font-size: 1.045em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding-right: 16px; overflow: hidden; }
+        .industry-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .ind-rank-delta { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .ind-rank-delta.up   { color: #3fb950; }
+        .ind-rank-delta.down { color: #f85149; }
         .industry-sector { font-size: 0.858em; color: #8b949e; width: 160px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
         .sector-basic-materials        { color: #c8922a; }
         .sector-technology             { color: #58a6ff; }
@@ -1671,6 +1675,7 @@
     var snapshot      = null;
     var tickerMap     = {};
     var industriesData= null;
+    var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
     var currentView   = 'industries';
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
@@ -1900,7 +1905,7 @@
                 ? snapshot.by_industry[ind.industry].length : 0;
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '" onclick="openIndustry(\'' + esc(ind.industry) + '\')">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
-            html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
+            html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             html += '<div class="industry-perf-cols">';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_daily : null) + '</span>';
@@ -1964,6 +1969,16 @@
     }
 
     function rsColClass(v) { return v == null ? 'neutral' : v >= 50 ? 'positive' : 'negative'; }
+
+    function indRankDeltaHtml(industryName, currentRank) {
+        var prev = indPrevRanks[industryName];
+        if (prev == null || currentRank == null) return '';
+        var delta = prev - currentRank; // positive = moved up (rank number decreased)
+        if (delta === 0) return '';
+        var cls = delta > 0 ? 'up' : 'down';
+        var sign = delta > 0 ? '+' : '';
+        return '<span class="ind-rank-delta ' + cls + '">' + sign + delta + '</span>';
+    }
 
     function perfCol(val) {
         if (val == null) return '<span class="industry-perf-num neutral">—</span>';
@@ -2117,7 +2132,7 @@
 
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
-            html += '<span class="industry-name">' + esc(ind.industry) + '</span>';
+            html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
             html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             // Perf columns
@@ -6093,7 +6108,7 @@
         picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
         picker.style.display = 'block';
         wlPickerOpen = true;
-        if (!internal && (!e || e.type !== 'contextmenu')) wlPickerJustOpened = true;
+        if (!internal) wlPickerJustOpened = true;
     };
 
     window.wlPickerToggle = function(name) {
@@ -7139,11 +7154,13 @@
             kvGet('wl_order'),
             kvGet('wl_last'),
             kvGet('scan_presets'),
+            kvGet('ind_rank_snapshot'),
         ]).then(function(results) {
             var kvWlData    = results[0];
             var kvWlOrder   = results[1];
             var kvWlLast    = results[2];
             var kvPresets   = results[3];
+            var kvIndSnap   = results[4];
 
             // Only restore from KV if localStorage doesn't already have data
             if (kvWlData && !localStorage.getItem(LS_WL_KEY)) {
@@ -7157,6 +7174,24 @@
             }
             if (kvPresets && !localStorage.getItem(LS_PRESETS_KEY)) {
                 try { localStorage.setItem(LS_PRESETS_KEY, kvPresets); } catch(e) {}
+            }
+
+            // Industry rank snapshot — load previous ranks for delta display,
+            // then save today's ranks if not already saved today
+            var today = new Date().toISOString().slice(0, 10);
+            var prevSnap = null;
+            try { prevSnap = kvIndSnap ? JSON.parse(kvIndSnap) : null; } catch(e) {}
+
+            if (prevSnap && prevSnap.ranks) {
+                indPrevRanks = prevSnap.ranks;
+            }
+
+            if (industriesData && industriesData.industries && (!prevSnap || prevSnap.date !== today)) {
+                var newSnap = { date: today, ranks: {} };
+                industriesData.industries.forEach(function(ind) {
+                    if (ind.rank != null) newSnap.ranks[ind.industry] = ind.rank;
+                });
+                kvSet('ind_rank_snapshot', JSON.stringify(newSnap));
             }
 
             showView('market');
