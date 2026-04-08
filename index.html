@@ -6093,7 +6093,7 @@
         picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
         picker.style.display = 'block';
         wlPickerOpen = true;
-        if (!internal) wlPickerJustOpened = true;
+        if (!internal && (!e || e.type !== 'contextmenu')) wlPickerJustOpened = true;
     };
 
     window.wlPickerToggle = function(name) {
