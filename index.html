@@ -448,6 +448,21 @@
         .chart-rs-badge.rs-mid    { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
         .chart-rs-badge.rs-low    { background: #2b0d0d; color: #f85149; border: 1px solid #f8514922; }
         .chart-rs-badge-3m-wrap { display: inline-flex; align-items: center; margin-left: 4px; }
+        .ext-hours-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            margin-left: 8px; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.792em; font-weight: 600; white-space: nowrap;
+            border: 1px solid #21262d; background: #161b22; color: #8b949e;
+            font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+        }
+        .ext-hours-badge .ehb-label {
+            font-size: 0.88em; font-weight: 700; letter-spacing: 0.06em;
+            color: #484f58; text-transform: uppercase;
+        }
+        .ext-hours-badge .ehb-price { color: #c8d0dc; }
+        .ext-hours-badge .ehb-chg.up   { color: #3fb950; }
+        .ext-hours-badge .ehb-chg.down { color: #f85149; }
+        .ext-hours-badge .ehb-chg.flat { color: #6e7681; }
         #rs-float-tip {
             display: none; position: fixed; z-index: 99999;
             background: #1c2128; border: 1px solid #30363d; border-radius: 4px;
@@ -1443,6 +1458,7 @@
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <span class="chart-rs-badge" id="wl-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
+                <span class="ext-hours-badge" id="wl-chart-ext-hours" style="display:none;"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <span id="wl-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
                     <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -1603,6 +1619,7 @@
             <span class="chart-modal-meta" id="chart-modal-meta"></span>
             <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
             <span class="chart-rs-badge" id="chart-modal-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
+            <span class="ext-hours-badge" id="chart-modal-ext-hours" style="display:none;"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
                 <span id="chart-modal-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
                 <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -1643,6 +1660,7 @@
         <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
+        <span class="ext-hours-badge" id="mc-fullscreen-ext-hours" style="display:none;"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <span id="mc-fullscreen-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
             <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
@@ -2307,6 +2325,7 @@
             }
         }
         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct, mcFundRow ? mcFundRow.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
+        fetchExtendedHours(sym, 'mc-fullscreen-ext-hours');
         var mcFundStatsEl = document.getElementById('mc-fullscreen-fund-stats');
         if (mcFundStatsEl) mcFundStatsEl.innerHTML = fundStatsHtml(mcFundRow);
         var mcMetaEl = document.getElementById('mc-fullscreen-meta');
@@ -2373,6 +2392,7 @@
                             }
                         }
                         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct2, mcFundRow2 ? mcFundRow2.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
+                        fetchExtendedHours(bare, 'mc-fullscreen-ext-hours');
                         var mcMetaEl2 = document.getElementById('mc-fullscreen-meta');
                         if (mcMetaEl2) {
                             var mcIndRankHtml2 = '';
@@ -2811,6 +2831,70 @@
         return html;
     }
 
+    // ── Extended hours pricing (pre / post / overnight) ──────────────────
+    function fetchExtendedHours(symbol, badgeElId) {
+        var el = document.getElementById(badgeElId);
+        if (!el) return;
+        el.style.display = 'none';
+        el.innerHTML = '';
+
+        var url = WL_PROXY + '?symbol=' + encodeURIComponent(symbol) + '&interval=1d&range=1d';
+        fetch(url)
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data) return;
+                var result = data.chart && data.chart.result && data.chart.result[0];
+                if (!result) return;
+                var meta = result.meta || {};
+
+                var state = (meta.marketState || '').toUpperCase(); // PRE POST REGULAR CLOSED PREPRE POSTPOST
+                var label, price, changeAmt, changePct;
+
+                if (state === 'PRE' || state === 'PREPRE') {
+                    label     = 'PRE';
+                    price     = meta.preMarketPrice;
+                    changeAmt = meta.preMarketChange;
+                    changePct = meta.preMarketChangePercent;
+                } else if (state === 'POST' || state === 'POSTPOST') {
+                    label     = 'POST';
+                    price     = meta.postMarketPrice;
+                    changeAmt = meta.postMarketChange;
+                    changePct = meta.postMarketChangePercent;
+                } else if (state === 'CLOSED') {
+                    // Show whichever session has data — prefer post, fall back to pre
+                    if (meta.postMarketPrice && meta.postMarketPrice > 0) {
+                        label     = 'POST';
+                        price     = meta.postMarketPrice;
+                        changeAmt = meta.postMarketChange;
+                        changePct = meta.postMarketChangePercent;
+                    } else if (meta.preMarketPrice && meta.preMarketPrice > 0) {
+                        label     = 'PRE';
+                        price     = meta.preMarketPrice;
+                        changeAmt = meta.preMarketChange;
+                        changePct = meta.preMarketChangePercent;
+                    }
+                }
+                // REGULAR market hours — no badge needed
+                if (state === 'REGULAR') return;
+
+                if (!price || price <= 0 || changePct == null) return;
+
+                var pctVal  = parseFloat(changePct);
+                var chgDir  = pctVal > 0.05 ? 'up' : pctVal < -0.05 ? 'down' : 'flat';
+                var sign    = pctVal >= 0 ? '+' : '';
+                var priceStr = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                var pctStr   = sign + pctVal.toFixed(2) + '%';
+
+                el.innerHTML =
+                    '<span class="ehb-label">' + label + '</span>' +
+                    '<span class="ehb-price">$' + priceStr + '</span>' +
+                    '<span class="ehb-chg ' + chgDir + '">' + pctStr + '</span>';
+                el.style.display = 'inline-flex';
+            })
+            .catch(function() {});
+    }
+    // ── END Extended hours ────────────────────────────────────────────────
+
     function updateChartModalHeader(symbol, sector, industry, percentile) {
         sector     = sector     || '';
         industry   = industry   || '';
@@ -2847,6 +2931,7 @@
                 : '';
         }
         applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile, fundRow ? fundRow.weighted_rs_pct : null, document.getElementById('chart-modal-3mrs-badge'));
+        fetchExtendedHours(symbol, 'chart-modal-ext-hours');
         var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
         var fBtn = document.getElementById('chart-modal-details-btn');
         if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
@@ -5916,6 +6001,7 @@
             metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
         }
         applyRsBadge(document.getElementById('wl-chart-rs-badge'), wlPct, wlFundRow ? wlFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
+        fetchExtendedHours(ticker, 'wl-chart-ext-hours');
         var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
         if (wlFundStatsEl) wlFundStatsEl.innerHTML = fundStatsHtml(wlFundRow);
 
@@ -5998,6 +6084,7 @@
                                 metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
                             }
                             applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
+                            fetchExtendedHours(bare, 'wl-chart-ext-hours');
                             var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
                             if (wlMsgFundStatsEl) wlMsgFundStatsEl.innerHTML = fundStatsHtml(msgFundRow);
                             var t2 = bare.replace(/[^A-Z0-9]/gi,'');
