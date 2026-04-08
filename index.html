@@ -779,7 +779,12 @@
         .wl-col-hdr .wl-c-sym,
         .wl-col-hdr .wl-c-last,
         .wl-col-hdr .wl-c-chg,
-        .wl-col-hdr .wl-c-chgp { font-size: 0.792em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; }
+        .wl-col-hdr .wl-c-chgp { font-size: 0.792em; font-weight: 600; color: #484f58; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; user-select: none; transition: color 0.1s; }
+        .wl-col-hdr .wl-c-sym:hover,
+        .wl-col-hdr .wl-c-last:hover,
+        .wl-col-hdr .wl-c-chg:hover,
+        .wl-col-hdr .wl-c-chgp:hover { color: #c8d0dc; }
+        .wl-col-hdr .wl-c-sorted { color: #388bfd !important; }
         /* Data row styling */
         .wl-ticker-row .wl-c-sym  { font-size: 0.938em; font-weight: 600; color: #c8d0dc; }
         .wl-ticker-row .wl-c-last { font-size: 0.902em; color: #c8d0dc; }
@@ -5397,6 +5402,23 @@
         });
     }
 
+    // ── Watchlist sort state ─────────────────────────────────────────────
+    var _wlSortCol = localStorage.getItem('wlSortCol') || null;  // 'sym'|'last'|'chg'|'chgp'|null
+    var _wlSortDir = localStorage.getItem('wlSortDir') || 'asc'; // 'asc'|'desc'
+
+    window.wlCycleSort = function(col) {
+        if (_wlSortCol !== col) {
+            _wlSortCol = col; _wlSortDir = 'asc';
+        } else if (_wlSortDir === 'asc') {
+            _wlSortDir = 'desc';
+        } else {
+            _wlSortCol = null; _wlSortDir = 'asc'; // reset
+        }
+        localStorage.setItem('wlSortCol', _wlSortCol || '');
+        localStorage.setItem('wlSortDir', _wlSortDir);
+        wlRender();
+    };
+
     window.wlRender = function() {
         currentWlIndex = -1;
         var scroll   = document.getElementById('wl-list-scroll');
@@ -5417,38 +5439,65 @@
             return;
         }
 
-        var tickers = all[active] || [];
+        var tickers = (all[active] || []).slice(); // copy so we don't mutate stored order
         var nameAttr = esc(active);
         var html = '';
+
+        // Build per-ticker data map for sorting
+        var tickerData = {};
+        tickers.forEach(function(t) {
+            var sd   = wlLookupStock(t);
+            var live = wlLivePrices[t];
+            var price, dayVal, chgAbs;
+            if (live && live.price && live.prevClose) {
+                price  = live.price;
+                chgAbs = price - live.prevClose;
+                dayVal = (chgAbs / live.prevClose) * 100;
+            } else {
+                price  = sd && sd.price != null ? sd.price : null;
+                if (live && live.price && !price) price = live.price;
+                dayVal = sd ? sd.daily : null;
+                chgAbs = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
+            }
+            tickerData[t] = { price: price, chgAbs: chgAbs, dayVal: dayVal };
+        });
+
+        // Sort if a column is active
+        if (_wlSortCol) {
+            tickers.sort(function(a, b) {
+                var av, bv;
+                if (_wlSortCol === 'sym') {
+                    av = a; bv = b;
+                    return _wlSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+                }
+                var key = _wlSortCol === 'last' ? 'price' : _wlSortCol === 'chg' ? 'chgAbs' : 'dayVal';
+                av = tickerData[a][key]; bv = tickerData[b][key];
+                av = av != null ? av : (_wlSortDir === 'asc' ? Infinity : -Infinity);
+                bv = bv != null ? bv : (_wlSortDir === 'asc' ? Infinity : -Infinity);
+                return _wlSortDir === 'asc' ? av - bv : bv - av;
+            });
+        }
+
+        function hdrSpan(cls, col, label) {
+            var sorted = _wlSortCol === col;
+            var arrow  = sorted ? (_wlSortDir === 'asc' ? ' ↑' : ' ↓') : '';
+            return '<span class="' + cls + (sorted ? ' wl-c-sorted' : '') + '" onclick="wlCycleSort(\'' + col + '\')">' + label + arrow + '</span>';
+        }
 
         if (!tickers.length) {
             html = '<div class="wl-empty-state">No stocks in this list yet.</div>';
         } else {
             html += '<div class="wl-col-hdr">';
-            html += '<span class="wl-c-sym">Symbol</span>';
-            html += '<span class="wl-c-last">Last</span>';
-            html += '<span class="wl-c-chg">Chg</span>';
-            html += '<span class="wl-c-chgp">Chg%</span>';
+            html += hdrSpan('wl-c-sym',  'sym',  'Symbol');
+            html += hdrSpan('wl-c-last', 'last', 'Last');
+            html += hdrSpan('wl-c-chg',  'chg',  'Chg');
+            html += hdrSpan('wl-c-chgp', 'chgp', 'Chg%');
             html += '<span class="wl-c-del"></span>';
             html += '</div>';
             tickers.forEach(function(t) {
+                var d = tickerData[t];
+                var price = d.price, chgAbs = d.chgAbs, dayVal = d.dayVal;
                 var isActive  = (wlChartTicker === t) ? ' active' : '';
-                var sd        = wlLookupStock(t);
-                var live      = wlLivePrices[t];
-                var price, dayVal, chgAbs;
-                // Only use live price if we have both price AND prevClose
-                if (live && live.price && live.prevClose) {
-                    price  = live.price;
-                    chgAbs = price - live.prevClose;
-                    dayVal = (chgAbs / live.prevClose) * 100;
-                } else {
-                    // Fall back to snapshot
-                    price  = sd && sd.price != null ? sd.price : null;
-                    // Use live price only for last price display if prevClose missing
-                    if (live && live.price && !price) price = live.price;
-                    dayVal = sd ? sd.daily : null;
-                    chgAbs = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
-                }
                 var priceStr  = price != null ? price.toFixed(2) : '—';
                 var chgStr    = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgpStr   = dayVal != null ? (dayVal >= 0 ? '+' : '') + dayVal.toFixed(2) + '%' : '—';
