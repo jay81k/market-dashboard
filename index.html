@@ -2838,7 +2838,8 @@
         el.style.display = 'none';
         el.innerHTML = '';
 
-        var url = WL_PROXY + '?symbol=' + encodeURIComponent(symbol) + '&interval=1d&range=1d';
+        var _extProxy = (typeof WL_PROXY !== 'undefined' ? WL_PROXY : 'https://yahoo-proxy.jay69k.workers.dev');
+        var url = _extProxy + '?symbol=' + encodeURIComponent(symbol) + '&interval=1d&range=1d';
         fetch(url)
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(data) {
@@ -2846,6 +2847,13 @@
                 var result = data.chart && data.chart.result && data.chart.result[0];
                 if (!result) return;
                 var meta = result.meta || {};
+                console.log('[ExtHours] ' + symbol + ' marketState:', meta.marketState,
+                    '| preMarketPrice:', meta.preMarketPrice,
+                    '| preMarketChangePercent:', meta.preMarketChangePercent,
+                    '| postMarketPrice:', meta.postMarketPrice,
+                    '| postMarketChangePercent:', meta.postMarketChangePercent,
+                    '| full meta keys:', Object.keys(meta).filter(function(k){ return /[Mm]arket|[Pp]re|[Pp]ost/.test(k); })
+                );
 
                 var state = (meta.marketState || '').toUpperCase(); // PRE POST REGULAR CLOSED PREPRE POSTPOST
                 var label, price, changeAmt, changePct;
