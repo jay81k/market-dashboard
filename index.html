@@ -1678,7 +1678,7 @@
     var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
     var currentView   = 'industries';
     var activeSort    = 'rank';
-    var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
+    var indSort       = { col: 'rs_3m', dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
     var chartWidget   = null;
     var currentStockSort = { by: null, dir: 1, count: 0 };
@@ -2193,9 +2193,17 @@
         document.getElementById('multichart-toggle-btn').style.color       = '';
         document.getElementById('multichart-grid').innerHTML = '';
 
-        currentStockSort = { by: null, dir: 1, count: 0 };
+        currentStockSort = { by: 'weighted_rs_pct', dir: 1, count: 1 };
         selectedIndustryStocks.clear();
         indUpdateExportBtn();
+
+        if (rows && rows.length > 0) {
+            rows = rows.slice().sort(function(a, b) {
+                var av = a.weighted_rs_pct != null ? a.weighted_rs_pct : -Infinity;
+                var bv = b.weighted_rs_pct != null ? b.weighted_rs_pct : -Infinity;
+                return bv - av;
+            });
+        }
 
         if (!rows || rows.length === 0) {
             document.getElementById('stocks-thead').innerHTML = '';
@@ -3202,7 +3210,7 @@
     var scansMcTimeframe    = 'D';
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
-    var scansSortState      = { by: 'rs', dir: -1 };
+    var scansSortState      = { by: 'weighted_rs_pct', dir: -1 };
     var scanLivePrices      = {};   // { ticker: { price, prevClose } }
     var scanPriceTimer      = null;
 
