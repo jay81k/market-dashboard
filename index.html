@@ -5119,19 +5119,22 @@
         var tickers = active && all[active] ? all[active] : [];
         if (!tickers.length) return;
 
-        Promise.all(tickers.map(function(t) {
-            return wlFetchOneTicker(t).then(function(data) {
-                if (data) {
-                    wlLivePrices[t] = {
-                        price:     data.price,
-                        prevClose: data.prevClose,
+        var url = WL_PROXY + '?action=quotes_batch&tickers=' + tickers.map(encodeURIComponent).join(',');
+        fetch(url).then(function(r) {
+            return r.ok ? r.json() : null;
+        }).then(function(data) {
+            if (!data || !data.quotes) return;
+            data.quotes.forEach(function(q) {
+                if (q && q.ticker && q.price) {
+                    wlLivePrices[q.ticker] = {
+                        price:     q.price,
+                        prevClose: q.prevClose || null,
                         updatedAt: new Date()
                     };
                 }
             });
-        })).then(function() {
             wlUpdatePriceRows();
-        });
+        }).catch(function() {});
     }
 
     function wlUpdatePriceRows() {
@@ -5169,7 +5172,7 @@
             if (currentView !== 'watchlists') return;
             if (!wlIsMarketOpen()) { wlStopPricePolling(); return; }
             wlFetchPrices();
-        }, 5 * 60 * 1000);
+        }, 60 * 1000);
     }
 
     function wlStopPricePolling() {
