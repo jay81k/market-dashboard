@@ -466,6 +466,14 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             hist["Low"].iloc[-1]  > hist["Low"].iloc[-2]
         ) if len(hist) >= 2 else False
 
+        # Double inside day: bar[-1] inside bar[-2], AND bar[-2] inside bar[-3]
+        double_inside_day = bool(
+            hist["High"].iloc[-1] < hist["High"].iloc[-2] and
+            hist["Low"].iloc[-1]  > hist["Low"].iloc[-2] and
+            hist["High"].iloc[-2] < hist["High"].iloc[-3] and
+            hist["Low"].iloc[-2]  > hist["Low"].iloc[-3]
+        ) if len(hist) >= 3 else False
+
         # Bullish outside day: today's high > prev high AND today's low < prev low
         bullish_outside = bool(
             hist["High"].iloc[-1] > hist["High"].iloc[-2] and
@@ -526,7 +534,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         def detect_patterns(h: pd.DataFrame) -> dict:
             """Run all pattern checks on the last 2 bars of a resampled DataFrame."""
             out = {k: False for k in [
-                "inside_day", "bullish_outside", "hammer",
+                "inside_day", "double_inside_day", "bullish_outside", "hammer",
                 "bullish_reversal_bar", "upside_reversal",
                 "oops_reversal", "pocket_pivot",
             ]}
@@ -545,6 +553,11 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 lower_shadow = min(o, c) - lo
                 upper_shadow = hi - max(o, c)
                 out["inside_day"]     = bool(hi < p_hi and lo > p_lo)
+                out["double_inside_day"] = bool(
+                    len(h) >= 3 and
+                    hi < p_hi and lo > p_lo and
+                    p_hi < h["High"].iloc[-3] and p_lo > h["Low"].iloc[-3]
+                )
                 out["bullish_outside"]= bool(hi > p_hi and lo < p_lo)
                 out["hammer"]         = bool(
                     candle_range > 0 and body <= 0.3 * candle_range and
@@ -618,6 +631,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         return {
             "price":      round(float(current), 2),
             "inside_day": inside_day,
+            "double_inside_day": double_inside_day,
             "bullish_outside": bullish_outside,
             "hammer":              hammer,
             "bullish_reversal_bar": bullish_reversal_bar,
@@ -626,6 +640,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "pocket_pivot":         pocket_pivot,
             # Weekly patterns
             "inside_day_w":          weekly_patterns["inside_day"],
+            "double_inside_day_w":   weekly_patterns["double_inside_day"],
             "bullish_outside_w":     weekly_patterns["bullish_outside"],
             "hammer_w":              weekly_patterns["hammer"],
             "bullish_reversal_bar_w":weekly_patterns["bullish_reversal_bar"],
@@ -634,6 +649,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "pocket_pivot_w":        weekly_patterns["pocket_pivot"],
             # Monthly patterns
             "inside_day_m":          monthly_patterns["inside_day"],
+            "double_inside_day_m":   monthly_patterns["double_inside_day"],
             "bullish_outside_m":     monthly_patterns["bullish_outside"],
             "hammer_m":              monthly_patterns["hammer"],
             "bullish_reversal_bar_m":monthly_patterns["bullish_reversal_bar"],
