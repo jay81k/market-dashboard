@@ -1790,6 +1790,8 @@
         if (view !== 'watchlists') {
             wlStopPricePolling();
         }
+        if (view !== 'scans')           scanStopPricePolling();
+        if (view !== 'industry-stocks') indStopPricePolling();
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
@@ -1840,6 +1842,7 @@
         } else if (view === 'scans') {
             document.getElementById('view-scans').style.display = 'flex';
             renderScans();
+            scanStartPricePolling();
         } else if (view === 'sector') {
             document.getElementById('view-sector').style.display = 'flex';
         } else if (view === 'watchlists') {
@@ -2203,6 +2206,9 @@
             renderStocksTable(rows, industryName, 'stocks-thead', 'stocks-tbody');
         }
         showView('industry-stocks');
+        if (rows && rows.length) {
+            indStartPricePolling(rows.map(function(r) { return r.ticker; }));
+        }
     };
 
     var multichartActive = false;
@@ -2464,8 +2470,64 @@
         document.getElementById('multichart-toggle-btn').style.background  = '';
         document.getElementById('multichart-toggle-btn').style.borderColor = '';
         document.getElementById('multichart-toggle-btn').style.color       = '';
+        indStopPricePolling();
         showView('industries');
     };
+
+    // ── Industry-stocks live prices ───────────────────────────────────────
+    var indLivePrices  = {};   // { ticker: { price, prevClose } }
+    var indPriceTimer  = null;
+
+    function indFetchPrices(tickers) {
+        if (!tickers || !tickers.length) return;
+        var batches = [];
+        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        batches.forEach(function(batch) {
+            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+            fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                if (!data || !data.quotes) return;
+                data.quotes.forEach(function(q) {
+                    if (q && q.ticker && q.price) {
+                        indLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null };
+                    }
+                });
+                indUpdatePriceRows();
+            }).catch(function() {});
+        });
+    }
+
+    function indUpdatePriceRows() {
+        document.querySelectorAll('#stocks-tbody .stock-row').forEach(function(tr) {
+            var ticker = tr.getAttribute('data-symbol');
+            var live   = indLivePrices[ticker];
+            if (!live || !live.price) return;
+            var price     = live.price;
+            var prevClose = live.prevClose;
+            var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
+            var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            var cl        = chgPct == null ? '' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : '';
+            var tds       = tr.querySelectorAll('td');
+            if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
+            if (tds[5]) { tds[5].textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014'; tds[5].className = cl; }
+            if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
+        });
+    }
+
+    function indStartPricePolling(tickers) {
+        if (indPriceTimer) clearInterval(indPriceTimer);
+        indLivePrices = {};
+        indFetchPrices(tickers);
+        if (!wlIsMarketOpen()) return;
+        indPriceTimer = setInterval(function() {
+            if (currentView !== 'industry-stocks') { indStopPricePolling(); return; }
+            if (!wlIsMarketOpen()) { indStopPricePolling(); return; }
+            indFetchPrices(tickers);
+        }, 60 * 1000);
+    }
+
+    function indStopPricePolling() {
+        if (indPriceTimer) { clearInterval(indPriceTimer); indPriceTimer = null; }
+    }
 
     // ── Render stocks table ───────────────────────────────────────────────
     function buildTableHeader(theadId, industryName) {
@@ -3141,6 +3203,8 @@
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
     var scansSortState      = { by: 'rs', dir: -1 };
+    var scanLivePrices      = {};   // { ticker: { price, prevClose } }
+    var scanPriceTimer      = null;
 
     function getAllStocks() {
         if (!snapshot || !snapshot.by_industry) return [];
@@ -4727,7 +4791,16 @@
             ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
             : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
         var wrsVal2 = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '\u2014';
-        var chgAbs  = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
+        var _scanLive = scanLivePrices[row.ticker];
+        var _usePrice = (_scanLive && _scanLive.price) ? _scanLive.price : row.price;
+        var chgAbs, _dailyPct;
+        if (_scanLive && _scanLive.price && _scanLive.prevClose) {
+            chgAbs    = _scanLive.price - _scanLive.prevClose;
+            _dailyPct = (chgAbs / _scanLive.prevClose) * 100;
+        } else {
+            chgAbs    = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
+            _dailyPct = row.daily;
+        }
         var chgStr  = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014';
         var pct52Val = '\u2014', pct52Color = '#484f58';
         if (row.PctFrom52WkHigh != null) {
@@ -4744,11 +4817,11 @@
             '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">\u25be</button>' +
             '<span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
         h += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'\u2014') + '</td>';
-        h += '<td style="color:#c8d0dc;font-weight:500;">'  + priceVal + '</td>';
+        h += '<td style="color:#c8d0dc;font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + wrsVal2  + '</td>';
-        h += '<td class="' + cc(row.daily)     + '">' + chgStr + '</td>';
-        h += '<td class="' + cc(row.daily)     + '">' + (row.daily     != null ? fmt(row.daily,2,'%')     : '\u2014') + '</td>';
+        h += '<td class="' + cc(_dailyPct)     + '">' + chgStr + '</td>';
+        h += '<td class="' + cc(_dailyPct)     + '">' + (_dailyPct     != null ? fmt(_dailyPct,2,'%')     : '\u2014') + '</td>';
         h += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '\u2014') + '</td>';
         h += '<td class="' + cc(row['1m'])     + '">' + (row['1m']     != null ? fmt(row['1m'],2,'%')     : '\u2014') + '</td>';
         h += '<td class="' + cc(row['3m'])     + '">' + (row['3m']     != null ? fmt(row['3m'],2,'%')     : '\u2014') + '</td>';
@@ -4907,8 +4980,60 @@
         };
 
         if (scansMultichartActive) renderScansMc();
+        // Refresh live prices for the newly rendered set
+        if (currentView === 'scans') scanFetchPrices();
     }
 
+    // ── Scans live prices ─────────────────────────────────────────────────
+    function scanFetchPrices() {
+        var tickers = _vsData.map(function(r) { return r.ticker; });
+        if (!tickers.length) return;
+        var batches = [];
+        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        batches.forEach(function(batch) {
+            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+            fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                if (!data || !data.quotes) return;
+                data.quotes.forEach(function(q) {
+                    if (q && q.ticker && q.price) {
+                        scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null };
+                    }
+                });
+                scanUpdatePriceRows();
+            }).catch(function() {});
+        });
+    }
+
+    function scanUpdatePriceRows() {
+        document.querySelectorAll('#scans-tbody .stock-row').forEach(function(tr) {
+            var ticker = tr.getAttribute('data-symbol');
+            var live   = scanLivePrices[ticker];
+            if (!live || !live.price) return;
+            var price     = live.price;
+            var prevClose = live.prevClose;
+            var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
+            var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            var cl        = chgPct == null ? '' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : '';
+            var tds       = tr.querySelectorAll('td');
+            if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
+            if (tds[5]) { tds[5].textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014'; tds[5].className = cl; }
+            if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
+        });
+    }
+
+    function scanStartPricePolling() {
+        if (scanPriceTimer) clearInterval(scanPriceTimer);
+        if (!wlIsMarketOpen()) return;
+        scanPriceTimer = setInterval(function() {
+            if (currentView !== 'scans') { scanStopPricePolling(); return; }
+            if (!wlIsMarketOpen()) { scanStopPricePolling(); return; }
+            scanFetchPrices();
+        }, 60 * 1000);
+    }
+
+    function scanStopPricePolling() {
+        if (scanPriceTimer) { clearInterval(scanPriceTimer); scanPriceTimer = null; }
+    }
 
     // ── Scans search filter ───────────────────────────────────────────────
     function filterScansTable(q) {
