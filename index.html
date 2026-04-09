@@ -5555,8 +5555,10 @@
     }
 
     // ── Watchlist sort state ─────────────────────────────────────────────
-    var _wlSortCol = localStorage.getItem('wlSortCol') || null;  // 'sym'|'last'|'chg'|'chgp'|null
-    var _wlSortDir = localStorage.getItem('wlSortDir') || 'asc'; // 'asc'|'desc'
+    var _wlSortColStored = localStorage.getItem('wlSortCol');
+    var _wlSortCol = _wlSortColStored === null ? 'chgp' : (_wlSortColStored || null);  // 'sym'|'last'|'chg'|'chgp'|null
+    var _wlSortDirStored = localStorage.getItem('wlSortDir');
+    var _wlSortDir = _wlSortDirStored === null ? 'desc' : (_wlSortDirStored || 'asc'); // 'asc'|'desc'
 
     window.wlCycleSort = function(col) {
         if (_wlSortCol !== col) {
