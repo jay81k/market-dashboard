@@ -5562,7 +5562,7 @@
 
     window.wlCycleSort = function(col) {
         if (_wlSortCol !== col) {
-            _wlSortCol = col; _wlSortDir = 'asc';
+            _wlSortCol = col; _wlSortDir = col === 'chgp' ? 'desc' : 'asc';
         } else if (_wlSortDir === 'asc') {
             _wlSortDir = 'desc';
         } else {
