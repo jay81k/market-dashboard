@@ -1975,9 +1975,9 @@
         if (prev == null || currentRank == null) return '';
         var delta = prev - currentRank; // positive = moved up (rank number decreased)
         if (delta === 0) return '';
-        var cls = delta > 0 ? 'up' : 'down';
-        var sign = delta > 0 ? '+' : '';
-        return '<span class="ind-rank-delta ' + cls + '">' + sign + delta + '</span>';
+        var cls   = delta > 0 ? 'up' : 'down';
+        var arrow = delta > 0 ? '▴' : '▾';
+        return '<span class="ind-rank-delta ' + cls + '">' + arrow + Math.abs(delta) + '</span>';
     }
 
     function perfCol(val) {
