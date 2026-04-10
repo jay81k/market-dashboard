@@ -1258,6 +1258,61 @@
         .al-col-del { width:28px;text-align:center;flex-shrink:0;color:#21262d;font-size:1.1em;cursor:pointer;line-height:1;user-select:none; }
         .al-col-del:hover { color:#f85149; }
         .al-empty { padding:40px;text-align:center;color:#484f58;font-size:0.902em; }
+
+        /* ── Alert history side panel ── */
+        .al-body-wrap { display:flex; flex:1; min-height:0; overflow:hidden; }
+        .al-main-col { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+        .al-hist-panel {
+            width:32px; flex-shrink:0; background:#0a0e14;
+            border-left:1px solid #21262d; display:flex; flex-direction:column;
+            transition:width 0.2s; overflow:hidden;
+        }
+        .al-hist-panel.open { width:220px; }
+        .al-hist-tab {
+            display:flex; flex-direction:column; align-items:center;
+            padding:12px 0; cursor:pointer; gap:8px;
+            border-left:2px solid transparent; transition:border-color 0.15s;
+        }
+        .al-hist-tab:hover { background:#0f1318; border-left-color:#21262d; }
+        .al-hist-tab-label {
+            font-size:0.748em; font-weight:600; color:#484f58;
+            text-transform:uppercase; letter-spacing:0.05em;
+            writing-mode:vertical-rl; transform:rotate(180deg);
+        }
+        .al-hist-tab-badge {
+            background:#21262d; color:#6e7681; font-size:0.748em;
+            font-weight:600; padding:2px 4px; border-radius:6px;
+            min-width:16px; text-align:center;
+        }
+        .al-hist-expanded { display:none; flex-direction:column; height:100%; }
+        .al-hist-expanded.open { display:flex; }
+        .al-hist-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:8px 12px; border-bottom:1px solid #21262d; flex-shrink:0;
+        }
+        .al-hist-title-row { display:flex; align-items:center; gap:6px; }
+        .al-hist-label { font-size:0.792em; font-weight:600; color:#6e7681; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; }
+        .al-hist-badge { background:#21262d; color:#6e7681; font-size:0.748em; font-weight:600; padding:1px 5px; border-radius:8px; }
+        .al-hist-actions { display:flex; align-items:center; gap:4px; }
+        .al-hist-clear { font-size:0.748em; color:#484f58; background:none; border:none; cursor:pointer; padding:2px 5px; border-radius:3px; font-family:inherit; white-space:nowrap; }
+        .al-hist-clear:hover { color:#f85149; background:rgba(248,81,73,0.1); }
+        .al-hist-collapse { background:none; border:none; color:#484f58; cursor:pointer; font-size:1em; padding:0 3px; line-height:1; }
+        .al-hist-collapse:hover { color:#c8d0dc; }
+        .al-hist-scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
+        .al-hist-row { padding:8px 12px; border-bottom:1px solid #161b22; cursor:pointer; }
+        .al-hist-row:hover { background:#0f1318; }
+        .al-hist-row-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:1px; }
+        .al-hist-ticker { font-size:0.968em; font-weight:700; color:#79c0ff; }
+        .al-hist-time { font-size:0.748em; color:#484f58; }
+        .al-hist-name { font-size:0.748em; color:#484f58; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }
+        .al-hist-row-mid { display:flex; align-items:center; justify-content:space-between; }
+        .al-hist-cond { font-size:0.792em; }
+        .al-hist-hit { font-size:0.792em; font-weight:600; font-variant-numeric:tabular-nums; }
+        .al-hist-hit.up { color:#3fb950; }
+        .al-hist-hit.dn { color:#f85149; }
+        .al-hist-del { background:none; border:none; color:#30363d; cursor:pointer; font-size:0.968em; line-height:1; float:right; margin-top:-16px; }
+        .al-hist-del:hover { color:#f85149; }
+        .al-hist-empty { padding:24px 12px; text-align:center; color:#30363d; font-size:0.792em; }
     </style>
 </head>
 <body>
@@ -1675,19 +1730,43 @@
         <button class="al-confirm-btn" onclick="alSubmitForm()">Set alert</button>
         <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
     </div>
-    <div style="max-width:860px;width:100%;display:flex;flex-direction:column;flex:1;min-height:0;">
-        <div class="al-hdr-row" id="al-hdr-row" style="display:none;">
-            <div class="al-hdr" style="width:60px;flex-shrink:0;">Ticker</div>
-            <div class="al-hdr" style="width:200px;flex-shrink:0;padding-right:16px;">Name</div>
-            <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
-            <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
-            <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
-            <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
-            <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
-            <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
-            <div style="width:28px;flex-shrink:0;"></div>
+    <div class="al-body-wrap">
+        <div class="al-main-col">
+            <div style="max-width:860px;width:100%;display:flex;flex-direction:column;flex:1;min-height:0;">
+                <div class="al-hdr-row" id="al-hdr-row" style="display:none;">
+                    <div class="al-hdr" style="width:60px;flex-shrink:0;">Ticker</div>
+                    <div class="al-hdr" style="width:200px;flex-shrink:0;padding-right:16px;">Name</div>
+                    <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
+                    <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
+                    <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
+                    <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
+                    <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
+                    <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
+                    <div style="width:28px;flex-shrink:0;"></div>
+                </div>
+                <div id="al-list" style="overflow-y:auto;flex:1;"></div>
+            </div>
         </div>
-        <div id="al-list" style="overflow-y:auto;flex:1;"></div>
+        <!-- History side panel -->
+        <div class="al-hist-panel" id="al-hist-panel">
+            <div class="al-hist-tab" id="al-hist-tab" onclick="alHistOpen()">
+                <span class="al-hist-tab-badge" id="al-hist-tab-badge">0</span>
+                <span class="al-hist-tab-label">History</span>
+            </div>
+            <div class="al-hist-expanded" id="al-hist-expanded">
+                <div class="al-hist-header">
+                    <div class="al-hist-title-row">
+                        <span class="al-hist-label">History</span>
+                        <span class="al-hist-badge" id="al-hist-badge">0</span>
+                    </div>
+                    <div class="al-hist-actions">
+                        <button class="al-hist-clear" onclick="alHistClearAll()">Clear all</button>
+                        <button class="al-hist-collapse" onclick="alHistClose()" title="Collapse">›</button>
+                    </div>
+                </div>
+                <div class="al-hist-scroll" id="al-hist-list"></div>
+            </div>
+        </div>
     </div>
 </div>
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
@@ -6341,6 +6420,7 @@
             var alertBtn = ev.target.closest('#wl-picker-alert-btn');
             if (alertBtn) {
                 wlClosePicker();
+                closeChartModal();
                 showView('alerts');
                 setTimeout(function() {
                     var tickerInput = document.getElementById('al-input-ticker');
@@ -7705,6 +7785,7 @@
             });
             alUpdateBadge();
             alStartBackgroundPolling();
+            renderHistory();
         }).catch(function() { alertsList = []; alertFiredList = []; });
     }
 
@@ -7788,6 +7869,7 @@
 
     function alCheckTriggers() {
         var anyFired = false;
+        var toRemove = [];
         alertsList.forEach(function(a) {
             var key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
@@ -7800,8 +7882,10 @@
             alertFiredList.unshift({
                 ticker: a.ticker, condition: a.condition,
                 alertPrice: a.price, hitPrice: price,
+                name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
+            toRemove.push(key);
             anyFired = true;
             if (window.Notification && Notification.permission === 'granted') {
                 new Notification(a.ticker + ' alert triggered', {
@@ -7809,7 +7893,13 @@
                 });
             }
         });
-        if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); }
+        if (toRemove.length) {
+            alertsList = alertsList.filter(function(a) {
+                return toRemove.indexOf(a.ticker + '_' + a.price + '_' + a.condition) === -1;
+            });
+            alSave();
+        }
+        if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); renderHistory(); }
     }
 
     function renderAlerts() {
@@ -7819,40 +7909,13 @@
         var banner      = document.getElementById('al-missed-banner');
         if (!listEl) return;
 
-        var undismissed = alertFiredList.filter(function(f) { return !f.dismissed; });
+        if (banner) banner.style.display = 'none';
+        if (firedRowsEl) firedRowsEl.innerHTML = '';
 
-        if (undismissed.length) {
-            banner.style.display = 'flex';
-            var ago = undismissed.some(function(f) {
-                return (Date.now() - new Date(f.firedAt).getTime()) > 300000;
-            });
-            document.getElementById('al-missed-text').innerHTML =
-                '<strong>' + undismissed.length + ' alert' + (undismissed.length > 1 ? 's' : '') + ' fired</strong>' +
-                (ago ? ' while you were away' : '');
-        } else {
-            banner.style.display = 'none';
-        }
-
-        firedRowsEl.innerHTML = undismissed.slice(0, 5).map(function(f) {
-            var cl = f.condition === 'above' ? 'color:#3fb950' : 'color:#f85149';
-            var t  = new Date(f.firedAt);
-            var isToday = t.toDateString() === new Date().toDateString();
-            var ts = isToday
-                ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-                : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            return '<div class="al-fired-row">' +
-                '<div class="al-fired-dot"></div>' +
-                '<div class="al-fired-ticker">' + esc(f.ticker) + '</div>' +
-                '<div class="al-fired-desc">Crossed <span style="' + cl + ';font-weight:600">$' + f.alertPrice.toFixed(2) + '</span> &middot; hit $' + f.hitPrice.toFixed(2) + '</div>' +
-                '<div class="al-fired-time">' + ts + '</div>' +
-            '</div>';
-        }).join('');
-
-        var activeCount = alertsList.filter(function(a) {
-            return !_alertFiredSess[a.ticker + '_' + a.price + '_' + a.condition];
-        }).length;
         var countEl = document.getElementById('al-count-label');
-        if (countEl) countEl.textContent = activeCount + ' active';
+        if (countEl) countEl.textContent = alertsList.length + ' active';
+
+        renderHistory();
 
         if (!alertsList.length) {
             hdrRow.style.display = 'none';
@@ -7898,6 +7961,71 @@
             '</div>';
         }).join('');
     }
+
+    function renderHistory() {
+        var listEl = document.getElementById('al-hist-list');
+        var badge  = document.getElementById('al-hist-badge');
+        var tabBadge = document.getElementById('al-hist-tab-badge');
+        if (!listEl) return;
+        var count = alertFiredList.length;
+        if (badge)    badge.textContent    = count;
+        if (tabBadge) tabBadge.textContent = count;
+        if (!count) {
+            listEl.innerHTML = '<div class="al-hist-empty">No fired alerts yet.</div>';
+            return;
+        }
+        listEl.innerHTML = alertFiredList.map(function(f, idx) {
+            var t = new Date(f.firedAt);
+            var isToday = t.toDateString() === new Date().toDateString();
+            var ts = isToday
+                ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            var condHtml = f.condition === 'above'
+                ? '<span class="al-hist-cond" style="color:#3fb950;">▲ above $' + f.alertPrice.toFixed(2) + '</span>'
+                : '<span class="al-hist-cond" style="color:#f85149;">▼ below $' + f.alertPrice.toFixed(2) + '</span>';
+            var hitCls = f.condition === 'above' ? 'up' : 'dn';
+            var name = esc(f.name || '');
+            return '<div class="al-hist-row">' +
+                '<div class="al-hist-row-top">' +
+                    '<span class="al-hist-ticker" onclick="alOpenChart(\'' + esc(f.ticker) + '\')" style="cursor:pointer;">' + esc(f.ticker) + '</span>' +
+                    '<span class="al-hist-time">' + ts + '</span>' +
+                '</div>' +
+                (name ? '<div class="al-hist-name">' + name + '</div>' : '') +
+                '<div class="al-hist-row-mid">' +
+                    condHtml +
+                    '<span class="al-hist-hit ' + hitCls + '">hit $' + f.hitPrice.toFixed(2) + '</span>' +
+                '</div>' +
+                '<button class="al-hist-del" onclick="alHistDelete(' + idx + ')">×</button>' +
+            '</div>';
+        }).join('');
+    }
+
+    window.alHistOpen = function() {
+        document.getElementById('al-hist-panel').classList.add('open');
+        document.getElementById('al-hist-tab').style.display = 'none';
+        document.getElementById('al-hist-expanded').classList.add('open');
+        renderHistory();
+    };
+
+    window.alHistClose = function() {
+        document.getElementById('al-hist-panel').classList.remove('open');
+        document.getElementById('al-hist-tab').style.display = 'flex';
+        document.getElementById('al-hist-expanded').classList.remove('open');
+    };
+
+    window.alHistDelete = function(idx) {
+        alertFiredList.splice(idx, 1);
+        alSaveFired();
+        alUpdateBadge();
+        renderHistory();
+    };
+
+    window.alHistClearAll = function() {
+        alertFiredList = [];
+        alSaveFired();
+        alUpdateBadge();
+        renderHistory();
+    };
 
     window.alShowForm = function() {
         if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
