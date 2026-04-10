@@ -6324,6 +6324,10 @@
         html += '<div class="wl-picker-new" id="wl-picker-new-btn">';
         html += '<span style="font-size:1em;color:#6e7681;">+</span> New watchlist…';
         html += '</div>';
+        html += '<div class="wl-picker-divider"></div>';
+        html += '<div class="wl-picker-new" id="wl-picker-alert-btn" style="color:#f9c74f;">';
+        html += '<span style="font-size:1em;color:#6e7681;">+</span> Add Alert';
+        html += '</div>';
 
         picker.innerHTML = html;
 
@@ -6334,6 +6338,21 @@
             if (item) { wlPickerToggle(item.getAttribute('data-wl-pick')); return; }
             var newBtn = ev.target.closest('#wl-picker-new-btn');
             if (newBtn) { wlPickerNewList(); return; }
+            var alertBtn = ev.target.closest('#wl-picker-alert-btn');
+            if (alertBtn) {
+                wlClosePicker();
+                showView('alerts');
+                setTimeout(function() {
+                    var tickerInput = document.getElementById('al-input-ticker');
+                    if (tickerInput) {
+                        alShowForm();
+                        tickerInput.value = ticker;
+                        var priceInput = document.getElementById('al-input-price');
+                        if (priceInput) priceInput.focus();
+                    }
+                }, 50);
+                return;
+            }
         };
 
         var rect = btn.getBoundingClientRect();
