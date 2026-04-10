@@ -1679,7 +1679,7 @@
     var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
     var currentView   = 'industries';
     var activeSort    = 'rank';
-    var indSort       = { col: 'rs_3m', dir: -1 }; // dir: -1 = desc, 1 = asc
+    var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
     var chartWidget   = null;
     var currentStockSort = { by: null, dir: 1, count: 0 };
@@ -7318,16 +7318,34 @@
             }
 
             // Industry rank snapshot — load previous ranks for delta display,
-            // then save today's ranks if not already saved today
+            // then save today's ranks if not already saved today.
+            // We keep a separate "yesterday" key so same-day refreshes still show deltas.
             var today = new Date().toISOString().slice(0, 10);
             var prevSnap = null;
             try { prevSnap = kvIndSnap ? JSON.parse(kvIndSnap) : null; } catch(e) {}
 
             if (prevSnap && prevSnap.ranks) {
-                indPrevRanks = prevSnap.ranks;
+                if (prevSnap.date !== today) {
+                    // Snapshot is from a previous day — use directly as yesterday
+                    indPrevRanks = prevSnap.ranks;
+                } else {
+                    // Snapshot is already today's — load the archived yesterday snapshot
+                    kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
+                        var yesterdaySnap = null;
+                        try { yesterdaySnap = kvIndSnapPrev ? JSON.parse(kvIndSnapPrev) : null; } catch(e) {}
+                        if (yesterdaySnap && yesterdaySnap.ranks) {
+                            indPrevRanks = yesterdaySnap.ranks;
+                            renderIndustries();
+                        }
+                    });
+                }
             }
 
             if (industriesData && industriesData.industries && (!prevSnap || prevSnap.date !== today)) {
+                // Archive the old snapshot as "yesterday" before overwriting
+                if (prevSnap && prevSnap.ranks) {
+                    kvSet('ind_rank_snapshot_prev', JSON.stringify(prevSnap));
+                }
                 var newSnap = { date: today, ranks: {} };
                 industriesData.industries.forEach(function(ind) {
                     if (ind.rank != null) newSnap.ranks[ind.industry] = ind.rank;
