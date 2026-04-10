@@ -1212,6 +1212,50 @@
         .gl-pct.down { color: #f85149; }
         .gl-vol    { font-size: 11px; color: #8b949e; font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 48px; text-align: right; }
         .gl-loading { padding: 20px 14px; color: #484f58; font-size: 0.858em; }
+        /* ── Alerts ── */
+        .al-nav-badge { background:#f85149;color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 5px;margin-left:3px;display:none; }
+        .al-nav-badge.visible { display:inline-block; }
+        .al-toolbar { display:flex;align-items:center;gap:8px;padding:0 16px;height:44px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0; }
+        .al-add-open-btn { padding:4px 12px;border-radius:5px;border:1px solid #388bfd;background:rgba(56,139,253,0.15);color:#79c0ff;font-size:0.858em;font-family:inherit;cursor:pointer;font-weight:600; }
+        .al-count-label { font-size:0.825em;color:#484f58; }
+        .al-missed-banner { background:#0f1d2e;border-bottom:1px solid #2979c8;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0; }
+        .al-missed-icon { width:18px;height:18px;background:#1f6feb;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .al-missed-text { font-size:0.825em;color:#79c0ff;flex:1; }
+        .al-missed-text strong { color:#c8d0dc;font-weight:600; }
+        .al-missed-dismiss { font-size:0.792em;color:#484f58;cursor:pointer;padding:2px 8px;border-radius:4px;border:1px solid #21262d;background:transparent;font-family:inherit; }
+        .al-missed-dismiss:hover { color:#c8d0dc; }
+        .al-fired-row { display:flex;align-items:center;gap:10px;padding:7px 16px;background:rgba(31,111,235,0.07);border-bottom:1px solid #161b22;font-size:0.825em; }
+        .al-fired-dot { width:6px;height:6px;background:#388bfd;border-radius:50%;flex-shrink:0; }
+        .al-fired-ticker { font-weight:700;color:#79c0ff;width:52px;flex-shrink:0; }
+        .al-fired-desc { flex:1;color:#8b949e; }
+        .al-fired-time { color:#484f58;font-size:0.792em;flex-shrink:0; }
+        .al-add-form { padding:10px 16px;background:#161b22;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0; }
+        .al-add-form input, .al-add-form select { background:#0d1117;border:1px solid #21262d;border-radius:5px;color:#c8d0dc;padding:4px 8px;height:28px;font-size:0.858em;font-family:inherit;outline:none; }
+        .al-add-form input:focus, .al-add-form select:focus { border-color:#388bfd44; }
+        .al-form-label { font-size:0.792em;color:#484f58; }
+        .al-confirm-btn { padding:4px 12px;border-radius:5px;border:1px solid #388bfd;background:#1f6feb;color:#fff;font-size:0.858em;font-family:inherit;cursor:pointer;font-weight:600; }
+        .al-cancel-btn { padding:4px 10px;border-radius:5px;border:1px solid #21262d;background:transparent;color:#6e7681;font-size:0.858em;font-family:inherit;cursor:pointer; }
+        .al-hdr-row { display:flex;align-items:center;padding:6px 16px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#0d1117;z-index:1;flex-shrink:0; }
+        .al-hdr { font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.05em; }
+        .al-row { display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
+        .al-row:hover { background:#161b22; }
+        .al-row.fired { opacity:0.45; }
+        .al-col-ticker { font-size:1.045em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; }
+        .al-col-name { font-size:0.858em;color:#8b949e;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
+        .al-col-cond { font-size:0.792em;width:70px;flex-shrink:0; }
+        .al-col-target { font-size:0.968em;font-weight:600;font-variant-numeric:tabular-nums;width:72px;text-align:right;flex-shrink:0; }
+        .al-col-target.above { color:#3fb950; }
+        .al-col-target.below { color:#f85149; }
+        .al-col-curr { font-size:0.858em;color:#6e7681;width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-away { font-size:0.858em;font-weight:600;width:60px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:#484f58; }
+        .al-col-away.close { color:#f0a500; }
+        .al-col-status { width:60px;text-align:right;flex-shrink:0; }
+        .al-pill { font-size:0.748em;font-weight:600;padding:2px 7px;border-radius:4px;display:inline-block; }
+        .al-pill-active { background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.25); }
+        .al-pill-fired  { background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.25); }
+        .al-col-del { width:28px;text-align:center;flex-shrink:0;color:#21262d;font-size:1.1em;cursor:pointer;line-height:1;user-select:none; }
+        .al-col-del:hover { color:#f85149; }
+        .al-empty { padding:40px;text-align:center;color:#484f58;font-size:0.902em; }
     </style>
 </head>
 <body>
@@ -1234,6 +1278,10 @@
         <div class="nav-tab" id="tab-watchlists" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}showView('watchlists')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
             Watchlists
+        </div>
+        <div class="nav-tab" id="tab-alerts" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}showView('alerts')">
+            <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5a4 4 0 0 1 4 4v2.5l1 2H2L3 8V5.5a4 4 0 0 1 4-4zm-1 10a1 1 0 0 0 2 0" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            Alerts<span class="al-nav-badge" id="al-nav-badge"></span>
         </div>
     </div>
 </div>
@@ -1600,7 +1648,43 @@
     </div>
 </div>
 
-<!-- Chart modal -->
+<!-- Alerts view -->
+<div id="view-alerts" style="display:none;flex-direction:column;height:100%;">
+    <div class="al-toolbar">
+        <button class="al-add-open-btn" id="al-add-open-btn" onclick="alShowForm()">+ Add alert</button>
+        <div style="width:1px;height:16px;background:#21262d;"></div>
+        <span class="al-count-label" id="al-count-label"></span>
+    </div>
+    <div id="al-missed-banner" class="al-missed-banner" style="display:none;">
+        <div class="al-missed-icon"><svg width="10" height="10" viewBox="0 0 16 16" fill="#fff"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2h-13L3 10V7a5 5 0 0 1 5-5zm-1.5 11a1.5 1.5 0 0 0 3 0z"/></svg></div>
+        <span class="al-missed-text" id="al-missed-text"></span>
+        <button class="al-missed-dismiss" onclick="alDismissMissed()">Dismiss</button>
+    </div>
+    <div id="al-fired-rows"></div>
+    <div id="al-add-form" class="al-add-form" style="display:none;">
+        <span class="al-form-label">Ticker</span>
+        <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="width:80px;text-transform:uppercase;" autocomplete="off" spellcheck="false" />
+        <span class="al-form-label">condition</span>
+        <select id="al-input-cond">
+            <option value="above">crosses above</option>
+            <option value="below">crosses below</option>
+        </select>
+        <input type="number" id="al-input-price" placeholder="Price" style="width:80px;" step="0.01" min="0" />
+        <button class="al-confirm-btn" onclick="alSubmitForm()">Set alert</button>
+        <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
+    </div>
+    <div class="al-hdr-row" id="al-hdr-row" style="display:none;">
+        <div class="al-hdr" style="width:60px;flex-shrink:0;">Ticker</div>
+        <div class="al-hdr" style="flex:1;padding-right:16px;">Name</div>
+        <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
+        <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
+        <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
+        <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
+        <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
+        <div style="width:28px;flex-shrink:0;"></div>
+    </div>
+    <div id="al-list" style="overflow-y:auto;flex:1;"></div>
+</div>
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
         <div class="chart-modal-header">
@@ -1786,6 +1870,7 @@
         document.getElementById('view-sector').style.display          = 'none';
         document.getElementById('view-watchlists').style.display      = 'none';
         document.getElementById('view-market').style.display          = 'none';
+        document.getElementById('view-alerts').style.display          = 'none';
         if (view !== 'market') marketStopTimer();
         if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); window._wlChartMsgHandler = null; }
         if (view !== 'watchlists') {
@@ -1810,13 +1895,14 @@
         document.getElementById('tab-scans').classList.toggle('active', view === 'scans');
         document.getElementById('tab-watchlists').classList.toggle('active', view === 'watchlists');
         document.getElementById('tab-market').classList.toggle('active', view === 'market');
+        document.getElementById('tab-alerts').classList.toggle('active', view === 'alerts');
 
         var searchEl = document.getElementById('search-input');
-        searchEl.style.display = (view === 'market') ? 'none' : '';
+        searchEl.style.display = (view === 'market' || view === 'alerts') ? 'none' : '';
         var _scb = document.getElementById('search-clear-btn');
         if (_scb) _scb.classList.remove('visible');
         var _sw = searchEl.closest('.search-wrap');
-        if (_sw) _sw.style.display = (view === 'market') ? 'none' : '';
+        if (_sw) _sw.style.display = (view === 'market' || view === 'alerts') ? 'none' : '';
         searchEl.value = '';
         searchQuery = '';
         if (view === 'industries') {
@@ -1873,6 +1959,10 @@
             renderRSDist();
             marketFetchAll();
             marketFetchMacro();
+        } else if (view === 'alerts') {
+            document.getElementById('view-alerts').style.display = 'flex';
+            renderAlerts();
+            alStartBackgroundPolling();
         }
     };
 
@@ -7356,11 +7446,13 @@
             showView('market');
             sfRenderPills();
             wlAttachListeners();
+            alLoad();
         }).catch(function() {
             // KV unavailable — proceed normally with localStorage
             showView('market');
             sfRenderPills();
             wlAttachListeners();
+            alLoad();
         });
 
         // Market movers — click to open chart modal
@@ -7569,6 +7661,263 @@
             tip.style.top  = (e.clientY - 32) + 'px';
         });
     })();
+    // ── PRICE ALERTS ─────────────────────────────────────────────────────────
+    var alertsList       = [];   // [{ticker, condition:'above'|'below', price, addedAt}]
+    var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
+    var alertPrices      = {};   // {ticker: latestPrice}
+    var alertPriceTimer  = null;
+    var alertOpenTimer   = null;  // setTimeout handle for market-open retry
+    var _alertFiredSess  = {};   // prevents re-firing in same session
+
+    function alLoad() {
+        Promise.all([
+            kvGet('price_alerts'),
+            kvGet('alerts_fired')
+        ]).then(function(r) {
+            try { alertsList     = r[0] ? JSON.parse(r[0]) : []; } catch(e) { alertsList = []; }
+            try { alertFiredList = r[1] ? JSON.parse(r[1]) : []; } catch(e) { alertFiredList = []; }
+            alertFiredList.forEach(function(f) {
+                _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
+            });
+            alUpdateBadge();
+            alStartBackgroundPolling();
+        }).catch(function() { alertsList = []; alertFiredList = []; });
+    }
+
+    function alSave()      { kvSet('price_alerts',  JSON.stringify(alertsList)); }
+    function alSaveFired() { kvSet('alerts_fired',  JSON.stringify(alertFiredList.slice(0, 50))); }
+
+    function alUpdateBadge() {
+        var n = alertFiredList.filter(function(f) { return !f.dismissed; }).length;
+        var el = document.getElementById('al-nav-badge');
+        if (!el) return;
+        el.textContent = n || '';
+        el.classList.toggle('visible', n > 0);
+    }
+
+    function alMsUntilMarketOpen() {
+        var now  = new Date();
+        var et   = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        var next = new Date(et);
+        next.setHours(9, 30, 0, 0);
+        if (et >= next) next.setDate(next.getDate() + 1);
+        while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+        next.setHours(9, 30, 0, 0);
+        var etOffset = et.getTime() - now.getTime();
+        return Math.max(next.getTime() - etOffset - now.getTime(), 0);
+    }
+
+    function alStartBackgroundPolling() {
+        if (alertPriceTimer) { clearInterval(alertPriceTimer); alertPriceTimer = null; }
+        if (alertOpenTimer)  { clearTimeout(alertOpenTimer);   alertOpenTimer  = null; }
+        if (!alertsList.length) return;
+        alFetchPrices();
+        if (!wlIsMarketOpen()) {
+            alertOpenTimer = setTimeout(alStartBackgroundPolling, alMsUntilMarketOpen());
+            return;
+        }
+        alertPriceTimer = setInterval(function() {
+            if (!wlIsMarketOpen()) {
+                clearInterval(alertPriceTimer); alertPriceTimer = null;
+                alertOpenTimer = setTimeout(alStartBackgroundPolling, alMsUntilMarketOpen());
+                return;
+            }
+            alFetchPrices();
+        }, 60 * 1000);
+    }
+
+    function alFetchPrices() {
+        if (!alertsList.length) return;
+        var tickers = alertsList.map(function(a) { return a.ticker; })
+            .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+        var url = WL_PROXY + '?action=quotes_batch&tickers=' + tickers.map(encodeURIComponent).join(',');
+        fetch(url).then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.quotes) return;
+            data.quotes.forEach(function(q) {
+                if (q && q.ticker && q.price) alertPrices[q.ticker] = q.price;
+            });
+            alCheckTriggers();
+            if (currentView === 'alerts') renderAlerts();
+        }).catch(function() {});
+    }
+
+    function alPlayAlert() {
+        try {
+            var ctx  = new (window.AudioContext || window.webkitAudioContext)();
+            // Three sharp descending beeps
+            [0, 0.18, 0.36].forEach(function(startTime) {
+                var osc  = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type      = 'square';
+                osc.frequency.setValueAtTime(880, ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0.35, ctx.currentTime + startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + 0.14);
+                osc.start(ctx.currentTime + startTime);
+                osc.stop(ctx.currentTime + startTime + 0.14);
+            });
+            setTimeout(function() { ctx.close(); }, 800);
+        } catch(e) {}
+    }
+
+    function alCheckTriggers() {
+        var anyFired = false;
+        alertsList.forEach(function(a) {
+            var key = a.ticker + '_' + a.price + '_' + a.condition;
+            if (_alertFiredSess[key]) return;
+            var price = alertPrices[a.ticker];
+            if (price == null) return;
+            var hit = (a.condition === 'above' && price >= a.price) ||
+                      (a.condition === 'below' && price <= a.price);
+            if (!hit) return;
+            _alertFiredSess[key] = true;
+            alertFiredList.unshift({
+                ticker: a.ticker, condition: a.condition,
+                alertPrice: a.price, hitPrice: price,
+                firedAt: new Date().toISOString(), dismissed: false
+            });
+            anyFired = true;
+            if (window.Notification && Notification.permission === 'granted') {
+                new Notification(a.ticker + ' alert triggered', {
+                    body: (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + price.toFixed(2)
+                });
+            }
+        });
+        if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); }
+    }
+
+    function renderAlerts() {
+        var listEl      = document.getElementById('al-list');
+        var hdrRow      = document.getElementById('al-hdr-row');
+        var firedRowsEl = document.getElementById('al-fired-rows');
+        var banner      = document.getElementById('al-missed-banner');
+        if (!listEl) return;
+
+        var undismissed = alertFiredList.filter(function(f) { return !f.dismissed; });
+
+        if (undismissed.length) {
+            banner.style.display = 'flex';
+            var ago = undismissed.some(function(f) {
+                return (Date.now() - new Date(f.firedAt).getTime()) > 300000;
+            });
+            document.getElementById('al-missed-text').innerHTML =
+                '<strong>' + undismissed.length + ' alert' + (undismissed.length > 1 ? 's' : '') + ' fired</strong>' +
+                (ago ? ' while you were away' : '');
+        } else {
+            banner.style.display = 'none';
+        }
+
+        firedRowsEl.innerHTML = undismissed.slice(0, 5).map(function(f) {
+            var cl = f.condition === 'above' ? 'color:#3fb950' : 'color:#f85149';
+            var t  = new Date(f.firedAt);
+            var isToday = t.toDateString() === new Date().toDateString();
+            var ts = isToday
+                ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            return '<div class="al-fired-row">' +
+                '<div class="al-fired-dot"></div>' +
+                '<div class="al-fired-ticker">' + esc(f.ticker) + '</div>' +
+                '<div class="al-fired-desc">Crossed <span style="' + cl + ';font-weight:600">$' + f.alertPrice.toFixed(2) + '</span> &middot; hit $' + f.hitPrice.toFixed(2) + '</div>' +
+                '<div class="al-fired-time">' + ts + '</div>' +
+            '</div>';
+        }).join('');
+
+        var activeCount = alertsList.filter(function(a) {
+            return !_alertFiredSess[a.ticker + '_' + a.price + '_' + a.condition];
+        }).length;
+        var countEl = document.getElementById('al-count-label');
+        if (countEl) countEl.textContent = activeCount + ' active';
+
+        if (!alertsList.length) {
+            hdrRow.style.display = 'none';
+            listEl.innerHTML = '<div class="al-empty">No alerts set. Click "+ Add alert" to get started.</div>';
+            return;
+        }
+
+        hdrRow.style.display = 'flex';
+        listEl.innerHTML = alertsList.map(function(a, idx) {
+            var key   = a.ticker + '_' + a.price + '_' + a.condition;
+            var fired = !!_alertFiredSess[key];
+            var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
+            var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : '';
+            var condHtml = a.condition === 'above'
+                ? '<span style="color:#3fb950;">▲ above</span>'
+                : '<span style="color:#f85149;">▼ below</span>';
+            var awayHtml;
+            if (fired || curr == null) {
+                awayHtml = '<div class="al-col-away">—</div>';
+            } else {
+                var pct = Math.abs((curr - a.price) / a.price * 100);
+                awayHtml = '<div class="al-col-away' + (pct < 5 ? ' close' : '') + '">' + pct.toFixed(1) + '%</div>';
+            }
+            return '<div class="al-row' + (fired ? ' fired' : '') + '">' +
+                '<div class="al-col-ticker">' + esc(a.ticker) + '</div>' +
+                '<div class="al-col-name">' + esc(name) + '</div>' +
+                '<div class="al-col-cond">' + condHtml + '</div>' +
+                '<div class="al-col-target ' + a.condition + '">$' + a.price.toFixed(2) + '</div>' +
+                '<div class="al-col-curr">' + (curr != null ? '$' + curr.toFixed(2) : '—') + '</div>' +
+                awayHtml +
+                '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
+                '<div class="al-col-del" onclick="alDelete(' + idx + ')" title="Remove">×</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    window.alShowForm = function() {
+        if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+        document.getElementById('al-add-form').style.display = 'flex';
+        document.getElementById('al-add-open-btn').style.display = 'none';
+        setTimeout(function() { document.getElementById('al-input-ticker').focus(); }, 50);
+    };
+
+    window.alHideForm = function() {
+        document.getElementById('al-add-form').style.display = 'none';
+        document.getElementById('al-add-open-btn').style.display = '';
+        document.getElementById('al-input-ticker').value = '';
+        document.getElementById('al-input-price').value = '';
+    };
+
+    window.alSubmitForm = function() {
+        var ticker = document.getElementById('al-input-ticker').value.trim().toUpperCase();
+        var cond   = document.getElementById('al-input-cond').value;
+        var price  = parseFloat(document.getElementById('al-input-price').value);
+        if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
+        if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
+        alertsList.push({ ticker: ticker, condition: cond, price: price, addedAt: new Date().toISOString() });
+        alSave();
+        alHideForm();
+        alStartBackgroundPolling();
+        renderAlerts();
+    };
+
+    window.alDelete = function(idx) {
+        var a = alertsList[idx];
+        if (a) delete _alertFiredSess[a.ticker + '_' + a.price + '_' + a.condition];
+        alertsList.splice(idx, 1);
+        alSave();
+        alUpdateBadge();
+        if (!alertsList.length) {
+            if (alertPriceTimer) { clearInterval(alertPriceTimer); alertPriceTimer = null; }
+            if (alertOpenTimer)  { clearTimeout(alertOpenTimer);   alertOpenTimer  = null; }
+        }
+        renderAlerts();
+    };
+
+    window.alDismissMissed = function() {
+        alertFiredList.forEach(function(f) { f.dismissed = true; });
+        alSaveFired();
+        alUpdateBadge();
+        renderAlerts();
+    };
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' || currentView !== 'alerts') return;
+        var form = document.getElementById('al-add-form');
+        if (form && form.style.display !== 'none') alSubmitForm();
+    });
+    // ── END PRICE ALERTS ─────────────────────────────────────────────────────
 
 })();
 </script>
