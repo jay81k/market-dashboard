@@ -7841,7 +7841,7 @@
             var key   = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
-            var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : '';
+            var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
             var condHtml = a.condition === 'above'
                 ? '<span style="color:#3fb950;">▲ above</span>'
                 : '<span style="color:#f85149;">▼ below</span>';
@@ -7885,11 +7885,19 @@
         var price  = parseFloat(document.getElementById('al-input-price').value);
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
         if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
-        alertsList.push({ ticker: ticker, condition: cond, price: price, addedAt: new Date().toISOString() });
+        var entry = { ticker: ticker, condition: cond, price: price, name: '', addedAt: new Date().toISOString() };
+        alertsList.push(entry);
         alSave();
         alHideForm();
         alStartBackgroundPolling();
         renderAlerts();
+        fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+                var name = (meta && (meta.shortName || meta.longName)) || '';
+                if (name) { entry.name = name; alSave(); renderAlerts(); }
+            }).catch(function() {});
     };
 
     window.alDelete = function(idx) {
