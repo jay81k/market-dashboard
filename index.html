@@ -2045,6 +2045,7 @@
             marketFetchMacro();
         } else if (view === 'alerts') {
             document.getElementById('view-alerts').style.display = 'flex';
+            alDismissMissed();
             renderAlerts();
             alStartBackgroundPolling();
         }
@@ -3185,7 +3186,8 @@
                     var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
                     if (bare && bare !== _chartModalLastSym) {
                         _chartModalLastSym = bare;
-                        updateChartModalHeader(bare, '', '', null);
+                        var sd = tickerMap && tickerMap[bare];
+                        updateChartModalHeader(bare, (sd && sd.sector) || '', (sd && sd.industry) || '', null);
                         updateQueueButtons();
                     }
                 }
