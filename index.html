@@ -1247,6 +1247,11 @@
         .al-col-target.above { color:#3fb950; }
         .al-col-target.below { color:#f85149; }
         .al-col-curr { font-size:0.858em;color:#6e7681;width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-chg    { font-size:0.858em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-chgpct { font-size:0.858em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-chg.up, .al-col-chgpct.up   { color:#3fb950; }
+        .al-col-chg.dn, .al-col-chgpct.dn   { color:#f85149; }
+        .al-col-chg.flat, .al-col-chgpct.flat { color:#484f58; }
         .al-col-away { font-size:0.858em;font-weight:600;width:60px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:#484f58; }
         .al-col-away.imminent { color:#f85149; }
         .al-col-away.close { color:#f0a500; }
@@ -1739,6 +1744,8 @@
                     <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
                     <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
                     <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
+                    <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg</div>
+                    <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg%</div>
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
                     <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
@@ -7771,6 +7778,7 @@
     var alertsList       = [];   // [{ticker, condition:'above'|'below', price, addedAt}]
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
+    var alertPrevClose   = {};   // {ticker: prevClosePrice}
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
@@ -7842,7 +7850,10 @@
         .then(function(data) {
             if (!data || !data.quotes) return;
             data.quotes.forEach(function(q) {
-                if (q && q.ticker && q.price) alertPrices[q.ticker] = q.price;
+                if (q && q.ticker && q.price) {
+                    alertPrices[q.ticker]    = q.price;
+                    alertPrevClose[q.ticker] = q.prevClose || null;
+                }
             });
             alCheckTriggers();
             if (currentView === 'alerts') renderAlerts();
@@ -7942,6 +7953,12 @@
                 var awayCls = pct < 1 ? ' imminent' : pct < 5 ? ' close' : '';
                 awayHtml = '<div class="al-col-away' + awayCls + '">' + pct.toFixed(1) + '%</div>';
             }
+            var prevClose = alertPrevClose[a.ticker] || null;
+            var chgAbs    = (curr != null && prevClose && prevClose > 0) ? curr - prevClose : null;
+            var chgPct    = (chgAbs != null) ? (chgAbs / prevClose * 100) : null;
+            var chgCls    = chgAbs == null ? 'flat' : chgAbs > 0 ? 'up' : chgAbs < 0 ? 'dn' : 'flat';
+            var chgHtml    = '<div class="al-col-chg '    + chgCls + '">' + (chgAbs  != null ? (chgAbs  >= 0 ? '+' : '') + chgAbs.toFixed(2)  : '—') + '</div>';
+            var chgPctHtml = '<div class="al-col-chgpct ' + chgCls + '">' + (chgPct  != null ? (chgPct  >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—') + '</div>';
             var addedHtml;
             if (a.addedAt) {
                 var d = new Date(a.addedAt);
@@ -7956,6 +7973,8 @@
                 '<div class="al-col-cond">' + condHtml + '</div>' +
                 '<div class="al-col-target ' + a.condition + '">$' + a.price.toFixed(2) + '</div>' +
                 '<div class="al-col-curr">' + (curr != null ? '$' + curr.toFixed(2) : '—') + '</div>' +
+                chgHtml +
+                chgPctHtml +
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
