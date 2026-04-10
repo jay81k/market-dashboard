@@ -1248,7 +1248,9 @@
         .al-col-target.below { color:#f85149; }
         .al-col-curr { font-size:0.858em;color:#6e7681;width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
         .al-col-away { font-size:0.858em;font-weight:600;width:60px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:#484f58; }
+        .al-col-away.imminent { color:#f85149; }
         .al-col-away.close { color:#f0a500; }
+        .al-col-added { font-size:0.792em;color:#484f58;width:80px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
         .al-col-status { width:60px;text-align:right;flex-shrink:0; }
         .al-pill { font-size:0.748em;font-weight:600;padding:2px 7px;border-radius:4px;display:inline-block; }
         .al-pill-active { background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.25); }
@@ -1682,6 +1684,7 @@
             <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
             <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
             <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
+            <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
             <div style="width:28px;flex-shrink:0;"></div>
         </div>
         <div id="al-list" style="overflow-y:auto;flex:1;"></div>
@@ -7852,8 +7855,17 @@
                 awayHtml = '<div class="al-col-away">—</div>';
             } else {
                 var pct = Math.abs((curr - a.price) / a.price * 100);
-                awayHtml = '<div class="al-col-away' + (pct < 5 ? ' close' : '') + '">' + pct.toFixed(1) + '%</div>';
+                var awayCls = pct < 1 ? ' imminent' : pct < 5 ? ' close' : '';
+                awayHtml = '<div class="al-col-away' + awayCls + '">' + pct.toFixed(1) + '%</div>';
             }
+            var addedHtml;
+            if (a.addedAt) {
+                var d = new Date(a.addedAt);
+                var isToday = d.toDateString() === new Date().toDateString();
+                addedHtml = isToday
+                    ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                    : d.toLocaleDateString([], {month:'short', day:'numeric'});
+            } else { addedHtml = '—'; }
             return '<div class="al-row' + (fired ? ' fired' : '') + '">' +
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alOpenChart(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
@@ -7862,6 +7874,7 @@
                 '<div class="al-col-curr">' + (curr != null ? '$' + curr.toFixed(2) : '—') + '</div>' +
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
+                '<div class="al-col-added">' + addedHtml + '</div>' +
                 '<div class="al-col-del" onclick="alDelete(' + idx + ')" title="Remove">×</div>' +
             '</div>';
         }).join('');
