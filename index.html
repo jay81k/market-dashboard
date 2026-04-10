@@ -1240,8 +1240,8 @@
         .al-row { display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
         .al-row:hover { background:#161b22; }
         .al-row.fired { opacity:0.45; }
-        .al-col-ticker { font-size:1.045em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; }
-        .al-col-name { font-size:0.858em;color:#8b949e;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
+        .al-col-ticker { font-size:1.045em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; } .al-col-ticker-link { cursor:pointer; } .al-col-ticker-link:hover { color:#58a6ff;text-decoration:underline; }
+        .al-col-name { font-size:0.858em;color:#8b949e;width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
         .al-col-cond { font-size:0.792em;width:70px;flex-shrink:0; }
         .al-col-target { font-size:0.968em;font-weight:600;font-variant-numeric:tabular-nums;width:72px;text-align:right;flex-shrink:0; }
         .al-col-target.above { color:#3fb950; }
@@ -1673,17 +1673,19 @@
         <button class="al-confirm-btn" onclick="alSubmitForm()">Set alert</button>
         <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
     </div>
-    <div class="al-hdr-row" id="al-hdr-row" style="display:none;">
-        <div class="al-hdr" style="width:60px;flex-shrink:0;">Ticker</div>
-        <div class="al-hdr" style="flex:1;padding-right:16px;">Name</div>
-        <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
-        <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
-        <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
-        <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
-        <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
-        <div style="width:28px;flex-shrink:0;"></div>
+    <div style="max-width:860px;width:100%;display:flex;flex-direction:column;flex:1;min-height:0;">
+        <div class="al-hdr-row" id="al-hdr-row" style="display:none;">
+            <div class="al-hdr" style="width:60px;flex-shrink:0;">Ticker</div>
+            <div class="al-hdr" style="width:200px;flex-shrink:0;padding-right:16px;">Name</div>
+            <div class="al-hdr" style="width:70px;flex-shrink:0;">Cond.</div>
+            <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
+            <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
+            <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
+            <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
+            <div style="width:28px;flex-shrink:0;"></div>
+        </div>
+        <div id="al-list" style="overflow-y:auto;flex:1;"></div>
     </div>
-    <div id="al-list" style="overflow-y:auto;flex:1;"></div>
 </div>
 <div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
     <div class="chart-modal">
@@ -7853,7 +7855,7 @@
                 awayHtml = '<div class="al-col-away' + (pct < 5 ? ' close' : '') + '">' + pct.toFixed(1) + '%</div>';
             }
             return '<div class="al-row' + (fired ? ' fired' : '') + '">' +
-                '<div class="al-col-ticker">' + esc(a.ticker) + '</div>' +
+                '<div class="al-col-ticker al-col-ticker-link" onclick="alOpenChart(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
                 '<div class="al-col-target ' + a.condition + '">$' + a.price.toFixed(2) + '</div>' +
@@ -7918,6 +7920,11 @@
         alSaveFired();
         alUpdateBadge();
         renderAlerts();
+    };
+
+    window.alOpenChart = function(ticker) {
+        var sd = tickerMap && tickerMap[ticker];
+        openChartModal(ticker, (sd && sd.sector) || '', (sd && sd.industry) || '');
     };
 
     document.addEventListener('keydown', function(e) {
