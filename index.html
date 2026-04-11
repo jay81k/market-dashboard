@@ -6626,13 +6626,17 @@
             }
         };
 
+        picker.style.visibility = 'hidden';
+        picker.style.display = 'block';
+
         var rect = btn.getBoundingClientRect();
-        var ph = 200;
+        var ph = picker.offsetHeight;
         var top = rect.bottom + 4;
         if (top + ph > window.innerHeight) top = rect.top - ph - 4;
+        if (top < 4) top = 4;
         picker.style.top  = top + 'px';
         picker.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
-        picker.style.display = 'block';
+        picker.style.visibility = '';
         var bd = document.getElementById('wl-picker-backdrop');
         if (bd) bd.classList.add('open');
         wlPickerOpen = true;
