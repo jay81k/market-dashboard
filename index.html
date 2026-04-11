@@ -2059,6 +2059,7 @@
         if (_sw) _sw.style.display = (view === 'market' || view === 'alerts') ? 'none' : '';
         searchEl.value = '';
         searchQuery = '';
+        window._scansSearchQuery = '';
         if (view === 'industries') {
             searchEl.placeholder = 'Search industries…';
         } else if (view === 'industry-stocks') {
