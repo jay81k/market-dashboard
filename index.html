@@ -1637,8 +1637,11 @@
                     <div id="wl-export-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:140px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
                         <div class="wl-export-item" onclick="wlExport('csv')">CSV file</div>
                         <div class="wl-export-item" onclick="wlExport('tickers')">Comma separated</div>
+                        <div style="height:1px;background:#21262d;margin:3px 0;"></div>
+                        <div class="wl-export-item" onclick="wlImportCSV()">Import CSV…</div>
                     </div>
                 </div>
+                <input type="file" id="wl-import-file" accept=".csv" style="display:none;">
             </div>
             <div id="wl-new-row" class="wl-new-row" style="display:none;">
                 <input id="wl-new-input" class="wl-new-input" type="text" placeholder="List name…" maxlength="40" autocomplete="off" spellcheck="false">
@@ -6134,6 +6137,60 @@
             a.click();
         }
     };
+
+    window.wlImportCSV = function() {
+        document.getElementById('wl-export-dropdown').style.display = 'none';
+        var fileInput = document.getElementById('wl-import-file');
+        fileInput.value = '';
+        fileInput.click();
+    };
+
+    document.getElementById('wl-import-file').addEventListener('change', function(e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        // Derive list name from filename: strip .csv, underscores → spaces
+        var listName = file.name.replace(/\.csv$/i, '').replace(/_/g, ' ').trim();
+        if (!listName) listName = 'Imported';
+
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var lines = (ev.target.result || '').split(/\r?\n/);
+            var tickers = [];
+            lines.forEach(function(line, idx) {
+                if (!line.trim()) return;
+                var first = line.split(',')[0].trim().replace(/^"|"$/g, '').toUpperCase();
+                if (idx === 0 && first === 'SYMBOL') return; // skip header
+                if (first) tickers.push(first);
+            });
+
+            if (!tickers.length) { alert('No symbols found in CSV.'); return; }
+
+            var all = wlGetAll();
+            if (!all[listName]) all[listName] = [];
+
+            // Merge — add only tickers not already in the list
+            var added = 0;
+            tickers.forEach(function(t) {
+                if (all[listName].indexOf(t) === -1) {
+                    all[listName].push(t);
+                    added++;
+                }
+            });
+
+            // Ensure list appears in order
+            var order = wlGetOrder();
+            if (order.indexOf(listName) === -1) {
+                order.push(listName);
+                wlSaveOrder(order);
+            }
+
+            wlSaveAll(all);
+            wlRender();
+            alert('Imported ' + added + ' ticker' + (added !== 1 ? 's' : '') + ' into "' + listName + '".' + (tickers.length - added > 0 ? '\n(' + (tickers.length - added) + ' already present, skipped)' : ''));
+        };
+        reader.readAsText(file);
+    });
 
     function wlAttachListeners() {
         var scroll = document.getElementById('wl-list-scroll');
