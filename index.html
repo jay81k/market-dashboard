@@ -2116,6 +2116,16 @@
             renderAlerts();
             if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
         }
+
+        // Restore chart modal + side panel if returning from an alert add
+        if (_alReturnState && _alReturnState.view === view) {
+            var _rs = _alReturnState;
+            _alReturnState = null;
+            setTimeout(function() {
+                if (_rs.ticker) openChartModal(_rs.ticker, _rs.sector, _rs.industry);
+                if (_rs.snpOpen) snpBuild();
+            }, 50);
+        }
     };
 
     // ── Industry list click delegation ──────────────────────────────────
@@ -8224,15 +8234,6 @@
         document.getElementById('al-add-open-btn').style.display = '';
         document.getElementById('al-input-ticker').value = '';
         document.getElementById('al-input-price').value = '';
-        if (_alReturnState) {
-            var state = _alReturnState;
-            _alReturnState = null;
-            showView(state.view);
-            setTimeout(function() {
-                if (state.ticker) openChartModal(state.ticker, state.sector, state.industry);
-                if (state.snpOpen) snpBuild();
-            }, 50);
-        }
     };
 
     window.alSubmitForm = function() {
@@ -8288,9 +8289,10 @@
     });
     var _alConfirmCallback = null;
 
-    window.alConfirmOpen = function(title, msg, callback) {
+    window.alConfirmOpen = function(title, msg, callback, okLabel) {
         document.getElementById('al-confirm-title').textContent = title;
         document.getElementById('al-confirm-msg').textContent   = msg;
+        document.getElementById('al-confirm-ok').textContent    = okLabel || 'Clear all';
         _alConfirmCallback = callback;
         document.getElementById('al-confirm-overlay').classList.add('open');
     };
@@ -8306,7 +8308,8 @@
         alConfirmOpen(
             'Remove alert?',
             'The price alert for ' + ticker + ' will be permanently removed.',
-            function() { alDelete(idx); }
+            function() { alDelete(idx); },
+            'Delete'
         );
     };
     document.addEventListener('keydown', function(e) {
