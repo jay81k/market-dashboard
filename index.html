@@ -6579,6 +6579,18 @@
             var alertBtn = ev.target.closest('#wl-picker-alert-btn');
             if (alertBtn) {
                 wlClosePicker();
+                var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+                if (_modalOpen) {
+                    var _modalSym = document.getElementById('chart-modal-sym').textContent.trim();
+                    var _sd = tickerMap && tickerMap[_modalSym];
+                    _alReturnState = {
+                        view:     currentView,
+                        ticker:   _modalSym,
+                        sector:   (_sd && _sd.sector)   || '',
+                        industry: (_sd && _sd.industry) || '',
+                        snpOpen:  document.getElementById('scan-nav-panel').classList.contains('snp-open')
+                    };
+                }
                 closeChartModal();
                 closeMcFullscreen();
                 showView('alerts');
@@ -7929,6 +7941,7 @@
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
+    var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
 
     function alLoad() {
         Promise.all([
@@ -8211,6 +8224,15 @@
         document.getElementById('al-add-open-btn').style.display = '';
         document.getElementById('al-input-ticker').value = '';
         document.getElementById('al-input-price').value = '';
+        if (_alReturnState) {
+            var state = _alReturnState;
+            _alReturnState = null;
+            showView(state.view);
+            setTimeout(function() {
+                if (state.ticker) openChartModal(state.ticker, state.sector, state.industry);
+                if (state.snpOpen) snpBuild();
+            }, 50);
+        }
     };
 
     window.alSubmitForm = function() {
