@@ -6611,10 +6611,15 @@
                 setTimeout(function() {
                     var tickerInput = document.getElementById('al-input-ticker');
                     if (tickerInput) {
-                        alShowForm();
+                        if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+                        _alEditIdx = null;
+                        tickerInput.readOnly = false;
                         tickerInput.value = ticker;
-                        var priceInput = document.getElementById('al-input-price');
-                        if (priceInput) priceInput.focus();
+                        document.getElementById('al-input-price').value = '';
+                        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
+                        document.getElementById('al-add-form').style.display = 'flex';
+                        document.getElementById('al-add-open-btn').style.display = 'none';
+                        document.getElementById('al-input-price').focus();
                     }
                 }, 50);
                 return;
