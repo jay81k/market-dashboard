@@ -1266,6 +1266,8 @@
         .al-pill-fired  { background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.25); }
         .al-col-del { width:28px;text-align:center;flex-shrink:0;color:#21262d;font-size:1.1em;cursor:pointer;line-height:1;user-select:none; }
         .al-col-del:hover { color:#f85149; }
+        .al-col-edit { width:28px;text-align:center;flex-shrink:0;color:#21262d;font-size:0.9em;cursor:pointer;line-height:1;user-select:none; }
+        .al-col-edit:hover { color:#58a6ff; }
         .al-empty { padding:40px;text-align:center;color:#484f58;font-size:0.902em; }
 
         /* ── Alert history side panel ── */
@@ -1802,6 +1804,7 @@
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
                     <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
+                    <div style="width:28px;flex-shrink:0;"></div>
                     <div style="width:28px;flex-shrink:0;"></div>
                 </div>
                 <div id="al-list" style="overflow-y:auto;flex:1;"></div>
@@ -7952,6 +7955,7 @@
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
+    var _alEditIdx       = null;  // index of alert being edited, null when adding new
 
     function alLoad() {
         Promise.all([
@@ -8148,6 +8152,7 @@
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
+                '<div class="al-col-edit" onclick="alEditOpen(' + idx + ')" title="Edit">✎</div>' +
                 '<div class="al-col-del" onclick="alDeleteConfirm(' + idx + ',\'' + esc(a.ticker) + '\')" title="Remove">×</div>' +
             '</div>';
         }).join('');
@@ -8224,16 +8229,38 @@
 
     window.alShowForm = function() {
         if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+        _alEditIdx = null;
+        document.getElementById('al-input-ticker').readOnly = false;
+        document.getElementById('al-input-ticker').value = '';
+        document.getElementById('al-input-price').value = '';
+        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
         document.getElementById('al-add-form').style.display = 'flex';
         document.getElementById('al-add-open-btn').style.display = 'none';
         setTimeout(function() { document.getElementById('al-input-ticker').focus(); }, 50);
+    };
+
+    window.alEditOpen = function(idx) {
+        var a = alertsList[idx];
+        if (!a) return;
+        _alEditIdx = idx;
+        document.getElementById('al-input-ticker').value = a.ticker;
+        document.getElementById('al-input-ticker').readOnly = true;
+        document.getElementById('al-input-cond').value = a.condition;
+        document.getElementById('al-input-price').value = a.price;
+        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Update';
+        document.getElementById('al-add-form').style.display = 'flex';
+        document.getElementById('al-add-open-btn').style.display = 'none';
+        setTimeout(function() { document.getElementById('al-input-price').focus(); }, 50);
     };
 
     window.alHideForm = function() {
         document.getElementById('al-add-form').style.display = 'none';
         document.getElementById('al-add-open-btn').style.display = '';
         document.getElementById('al-input-ticker').value = '';
+        document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-price').value = '';
+        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
+        _alEditIdx = null;
     };
 
     window.alSubmitForm = function() {
@@ -8242,19 +8269,36 @@
         var price  = parseFloat(document.getElementById('al-input-price').value);
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
         if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
-        var entry = { ticker: ticker, condition: cond, price: price, name: '', addedAt: new Date().toISOString() };
-        alertsList.push(entry);
-        alSave();
-        alHideForm();
-        alStartBackgroundPolling();
-        renderAlerts();
-        fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .then(function(data) {
-                var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
-                var name = (meta && (meta.shortName || meta.longName)) || '';
-                if (name) { entry.name = name; alSave(); renderAlerts(); }
-            }).catch(function() {});
+
+        if (_alEditIdx !== null) {
+            // Edit mode — update existing alert in place
+            var a = alertsList[_alEditIdx];
+            if (a) {
+                var oldKey = a.ticker + '_' + a.price + '_' + a.condition;
+                delete _alertFiredSess[oldKey];
+                a.condition = cond;
+                a.price     = price;
+            }
+            alSave();
+            alHideForm();
+            if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
+            renderAlerts();
+        } else {
+            // New alert
+            var entry = { ticker: ticker, condition: cond, price: price, name: '', addedAt: new Date().toISOString() };
+            alertsList.push(entry);
+            alSave();
+            alHideForm();
+            alStartBackgroundPolling();
+            renderAlerts();
+            fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+                    var name = (meta && (meta.shortName || meta.longName)) || '';
+                    if (name) { entry.name = name; alSave(); renderAlerts(); }
+                }).catch(function() {});
+        }
     };
 
     window.alDelete = function(idx) {
