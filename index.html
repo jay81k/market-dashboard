@@ -1801,7 +1801,7 @@
                         <span class="al-hist-badge" id="al-hist-badge">0</span>
                     </div>
                     <div class="al-hist-actions">
-                        <button class="al-hist-clear" onclick="alConfirmOpen()">Clear all</button>
+                        <button class="al-hist-clear" onclick="alConfirmOpen('Clear history?','This will permanently remove all fired alert history. This can\'t be undone.',alHistClearAll)">Clear all</button>
                         <button class="al-hist-collapse" onclick="alHistClose()" title="Collapse">›</button>
                     </div>
                 </div>
@@ -3175,6 +3175,26 @@
         var fBtn = document.getElementById('chart-modal-details-btn');
         if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
     }
+
+    // ── Chart modal symbol right-click → watchlist / alert picker ───────────
+    (function() {
+        var symEl = document.getElementById('chart-modal-sym');
+        if (!symEl) return;
+        symEl.style.cursor = 'context-menu';
+        symEl.title = 'Right-click for options';
+        symEl.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var ticker = symEl.textContent.trim();
+            if (!ticker) return;
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        });
+    })();
 
     function openChartModal(symbol, sector, industry) {
         var sym = TV_MAP[symbol] || symbol;
@@ -8034,7 +8054,7 @@
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
-                '<div class="al-col-del" onclick="alDelete(' + idx + ')" title="Remove">×</div>' +
+                '<div class="al-col-del" onclick="alDeleteConfirm(' + idx + ',\'' + esc(a.ticker) + '\')" title="Remove">×</div>' +
             '</div>';
         }).join('');
     }
@@ -8173,15 +8193,28 @@
         var form = document.getElementById('al-add-form');
         if (form && form.style.display !== 'none') alSubmitForm();
     });
-    window.alConfirmOpen = function() {
+    var _alConfirmCallback = null;
+
+    window.alConfirmOpen = function(title, msg, callback) {
+        document.getElementById('al-confirm-title').textContent = title;
+        document.getElementById('al-confirm-msg').textContent   = msg;
+        _alConfirmCallback = callback;
         document.getElementById('al-confirm-overlay').classList.add('open');
     };
     window.alConfirmClose = function() {
         document.getElementById('al-confirm-overlay').classList.remove('open');
+        _alConfirmCallback = null;
     };
     window.alConfirmClear = function() {
-        alHistClearAll();
+        if (_alConfirmCallback) _alConfirmCallback();
         alConfirmClose();
+    };
+    window.alDeleteConfirm = function(idx, ticker) {
+        alConfirmOpen(
+            'Remove alert?',
+            'The price alert for ' + ticker + ' will be permanently removed.',
+            function() { alDelete(idx); }
+        );
     };
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') alConfirmClose();
@@ -8194,8 +8227,8 @@
 <div class="al-confirm-overlay" id="al-confirm-overlay" onclick="if(event.target===this)alConfirmClose()">
     <div class="al-confirm-box">
         <div class="al-confirm-icon">🗑️</div>
-        <div class="al-confirm-title">Clear history?</div>
-        <div class="al-confirm-msg">This will permanently remove all fired alert history. This can't be undone.</div>
+        <div class="al-confirm-title" id="al-confirm-title">Clear history?</div>
+        <div class="al-confirm-msg" id="al-confirm-msg">This will permanently remove all fired alert history. This can't be undone.</div>
         <div class="al-confirm-btns">
             <button class="al-confirm-cancel" onclick="alConfirmClose()">Cancel</button>
             <button class="al-confirm-ok" onclick="alConfirmClear()">Clear all</button>
