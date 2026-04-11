@@ -1921,6 +1921,7 @@
     var currentIndustryIndex = -1;
     var currentWlIndex = -1;
     var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX', 'NOV': 'NYSE:NOV' };
+    var WL_PROXY = 'https://yahoo-proxy.jay69k.workers.dev';
 
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
     var tickerQueue = [];
@@ -2113,7 +2114,7 @@
             document.getElementById('view-alerts').style.display = 'flex';
             alDismissMissed();
             renderAlerts();
-            alStartBackgroundPolling();
+            if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
         }
     };
 
@@ -2554,8 +2555,6 @@
         });
     }
 
-    var mcFullscreenWidget = null;
-
     window.openMcFullscreen = function(sym) {
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = sym;
@@ -2672,7 +2671,7 @@
         setTimeout(function() {
             try {
                 document.getElementById('mc-fullscreen-chart').innerHTML = '';
-                mcFullscreenWidget = new TradingView.widget({
+                new TradingView.widget({
                     symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
                     theme: 'dark', timezone: 'America/Toronto',
                     toolbar_bg: '#161b22', backgroundColor: '#0d1117',
@@ -2694,7 +2693,6 @@
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
         if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); window._mcFullscreenMsgHandler = null; }
-        mcFullscreenWidget = null;
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
     };
 
@@ -5739,7 +5737,6 @@
     var wlMcWidgets    = {};
     var wlLivePrices   = {};   // { ticker: { price, prevClose, updatedAt } }
     var wlPriceTimer   = null;
-    var WL_PROXY       = 'https://yahoo-proxy.jay69k.workers.dev';
 
     // ── KV Storage helpers ────────────────────────────────────────────────
     function kvGet(key) {
@@ -5756,10 +5753,6 @@
         }).catch(function() {});
     }
 
-    function kvDelete(key) {
-        return fetch(WL_PROXY + '?action=kv_delete&key=' + encodeURIComponent(key))
-            .catch(function() {});
-    }
     var wlPickerTicker = null;
     var wlPickerOpen   = false;
     var wlPickerBtn    = null;
