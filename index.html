@@ -6607,7 +6607,7 @@
         });
     };
 
-    function wlClosePicker() {
+    window.wlClosePicker = function wlClosePicker() {
         document.getElementById('wl-picker').style.display = 'none';
         var bd = document.getElementById('wl-picker-backdrop');
         if (bd) bd.classList.remove('open');
