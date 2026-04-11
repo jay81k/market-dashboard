@@ -1120,7 +1120,6 @@ def main():
         print(f"Wrote {path} ({size_kb:.0f} KB)")
 
     write_json("snapshot.json", snapshot)
-    write_json("meta.json", meta)
     write_json("industries.json", {"built_at": datetime.utcnow().isoformat() + "Z", "industries": industries_list})
     print("\nAll done.")
 
