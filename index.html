@@ -3178,22 +3178,29 @@
 
     // ── Chart modal symbol right-click → watchlist / alert picker ───────────
     (function() {
-        var symEl = document.getElementById('chart-modal-sym');
-        if (!symEl) return;
-        symEl.style.cursor = 'context-menu';
-        symEl.title = 'Right-click for options';
-        symEl.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var ticker = symEl.textContent.trim();
-            if (!ticker) return;
-            var fakeBtn = {
-                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
-                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
-                _wlNoSwitch: true
-            };
-            wlOpenPicker(fakeBtn, e, false);
-        });
+        function attachSymRightClick(elId) {
+            var symEl = document.getElementById(elId);
+            if (!symEl) return;
+            symEl.style.cursor = 'context-menu';
+            symEl.title = 'Right-click for options';
+            symEl.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var ticker = symEl.textContent.trim();
+                if (!ticker || ticker === '—') return;
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
+                // Opened via contextmenu — no click event fires, so the
+                // justOpened guard would eat the first outside click. Reset it.
+                wlPickerJustOpened = false;
+            });
+        }
+        attachSymRightClick('chart-modal-sym');
+        attachSymRightClick('wl-chart-sym');
     })();
 
     function openChartModal(symbol, sector, industry) {
