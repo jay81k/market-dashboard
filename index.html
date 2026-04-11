@@ -1237,25 +1237,25 @@
         .al-cancel-btn { padding:4px 10px;border-radius:5px;border:1px solid #21262d;background:transparent;color:#6e7681;font-size:0.858em;font-family:inherit;cursor:pointer; }
         .al-hdr-row { display:flex;align-items:center;padding:6px 16px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#0d1117;z-index:1;flex-shrink:0; }
         .al-hdr { font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.05em; }
-        .al-row { display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
+        .al-row { display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
         .al-row:hover { background:#161b22; }
         .al-row.fired { opacity:0.45; }
-        .al-col-ticker { font-size:1.045em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; } .al-col-ticker-link { cursor:pointer; } .al-col-ticker-link:hover { color:#58a6ff;text-decoration:underline; }
-        .al-col-name { font-size:0.858em;color:#8b949e;width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
-        .al-col-cond { font-size:0.792em;width:70px;flex-shrink:0; }
-        .al-col-target { font-size:0.968em;font-weight:600;font-variant-numeric:tabular-nums;width:72px;text-align:right;flex-shrink:0; }
+        .al-col-ticker { font-size:0.935em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; } .al-col-ticker-link { cursor:pointer; } .al-col-ticker-link:hover { color:#58a6ff;text-decoration:underline; }
+        .al-col-name { font-size:0.792em;color:#8b949e;width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
+        .al-col-cond { font-size:0.748em;width:70px;flex-shrink:0; }
+        .al-col-target { font-size:0.902em;font-weight:600;font-variant-numeric:tabular-nums;width:72px;text-align:right;flex-shrink:0; }
         .al-col-target.above { color:#3fb950; }
         .al-col-target.below { color:#f85149; }
-        .al-col-curr { font-size:0.858em;color:#c8d0dc;width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
-        .al-col-chg    { font-size:0.858em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
-        .al-col-chgpct { font-size:0.858em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-curr { font-size:0.792em;color:#c8d0dc;width:72px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-chg    { font-size:0.792em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-chgpct { font-size:0.792em;font-weight:600;width:64px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
         .al-col-chg.up, .al-col-chgpct.up   { color:#3fb950; }
         .al-col-chg.dn, .al-col-chgpct.dn   { color:#f85149; }
         .al-col-chg.flat, .al-col-chgpct.flat { color:#484f58; }
-        .al-col-away { font-size:0.858em;font-weight:600;width:60px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:#484f58; }
+        .al-col-away { font-size:0.792em;font-weight:600;width:60px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:#484f58; }
         .al-col-away.imminent { color:#f85149; }
         .al-col-away.close { color:#f0a500; }
-        .al-col-added { font-size:0.792em;color:#484f58;width:80px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
+        .al-col-added { font-size:0.748em;color:#484f58;width:80px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums; }
         .al-col-status { width:60px;text-align:right;flex-shrink:0; }
         .al-pill { font-size:0.748em;font-weight:600;padding:2px 7px;border-radius:4px;display:inline-block; }
         .al-pill-active { background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.25); }
@@ -1301,6 +1301,40 @@
         .al-hist-actions { display:flex; align-items:center; gap:4px; }
         .al-hist-clear { font-size:0.748em; color:#484f58; background:none; border:none; cursor:pointer; padding:2px 5px; border-radius:3px; font-family:inherit; white-space:nowrap; }
         .al-hist-clear:hover { color:#f85149; background:rgba(248,81,73,0.1); }
+        .al-confirm-overlay {
+            display:none; position:fixed; inset:0; z-index:99999;
+            background:rgba(0,0,0,0.55); align-items:center; justify-content:center;
+            backdrop-filter:blur(2px);
+        }
+        .al-confirm-overlay.open { display:flex; }
+        .al-confirm-box {
+            background:#161b22; border:1px solid #30363d; border-radius:10px;
+            padding:24px 28px; min-width:300px; max-width:360px;
+            box-shadow:0 16px 48px rgba(0,0,0,0.7);
+            animation:al-confirm-in 0.15s ease;
+        }
+        @keyframes al-confirm-in {
+            from { opacity:0; transform:scale(0.95) translateY(-6px); }
+            to   { opacity:1; transform:scale(1)    translateY(0); }
+        }
+        .al-confirm-icon { font-size:1.5em; margin-bottom:10px; }
+        .al-confirm-title { font-size:0.968em; font-weight:600; color:#c8d0dc; margin-bottom:6px; }
+        .al-confirm-msg { font-size:0.825em; color:#6e7681; line-height:1.5; margin-bottom:20px; }
+        .al-confirm-btns { display:flex; gap:8px; justify-content:flex-end; }
+        .al-confirm-cancel {
+            padding:6px 16px; border-radius:6px; border:1px solid #30363d;
+            background:transparent; color:#8b949e; font-size:0.858em;
+            font-family:inherit; cursor:pointer; font-weight:500;
+            transition:all 0.12s;
+        }
+        .al-confirm-cancel:hover { background:#21262d; color:#c8d0dc; border-color:#484f58; }
+        .al-confirm-ok {
+            padding:6px 16px; border-radius:6px; border:1px solid rgba(248,81,73,0.4);
+            background:rgba(248,81,73,0.15); color:#f85149; font-size:0.858em;
+            font-family:inherit; cursor:pointer; font-weight:600;
+            transition:all 0.12s;
+        }
+        .al-confirm-ok:hover { background:rgba(248,81,73,0.28); border-color:#f85149; }
         .al-hist-collapse { background:none; border:none; color:#484f58; cursor:pointer; font-size:1em; padding:0 3px; line-height:1; }
         .al-hist-collapse:hover { color:#c8d0dc; }
         .al-hist-scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
@@ -1767,7 +1801,7 @@
                         <span class="al-hist-badge" id="al-hist-badge">0</span>
                     </div>
                     <div class="al-hist-actions">
-                        <button class="al-hist-clear" onclick="alHistClearAll()">Clear all</button>
+                        <button class="al-hist-clear" onclick="alConfirmOpen()">Clear all</button>
                         <button class="al-hist-collapse" onclick="alHistClose()" title="Collapse">›</button>
                     </div>
                 </div>
@@ -1853,6 +1887,8 @@
     var industriesData= null;
     var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
     var currentView   = 'industries';
+    var _lastIndustryName      = null;
+    var _lastIndustryScrollTop = 0;
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
@@ -1951,6 +1987,10 @@
 
     // ── View switching ─────────────────────────────────────────────────────
     window.showView = function(view) {
+        if (currentView === 'industry-stocks') {
+            var _indWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
+            if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
+        }
         currentView = view;
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
@@ -2345,6 +2385,8 @@
 
     // ── Open industry → stocks ────────────────────────────────────────────
     window.openIndustry = function(industryName) {
+        _lastIndustryName      = industryName;
+        _lastIndustryScrollTop = 0;
         var ind  = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
         var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
 
@@ -2648,11 +2690,25 @@
 
 
     window.navToIndustries = function() {
-        if (currentView === 'industry-stocks') backToIndustries();
-        else showView('industries');
+        if (currentView === 'industry-stocks') {
+            backToIndustries();
+        } else if (_lastIndustryName) {
+            openIndustry(_lastIndustryName);
+            var savedScroll = _lastIndustryScrollTop;
+            if (savedScroll > 0) {
+                setTimeout(function() {
+                    var wrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
+                    if (wrap) wrap.scrollTop = savedScroll;
+                }, 0);
+            }
+        } else {
+            showView('industries');
+        }
     };
 
     window.backToIndustries = function() {
+        _lastIndustryName      = null;
+        _lastIndustryScrollTop = 0;
         multichartActive = false;
         mcTickers = [];
         mcWidgets = {};
@@ -8117,9 +8173,34 @@
         var form = document.getElementById('al-add-form');
         if (form && form.style.display !== 'none') alSubmitForm();
     });
+    window.alConfirmOpen = function() {
+        document.getElementById('al-confirm-overlay').classList.add('open');
+    };
+    window.alConfirmClose = function() {
+        document.getElementById('al-confirm-overlay').classList.remove('open');
+    };
+    window.alConfirmClear = function() {
+        alHistClearAll();
+        alConfirmClose();
+    };
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') alConfirmClose();
+    });
     // ── END PRICE ALERTS ─────────────────────────────────────────────────────
 
 })();
 </script>
+<!-- Alert history clear confirmation -->
+<div class="al-confirm-overlay" id="al-confirm-overlay" onclick="if(event.target===this)alConfirmClose()">
+    <div class="al-confirm-box">
+        <div class="al-confirm-icon">🗑️</div>
+        <div class="al-confirm-title">Clear history?</div>
+        <div class="al-confirm-msg">This will permanently remove all fired alert history. This can't be undone.</div>
+        <div class="al-confirm-btns">
+            <button class="al-confirm-cancel" onclick="alConfirmClose()">Cancel</button>
+            <button class="al-confirm-ok" onclick="alConfirmClear()">Clear all</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
