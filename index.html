@@ -8041,24 +8041,48 @@
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
     var _alEditIdx       = null;  // index of alert being edited, null when adding new
 
+    var LS_AL_KEY       = 'price_alerts_local';
+    var LS_AL_FIRED_KEY = 'alerts_fired_local';
+
     function alLoad() {
         Promise.all([
             kvGet('price_alerts'),
             kvGet('alerts_fired')
         ]).then(function(r) {
-            try { alertsList     = r[0] ? JSON.parse(r[0]) : []; } catch(e) { alertsList = []; }
-            try { alertFiredList = r[1] ? JSON.parse(r[1]) : []; } catch(e) { alertFiredList = []; }
+            // KV first, localStorage fallback
+            var rawAlerts = r[0] || localStorage.getItem(LS_AL_KEY);
+            var rawFired  = r[1] || localStorage.getItem(LS_AL_FIRED_KEY);
+            try { alertsList     = rawAlerts ? JSON.parse(rawAlerts) : []; } catch(e) { alertsList = []; }
+            try { alertFiredList = rawFired  ? JSON.parse(rawFired)  : []; } catch(e) { alertFiredList = []; }
+            // Mirror KV data to localStorage so fallback stays fresh
+            if (r[0]) { try { localStorage.setItem(LS_AL_KEY,       r[0]); } catch(e) {} }
+            if (r[1]) { try { localStorage.setItem(LS_AL_FIRED_KEY, r[1]); } catch(e) {} }
             alertFiredList.forEach(function(f) {
                 _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
             });
             alUpdateBadge();
             alStartBackgroundPolling();
             renderHistory();
-        }).catch(function() { alertsList = []; alertFiredList = []; });
+        }).catch(function() {
+            // KV totally unavailable — load from localStorage
+            try { alertsList     = JSON.parse(localStorage.getItem(LS_AL_KEY)       || '[]'); } catch(e) { alertsList = []; }
+            try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
+            alUpdateBadge();
+            alStartBackgroundPolling();
+            renderHistory();
+        });
     }
 
-    function alSave()      { kvSet('price_alerts',  JSON.stringify(alertsList)); }
-    function alSaveFired() { kvSet('alerts_fired',  JSON.stringify(alertFiredList.slice(0, 50))); }
+    function alSave() {
+        var str = JSON.stringify(alertsList);
+        kvSet('price_alerts', str);
+        try { localStorage.setItem(LS_AL_KEY, str); } catch(e) {}
+    }
+    function alSaveFired() {
+        var str = JSON.stringify(alertFiredList.slice(0, 50));
+        kvSet('alerts_fired', str);
+        try { localStorage.setItem(LS_AL_FIRED_KEY, str); } catch(e) {}
+    }
 
     function alUpdateBadge() {
         var n = alertFiredList.filter(function(f) { return !f.dismissed; }).length;
@@ -8103,15 +8127,21 @@
         if (!alertsList.length) return;
         var tickers = alertsList.map(function(a) { return a.ticker; })
             .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-        var url = WL_PROXY + '?action=quotes_batch&tickers=' + tickers.map(encodeURIComponent).join(',');
-        fetch(url).then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (!data || !data.quotes) return;
-            data.quotes.forEach(function(q) {
-                if (q && q.ticker && q.price) {
-                    alertPrices[q.ticker]    = q.price;
-                    alertPrevClose[q.ticker] = q.prevClose || null;
-                }
+        // Batch into chunks of 50 to avoid URL length limits
+        var batches = [];
+        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        Promise.all(batches.map(function(batch) {
+            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+            return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+        })).then(function(results) {
+            results.forEach(function(data) {
+                if (!data || !data.quotes) return;
+                data.quotes.forEach(function(q) {
+                    if (q && q.ticker && q.price) {
+                        alertPrices[q.ticker]    = q.price;
+                        alertPrevClose[q.ticker] = q.prevClose || null;
+                    }
+                });
             });
             alCheckTriggers();
             if (currentView === 'alerts') renderAlerts();
