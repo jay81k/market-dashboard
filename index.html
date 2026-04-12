@@ -6635,9 +6635,12 @@
                 var _alertTicker = ticker || wlPickerTicker;
                 wlClosePicker();
 
-                // Handle chart modal — capture return state but don't let showView restore it
+                // Handle chart modal — capture return state but don't let showView restore it.
+                // Do NOT set a return state if we are already on the alerts view; if we did,
+                // _alReturnState.view would equal 'alerts' and showView('alerts') would
+                // immediately re-open the chart modal, hijacking the just-populated form.
                 var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
-                if (_modalOpen) {
+                if (_modalOpen && currentView !== 'alerts') {
                     var _modalSym = document.getElementById('chart-modal-sym').textContent.trim();
                     if (_modalSym) _alertTicker = _modalSym;
                     var _sd = tickerMap && tickerMap[_modalSym];
@@ -6679,7 +6682,9 @@
                     document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
                     form.style.display = 'flex';
                     if (openBtn) openBtn.style.display = 'none';
-                    priceInput.focus();
+                    // Defer focus so it fires after any showView setTimeout callbacks
+                    // (the return-state restore uses 50 ms; 60 ms wins cleanly).
+                    setTimeout(function() { priceInput.focus(); }, 60);
                 })(_alertTicker);
                 return;
             }
