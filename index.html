@@ -7741,39 +7741,75 @@
             }
 
             // Industry rank snapshot — load previous ranks for delta display,
-            // then save today's ranks if not already saved today.
-            // We keep a separate "yesterday" key so same-day refreshes still show deltas.
-            var today = new Date().toISOString().slice(0, 10);
-            var prevSnap = null;
-            try { prevSnap = kvIndSnap ? JSON.parse(kvIndSnap) : null; } catch(e) {}
+            // then save today's ranks only when ranks actually changed (so weekend
+            // deltas persist until Monday's data arrives).
+            // Fix 1: use local date, not UTC, to avoid midnight boundary issues.
+            // Fix 2: mirror snapshots to localStorage as fallback for KV failures.
+            var _dn = new Date();
+            var today = _dn.getFullYear() + '-' + String(_dn.getMonth()+1).padStart(2,'0') + '-' + String(_dn.getDate()).padStart(2,'0');
+            var LS_IND_SNAP      = 'ind_rank_snapshot';
+            var LS_IND_SNAP_PREV = 'ind_rank_snapshot_prev';
+
+            function _parseSnap(str) { try { return str ? JSON.parse(str) : null; } catch(e) { return null; } }
+
+            // Load current snapshot — KV first, localStorage fallback
+            var prevSnap = _parseSnap(kvIndSnap) || _parseSnap(localStorage.getItem(LS_IND_SNAP));
 
             if (prevSnap && prevSnap.ranks) {
                 if (prevSnap.date !== today) {
                     // Snapshot is from a previous day — use directly as yesterday
                     indPrevRanks = prevSnap.ranks;
                 } else {
-                    // Snapshot is already today's — load the archived yesterday snapshot
-                    kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
-                        var yesterdaySnap = null;
-                        try { yesterdaySnap = kvIndSnapPrev ? JSON.parse(kvIndSnapPrev) : null; } catch(e) {}
-                        if (yesterdaySnap && yesterdaySnap.ranks) {
-                            indPrevRanks = yesterdaySnap.ranks;
-                            renderIndustries();
-                        }
-                    });
+                    // Snapshot is already today's — load the archived yesterday snapshot.
+                    // Try localStorage first (instant, reliable for same-browser reloads).
+                    var lsPrev = _parseSnap(localStorage.getItem(LS_IND_SNAP_PREV));
+                    if (lsPrev && lsPrev.ranks) {
+                        indPrevRanks = lsPrev.ranks;
+                    } else {
+                        kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
+                            var yesterdaySnap = _parseSnap(kvIndSnapPrev);
+                            if (yesterdaySnap && yesterdaySnap.ranks) {
+                                indPrevRanks = yesterdaySnap.ranks;
+                                try { localStorage.setItem(LS_IND_SNAP_PREV, JSON.stringify(yesterdaySnap)); } catch(e) {}
+                                renderIndustries();
+                            }
+                        });
+                    }
                 }
             }
 
-            if (industriesData && industriesData.industries && (!prevSnap || prevSnap.date !== today)) {
-                // Archive the old snapshot as "yesterday" before overwriting
-                if (prevSnap && prevSnap.ranks) {
-                    kvSet('ind_rank_snapshot_prev', JSON.stringify(prevSnap));
-                }
-                var newSnap = { date: today, ranks: {} };
+            if (industriesData && industriesData.industries) {
+                // Build the new rank map from current data
+                var newRanks = {};
                 industriesData.industries.forEach(function(ind) {
-                    if (ind.rank != null) newSnap.ranks[ind.industry] = ind.rank;
+                    if (ind.rank != null) newRanks[ind.industry] = ind.rank;
                 });
-                kvSet('ind_rank_snapshot', JSON.stringify(newSnap));
+
+                // Fix 3: only archive + overwrite when ranks actually changed.
+                // This keeps Friday's snapshot as _prev through the whole weekend
+                // so deltas remain visible until Monday's data brings real changes.
+                var currentRanks = prevSnap ? prevSnap.ranks : null;
+                var ranksChanged = !currentRanks || JSON.stringify(newRanks) !== JSON.stringify(currentRanks);
+
+                if (ranksChanged) {
+                    // Archive old snapshot as "yesterday" before overwriting
+                    if (prevSnap && prevSnap.ranks) {
+                        var prevStr = JSON.stringify(prevSnap);
+                        kvSet('ind_rank_snapshot_prev', prevStr);
+                        try { localStorage.setItem(LS_IND_SNAP_PREV, prevStr); } catch(e) {}
+                    }
+                    var newSnap = { date: today, ranks: newRanks };
+                    var newSnapStr = JSON.stringify(newSnap);
+                    kvSet('ind_rank_snapshot', newSnapStr);
+                    try { localStorage.setItem(LS_IND_SNAP, newSnapStr); } catch(e) {}
+                } else if (!prevSnap || prevSnap.date !== today) {
+                    // Ranks unchanged but it's a new calendar day — just update the date
+                    // so same-day logic works, without disturbing _prev
+                    var updatedSnap = { date: today, ranks: newRanks };
+                    var updatedSnapStr = JSON.stringify(updatedSnap);
+                    kvSet('ind_rank_snapshot', updatedSnapStr);
+                    try { localStorage.setItem(LS_IND_SNAP, updatedSnapStr); } catch(e) {}
+                }
             }
 
             showView('market');
