@@ -8375,6 +8375,8 @@
             alHideForm();
             alStartBackgroundPolling();
             renderAlerts();
+            var _alList = document.getElementById('al-list');
+            if (_alList) _alList.scrollTop = _alList.scrollHeight;
             fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .then(function(data) {
