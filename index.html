@@ -2082,6 +2082,7 @@
         }
 
         // Show/hide toolbar elements
+        document.querySelector('.toolbar').style.display = (view === 'alerts') ? 'none' : '';
         document.getElementById('industry-list-header').style.display = (view === 'industries' && indView === 'list') ? 'flex' : 'none';
         document.getElementById('wl-multichart-toggle-btn').style.display = (view === 'watchlists') ? '' : 'none';
 
