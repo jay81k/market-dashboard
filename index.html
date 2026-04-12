@@ -8252,6 +8252,11 @@
         var banner      = document.getElementById('al-missed-banner');
         if (!listEl) return;
 
+        // Preserve scroll position — every innerHTML replacement resets scrollTop to 0.
+        // This snaps the user to the top on every 60-second price poll AND on the async
+        // name-resolution render that fires a few seconds after adding an alert.
+        var savedScrollTop = listEl.scrollTop;
+
         if (banner) banner.style.display = 'none';
         if (firedRowsEl) firedRowsEl.innerHTML = '';
 
@@ -8312,6 +8317,8 @@
                 '<div class="al-col-del" onclick="alDeleteConfirm(' + idx + ',\'' + esc(a.ticker) + '\')" title="Remove">×</div>' +
             '</div>';
         }).join('');
+        // Restore scroll so price polls and async name updates don't snap to top.
+        listEl.scrollTop = savedScrollTop;
     }
 
     function renderHistory() {
