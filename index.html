@@ -1759,11 +1759,13 @@
 
 <!-- Alerts view -->
 <div id="view-alerts" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
-    <div class="al-toolbar">
-        <div class="search-wrap" id="al-search-wrap">
-            <input type="text" class="search-input" id="al-search-input" placeholder="Search alerts…" autocomplete="new-password" spellcheck="false" style="width:180px;">
+    <div id="al-search-wrap" style="display:flex;align-items:center;padding:6px 16px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;">
+        <div class="search-wrap" style="position:relative;display:inline-flex;align-items:center;">
+            <input type="text" class="search-input" id="al-search-input" placeholder="Search alerts…" autocomplete="new-password" spellcheck="false" style="width:220px;">
             <button class="search-clear-btn" id="al-search-clear-btn" title="Clear">×</button>
         </div>
+    </div>
+    <div class="al-toolbar">
         <button class="al-add-open-btn" id="al-add-open-btn" onclick="alShowForm()">+ Add alert</button>
         <div style="width:1px;height:16px;background:#21262d;"></div>
         <span class="al-count-label" id="al-count-label"></span>
