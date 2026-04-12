@@ -2537,6 +2537,16 @@
                 e.stopPropagation();
                 openMcFullscreen(sym);
             });
+            overlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
+            });
 
             cell.appendChild(flag);
             cell.appendChild(label);
@@ -5415,6 +5425,16 @@
                 e.stopPropagation();
                 openMcFullscreen(sym);
             });
+            overlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
+            });
 
             cell.appendChild(flag);
             cell.appendChild(label);
@@ -5685,6 +5705,16 @@
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
                 openMcFullscreen(sym);
+            });
+            overlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
             });
 
             cell.appendChild(flag);
@@ -8449,6 +8479,16 @@
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
                 openMcFullscreen(sym);
+            });
+            overlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var fakeBtn = {
+                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
             });
 
             cell.appendChild(flag);
