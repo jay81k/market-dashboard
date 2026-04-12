@@ -3642,7 +3642,14 @@
         if (row.type === 'wk52') {
             var side    = row.wk52Side === 'low' ? '52W Low' : '52W High';
             var newOnly = row.wk52NewOnly ? ' · New' : '';
-            var dVal    = row.wk52DistMin != null && row.wk52DistMin !== '' ? ' ≤' + row.wk52DistMin + '%' : '';
+            var hasMin  = row.wk52DistMin != null && row.wk52DistMin !== '';
+            var hasMax  = row.wk52DistMax != null && row.wk52DistMax !== '';
+            var dVal    = '';
+            if (!row.wk52NewOnly) {
+                if (hasMin && hasMax) dVal = ' ' + row.wk52DistMin + ' – ' + row.wk52DistMax + '%';
+                else if (hasMin)     dVal = ' ≥' + row.wk52DistMin + '%';
+                else if (hasMax)     dVal = ' ≤' + row.wk52DistMax + '%';
+            }
             return side + newOnly + dVal;
         }
         if (row.type === 'sector') {
@@ -3921,10 +3928,10 @@
                 '<button class="sf-seg-btn'+(wk52NewOnly?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52NewOnly\',1)">Yes</button>' +
                 '<button class="sf-seg-btn'+(!wk52NewOnly?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'wk52NewOnly\',0)">No</button>' +
                 '</div></div>';
-            // Distance row only shown when New Only = No
+            // Distance rows only shown when New Only = No
             if (!wk52NewOnly) {
-                var distLabel = wk52Side === 'high' ? 'Below high %' : 'Above low %';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">' + distLabel + '</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 5" value="'+wk52DistMin+'" oninput="sfPopChange('+id+',\'wk52DistMin\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">From %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 5" value="'+wk52DistMin+'" oninput="sfPopChange('+id+',\'wk52DistMin\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">To %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 10" value="'+wk52DistMax+'" oninput="sfPopChange('+id+',\'wk52DistMax\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'sector') {
             var allSectors = [];
@@ -4970,24 +4977,25 @@
                         if (secs.indexOf(r.sector) === -1) return false;
                     }
                 } else if (f.type === 'wk52') {
-                    var wSide = f.wk52Side || 'high';
+                    var wSide    = f.wk52Side || 'high';
                     var wNewOnly = !!f.wk52NewOnly;
-                    var wDist = f.wk52DistMin != null && f.wk52DistMin !== '' ? parseFloat(f.wk52DistMin) : null;
+                    var wDistMin = f.wk52DistMin != null && f.wk52DistMin !== '' ? parseFloat(f.wk52DistMin) : null;
+                    var wDistMax = f.wk52DistMax != null && f.wk52DistMax !== '' ? parseFloat(f.wk52DistMax) : null;
                     if (wSide === 'high') {
                         if (wNewOnly && !r.new_52wk_high) return false;
-                        if (!wNewOnly && wDist !== null && !isNaN(wDist)) {
+                        if (!wNewOnly && (wDistMin !== null || wDistMax !== null)) {
                             var pct = r.PctFrom52WkHigh != null ? r.PctFrom52WkHigh : null;
-                            if (pct == null) return false;
-                            // must be below the high (negative) and within wDist%
-                            if (pct >= 0) return false;
-                            if (pct < -wDist) return false;
+                            if (pct == null || pct >= 0) return false;
+                            if (wDistMin !== null && !isNaN(wDistMin) && pct > -wDistMin) return false;
+                            if (wDistMax !== null && !isNaN(wDistMax) && pct < -wDistMax) return false;
                         }
                     } else {
                         if (wNewOnly && !r.new_52wk_low) return false;
-                        if (!wNewOnly && wDist !== null && !isNaN(wDist)) {
+                        if (!wNewOnly && (wDistMin !== null || wDistMax !== null)) {
                             var distLow = r.PctFrom52WkLow != null ? r.PctFrom52WkLow : null;
                             if (distLow == null) return false;
-                            if (distLow > wDist) return false;
+                            if (wDistMin !== null && !isNaN(wDistMin) && distLow < wDistMin) return false;
+                            if (wDistMax !== null && !isNaN(wDistMax) && distLow > wDistMax) return false;
                         }
                     }
                 }
