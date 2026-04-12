@@ -5775,7 +5775,7 @@
             if (btn) { btn.classList.add('flagged'); btn.title = 'Remove from Flagged'; }
         }
         wlSaveAll(all);
-        if (currentView === 'watchlists') wlRender();
+        if (currentView === 'watchlists' && !wlMcActive) wlRender();
         wlRefreshStars();
     };
     var LS_WL_KEY      = 'dashboard-watchlists';
