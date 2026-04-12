@@ -8065,11 +8065,16 @@
     var LS_AL_KEY       = 'price_alerts_local';
     var LS_AL_FIRED_KEY = 'alerts_fired_local';
 
+    var _alLoaded = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
+
     function alLoad() {
         Promise.all([
             kvGet('price_alerts'),
             kvGet('alerts_fired')
         ]).then(function(r) {
+            // If the user already added/deleted an alert before KV responded, don't overwrite their changes
+            if (_alLoaded) return;
+            _alLoaded = true;
             // KV first, localStorage fallback
             var rawAlerts = r[0] || localStorage.getItem(LS_AL_KEY);
             var rawFired  = r[1] || localStorage.getItem(LS_AL_FIRED_KEY);
@@ -8084,17 +8089,22 @@
             alUpdateBadge();
             alStartBackgroundPolling();
             renderHistory();
+            if (currentView === 'alerts') renderAlerts();
         }).catch(function() {
+            if (_alLoaded) return;
+            _alLoaded = true;
             // KV totally unavailable — load from localStorage
             try { alertsList     = JSON.parse(localStorage.getItem(LS_AL_KEY)       || '[]'); } catch(e) { alertsList = []; }
             try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
             alUpdateBadge();
             alStartBackgroundPolling();
             renderHistory();
+            if (currentView === 'alerts') renderAlerts();
         });
     }
 
     function alSave() {
+        _alLoaded = true; // mark as user-owned so any late alLoad response won't overwrite
         var str = JSON.stringify(alertsList);
         kvSet('price_alerts', str);
         try { localStorage.setItem(LS_AL_KEY, str); } catch(e) {}
