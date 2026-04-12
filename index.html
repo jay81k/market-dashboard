@@ -1241,6 +1241,9 @@
         .al-cancel-btn { padding:4px 10px;border-radius:5px;border:1px solid #21262d;background:transparent;color:#6e7681;font-size:0.858em;font-family:inherit;cursor:pointer; }
         .al-hdr-row { display:flex;align-items:center;padding:6px 16px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#0d1117;z-index:1;flex-shrink:0; }
         .al-hdr { font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.05em; }
+        .al-hdr.sortable { cursor:pointer; user-select:none; transition:color 0.1s; }
+        .al-hdr.sortable:hover { color:#c8d0dc; }
+        .al-hdr.sortable.sorted { color:#388bfd; }
         .al-row { display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
         .al-row:hover { background:#161b22; }
         .al-row.fired { opacity:0.45; }
@@ -1765,7 +1768,7 @@
         <div style="width:1px;height:16px;background:#21262d;"></div>
         <span class="al-count-label" id="al-count-label"></span>
         <div style="width:1px;height:16px;background:#21262d;"></div>
-        <button class="back-btn" id="al-multichart-toggle-btn" onclick="toggleAlMultichart()" title="Multichart view"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
+        <button class="back-btn" id="al-multichart-toggle-btn" onclick="toggleAlMultichart()" title="Multichart view"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg></button>
     </div>
     <div id="al-missed-banner" class="al-missed-banner" style="display:none;">
         <div class="al-missed-icon"><svg width="10" height="10" viewBox="0 0 16 16" fill="#fff"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2h-13L3 10V7a5 5 0 0 1 5-5zm-1.5 11a1.5 1.5 0 0 0 3 0z"/></svg></div>
@@ -1805,9 +1808,9 @@
                     <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
                     <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg</div>
                     <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg%</div>
-                    <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Away</div>
+                    <div class="al-hdr sortable" id="al-hdr-away" style="width:60px;text-align:right;flex-shrink:0;" onclick="alToggleSort('away')">Away</div>
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
-                    <div class="al-hdr" style="width:80px;text-align:right;flex-shrink:0;">Added</div>
+                    <div class="al-hdr sortable" id="al-hdr-added" style="width:80px;text-align:right;flex-shrink:0;" onclick="alToggleSort('added')">Added</div>
                     <div style="width:28px;flex-shrink:0;"></div>
                     <div style="width:28px;flex-shrink:0;"></div>
                 </div>
@@ -1927,7 +1930,7 @@
     var allIndustryRows = [];
     var currentIndustryIndex = -1;
     var currentWlIndex = -1;
-    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX', 'NOV': 'NYSE:NOV', 'WDS': 'NYSE:WDS' };
+    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX', 'NOV': 'NYSE:NOV', 'WDS': 'NYSE:WDS', 'ASX': 'NYSE:ASX' };
     var WL_PROXY = 'https://yahoo-proxy.jay69k.workers.dev';
 
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
@@ -8068,6 +8071,8 @@
     })();
     // ── PRICE ALERTS ─────────────────────────────────────────────────────────
     var alertsList       = [];   // [{ticker, condition:'above'|'below', price, addedAt}]
+    var alSortKey = null;   // 'away' | 'added' | null
+    var alSortDir = 'asc';  // 'asc' | 'desc'
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
     var alertPrevClose   = {};   // {ticker: prevClosePrice}
@@ -8267,6 +8272,27 @@
         if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); renderHistory(); }
     }
 
+    window.alToggleSort = function(key) {
+        if (alSortKey === key) {
+            alSortDir = alSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            alSortKey = key;
+            alSortDir = 'asc';
+        }
+        // Update header indicators
+        ['away','added'].forEach(function(k) {
+            var el = document.getElementById('al-hdr-' + k);
+            if (!el) return;
+            el.classList.toggle('sorted', k === alSortKey);
+            // Strip old arrow
+            el.textContent = k === 'away' ? 'Away' : 'Added';
+            if (k === alSortKey) {
+                el.textContent += alSortDir === 'asc' ? ' ↑' : ' ↓';
+            }
+        });
+        renderAlerts();
+    };
+
     function renderAlerts() {
         var listEl      = document.getElementById('al-list');
         var hdrRow      = document.getElementById('al-hdr-row');
@@ -8294,7 +8320,32 @@
         }
 
         hdrRow.style.display = 'flex';
-        listEl.innerHTML = alertsList.map(function(a, idx) {
+
+        // Build indexed copy for display, then sort if needed
+        var displayList = alertsList.map(function(a, idx) { return { a: a, idx: idx }; });
+        if (alSortKey === 'added') {
+            displayList.sort(function(x, y) {
+                var ta = x.a.addedAt ? new Date(x.a.addedAt).getTime() : Infinity;
+                var tb = y.a.addedAt ? new Date(y.a.addedAt).getTime() : Infinity;
+                if (ta === Infinity && tb === Infinity) return 0;
+                if (ta === Infinity) return 1;
+                if (tb === Infinity) return -1;
+                return alSortDir === 'asc' ? ta - tb : tb - ta;
+            });
+        } else if (alSortKey === 'away') {
+            displayList.sort(function(x, y) {
+                var ca = alertPrices[x.a.ticker], cb = alertPrices[y.a.ticker];
+                var pa = (ca != null) ? Math.abs((ca - x.a.price) / x.a.price * 100) : Infinity;
+                var pb = (cb != null) ? Math.abs((cb - y.a.price) / y.a.price * 100) : Infinity;
+                if (pa === Infinity && pb === Infinity) return 0;
+                if (pa === Infinity) return 1;
+                if (pb === Infinity) return -1;
+                return alSortDir === 'asc' ? pa - pb : pb - pa;
+            });
+        }
+
+        listEl.innerHTML = displayList.map(function(item) {
+            var a = item.a, idx = item.idx;
             var key   = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
