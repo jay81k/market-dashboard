@@ -1762,6 +1762,10 @@
         <span class="al-count-label" id="al-count-label"></span>
         <div style="width:1px;height:16px;background:#21262d;"></div>
         <button class="back-btn" id="al-multichart-toggle-btn" onclick="toggleAlMultichart()" title="Multichart view"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg> Multichart</button>
+        <div class="search-wrap" style="margin-left:auto;">
+            <input type="text" class="search-input" id="al-search-input" placeholder="Search alerts…" autocomplete="new-password" spellcheck="false" style="width:180px;">
+            <button class="search-clear-btn" id="al-search-clear-btn" title="Clear">×</button>
+        </div>
     </div>
     <div id="al-missed-banner" class="al-missed-banner" style="display:none;">
         <div class="al-missed-icon"><svg width="10" height="10" viewBox="0 0 16 16" fill="#fff"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2h-13L3 10V7a5 5 0 0 1 5-5zm-1.5 11a1.5 1.5 0 0 0 3 0z"/></svg></div>
@@ -8079,6 +8083,24 @@
     var _alLoaded = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
 
     function alLoad() {
+        // Alert search bar
+        var _alSrch = document.getElementById('al-search-input');
+        var _alSrchClr = document.getElementById('al-search-clear-btn');
+        if (_alSrch) {
+            _alSrch.addEventListener('input', function() {
+                _alSearchTerm = _alSrch.value;
+                if (_alSrchClr) _alSrchClr.classList.toggle('visible', !!_alSearchTerm);
+                applyAlFilter();
+            });
+            if (_alSrchClr) {
+                _alSrchClr.addEventListener('click', function() {
+                    _alSrch.value = '';
+                    _alSearchTerm = '';
+                    _alSrchClr.classList.remove('visible');
+                    applyAlFilter();
+                });
+            }
+        }
         Promise.all([
             kvGet('price_alerts'),
             kvGet('alerts_fired')
@@ -8319,6 +8341,19 @@
         }).join('');
         // Restore scroll so price polls and async name updates don't snap to top.
         listEl.scrollTop = savedScrollTop;
+        applyAlFilter();
+    }
+
+    var _alSearchTerm = '';
+    function applyAlFilter() {
+        var term = _alSearchTerm.trim().toLowerCase();
+        var rows = document.querySelectorAll('#al-list .al-row');
+        rows.forEach(function(row) {
+            if (!term) { row.style.display = ''; return; }
+            var ticker = (row.querySelector('.al-col-ticker') || {}).textContent || '';
+            var name   = (row.querySelector('.al-col-name')   || {}).textContent || '';
+            row.style.display = (ticker.toLowerCase().indexOf(term) > -1 || name.toLowerCase().indexOf(term) > -1) ? '' : 'none';
+        });
     }
 
     function renderHistory() {
