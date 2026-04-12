@@ -1391,7 +1391,7 @@
 <!-- Toolbar -->
 <div class="toolbar">
     <div class="search-wrap">
-        <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="off" spellcheck="false">
+        <input type="text" class="search-input" id="search-input" placeholder="Search…" autocomplete="new-password" spellcheck="false">
         <button class="search-clear-btn" id="search-clear-btn" title="Clear search">×</button>
     </div>
     <button class="back-btn" id="wl-multichart-toggle-btn" onclick="toggleWlMultichart()" title="Multichart view" style="display:none;"><svg width="13" height="13" viewBox="-0.5 -0.5 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg></button>
@@ -1807,7 +1807,7 @@
                     <div style="width:28px;flex-shrink:0;"></div>
                     <div style="width:28px;flex-shrink:0;"></div>
                 </div>
-                <div id="al-list" style="overflow-y:auto;overflow-x:visible;flex:1;min-width:860px;"></div>
+                <div id="al-list" style="overflow-y:auto;overflow-x:visible;flex:1;min-width:860px;padding-bottom:12px;"></div>
             </div>
         </div>
         <!-- History side panel -->
@@ -8400,6 +8400,7 @@
         } else {
             // New alert
             var entry = { ticker: ticker, condition: cond, price: price, name: '', addedAt: new Date().toISOString() };
+            var entryIdx = alertsList.length;
             alertsList.push(entry);
             alSave();
             alHideForm();
@@ -8407,13 +8408,22 @@
             renderAlerts();
             var _alList = document.getElementById('al-list');
             if (_alList) _alList.scrollTop = _alList.scrollHeight;
-            fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
-                .then(function(r) { return r.ok ? r.json() : null; })
-                .then(function(data) {
-                    var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
-                    var name = (meta && (meta.shortName || meta.longName)) || '';
-                    if (name) { entry.name = name; alSave(); renderAlerts(); }
-                }).catch(function() {});
+            // Capture ticker + index at submission time; guard before writing back
+            (function(capturedTicker, capturedIdx) {
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(capturedTicker) + '&interval=1d&range=2d')
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(data) {
+                        var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+                        var resolvedName = (meta && (meta.shortName || meta.longName)) || '';
+                        // Only write back if the entry at that index still belongs to the same ticker
+                        var target = alertsList[capturedIdx];
+                        if (resolvedName && target && target.ticker === capturedTicker && !target.name) {
+                            target.name = resolvedName;
+                            alSave();
+                            renderAlerts();
+                        }
+                    }).catch(function() {});
+            })(ticker, entryIdx);
         }
     };
 
