@@ -6668,6 +6668,12 @@
                     var form        = document.getElementById('al-add-form');
                     var openBtn     = document.getElementById('al-add-open-btn');
 
+                    // If the alerts multichart is active, deactivate it first so that
+                    // al-body-wrap is visible once the user submits the form.
+                    // closeMcFullscreen() only closes the single-tile expanded overlay —
+                    // it does NOT affect the multichart grid or al-body-wrap visibility.
+                    if (alMcActive) toggleAlMultichart();
+
                     // Navigate to alerts view — suppress the _alReturnState restore temporarily
                     // so it doesn't fight with our form population
                     var savedReturnState = _alReturnState;
