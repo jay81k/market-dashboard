@@ -1771,7 +1771,7 @@
     <div id="al-fired-rows"></div>
     <div id="al-add-form" class="al-add-form" style="display:none;">
         <span class="al-form-label">Ticker</span>
-        <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="width:80px;text-transform:uppercase;" autocomplete="off" spellcheck="false" />
+        <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="width:80px;text-transform:uppercase;" autocomplete="new-password" spellcheck="false" />
         <span class="al-form-label">condition</span>
         <select id="al-input-cond">
             <option value="above">crosses above</option>
@@ -6631,13 +6631,14 @@
             var alertBtn = ev.target.closest('#wl-picker-alert-btn');
             if (alertBtn) {
                 // Capture ticker immediately before wlClosePicker() nulls wlPickerTicker
+                // Capture ticker NOW before anything is closed/nulled
                 var _alertTicker = ticker || wlPickerTicker;
                 wlClosePicker();
-                _alReturnState = null; // clear any stale return state from a previous alert add
+
+                // Handle chart modal — capture return state but don't let showView restore it
                 var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
                 if (_modalOpen) {
                     var _modalSym = document.getElementById('chart-modal-sym').textContent.trim();
-                    // If opened from chart modal, prefer the modal symbol
                     if (_modalSym) _alertTicker = _modalSym;
                     var _sd = tickerMap && tickerMap[_modalSym];
                     _alReturnState = {
@@ -6647,30 +6648,38 @@
                         industry: (_sd && _sd.industry) || '',
                         snpOpen:  document.getElementById('scan-nav-panel').classList.contains('snp-open')
                     };
+                } else {
+                    _alReturnState = null;
                 }
+
                 closeChartModal();
                 closeMcFullscreen();
-                showView('alerts');
-                // Use a dedicated captured variable — never read ticker or wlPickerTicker after this point
+
+                // Populate the form synchronously with the locked-in ticker
                 (function(capturedTicker) {
-                    setTimeout(function() {
-                        if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
-                        // Always fully reset the form before populating
-                        alHideForm();
-                        _alEditIdx = null;
-                        var tickerInput = document.getElementById('al-input-ticker');
-                        var priceInput  = document.getElementById('al-input-price');
-                        var form        = document.getElementById('al-add-form');
-                        var openBtn     = document.getElementById('al-add-open-btn');
-                        if (!tickerInput || !form) return;
-                        tickerInput.readOnly = false;
-                        tickerInput.value = capturedTicker;
-                        priceInput.value = '';
-                        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
-                        form.style.display = 'flex';
-                        if (openBtn) openBtn.style.display = 'none';
-                        priceInput.focus();
-                    }, 100);
+                    if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
+                    // Reset form state cleanly
+                    _alEditIdx = null;
+                    var tickerInput = document.getElementById('al-input-ticker');
+                    var priceInput  = document.getElementById('al-input-price');
+                    var form        = document.getElementById('al-add-form');
+                    var openBtn     = document.getElementById('al-add-open-btn');
+
+                    // Navigate to alerts view — suppress the _alReturnState restore temporarily
+                    // so it doesn't fight with our form population
+                    var savedReturnState = _alReturnState;
+                    _alReturnState = null;
+                    showView('alerts');
+                    _alReturnState = savedReturnState;
+
+                    if (!tickerInput || !form) return;
+                    tickerInput.readOnly = false;
+                    tickerInput.value = capturedTicker;
+                    priceInput.value = '';
+                    document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
+                    form.style.display = 'flex';
+                    if (openBtn) openBtn.style.display = 'none';
+                    priceInput.focus();
                 })(_alertTicker);
                 return;
             }
