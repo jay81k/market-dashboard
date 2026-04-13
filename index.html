@@ -1247,6 +1247,8 @@
         .al-row { display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #161b22;transition:background 0.1s; }
         .al-row:hover { background:#161b22; }
         .al-row.fired { opacity:0.45; }
+        .al-row.al-row-active { background:#1c2128; border-left:2px solid #388bfd; padding-left:14px; }
+        .al-row.al-row-active:hover { background:#1c2128; }
         .al-col-ticker { font-size:0.935em;font-weight:700;color:#79c0ff;width:60px;flex-shrink:0; } .al-col-ticker-link { cursor:pointer; } .al-col-ticker-link:hover { color:#58a6ff;text-decoration:underline; }
         .al-col-name { font-size:0.792em;color:#8b949e;width:200px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px; }
         .al-col-cond { font-size:0.748em;width:70px;flex-shrink:0; }
@@ -1359,6 +1361,8 @@
         .al-hist-scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
         .al-hist-row { padding:8px 12px; border-bottom:1px solid #161b22; cursor:pointer; }
         .al-hist-row:hover { background:#0f1318; }
+        .al-hist-row.al-hist-row-active { background:#1c2128; border-left:2px solid #388bfd; padding-left:10px; }
+        .al-hist-row.al-hist-row-active:hover { background:#1c2128; }
         .al-hist-row-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:1px; }
         .al-hist-ticker { font-size:0.968em; font-weight:700; color:#79c0ff; }
         .al-hist-time { font-size:0.748em; color:#484f58; }
@@ -8790,6 +8794,102 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') alConfirmClose();
     });
+    // ── Alerts keyboard navigation ────────────────────────────────────────
+    var _alKbIdx     = -1;
+    var _alHistKbIdx = -1;
+    var _alKbFocus   = 'alerts';
+
+    function alKbGetAlertRows() {
+        return Array.from(document.querySelectorAll('#al-list .al-row'))
+            .filter(function(r) { return r.style.display !== 'none'; });
+    }
+    function alKbGetHistRows() {
+        return Array.from(document.querySelectorAll('#al-hist-list .al-hist-row'));
+    }
+    function alKbSetAlertActive(rows, idx) {
+        rows.forEach(function(r, i) { r.classList.toggle('al-row-active', i === idx); });
+        if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
+    }
+    function alKbSetHistActive(rows, idx) {
+        rows.forEach(function(r, i) { r.classList.toggle('al-hist-row-active', i === idx); });
+        if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
+    }
+    function alKbTickerFromAlertRow(row) {
+        var el = row && row.querySelector('.al-col-ticker');
+        return el ? el.textContent.trim() : null;
+    }
+    function alKbTickerFromHistRow(row) {
+        var el = row && row.querySelector('.al-hist-ticker');
+        return el ? el.textContent.trim() : null;
+    }
+
+    // Track which list was last interacted with via click
+    document.addEventListener('click', function(e) {
+        if (currentView !== 'alerts') return;
+        if (e.target.closest('#al-list')) {
+            _alKbFocus = 'alerts';
+            var rows = alKbGetAlertRows();
+            var row  = e.target.closest('.al-row');
+            if (row) _alKbIdx = rows.indexOf(row);
+        } else if (e.target.closest('#al-hist-list')) {
+            _alKbFocus = 'history';
+            var hRows = alKbGetHistRows();
+            var hRow  = e.target.closest('.al-hist-row');
+            if (hRow) _alHistKbIdx = hRows.indexOf(hRow);
+        }
+    }, true);
+
+    document.addEventListener('keydown', function(e) {
+        if (currentView !== 'alerts') return;
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== 'Escape') return;
+        var tag = document.activeElement && document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if (e.key === 'Escape') {
+            alChartPanelClose();
+            _alKbIdx     = -1;
+            _alHistKbIdx = -1;
+            alKbGetAlertRows().forEach(function(r) { r.classList.remove('al-row-active'); });
+            alKbGetHistRows().forEach(function(r)  { r.classList.remove('al-hist-row-active'); });
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (_alKbFocus === 'history') {
+                var hRows  = alKbGetHistRows();
+                var hticker = alKbTickerFromHistRow(hRows[_alHistKbIdx]);
+                if (hticker) alOpenChart(hticker);
+            } else {
+                var rows   = alKbGetAlertRows();
+                var aticker = alKbTickerFromAlertRow(rows[_alKbIdx]);
+                if (aticker) alOpenChart(aticker);
+            }
+            return;
+        }
+
+        e.preventDefault();
+        var dir = e.key === 'ArrowDown' ? 1 : -1;
+
+        if (_alKbFocus === 'history') {
+            var hRows = alKbGetHistRows();
+            if (!hRows.length) return;
+            _alHistKbIdx = Math.max(0, Math.min(hRows.length - 1, _alHistKbIdx + dir));
+            alKbSetHistActive(hRows, _alHistKbIdx);
+            var hticker = alKbTickerFromHistRow(hRows[_alHistKbIdx]);
+            if (hticker) alSelectChart(hticker);
+        } else {
+            var rows = alKbGetAlertRows();
+            if (!rows.length) return;
+            if (_alKbIdx < 0) _alKbIdx = dir === 1 ? 0 : rows.length - 1;
+            else _alKbIdx = Math.max(0, Math.min(rows.length - 1, _alKbIdx + dir));
+            alKbSetAlertActive(rows, _alKbIdx);
+            var aticker = alKbTickerFromAlertRow(rows[_alKbIdx]);
+            if (aticker) alSelectChart(aticker);
+        }
+    });
+    // ── END Alerts keyboard navigation ────────────────────────────────────
+
     // ── Alerts Multichart ─────────────────────────────────────────────────
     var alMcActive    = false;
     var alMcTimeframe = 'D';
