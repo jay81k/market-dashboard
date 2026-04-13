@@ -304,8 +304,8 @@
         .stocks-table th:nth-child(24) { width: 52px; }   /* Margin */
 
         /* Scans tab: Ticker+btn|Industry|Price|RS|3MRS|Chg|Chg%|1W|1M|3M|1Y|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
-        #scans-table th:nth-child(1)  { width: 104px; }  /* Ticker */
-        #scans-table th:nth-child(2)  { width: 126px; }  /* Industry */
+        #scans-table th:nth-child(1)  { width: 90px; }   /* Ticker */
+        #scans-table th:nth-child(2)  { width: 148px; }  /* Industry */
         #scans-table th:nth-child(3)  { width: 54px; }   /* Price */
         #scans-table th:nth-child(4)  { width: 32px; }   /* RS */
         #scans-table th:nth-child(5)  { width: 40px; }   /* 3M RS */
@@ -3530,6 +3530,7 @@
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
     var scansSortState      = { by: 'weighted_rs_pct', dir: -1 };
+    var _indRankMap         = {};
     var scanLivePrices      = {};   // { ticker: { price, prevClose } }
     var scanPriceTimer      = null;
 
@@ -5036,7 +5037,7 @@
         var dmaTooltip = '% distance from ' + activeMAType + activeMALength;
         var cols = [
             { key:'symbol',    label:'Ticker',  tip:'Ticker symbol' },
-            { key:'industry',  label:'Industry',tip:'Industry' },
+            { key:'industry',  label:'Industry',tip:'Industry (sort by rank)' },
             { key:'price',     label:'Price',   tip:'Last closing price' },
             { key:'rs',        label:'RS',      tip:'RS Percentile (1-99)' },
             { key:'weighted_rs_pct', label:'3M RS', tip:'Weighted 3M RS Percentile' },
@@ -5151,7 +5152,9 @@
             '<button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">\u2606</button>' +
             '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">\u25be</button>' +
             '<span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
-        h += '<td style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(row.industry||'\u2014') + '</td>';
+        var _indRk = _indRankMap[row.industry] && _indRankMap[row.industry] !== 9999 ? _indRankMap[row.industry] : null;
+        var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:#388bfd;font-weight:600;flex-shrink:0;opacity:0.85;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
+        h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;"><span style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(row.industry||'\u2014') + '</span>' + _indRkHtml + '</div></td>';
         h += '<td style="color:#c8d0dc;font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + wrsVal2  + '</td>';
@@ -5227,12 +5230,17 @@
             filtered = filtered.filter(function(r){ return r.ticker && r.ticker.toLowerCase().includes(sq); });
         }
 
+        _indRankMap = {};
+        if (industriesData && industriesData.industries) {
+            industriesData.industries.forEach(function(i){ _indRankMap[i.industry] = i.rank || 9999; });
+        }
+
         filtered.sort(function(a, b) {
             var key = scansSortState.by;
             var av, bv;
             if (key === 'symbol')   { av = a.ticker;    bv = b.ticker;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'sector')   { av = a.sector;    bv = b.sector;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
-            if (key === 'industry') { av = a.industry;  bv = b.industry;  return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
+            if (key === 'industry') { av = _indRankMap[a.industry] || 9999; bv = _indRankMap[b.industry] || 9999; }
             if (key === 'rs')                   { av = a.Percentile;          bv = b.Percentile; }
             else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct;     bv = b.weighted_rs_pct; }
             else if (key === 'chg')      { av = a.price != null && a.daily != null ? (a.price/(1+a.daily/100))*(a.daily/100) : null; bv = b.price != null && b.daily != null ? (b.price/(1+b.daily/100))*(b.daily/100) : null; }
