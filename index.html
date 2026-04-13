@@ -1278,6 +1278,40 @@
         /* ── Alert history side panel ── */
         .al-body-wrap { display:flex; flex:1; min-height:0; overflow:hidden; }
         .al-main-col { flex:0 0 auto; min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:hidden; overflow-x:hidden; }
+
+        /* ── Alert list collapsible panel ── */
+        .al-list-panel {
+            width:32px; flex-shrink:0; background:#0a0e14;
+            border-right:1px solid #21262d; display:flex; flex-direction:column;
+            transition:width 0.2s; overflow:hidden;
+        }
+        .al-list-panel.open { width:auto; min-width:860px; }
+        .al-list-tab {
+            display:flex; flex-direction:column; align-items:center;
+            padding:12px 0; cursor:pointer; gap:8px;
+            border-right:2px solid transparent; transition:border-color 0.15s;
+        }
+        .al-list-tab:hover { background:#0f1318; border-right-color:#21262d; }
+        .al-list-tab-label {
+            font-size:0.748em; font-weight:600; color:#484f58;
+            text-transform:uppercase; letter-spacing:0.05em;
+            writing-mode:vertical-rl;
+        }
+        .al-list-tab-badge {
+            background:#21262d; color:#6e7681; font-size:0.748em;
+            font-weight:600; padding:2px 4px; border-radius:6px;
+        }
+        .al-list-expanded { display:none; flex-direction:column; height:100%; }
+        .al-list-expanded.open { display:flex; }
+        .al-list-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:6px 10px 6px 14px; border-bottom:1px solid #21262d; flex-shrink:0;
+        }
+        .al-list-title-row { display:flex; align-items:center; gap:6px; }
+        .al-list-label { font-size:0.792em; font-weight:600; color:#6e7681; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; }
+        .al-list-badge { background:#21262d; color:#6e7681; font-size:0.748em; font-weight:600; padding:1px 5px; border-radius:8px; }
+        .al-list-collapse { background:none; border:none; color:#484f58; cursor:pointer; font-size:1em; padding:0 3px; line-height:1; }
+        .al-list-collapse:hover { color:#c8d0dc; }
         .al-chart-panel {
             flex:1; min-width:0; display:none; flex-direction:column;
             border-left:1px solid #21262d;
@@ -1814,6 +1848,20 @@
         <div class="multichart-grid" id="al-multichart-grid"></div>
     </div>
     <div class="al-body-wrap">
+        <!-- Alerts list collapsible panel -->
+        <div class="al-list-panel open" id="al-list-panel">
+            <div class="al-list-tab" id="al-list-tab" onclick="alListOpen()" style="display:none;">
+                <span class="al-list-tab-badge" id="al-list-tab-badge">0</span>
+                <span class="al-list-tab-label">Alerts</span>
+            </div>
+            <div class="al-list-expanded open" id="al-list-expanded">
+                <div class="al-list-header">
+                    <div class="al-list-title-row">
+                        <span class="al-list-label">Alerts</span>
+                        <span class="al-list-badge" id="al-list-badge">0</span>
+                    </div>
+                    <button class="al-list-collapse" onclick="alListClose()" title="Collapse">&#8249;</button>
+                </div>
         <div class="al-main-col">
             <div style="display:flex;flex-direction:column;flex:1;min-height:0;overflow-x:auto;overflow-y:auto;">
                 <div class="al-hdr-row" id="al-hdr-row" style="display:none;min-width:860px;">
@@ -1832,7 +1880,9 @@
                 </div>
                 <div id="al-list" style="overflow-y:auto;overflow-x:visible;flex:1;min-width:860px;padding-bottom:32px;"></div>
             </div>
-        </div>
+        </div><!-- end al-main-col -->
+            </div><!-- end al-list-expanded -->
+        </div><!-- end al-list-panel -->
         <!-- Alerts inline chart panel -->
         <div class="al-chart-panel" id="al-chart-panel">
             <div class="al-chart-panel-header">
@@ -8386,6 +8436,10 @@
 
         var countEl = document.getElementById('al-count-label');
         if (countEl) countEl.textContent = alertsList.length + ' active';
+        var listBadge = document.getElementById('al-list-badge');
+        if (listBadge) listBadge.textContent = alertsList.length;
+        var listTabBadge = document.getElementById('al-list-tab-badge');
+        if (listTabBadge) listTabBadge.textContent = alertsList.length;
 
         renderHistory();
 
@@ -8534,6 +8588,24 @@
         document.getElementById('al-hist-panel').classList.remove('open');
         document.getElementById('al-hist-tab').style.display = 'flex';
         var exp = document.getElementById('al-hist-expanded');
+        exp.classList.remove('open');
+        exp.style.display = 'none';
+    };
+
+    window.alListOpen = function() {
+        var panel = document.getElementById('al-list-panel');
+        panel.classList.add('open');
+        document.getElementById('al-list-tab').style.display = 'none';
+        var exp = document.getElementById('al-list-expanded');
+        exp.classList.add('open');
+        exp.style.display = 'flex';
+    };
+
+    window.alListClose = function() {
+        var panel = document.getElementById('al-list-panel');
+        panel.classList.remove('open');
+        document.getElementById('al-list-tab').style.display = 'flex';
+        var exp = document.getElementById('al-list-expanded');
         exp.classList.remove('open');
         exp.style.display = 'none';
     };
