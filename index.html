@@ -685,7 +685,7 @@
         }
         .wl-chart-panel-header {
             display: flex; align-items: center; gap: 8px;
-            padding: 7px 14px; background: #161b22; border-bottom: 1px solid #21262d;
+            padding: 7px 14px; background: #13233a; border-bottom: 1px solid #1f3a5c;
             flex-shrink: 0;
         }
         .wl-chart-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; min-width: 60px; }
@@ -1276,6 +1276,16 @@
         /* ── Alert history side panel ── */
         .al-body-wrap { display:flex; flex:1; min-height:0; overflow:hidden; }
         .al-main-col { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:hidden; overflow-x:hidden; }
+        .al-chart-panel {
+            flex:1; min-width:0; display:none; flex-direction:column;
+            border-left:1px solid #21262d;
+        }
+        .al-chart-panel.open { display:flex; }
+        .al-chart-panel-header {
+            display:flex; align-items:center; gap:10px;
+            padding:7px 14px; background:#161b22;
+            border-bottom:1px solid #21262d; flex-shrink:0;
+        }
         .al-hist-panel {
             width:32px; flex-shrink:0; background:#0a0e14;
             border-left:1px solid #21262d; display:flex; flex-direction:column;
@@ -1817,6 +1827,27 @@
                     <div style="width:28px;flex-shrink:0;"></div>
                 </div>
                 <div id="al-list" style="overflow-y:auto;overflow-x:visible;flex:1;min-width:860px;padding-bottom:32px;"></div>
+            </div>
+        </div>
+        <!-- Alerts inline chart panel -->
+        <div class="al-chart-panel" id="al-chart-panel">
+            <div class="al-chart-panel-header">
+                <span class="chart-modal-sym" id="al-chart-sym"></span>
+                <span class="chart-modal-meta" id="al-chart-meta"></span>
+                <span class="chart-rs-badge" id="al-chart-rs-badge" style="display:none;"></span>
+                <span class="chart-rs-badge" id="al-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+                    <span id="al-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
+                    <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
+                    <a id="al-chart-details-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg>
+                        Stock Details
+                    </a>
+                    <button class="chart-modal-close" onclick="alChartPanelClose()" title="Close panel">×</button>
+                </div>
+            </div>
+            <div style="flex:1;min-height:0;" id="al-chart-widget-wrap">
+                <div id="al-chart-widget" style="width:100%;height:100%;"></div>
             </div>
         </div>
         <!-- History side panel -->
@@ -3252,6 +3283,7 @@
         }
         attachSymRightClick('chart-modal-sym');
         attachSymRightClick('wl-chart-sym');
+        attachSymRightClick('al-chart-sym');
         attachSymRightClick('mc-fullscreen-sym');
     })();
 
@@ -8416,7 +8448,7 @@
                     : d.toLocaleDateString([], {month:'short', day:'numeric'});
             } else { addedHtml = '—'; }
             return '<div class="al-row' + (fired ? ' fired' : '') + '">' +
-                '<div class="al-col-ticker al-col-ticker-link" onclick="alOpenChart(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
+                '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
                 '<div class="al-col-target ' + a.condition + '">$' + a.price.toFixed(2) + '</div>' +
@@ -8472,7 +8504,7 @@
             var name = esc(f.name || '');
             return '<div class="al-hist-row">' +
                 '<div class="al-hist-row-top">' +
-                    '<span class="al-hist-ticker" onclick="alOpenChart(\'' + esc(f.ticker) + '\')" style="cursor:pointer;">' + esc(f.ticker) + '</span>' +
+                    '<span class="al-hist-ticker" onclick="alTickerClick(\'' + esc(f.ticker) + '\')" style="cursor:pointer;">' + esc(f.ticker) + '</span>' +
                     '<span class="al-hist-time">' + ts + '</span>' +
                 '</div>' +
                 (name ? '<div class="al-hist-name">' + name + '</div>' : '') +
@@ -8629,6 +8661,101 @@
         var sd = tickerMap && tickerMap[ticker];
         openChartModal(ticker, (sd && sd.sector) || '', (sd && sd.industry) || '');
     };
+
+    // ── Alerts inline chart panel ─────────────────────────────────────────
+    var _alChartWidget  = null;
+    var _alClickTimer   = null;
+    var _alClickTicker  = null;
+
+    window.alTickerClick = function(ticker) {
+        if (_alClickTimer && _alClickTicker === ticker) {
+            clearTimeout(_alClickTimer);
+            _alClickTimer  = null;
+            _alClickTicker = null;
+            alOpenChart(ticker);
+        } else {
+            if (_alClickTimer) clearTimeout(_alClickTimer);
+            _alClickTicker = ticker;
+            _alClickTimer  = setTimeout(function() {
+                _alClickTimer  = null;
+                _alClickTicker = null;
+                alSelectChart(ticker);
+            }, 220);
+        }
+    };
+
+    window.alSelectChart = function(ticker) {
+        var panel = document.getElementById('al-chart-panel');
+        if (!panel) return;
+        panel.classList.add('open');
+
+        // Header — symbol
+        document.getElementById('al-chart-sym').textContent = ticker;
+
+        // Meta — industry · rank
+        var sd       = tickerMap && tickerMap[ticker];
+        var industry = (sd && sd.industry) || '';
+        var sector   = (sd && sd.sector)   || '';
+        var pct      = sd  && sd.Percentile != null ? sd.Percentile : null;
+        var metaEl   = document.getElementById('al-chart-meta');
+        if (metaEl) {
+            var indRankHtml = '';
+            if (industry && industriesData && industriesData.industries) {
+                var indData = industriesData.industries.find(function(x){ return x.industry === industry; });
+                var total   = industriesData.industries.length;
+                if (indData && indData.rank != null) {
+                    var rankPct   = indData.percentile != null ? indData.percentile : null;
+                    var rankColor = rankPct != null ? (rankPct >= 75 ? '#3fb950' : rankPct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    indRankHtml = '<span class="meta-sep">·</span>' +
+                        '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
+                }
+            }
+            metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
+        }
+
+        // RS badges & fund stats
+        applyRsBadge(document.getElementById('al-chart-rs-badge'), pct, sd ? sd.weighted_rs_pct : null, document.getElementById('al-chart-3mrs-badge'));
+        var fsEl = document.getElementById('al-chart-fund-stats');
+        if (fsEl) fsEl.innerHTML = fundStatsHtml(sd || null);
+
+        // Details link
+        var dBtn = document.getElementById('al-chart-details-btn');
+        if (dBtn) { dBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker.replace(/[^A-Z0-9]/gi, ''); dBtn.style.display = ''; }
+
+        // TradingView widget
+        var widgetDiv = document.getElementById('al-chart-widget');
+        widgetDiv.innerHTML = '';
+        _alChartWidget = null;
+        var mappedSym = TV_MAP[ticker] || ticker;
+        setTimeout(function() {
+            try {
+                _alChartWidget = new TradingView.widget({
+                    symbol: mappedSym, interval: 'D', locale: 'en', style: '1',
+                    theme: 'dark', timezone: 'America/Toronto',
+                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
+                    gridColor: 'rgba(255,255,255,0.04)',
+                    hide_side_toolbar: false, hide_top_toolbar: false,
+                    hide_legend: false, hide_volume: true,
+                    details: true, hotlist: false, calendar: false,
+                    withdateranges: true, allow_symbol_change: true,
+                    save_image: false, enable_publishing: false,
+                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
+                    right_bar_margin: 1,
+                    autosize: true,
+                    container_id: 'al-chart-widget',
+                });
+            } catch(e) {}
+        }, 50);
+    };
+
+    window.alChartPanelClose = function() {
+        var panel = document.getElementById('al-chart-panel');
+        if (panel) panel.classList.remove('open');
+        var widgetDiv = document.getElementById('al-chart-widget');
+        if (widgetDiv) widgetDiv.innerHTML = '';
+        _alChartWidget = null;
+    };
+    // ── END Alerts inline chart panel ─────────────────────────────────────
 
     document.addEventListener('keydown', function(e) {
         if (e.key !== 'Enter' || currentView !== 'alerts') return;
