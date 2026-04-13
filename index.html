@@ -3566,6 +3566,7 @@
         { value: 'gap',     label: 'Gap' },
         { value: 'range',   label: 'Range' },
         { value: 'sector',  label: 'Sector' },
+        { value: 'indrank', label: 'Industry Rank' },
     ];
 
     var FUND_METRICS = [
@@ -3673,6 +3674,11 @@
             }
             return side + newOnly + dVal;
         }
+        if (row.type === 'indrank') {
+            var irMode = row.indrankMode || 'top';
+            var irModeLabel = irMode === 'top' ? 'Top' : 'Below';
+            return 'Ind Rank ' + irModeLabel + ' ' + (row.val != null && row.val !== '' ? row.val : '—');
+        }
         if (row.type === 'sector') {
             var secs = row.sectors || [];
             var inds = row.industries || [];
@@ -3733,6 +3739,7 @@
             range:   'Filter by where price sits within its 52-week or recent range.',
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
+            indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
         };
 
         var html = PILL_TYPES.map(function(pt) {
@@ -3988,8 +3995,14 @@
             }).join('');
             html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Sector</span><div style="display:flex;flex-wrap:wrap;gap:3px;">'+sectorChips+'</div></div>';
             html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Industry</span><div style="display:flex;flex-wrap:wrap;gap:3px;max-height:160px;overflow-y:auto;padding-right:2px;">'+(industryChips||'<span style="color:#484f58;font-size:0.748em;">No industry data</span>')+'</div></div>';
+        } else if (row.type === 'indrank') {
+            var irMode = row.indrankMode || 'top';
+            var irBtns = [['top','Top'],['below','Below']].map(function(m){
+                return '<button class="sf-seg-btn'+(irMode===m[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'indrankMode\',\''+m[0]+'\')">'+m[1]+'</button>';
+            }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Top N: stocks in industries ranked 1 through N. Below N: stocks in industries ranked lower than N.">Mode</span><div class="sf-seg">'+irBtns+'</div></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Rank</span><input class="sf-input" type="number" min="1" step="1" value="'+(row.val!=null&&row.val!==''?row.val:15)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
         } else {
-            var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             if (row.type !== 'udv') {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
             }
@@ -4047,9 +4060,10 @@
                 udvPeriod: 50,
                 sectors: type === 'sector' ? [] : undefined,
                 industries: type === 'sector' ? [] : undefined,
+                indrankMode: type === 'indrank' ? 'top' : undefined,
                 val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                      type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                     type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'sector' ? null : 0,
+                     type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'sector' ? null : type === 'indrank' ? 15 : 0,
                 dir: type === 'gap' ? 'up' : 'gt' };
             sfRows.push(defaults);
             row = defaults;
@@ -4058,7 +4072,8 @@
         var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', udv: 'U/D Vol', pattern: 'Pattern', ma: 'Moving Average',
-                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry' };
+                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry',
+                       indrank: 'Industry Rank' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
         var pop  = document.getElementById('sf-popover');
         pop.style.maxWidth = (type === 'sector') ? '380px' : '260px';
@@ -4093,9 +4108,10 @@
             row.crTf        = 'd';
             row.sectors     = [];
             row.industries  = [];
+            row.indrankMode = type === 'indrank' ? 'top' : row.indrankMode;
             row.val         = type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                               type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                              type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : type === 'sector' ? null : 0;
+                              type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : 0;
             row.val2        = null;
             // Re-render popover content with reset values
             var c = sfPopoverHtml(row, true);
@@ -4114,7 +4130,8 @@
             row.perfDir = 'up';
             row.sectors    = [];
             row.industries = [];
-            row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : row.type === 'sector' ? null : 0;
+            row.indrankMode = row.type === 'indrank' ? 'top' : row.indrankMode;
+            row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : row.type === 'sector' ? null : row.type === 'indrank' ? 15 : 0;
             row.val2    = null;
             row.rangeCondition = row.type === 'range' ? 'relative' : null;
             var c = sfPopoverHtml(row, true);
@@ -4202,7 +4219,7 @@
         var pop = document.getElementById('sf-popover');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
-        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry' };
+        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry', indrank: 'Industry Rank' };
         document.getElementById('sf-popover-title').textContent = EXTRA_TITLES[row.type] || row.type;
         document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
         var pop = document.getElementById('sf-popover');
@@ -4239,7 +4256,8 @@
             row.rangeCondition = value === 'range' ? 'relative' : null;
             row.sectors    = value === 'sector' ? [] : undefined;
             row.industries = value === 'sector' ? [] : undefined;
-            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : value === 'sector' ? null : null;
+            row.indrankMode = value === 'indrank' ? 'top' : undefined;
+            row.val         = value === 'rs' ? 70 : value === 'price' ? 5 : value === 'vol' ? '500K' : value === 'adr' ? 3 : value === 'cr' ? 50 : value === 'mcap' ? '1B' : value === 'rvol' ? 1 : value === 'pattern' ? 'inside_day' : value === 'fund' ? 0 : value === 'gap' ? 1 : value === 'range' ? 50 : value === 'sector' ? null : value === 'indrank' ? 15 : null;
             row.fundMetric  = value === 'fund' ? 'eps_next_y_pct' : null;
             row.patternTf   = 'd';
             row.crTf        = 'd';
@@ -4298,6 +4316,7 @@
             { value: 'range',   label: 'Range' },
             { value: 'sector',  label: 'Sector' },
             { value: 'wk52',    label: '52-Week High/Low' },
+            { value: 'indrank', label: 'Industry Rank' },
         ];
 
         var picker = document.createElement('div');
@@ -4321,6 +4340,7 @@
             range:   'Filter by where price sits within its 52-week or recent range.',
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
+            indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
         };
         picker.innerHTML = TYPES.map(function(t) {
             var tip = PICKER_TOOLTIPS[t.value] || '';
@@ -4366,9 +4386,10 @@
             wk52NewOnly: type === 'wk52' ? 0 : undefined,
             wk52DistMin: type === 'wk52' ? null : undefined,
             wk52DistMax: type === 'wk52' ? null : undefined,
+            indrankMode: type === 'indrank' ? 'top' : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : null };
+                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -5019,6 +5040,14 @@
                             if (wDistMax !== null && !isNaN(wDistMax) && distLow > wDistMax) return false;
                         }
                     }
+                } else if (f.type === 'indrank') {
+                    var irRank = _indRankMap[r.industry];
+                    if (!irRank || irRank === 9999) return false;
+                    var irVal = parseInt(f.val);
+                    if (!isNaN(irVal)) {
+                        if ((f.indrankMode || 'top') === 'top'   && irRank > irVal)  return false;
+                        if ((f.indrankMode || 'top') === 'below' && irRank <= irVal) return false;
+                    }
                 }
             }
             return true;
@@ -5084,7 +5113,7 @@
             th.addEventListener('click', function() {
                 var key = this.getAttribute('data-sort-by');
                 if (scansSortState.by === key) { scansSortState.dir *= -1; }
-                else { scansSortState.by = key; scansSortState.dir = -1; }
+                else { scansSortState.by = key; scansSortState.dir = key === 'industry' ? 1 : -1; }
                 renderScans();
             });
         });
@@ -5153,7 +5182,7 @@
             '<button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">\u25be</button>' +
             '<span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
         var _indRk = _indRankMap[row.industry] && _indRankMap[row.industry] !== 9999 ? _indRankMap[row.industry] : null;
-        var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:#6e7681;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
+        var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:rgba(56,139,253,0.5);font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
         h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;"><span style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(row.industry||'\u2014') + '</span>' + _indRkHtml + '</div></td>';
         h += '<td style="color:#c8d0dc;font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
