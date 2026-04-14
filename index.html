@@ -4089,6 +4089,7 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Top N: stocks in industries ranked 1 through N. Below N: stocks in industries ranked lower than N.">Mode</span><div class="sf-seg">'+irBtns+'</div></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Rank</span><input class="sf-input" type="number" min="1" step="1" value="'+(row.val!=null&&row.val!==''?row.val:15)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
         } else {
+            var dirOpts2 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             if (row.type !== 'udv') {
                 html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts2+'</select></div>';
             }
