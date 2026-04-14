@@ -8899,6 +8899,7 @@
     // Track which list was last interacted with via click
     document.addEventListener('click', function(e) {
         if (currentView !== 'alerts') return;
+        var isExcluded = e.target.closest('.al-col-del, .al-col-edit, .al-hist-del, .al-col-ticker-link, .al-hist-ticker');
         if (e.target.closest('#al-list')) {
             _alKbFocus = 'alerts';
             var rows = alKbGetAlertRows();
@@ -8906,6 +8907,10 @@
             if (row) {
                 _alKbIdx = rows.indexOf(row);
                 alKbSetAlertActive(rows, _alKbIdx);
+                if (!isExcluded) {
+                    var ticker = alKbTickerFromAlertRow(row);
+                    if (ticker) alTickerClick(ticker);
+                }
             }
         } else if (e.target.closest('#al-hist-list')) {
             _alKbFocus = 'history';
@@ -8914,6 +8919,10 @@
             if (hRow) {
                 _alHistKbIdx = hRows.indexOf(hRow);
                 alKbSetHistActive(hRows, _alHistKbIdx);
+                if (!isExcluded) {
+                    var hticker = alKbTickerFromHistRow(hRow);
+                    if (hticker) alTickerClick(hticker);
+                }
             }
         }
     }, true);
