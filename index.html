@@ -8903,12 +8903,18 @@
             _alKbFocus = 'alerts';
             var rows = alKbGetAlertRows();
             var row  = e.target.closest('.al-row');
-            if (row) _alKbIdx = rows.indexOf(row);
+            if (row) {
+                _alKbIdx = rows.indexOf(row);
+                alKbSetAlertActive(rows, _alKbIdx);
+            }
         } else if (e.target.closest('#al-hist-list')) {
             _alKbFocus = 'history';
             var hRows = alKbGetHistRows();
             var hRow  = e.target.closest('.al-hist-row');
-            if (hRow) _alHistKbIdx = hRows.indexOf(hRow);
+            if (hRow) {
+                _alHistKbIdx = hRows.indexOf(hRow);
+                alKbSetHistActive(hRows, _alHistKbIdx);
+            }
         }
     }, true);
 
