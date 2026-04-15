@@ -8861,8 +8861,76 @@
                     container_id: 'al-chart-widget',
                 });
             } catch(e) {}
+            startAlChartPoll(ticker);
         }, 50);
     };
+
+    var _alChartMsgHandler = null;
+
+    function startAlChartPoll(initialTicker) {
+        if (_alChartMsgHandler) { window.removeEventListener('message', _alChartMsgHandler); _alChartMsgHandler = null; }
+
+        var _alChartLastSym = initialTicker;
+        var _alChartReady   = false;
+        var _alChartIframe  = null;
+        setTimeout(function() { _alChartReady = true; }, 2000);
+        setTimeout(function() {
+            var container = document.getElementById('al-chart-widget');
+            if (container) _alChartIframe = container.querySelector('iframe');
+        }, 500);
+
+        _alChartMsgHandler = function(e) {
+            if (!_alChartReady) return;
+            if (_alChartIframe && e.source !== _alChartIframe.contentWindow) return;
+            try {
+                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                var newSym = null;
+                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
+                    newSym = data.data.original_name;
+                }
+                if (newSym) {
+                    var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
+                    if (bare && bare !== _alChartLastSym) {
+                        _alChartLastSym = bare;
+
+                        // Update header symbol
+                        var symEl = document.getElementById('al-chart-sym');
+                        if (symEl) symEl.textContent = bare;
+
+                        // Update meta
+                        var sd       = tickerMap && tickerMap[bare];
+                        var industry = (sd && sd.industry) || '';
+                        var pct      = sd && sd.Percentile != null ? sd.Percentile : null;
+                        var metaEl   = document.getElementById('al-chart-meta');
+                        if (metaEl) {
+                            var indRankHtml = '';
+                            if (industry && industriesData && industriesData.industries) {
+                                var indData = industriesData.industries.find(function(x){ return x.industry === industry; });
+                                var total   = industriesData.industries.length;
+                                if (indData && indData.rank != null) {
+                                    var rankPct   = indData.percentile != null ? indData.percentile : null;
+                                    var rankColor = rankPct != null ? (rankPct >= 75 ? '#3fb950' : rankPct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                                    indRankHtml = '<span class="meta-sep">·</span>' +
+                                        '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
+                                }
+                            }
+                            metaEl.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml : '';
+                        }
+
+                        // Update RS badges & fund stats
+                        applyRsBadge(document.getElementById('al-chart-rs-badge'), pct, sd ? sd.weighted_rs_pct : null, document.getElementById('al-chart-3mrs-badge'));
+                        var fsEl = document.getElementById('al-chart-fund-stats');
+                        if (fsEl) fsEl.innerHTML = fundStatsHtml(sd || null);
+
+                        // Update details link
+                        var dBtn = document.getElementById('al-chart-details-btn');
+                        if (dBtn) dBtn.href = 'https://finviz.com/quote.ashx?t=' + bare.replace(/[^A-Z0-9]/gi, '');
+                    }
+                }
+            } catch(err) {}
+        };
+        window.addEventListener('message', _alChartMsgHandler);
+    }
 
     window.alChartPanelClose = function() {
         var panel = document.getElementById('al-chart-panel');
@@ -8870,6 +8938,7 @@
         var widgetDiv = document.getElementById('al-chart-widget');
         if (widgetDiv) widgetDiv.innerHTML = '';
         _alChartWidget = null;
+        if (_alChartMsgHandler) { window.removeEventListener('message', _alChartMsgHandler); _alChartMsgHandler = null; }
     };
     // ── END Alerts inline chart panel ─────────────────────────────────────
 
