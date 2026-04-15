@@ -3556,6 +3556,23 @@
                 var r = wlRows[currentWlIndex];
                 var ticker = r.getAttribute('data-wl-ticker');
                 if (ticker) openChartModal(ticker);
+            } else if (e.key === 'Delete' && currentWlIndex >= 0) {
+                e.preventDefault();
+                var r = wlRows[currentWlIndex];
+                var ticker   = r.getAttribute('data-wl-ticker');
+                var listName = r.getAttribute('data-wl-list');
+                if (ticker && listName) {
+                    wlRemoveTicker(listName, ticker);
+                    var newRows = Array.from(document.querySelectorAll('.wl-ticker-row'));
+                    if (newRows.length) {
+                        currentWlIndex = Math.min(currentWlIndex, newRows.length - 1);
+                        var next = newRows[currentWlIndex];
+                        next.scrollIntoView({ block: 'nearest' });
+                        wlSelectTicker(next.getAttribute('data-wl-ticker'));
+                    } else {
+                        currentWlIndex = -1;
+                    }
+                }
             }
             return;
         }
