@@ -1406,6 +1406,12 @@
         .al-hist-hit { font-size:0.792em; font-weight:600; font-variant-numeric:tabular-nums; }
         .al-hist-hit.up { color:#3fb950; }
         .al-hist-hit.dn { color:#f85149; }
+        .al-hist-row-bot { display:flex; align-items:center; justify-content:space-between; margin-top:3px; }
+        .al-hist-since-label { font-size:0.715em; color:#484f58; }
+        .al-hist-chg { font-size:0.792em; font-weight:700; font-variant-numeric:tabular-nums; }
+        .al-hist-chg.up   { color:#3fb950; }
+        .al-hist-chg.dn   { color:#f85149; }
+        .al-hist-chg.flat { color:#484f58; }
         .al-hist-del { background:none; border:none; color:#30363d; cursor:pointer; font-size:0.968em; line-height:1; float:right; margin-top:-16px; }
         .al-hist-del:hover { color:#f85149; }
         .al-hist-empty { padding:24px 12px; text-align:center; color:#30363d; font-size:0.792em; }
@@ -8320,9 +8326,11 @@
     }
 
     function alFetchPrices() {
-        if (!alertsList.length) return;
-        var tickers = alertsList.map(function(a) { return a.ticker; })
+        var activeTickers  = alertsList.map(function(a) { return a.ticker; });
+        var historyTickers = alertFiredList.map(function(f) { return f.ticker; });
+        var tickers = activeTickers.concat(historyTickers)
             .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+        if (!tickers.length) return;
         // Batch into chunks of 50 to avoid URL length limits
         var batches = [];
         for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
@@ -8561,6 +8569,17 @@
                 : '<span class="al-hist-cond" style="color:#f85149;">▼ below $' + f.alertPrice.toFixed(2) + '</span>';
             var hitCls = f.condition === 'above' ? 'up' : 'dn';
             var name = esc(f.name || '');
+            var curPrice = alertPrices[f.ticker];
+            var chgHtml = '';
+            if (curPrice != null && f.alertPrice > 0) {
+                var chgPct = ((curPrice - f.alertPrice) / f.alertPrice) * 100;
+                var chgCls = chgPct > 0.05 ? 'up' : chgPct < -0.05 ? 'dn' : 'flat';
+                var chgSign = chgPct > 0 ? '+' : '';
+                chgHtml = '<div class="al-hist-row-bot">' +
+                    '<span class="al-hist-since-label">since alert</span>' +
+                    '<span class="al-hist-chg ' + chgCls + '">' + chgSign + chgPct.toFixed(2) + '%</span>' +
+                '</div>';
+            }
             return '<div class="al-hist-row">' +
                 '<div class="al-hist-row-top">' +
                     '<span class="al-hist-ticker" onclick="alTickerClick(\'' + esc(f.ticker) + '\')" style="cursor:pointer;">' + esc(f.ticker) + '</span>' +
@@ -8571,6 +8590,7 @@
                     condHtml +
                     '<span class="al-hist-hit ' + hitCls + '">hit $' + f.hitPrice.toFixed(2) + '</span>' +
                 '</div>' +
+                chgHtml +
                 '<button class="al-hist-del" onclick="alHistDelete(' + idx + ')">×</button>' +
             '</div>';
         }).join('');
