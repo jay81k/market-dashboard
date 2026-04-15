@@ -1393,7 +1393,7 @@
         .al-hist-collapse { background:none; border:none; color:#484f58; cursor:pointer; font-size:1em; padding:0 3px; line-height:1; }
         .al-hist-collapse:hover { color:#c8d0dc; }
         .al-hist-scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
-        .al-hist-row { padding:8px 12px; border-bottom:1px solid #161b22; cursor:pointer; }
+        .al-hist-row { padding:8px 12px; border-bottom:1px solid #161b22; cursor:pointer; position:relative; }
         .al-hist-row:hover { background:#0f1318; }
         .al-hist-row.al-hist-row-active { background:#1c2128; border-left:2px solid #388bfd; padding-left:10px; }
         .al-hist-row.al-hist-row-active:hover { background:#1c2128; }
@@ -1412,8 +1412,9 @@
         .al-hist-chg.up   { color:#3fb950; }
         .al-hist-chg.dn   { color:#f85149; }
         .al-hist-chg.flat { color:#484f58; }
-        .al-hist-del { background:none; border:none; color:#30363d; cursor:pointer; font-size:0.968em; line-height:1; float:right; margin-top:-16px; }
-        .al-hist-del:hover { color:#f85149; }
+        .al-hist-del { position:absolute; top:6px; right:8px; background:none; border:none; color:#f85149; cursor:pointer; font-size:1em; line-height:1; opacity:0; transition:opacity 0.15s; padding:2px 4px; border-radius:3px; }
+        .al-hist-del:hover { color:#ff6b6b; background:rgba(248,81,73,0.12); }
+        .al-hist-row:hover .al-hist-del { opacity:1; }
         .al-hist-empty { padding:24px 12px; text-align:center; color:#30363d; font-size:0.792em; }
     </style>
 </head>
