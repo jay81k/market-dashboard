@@ -6695,7 +6695,7 @@
                                             '<span style="color:' + rankColor2 + '">(' + indData2.rank + '/' + total2 + ')</span>';
                                     }
                                 }
-                                metaEl2.innerHTML = industry ? '<span style="color:#8b949e;">' + esc(industry) + '</span>' + indRankHtml2 : '';
+                                metaEl2.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml2 : '';
                             }
                             applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
                             var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
