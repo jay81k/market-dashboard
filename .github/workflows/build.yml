@@ -24,6 +24,8 @@ jobs:
 
       - name: Build data
         run: python scripts/build_data.py --out-dir data --csv-url "${{ secrets.CSV_URL }}"
+        env:
+          INDUSTRIES_CSV_URL: ${{ secrets.INDUSTRIES_CSV_URL }}
 
       - name: Commit and push data
         run: |
