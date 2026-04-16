@@ -36,7 +36,8 @@ warnings.filterwarnings("ignore")
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_CSV_URL = os.environ.get("CSV_URL", "")
+DEFAULT_CSV_URL     = os.environ.get("CSV_URL", "")
+INDUSTRIES_CSV_URL  = os.environ.get("INDUSTRIES_CSV_URL", "")
 MIN_AVG_VOLUME  = 90_000     # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
@@ -168,6 +169,23 @@ def load_universe(csv_url: str) -> pd.DataFrame:
     df["Ticker"] = df["Ticker"].astype(str).str.strip()
     df = df[df["Ticker"] != ""].reset_index(drop=True)
     return df
+
+
+def load_industry_rs(url: str) -> dict:
+    """Fetch industry RS CSV, return {industry_name: percentile}."""
+    if not url:
+        print("Warning: INDUSTRIES_CSV_URL not set, rs_12m will be null for all industries")
+        return {}
+    try:
+        df = pd.read_csv(url)
+        df["Industry"]   = df["Industry"].astype(str).str.strip()
+        df["Percentile"] = pd.to_numeric(df["Percentile"], errors="coerce")
+        result = {row["Industry"]: row["Percentile"] for _, row in df.iterrows() if pd.notna(row["Percentile"])}
+        print(f"Loaded industry RS for {len(result)} industries from external CSV")
+        return result
+    except Exception as e:
+        print(f"Warning: failed to load industry RS CSV: {e}")
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -812,6 +830,7 @@ def main():
 
     # 1. Load & filter universe
     universe = load_universe(args.csv_url)
+    industry_rs_map = load_industry_rs(INDUSTRIES_CSV_URL)
 
     # Inject supplemental tickers (bypass all filters — manually curated)
     if SUPPLEMENTAL_TICKERS:
@@ -1048,13 +1067,12 @@ def main():
     RS_THRESHOLDS_1M  = [(31.9,99),(16.9,95),(9.5,90),(4.6,80),(0.9,70),(-0.2,60),(-2.1,50),(-3.5,40),(-4.5,30),(-5.9,20),(-8.6,10),(-20.5,1)]
     RS_THRESHOLDS_3M  = [(65.0,99),(40.0,95),(25.0,90),(13.0,80),(11.0,70),(7.0,60),(4.0,50),(0.0,40),(-3.0,30),(-6.0,20),(-11.0,10),(-20.0,1)]
     RS_THRESHOLDS_6M  = [(80.0,99),(55.0,95),(35.0,90),(20.0,80),(15.0,70),(10.0,60),(5.0,50),(0.0,40),(-5.0,30),(-10.0,20),(-18.0,10),(-30.0,1)]
-    RS_THRESHOLDS_12M = [(100.0,99),(70.0,95),(45.0,90),(25.0,80),(18.0,70),(12.0,60),(6.0,50),(0.0,40),(-6.0,30),(-12.0,20),(-22.0,10),(-40.0,1)]
-
     for ind, s in industry_summary.items():
         s["rs_1m"]  = ind_rs_thresholds(s.get("avg_vs_spy"),     RS_THRESHOLDS_1M)
         s["rs_3m"]  = ind_rs_thresholds(s.get("avg_vs_spy_3m"),  RS_THRESHOLDS_3M)
         s["rs_6m"]  = ind_rs_thresholds(s.get("avg_vs_spy_6m"),  RS_THRESHOLDS_6M)
-        s["rs_12m"] = ind_rs_thresholds(s.get("avg_vs_spy_12m"), RS_THRESHOLDS_12M)
+        raw_pct = industry_rs_map.get(ind)
+        s["rs_12m"] = int(round(raw_pct)) if raw_pct is not None else None
 
     # 8. Sector → industries index
     sector_to_industries: dict[str, list[str]] = defaultdict(list)
