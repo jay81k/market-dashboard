@@ -3658,6 +3658,7 @@
     var sfRows  = [];   // array of filter rule objects
     var sfRowId = 0;
     var sfActivePillType = null;
+    var sfActivePopoverId = null;
     var sfPillWasPreExisting = false;
     var sfPopoverIsNew = false;
 
@@ -4866,6 +4867,13 @@
         var presets = sfGetAllPresets();
         var preset = presets[name];
         if (!preset) return;
+        // Close any open popover and reset all pill state before applying
+        var pop = document.getElementById('sf-popover');
+        if (pop) pop.style.display = 'none';
+        sfActivePillType = null;
+        sfActivePopoverId = null;
+        sfPillWasPreExisting = false;
+        sfPopoverIsNew = false;
         _activePresetName = name;
         sfRows = preset.rows || [];
         sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
