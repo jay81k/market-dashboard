@@ -8300,7 +8300,7 @@
         try { localStorage.setItem(LS_AL_KEY, str); } catch(e) {}
     }
     function alSaveFired() {
-        var str = JSON.stringify(alertFiredList.slice(0, 50));
+        var str = JSON.stringify(alertFiredList.slice(0, 100));
         kvSet('alerts_fired', str);
         try { localStorage.setItem(LS_AL_FIRED_KEY, str); } catch(e) {}
     }
