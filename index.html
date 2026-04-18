@@ -7009,7 +7009,7 @@
 
         return {
             price:      meta.regularMarketPrice                      || null,
-            prevClose:  meta.previousClose || meta.chartPreviousClose || null,
+            prevClose:  (marketTf === '1d') ? (meta.previousClose || meta.chartPreviousClose || null) : (meta.chartPreviousClose || meta.previousClose || null),
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
