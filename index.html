@@ -1878,7 +1878,7 @@
                     <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Alert $</div>
                     <div class="al-hdr" style="width:72px;text-align:right;flex-shrink:0;">Current</div>
                     <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg</div>
-                    <div class="al-hdr" style="width:64px;text-align:right;flex-shrink:0;">Chg%</div>
+                    <div class="al-hdr sortable" id="al-hdr-chgpct" style="width:64px;text-align:right;flex-shrink:0;" onclick="alToggleSort('chgpct')">Chg%</div>
                     <div class="al-hdr sortable" id="al-hdr-away" style="width:60px;text-align:right;flex-shrink:0;" onclick="alToggleSort('away')">Away</div>
                     <div class="al-hdr" style="width:60px;text-align:right;flex-shrink:0;">Status</div>
                     <div class="al-hdr sortable" id="al-hdr-added" style="width:80px;text-align:right;flex-shrink:0;" onclick="alToggleSort('added')">Added</div>
@@ -8477,12 +8477,12 @@
             alSortDir = 'asc';
         }
         // Update header indicators
-        ['away','added'].forEach(function(k) {
+        ['away','added','chgpct'].forEach(function(k) {
             var el = document.getElementById('al-hdr-' + k);
             if (!el) return;
             el.classList.toggle('sorted', k === alSortKey);
             // Strip old arrow
-            el.textContent = k === 'away' ? 'Away' : 'Added';
+            el.textContent = k === 'away' ? 'Away' : k === 'added' ? 'Added' : 'Chg%';
             if (k === alSortKey) {
                 el.textContent += alSortDir === 'asc' ? ' ↑' : ' ↓';
             }
@@ -8542,6 +8542,17 @@
                 if (pa === Infinity) return 1;
                 if (pb === Infinity) return -1;
                 return alSortDir === 'asc' ? pa - pb : pb - pa;
+            });
+        } else if (alSortKey === 'chgpct') {
+            displayList.sort(function(x, y) {
+                var pa = alertPrices[x.a.ticker], pc_a = alertPrevClose[x.a.ticker];
+                var pb = alertPrices[y.a.ticker], pc_b = alertPrevClose[y.a.ticker];
+                var va = (pa != null && pc_a != null && pc_a > 0) ? (pa - pc_a) / pc_a * 100 : null;
+                var vb = (pb != null && pc_b != null && pc_b > 0) ? (pb - pc_b) / pc_b * 100 : null;
+                if (va === null && vb === null) return 0;
+                if (va === null) return 1;
+                if (vb === null) return -1;
+                return alSortDir === 'asc' ? va - vb : vb - va;
             });
         }
 
