@@ -7956,8 +7956,38 @@
 
             if (prevSnap && prevSnap.ranks) {
                 if (prevSnap.date !== today) {
-                    // Snapshot is from a previous day — use directly as yesterday
-                    indPrevRanks = prevSnap.ranks;
+                    // Snapshot is from a previous day.
+                    // If ranks are identical to current data, we're in a weekend/holiday period —
+                    // use the archived _prev snapshot (e.g. Thursday's ranks) so Friday's delta
+                    // stays visible through Saturday, Sunday, and until Monday's data changes.
+                    var _curRanksCheck = {};
+                    if (industriesData && industriesData.industries) {
+                        industriesData.industries.forEach(function(ind) {
+                            if (ind.rank != null) _curRanksCheck[ind.industry] = ind.rank;
+                        });
+                    }
+                    var _ranksUnchanged = Object.keys(_curRanksCheck).length > 0 &&
+                        JSON.stringify(_curRanksCheck) === JSON.stringify(prevSnap.ranks);
+
+                    if (_ranksUnchanged) {
+                        // Weekend/holiday: load _prev (e.g. Thursday) so delta reflects Friday's move
+                        var lsPrevWknd = _parseSnap(localStorage.getItem(LS_IND_SNAP_PREV));
+                        if (lsPrevWknd && lsPrevWknd.ranks) {
+                            indPrevRanks = lsPrevWknd.ranks;
+                        } else {
+                            kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
+                                var ySnap = _parseSnap(kvIndSnapPrev);
+                                if (ySnap && ySnap.ranks) {
+                                    indPrevRanks = ySnap.ranks;
+                                    try { localStorage.setItem(LS_IND_SNAP_PREV, JSON.stringify(ySnap)); } catch(e) {}
+                                    renderIndustries();
+                                }
+                            });
+                        }
+                    } else {
+                        // Normal weekday — snapshot is genuinely yesterday's, use it directly
+                        indPrevRanks = prevSnap.ranks;
+                    }
                 } else {
                     // Snapshot is already today's — load the archived yesterday snapshot.
                     // Try localStorage first (instant, reliable for same-browser reloads).
@@ -8003,11 +8033,16 @@
                     try { localStorage.setItem(LS_IND_SNAP, newSnapStr); } catch(e) {}
                 } else if (!prevSnap || prevSnap.date !== today) {
                     // Ranks unchanged but it's a new calendar day — just update the date
-                    // so same-day logic works, without disturbing _prev
-                    var updatedSnap = { date: today, ranks: newRanks };
-                    var updatedSnapStr = JSON.stringify(updatedSnap);
-                    kvSet('ind_rank_snapshot', updatedSnapStr);
-                    try { localStorage.setItem(LS_IND_SNAP, updatedSnapStr); } catch(e) {}
+                    // so same-day logic works, without disturbing _prev.
+                    // Skip on weekends (Sat=6, Sun=0): bumping the date on Sat would make
+                    // Sunday treat Saturday's snap as "yesterday", wiping the Friday delta.
+                    var _dow = new Date().getDay();
+                    if (_dow !== 0 && _dow !== 6) {
+                        var updatedSnap = { date: today, ranks: newRanks };
+                        var updatedSnapStr = JSON.stringify(updatedSnap);
+                        kvSet('ind_rank_snapshot', updatedSnapStr);
+                        try { localStorage.setItem(LS_IND_SNAP, updatedSnapStr); } catch(e) {}
+                    }
                 }
             }
 
