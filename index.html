@@ -6956,6 +6956,27 @@
         if (e.key === 'Escape' && wlPickerOpen) wlClosePicker();
     });
 
+    // When the picker backdrop intercepts a right-click, close the picker and
+    // re-dispatch the contextmenu event onto whatever element is underneath so
+    // handlers (e.g. alert-list rows) still fire on the second right-click.
+    (function() {
+        var bd = document.getElementById('wl-picker-backdrop');
+        if (!bd) return;
+        bd.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            wlClosePicker();
+            bd.classList.remove('open');  // hide immediately so elementFromPoint skips it
+            var el = document.elementFromPoint(e.clientX, e.clientY);
+            if (el) {
+                el.dispatchEvent(new MouseEvent('contextmenu', {
+                    bubbles: true, cancelable: true,
+                    clientX: e.clientX, clientY: e.clientY,
+                    screenX: e.screenX, screenY: e.screenY
+                }));
+            }
+        });
+    }());
+
     // ── Market Overview ───────────────────────────────────────────────────
 
     var MARKET_INDEXES = [
