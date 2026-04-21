@@ -1836,6 +1836,11 @@
     <div id="al-add-form" class="al-add-form" style="display:none;">
         <span class="al-form-label">Ticker</span>
         <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="width:80px;text-transform:uppercase;" autocomplete="new-password" spellcheck="false" />
+        <span class="al-form-label">type</span>
+        <select id="al-input-type" onchange="alFormTypeChange()" style="width:74px;">
+            <option value="price" selected>Price</option>
+            <option value="rsi14">RSI 14</option>
+        </select>
         <span class="al-form-label">condition</span>
         <select id="al-input-cond">
             <option value="above">crosses above</option>
@@ -1844,6 +1849,7 @@
         <input type="number" id="al-input-price" placeholder="Price" style="width:80px;" step="0.01" min="0" />
         <button class="al-confirm-btn" onclick="alSubmitForm()">Set alert</button>
         <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
+        <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based, not live</span>
     </div>
     <div id="al-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
         <div class="multichart-toolbar">
@@ -3791,6 +3797,10 @@
             var irModeLabel = irMode === 'top' ? 'Top' : 'Below';
             return 'Ind Rank ' + irModeLabel + ' ' + (row.val != null && row.val !== '' ? row.val : '—');
         }
+        if (row.type === 'rsi') {
+            var rsiDir = row.dir === 'gt' ? '>' : '<';
+            return 'RSI(14) ' + rsiDir + ' ' + (row.val != null ? row.val : '—');
+        }
         if (row.type === 'sector') {
             var secs = row.sectors || [];
             var inds = row.industries || [];
@@ -3852,6 +3862,7 @@
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
             indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
+            rsi:     'RSI(14) — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
         };
 
         var html = PILL_TYPES.map(function(pt) {
@@ -4430,6 +4441,7 @@
             { value: 'sector',  label: 'Sector' },
             { value: 'wk52',    label: '52-Week High/Low' },
             { value: 'indrank', label: 'Industry Rank' },
+            { value: 'rsi',     label: 'RSI (14)' },
         ];
 
         var picker = document.createElement('div');
@@ -4454,6 +4466,7 @@
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
             indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
+            rsi:     'RSI(14) — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
         };
         picker.innerHTML = TYPES.map(function(t) {
             var tip = PICKER_TOOLTIPS[t.value] || '';
@@ -4502,7 +4515,7 @@
             indrankMode: type === 'indrank' ? 'top' : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : null };
+                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : type === 'rsi' ? 50 : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -8461,24 +8474,46 @@
         alertsList.forEach(function(a) {
             var key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
-            var price = alertPrices[a.ticker];
-            if (price == null) return;
-            var hit = (a.condition === 'above' && price >= a.price) ||
+            var hit = false;
+            var hitVal = null;
+            if (a.alertType === 'rsi14') {
+                var snapRsi = null;
+                if (snapshot && snapshot.by_industry) {
+                    outer: for (var ind in snapshot.by_industry) {
+                        var stocks = snapshot.by_industry[ind];
+                        for (var si = 0; si < stocks.length; si++) {
+                            if (stocks[si].ticker === a.ticker) { snapRsi = stocks[si].rsi14; break outer; }
+                        }
+                    }
+                }
+                if (snapRsi == null) return;
+                hitVal = snapRsi;
+                hit = (a.condition === 'above' && snapRsi >= a.price) ||
+                      (a.condition === 'below' && snapRsi <= a.price);
+            } else {
+                var price = alertPrices[a.ticker];
+                if (price == null) return;
+                hitVal = price;
+                hit = (a.condition === 'above' && price >= a.price) ||
                       (a.condition === 'below' && price <= a.price);
+            }
             if (!hit) return;
             _alertFiredSess[key] = true;
             alertFiredList.unshift({
                 ticker: a.ticker, condition: a.condition,
-                alertPrice: a.price, hitPrice: price,
+                alertPrice: a.price, hitPrice: hitVal,
+                alertType: a.alertType || 'price',
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
             toRemove.push(key);
             anyFired = true;
             if (window.Notification && Notification.permission === 'granted') {
-                new Notification(a.ticker + ' alert triggered', {
-                    body: (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + price.toFixed(2)
-                });
+                var isRsi = a.alertType === 'rsi14';
+                var body = isRsi
+                    ? 'RSI(14) ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1)
+                    : (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
+                new Notification(a.ticker + ' alert triggered', { body: body });
             }
         });
         if (toRemove.length) {
@@ -8587,7 +8622,24 @@
                 ? '<span style="color:#3fb950;">▲ above</span>'
                 : '<span style="color:#f85149;">▼ below</span>';
             var awayHtml;
-            if (fired || curr == null) {
+            if (a.alertType === 'rsi14') {
+                var snapRsi2 = null;
+                if (snapshot && snapshot.by_industry) {
+                    outer4: for (var ind4 in snapshot.by_industry) {
+                        var st4 = snapshot.by_industry[ind4];
+                        for (var si4 = 0; si4 < st4.length; si4++) {
+                            if (st4[si4].ticker === a.ticker) { snapRsi2 = st4[si4].rsi14; break outer4; }
+                        }
+                    }
+                }
+                if (fired || snapRsi2 == null) {
+                    awayHtml = '<div class="al-col-away">—</div>';
+                } else {
+                    var rsiDist = Math.abs(snapRsi2 - a.price);
+                    var awayCls = rsiDist < 2 ? ' imminent' : rsiDist < 5 ? ' close' : '';
+                    awayHtml = '<div class="al-col-away' + awayCls + '">' + rsiDist.toFixed(1) + '</div>';
+                }
+            } else if (fired || curr == null) {
                 awayHtml = '<div class="al-col-away">—</div>';
             } else {
                 var pct = Math.abs((curr - a.price) / a.price * 100);
@@ -8612,8 +8664,8 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + '">$' + a.price.toFixed(2) + '</div>' +
-                '<div class="al-col-curr">' + (curr != null ? '$' + curr.toFixed(2) : '—') + '</div>' +
+                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
                 awayHtml +
@@ -8760,12 +8812,30 @@
         renderHistory();
     };
 
+    window.alFormTypeChange = function() {
+        var type  = document.getElementById('al-input-type').value;
+        var cond  = document.getElementById('al-input-cond');
+        var price = document.getElementById('al-input-price');
+        var note  = document.getElementById('al-rsi-note');
+        if (type === 'rsi14') {
+            cond.innerHTML = '<option value="above">above</option><option value="below">below</option>';
+            price.placeholder = 'RSI'; price.step = '1'; price.min = '1'; price.max = '99'; price.value = '';
+            if (note) note.style.display = '';
+        } else {
+            cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
+            price.placeholder = 'Price'; price.step = '0.01'; price.min = '0'; price.removeAttribute('max'); price.value = '';
+            if (note) note.style.display = 'none';
+        }
+    };
+
     window.alShowForm = function() {
         if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
         _alEditIdx = null;
         document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-ticker').value = '';
         document.getElementById('al-input-price').value = '';
+        document.getElementById('al-input-type').value = 'price';
+        alFormTypeChange();
         document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
         document.getElementById('al-add-form').style.display = 'flex';
         document.getElementById('al-add-open-btn').style.display = 'none';
@@ -8779,6 +8849,8 @@
         _alEditIdx = idx;
         document.getElementById('al-input-ticker').value = a.ticker;
         document.getElementById('al-input-ticker').readOnly = true;
+        document.getElementById('al-input-type').value = a.alertType === 'rsi14' ? 'rsi14' : 'price';
+        alFormTypeChange();
         document.getElementById('al-input-cond').value = a.condition;
         document.getElementById('al-input-price').value = a.price;
         document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Update';
@@ -8795,33 +8867,36 @@
         document.getElementById('al-input-ticker').value = '';
         document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-price').value = '';
+        document.getElementById('al-input-type').value = 'price';
+        alFormTypeChange();
         document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
         _alEditIdx = null;
     };
 
     window.alSubmitForm = function() {
-        var ticker = document.getElementById('al-input-ticker').value.trim().toUpperCase();
-        var cond   = document.getElementById('al-input-cond').value;
-        var price  = parseFloat(document.getElementById('al-input-price').value);
+        var ticker    = document.getElementById('al-input-ticker').value.trim().toUpperCase();
+        var cond      = document.getElementById('al-input-cond').value;
+        var alertType = document.getElementById('al-input-type').value;
+        var price     = parseFloat(document.getElementById('al-input-price').value);
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
         if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
+        if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
 
         if (_alEditIdx !== null) {
-            // Edit mode — update existing alert in place
             var a = alertsList[_alEditIdx];
             if (a) {
                 var oldKey = a.ticker + '_' + a.price + '_' + a.condition;
                 delete _alertFiredSess[oldKey];
                 a.condition = cond;
                 a.price     = price;
+                a.alertType = alertType;
             }
             alSave();
             alHideForm();
             if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
             renderAlerts();
         } else {
-            // New alert
-            var entry = { ticker: ticker, condition: cond, price: price, name: '', addedAt: new Date().toISOString() };
+            var entry = { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
             var entryIdx = alertsList.length;
             alertsList.push(entry);
             alSave();
@@ -8830,14 +8905,12 @@
             renderAlerts();
             var _alList = document.getElementById('al-list');
             if (_alList) _alList.scrollTop = _alList.scrollHeight;
-            // Capture ticker + index at submission time; guard before writing back
             (function(capturedTicker, capturedIdx) {
                 fetch(WL_PROXY + '?symbol=' + encodeURIComponent(capturedTicker) + '&interval=1d&range=2d')
                     .then(function(r) { return r.ok ? r.json() : null; })
                     .then(function(data) {
                         var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
                         var resolvedName = (meta && (meta.shortName || meta.longName)) || '';
-                        // Only write back if the entry at that index still belongs to the same ticker
                         var target = alertsList[capturedIdx];
                         if (resolvedName && target && target.ticker === capturedTicker && !target.name) {
                             target.name = resolvedName;
