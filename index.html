@@ -8614,6 +8614,9 @@
             var ticker = tickerEl.textContent.trim();
             if (!ticker) return;
             e.preventDefault();
+            // Always dismiss any open picker first — fakeBtn is a new object each
+            // time so the normal btn===btn toggle inside wlOpenPicker never fires.
+            wlClosePicker();
             var fakeBtn = {
                 getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
                 getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
