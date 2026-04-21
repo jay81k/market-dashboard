@@ -257,6 +257,24 @@ def calculate_adr_pct(hist: pd.DataFrame, period: int = 20) -> float | None:
     return None
 
 
+def calculate_rsi14(close: pd.Series, period: int = 14) -> float | None:
+    """Standard RSI using simple averages of gains and losses over `period` bars."""
+    if len(close) < period + 1:
+        return None
+    try:
+        delta = close.diff().iloc[1:]
+        gain  = delta.clip(lower=0)
+        loss  = (-delta).clip(lower=0)
+        avg_gain = gain.iloc[:period].mean()
+        avg_loss = loss.iloc[:period].mean()
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return round(100 - (100 / (1 + rs)), 2)
+    except Exception:
+        return None
+
+
 def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> dict | None:
     """Compute all price-derived metrics for a single ticker."""
     try:
@@ -705,6 +723,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "gap_pct":             gap_pct,
             "range_vs_adr":        range_vs_adr,
             "range_rank":          range_rank,
+            "rsi14":               calculate_rsi14(close),
         }
     except Exception as e:
         print(f"  Metric error [{ticker}]: {e}")
