@@ -8604,6 +8604,24 @@
         }).join('');
         // Restore scroll so price polls and async name updates don't snap to top.
         listEl.scrollTop = savedScrollTop;
+
+        // Right-click on any alert row → watchlist / add-alert picker
+        listEl.oncontextmenu = function(e) {
+            var row = e.target.closest('.al-row');
+            if (!row) return;
+            var tickerEl = row.querySelector('.al-col-ticker');
+            if (!tickerEl) return;
+            var ticker = tickerEl.textContent.trim();
+            if (!ticker) return;
+            e.preventDefault();
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        };
+
         applyAlFilter();
     }
 
