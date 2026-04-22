@@ -258,15 +258,21 @@ def calculate_adr_pct(hist: pd.DataFrame, period: int = 20) -> float | None:
 
 
 def calculate_rsi14(close: pd.Series, period: int = 14) -> float | None:
-    """Standard RSI using simple averages of gains and losses over `period` bars."""
+    """Wilder's RSI: SMA seed for first `period` bars, then RMA smoothing."""
     if len(close) < period + 1:
         return None
     try:
-        delta = close.diff().iloc[1:]
-        gain  = delta.clip(lower=0)
-        loss  = (-delta).clip(lower=0)
-        avg_gain = gain.iloc[:period].mean()
-        avg_loss = loss.iloc[:period].mean()
+        delta  = close.diff().iloc[1:].values
+        gains  = np.where(delta > 0,  delta, 0.0)
+        losses = np.where(delta < 0, -delta, 0.0)
+
+        avg_gain = gains[:period].mean()
+        avg_loss = losses[:period].mean()
+
+        for i in range(period, len(gains)):
+            avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+            avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+
         if avg_loss == 0:
             return 100.0
         rs = avg_gain / avg_loss
