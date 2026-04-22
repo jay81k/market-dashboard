@@ -5181,6 +5181,14 @@
                         if ((f.indrankMode || 'top') === 'top'   && irRank > irVal)  return false;
                         if ((f.indrankMode || 'top') === 'below' && irRank <= irVal) return false;
                     }
+                } else if (f.type === 'rsi') {
+                    var rsiVal = r.rsi14;
+                    if (rsiVal == null) return false;
+                    var rsiThresh = parseFloat(f.val);
+                    if (!isNaN(rsiThresh)) {
+                        if (f.dir === 'gt' && rsiVal <= rsiThresh) return false;
+                        if (f.dir === 'lt' && rsiVal >= rsiThresh) return false;
+                    }
                 }
             }
             return true;
