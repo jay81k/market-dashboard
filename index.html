@@ -1839,7 +1839,7 @@
         <span class="al-form-label">type</span>
         <select id="al-input-type" onchange="alFormTypeChange()" style="width:74px;">
             <option value="price" selected>Price</option>
-            <option value="rsi14">RSI 14</option>
+            <option value="rsi14">RSI</option>
         </select>
         <span class="al-form-label">condition</span>
         <select id="al-input-cond">
@@ -3799,7 +3799,7 @@
         }
         if (row.type === 'rsi') {
             var rsiDir = row.dir === 'gt' ? '>' : '<';
-            return 'RSI(14) ' + rsiDir + ' ' + (row.val != null ? row.val : '—');
+            return 'RSI ' + rsiDir + ' ' + (row.val != null ? row.val : '—');
         }
         if (row.type === 'sector') {
             var secs = row.sectors || [];
@@ -3862,7 +3862,7 @@
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
             indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
-            rsi:     'RSI(14) — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
+            rsi:     'RSI — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
         };
 
         var html = PILL_TYPES.map(function(pt) {
@@ -4466,7 +4466,7 @@
             sector:  'Filter by market sector or specific industry.',
             wk52:    'Filter by 52-week high or low — new highs/lows and distance from each.',
             indrank: 'Filter by industry rank — show only stocks in top-ranked or lower-ranked industries.',
-            rsi:     'RSI(14) — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
+            rsi:     'RSI — Relative Strength Index over 14 days. Filter above or below a threshold (1–99).',
         };
         picker.innerHTML = TYPES.map(function(t) {
             var tip = PICKER_TOOLTIPS[t.value] || '';
@@ -8519,7 +8519,7 @@
             if (window.Notification && Notification.permission === 'granted') {
                 var isRsi = a.alertType === 'rsi14';
                 var body = isRsi
-                    ? 'RSI(14) ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1)
+                    ? 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1)
                     : (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                 new Notification(a.ticker + ' alert triggered', { body: body });
             }
