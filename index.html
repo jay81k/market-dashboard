@@ -8740,8 +8740,8 @@
                 ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             var condHtml = f.condition === 'above'
-                ? '<span class="al-hist-cond" style="color:#3fb950;">▲ above $' + f.alertPrice.toFixed(2) + '</span>'
-                : '<span class="al-hist-cond" style="color:#f85149;">▼ below $' + f.alertPrice.toFixed(2) + '</span>';
+                ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + f.alertPrice.toFixed(2) + '</span>'
+                : '<span class="al-hist-cond" style="color:#f85149;">▼ $' + f.alertPrice.toFixed(2) + '</span>';
             var hitCls = f.condition === 'above' ? 'up' : 'dn';
             var name = esc(f.name || '');
             var curPrice = alertPrices[f.ticker];
@@ -8763,7 +8763,7 @@
                 (name ? '<div class="al-hist-name">' + name + '</div>' : '') +
                 '<div class="al-hist-row-mid">' +
                     condHtml +
-                    '<span class="al-hist-hit ' + hitCls + '">' + (curPrice != null ? 'current $' + curPrice.toFixed(2) : 'current —') + '</span>' +
+                    '<span class="al-hist-hit ' + hitCls + '">' + (curPrice != null ? 'now $' + curPrice.toFixed(2) : 'now —') + '</span>' +
                 '</div>' +
                 chgHtml +
                 '<button class="al-hist-del" onclick="alHistDelete(' + idx + ')">×</button>' +
