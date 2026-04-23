@@ -8763,7 +8763,7 @@
                 (name ? '<div class="al-hist-name">' + name + '</div>' : '') +
                 '<div class="al-hist-row-mid">' +
                     condHtml +
-                    '<span class="al-hist-hit ' + hitCls + '">hit $' + f.hitPrice.toFixed(2) + '</span>' +
+                    '<span class="al-hist-hit ' + hitCls + '">' + (curPrice != null ? 'current $' + curPrice.toFixed(2) : 'current —') + '</span>' +
                 '</div>' +
                 chgHtml +
                 '<button class="al-hist-del" onclick="alHistDelete(' + idx + ')">×</button>' +
