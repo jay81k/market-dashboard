@@ -1239,6 +1239,38 @@
         .al-form-label { font-size:0.792em;color:#484f58; }
         .al-confirm-btn { padding:4px 12px;border-radius:5px;border:1px solid #388bfd;background:#1f6feb;color:#fff;font-size:0.858em;font-family:inherit;cursor:pointer;font-weight:600; }
         .al-cancel-btn { padding:4px 10px;border-radius:5px;border:1px solid #21262d;background:transparent;color:#6e7681;font-size:0.858em;font-family:inherit;cursor:pointer; }
+
+        /* ── Alert modal ── */
+        .al-modal-overlay {
+            display:none; position:fixed; inset:0; z-index:100002;
+            background:rgba(0,0,0,0.6); align-items:center; justify-content:center;
+        }
+        .al-modal-overlay.open { display:flex; }
+        .al-modal-box {
+            background:#161b22; border:1px solid #30363d; border-radius:8px;
+            min-width:320px; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+            display:flex; flex-direction:column;
+        }
+        .al-modal-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 16px 10px; border-bottom:1px solid #21262d;
+        }
+        .al-modal-title { font-size:0.968em; font-weight:600; color:#c8d0dc; }
+        .al-modal-close { background:transparent; border:none; color:#484f58; cursor:pointer; font-size:1.1rem; padding:0 2px; line-height:1; }
+        .al-modal-close:hover { color:#c8d0dc; }
+        .al-modal-body { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+        .al-modal-row { display:flex; align-items:center; gap:8px; }
+        .al-modal-row .al-form-label { font-size:0.792em; color:#484f58; width:68px; flex-shrink:0; }
+        .al-modal-row input, .al-modal-row select {
+            background:#0d1117; border:1px solid #21262d; border-radius:5px;
+            color:#c8d0dc; padding:4px 8px; height:28px; font-size:0.858em;
+            font-family:inherit; outline:none; flex:1;
+        }
+        .al-modal-row input:focus, .al-modal-row select:focus { border-color:#388bfd44; }
+        .al-modal-footer {
+            display:flex; align-items:center; justify-content:flex-end; gap:8px;
+            padding:10px 16px 14px;
+        }
         .al-hdr-row { display:flex;align-items:center;padding:6px 16px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#0d1117;z-index:1;flex-shrink:0; }
         .al-hdr { font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.05em; }
         .al-hdr.sortable { cursor:pointer; user-select:none; transition:color 0.1s; }
@@ -1833,24 +1865,7 @@
         <button class="al-missed-dismiss" onclick="alDismissMissed()">Dismiss</button>
     </div>
     <div id="al-fired-rows"></div>
-    <div id="al-add-form" class="al-add-form" style="display:none;">
-        <span class="al-form-label">Ticker</span>
-        <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="width:80px;text-transform:uppercase;" autocomplete="new-password" spellcheck="false" />
-        <span class="al-form-label">type</span>
-        <select id="al-input-type" onchange="alFormTypeChange()" style="width:74px;">
-            <option value="price" selected>Price</option>
-            <option value="rsi14">RSI</option>
-        </select>
-        <span class="al-form-label">condition</span>
-        <select id="al-input-cond">
-            <option value="above">crosses above</option>
-            <option value="below">crosses below</option>
-        </select>
-        <input type="number" id="al-input-price" placeholder="Price" style="width:80px;" step="0.01" min="0" />
-        <button class="al-confirm-btn" onclick="alSubmitForm()">Set alert</button>
-        <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
-        <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based, not live</span>
-    </div>
+    <div id="al-add-form" style="display:none;"></div>
     <div id="al-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
         <div class="multichart-toolbar">
             <button class="mc-tf-btn" data-tf="5" onclick="setAlMcTf('5')">5m</button>
@@ -6823,63 +6838,8 @@
                 var _alertTicker = ticker || wlPickerTicker;
                 wlClosePicker();
 
-                // Handle chart modal — capture return state but don't let showView restore it.
-                // Do NOT set a return state if we are already on the alerts view; if we did,
-                // _alReturnState.view would equal 'alerts' and showView('alerts') would
-                // immediately re-open the chart modal, hijacking the just-populated form.
-                var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
-                if (_modalOpen && currentView !== 'alerts') {
-                    var _modalSym = document.getElementById('chart-modal-sym').textContent.trim();
-                    if (_modalSym) _alertTicker = _modalSym;
-                    var _sd = tickerMap && tickerMap[_modalSym];
-                    _alReturnState = {
-                        view:     currentView,
-                        ticker:   _modalSym,
-                        sector:   (_sd && _sd.sector)   || '',
-                        industry: (_sd && _sd.industry) || '',
-                        snpOpen:  document.getElementById('scan-nav-panel').classList.contains('snp-open')
-                    };
-                } else {
-                    _alReturnState = null;
-                }
-
-                closeChartModal();
-                closeMcFullscreen();
-
-                // Populate the form synchronously with the locked-in ticker
-                (function(capturedTicker) {
-                    if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
-                    // Reset form state cleanly
-                    _alEditIdx = null;
-                    var tickerInput = document.getElementById('al-input-ticker');
-                    var priceInput  = document.getElementById('al-input-price');
-                    var form        = document.getElementById('al-add-form');
-                    var openBtn     = document.getElementById('al-add-open-btn');
-
-                    // If the alerts multichart is active, deactivate it first so that
-                    // al-body-wrap is visible once the user submits the form.
-                    // closeMcFullscreen() only closes the single-tile expanded overlay —
-                    // it does NOT affect the multichart grid or al-body-wrap visibility.
-                    if (alMcActive) toggleAlMultichart();
-
-                    // Navigate to alerts view — suppress the _alReturnState restore temporarily
-                    // so it doesn't fight with our form population
-                    var savedReturnState = _alReturnState;
-                    _alReturnState = null;
-                    showView('alerts');
-                    _alReturnState = savedReturnState;
-
-                    if (!tickerInput || !form) return;
-                    tickerInput.readOnly = false;
-                    tickerInput.value = capturedTicker;
-                    priceInput.value = '';
-                    document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
-                    form.style.display = 'flex';
-                    if (openBtn) openBtn.style.display = 'none';
-                    // Defer focus so it fires after any showView setTimeout callbacks
-                    // (the return-state restore uses 50 ms; 60 ms wins cleanly).
-                    setTimeout(function() { priceInput.focus(); }, 60);
-                })(_alertTicker);
+                // Open the alert modal — works from any view, no navigation needed
+                alShowForm(_alertTicker);
                 return;
             }
         };
@@ -8836,19 +8796,22 @@
         }
     };
 
-    window.alShowForm = function() {
+    window.alShowForm = function(prefillTicker) {
         if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
         _alEditIdx = null;
-        document.getElementById('al-input-ticker').readOnly = false;
-        document.getElementById('al-input-ticker').value = '';
+        var tickerInput = document.getElementById('al-input-ticker');
+        tickerInput.readOnly = false;
+        tickerInput.value = prefillTicker || '';
         document.getElementById('al-input-price').value = '';
         document.getElementById('al-input-type').value = 'price';
         alFormTypeChange();
-        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
-        document.getElementById('al-add-form').style.display = 'flex';
-        document.getElementById('al-add-open-btn').style.display = 'none';
-        document.getElementById('al-search-wrap').style.display = 'none';
-        setTimeout(function() { document.getElementById('al-input-ticker').focus(); }, 50);
+        document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
+        document.getElementById('al-modal-title').textContent = 'Add Alert';
+        document.getElementById('al-modal-overlay').classList.add('open');
+        setTimeout(function() {
+            if (prefillTicker) { document.getElementById('al-input-price').focus(); }
+            else { tickerInput.focus(); }
+        }, 50);
     };
 
     window.alEditOpen = function(idx) {
@@ -8861,23 +8824,20 @@
         alFormTypeChange();
         document.getElementById('al-input-cond').value = a.condition;
         document.getElementById('al-input-price').value = a.price;
-        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Update';
-        document.getElementById('al-add-form').style.display = 'flex';
-        document.getElementById('al-add-open-btn').style.display = 'none';
-        document.getElementById('al-search-wrap').style.display = 'none';
+        document.getElementById('al-modal-confirm-btn').textContent = 'Update';
+        document.getElementById('al-modal-title').textContent = 'Edit Alert';
+        document.getElementById('al-modal-overlay').classList.add('open');
         setTimeout(function() { document.getElementById('al-input-price').focus(); }, 50);
     };
 
     window.alHideForm = function() {
-        document.getElementById('al-add-form').style.display = 'none';
-        document.getElementById('al-add-open-btn').style.display = '';
-        document.getElementById('al-search-wrap').style.display = '';
+        document.getElementById('al-modal-overlay').classList.remove('open');
         document.getElementById('al-input-ticker').value = '';
         document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-price').value = '';
         document.getElementById('al-input-type').value = 'price';
         alFormTypeChange();
-        document.querySelector('#al-add-form .al-confirm-btn').textContent = 'Set alert';
+        document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         _alEditIdx = null;
     };
 
@@ -9120,9 +9080,8 @@
     // ── END Alerts inline chart panel ─────────────────────────────────────
 
     document.addEventListener('keydown', function(e) {
-        if (e.key !== 'Enter' || currentView !== 'alerts') return;
-        var form = document.getElementById('al-add-form');
-        if (form && form.style.display !== 'none') alSubmitForm();
+        if (e.key !== 'Enter') return;
+        if (document.getElementById('al-modal-overlay').classList.contains('open')) alSubmitForm();
     });
     var _alConfirmCallback = null;
 
@@ -9410,6 +9369,44 @@
 
 })();
 </script>
+<!-- Alert add/edit modal -->
+<div class="al-modal-overlay" id="al-modal-overlay" onclick="if(event.target===this)alHideForm()">
+    <div class="al-modal-box">
+        <div class="al-modal-header">
+            <span class="al-modal-title" id="al-modal-title">Add Alert</span>
+            <button class="al-modal-close" onclick="alHideForm()">✕</button>
+        </div>
+        <div class="al-modal-body">
+            <div class="al-modal-row">
+                <span class="al-form-label">Ticker</span>
+                <input type="text" id="al-input-ticker" placeholder="e.g. AAPL" style="text-transform:uppercase;" autocomplete="new-password" spellcheck="false" />
+            </div>
+            <div class="al-modal-row">
+                <span class="al-form-label">Type</span>
+                <select id="al-input-type" onchange="alFormTypeChange()">
+                    <option value="price" selected>Price</option>
+                    <option value="rsi14">RSI</option>
+                </select>
+            </div>
+            <div class="al-modal-row">
+                <span class="al-form-label">Condition</span>
+                <select id="al-input-cond">
+                    <option value="above">crosses above</option>
+                    <option value="below">crosses below</option>
+                </select>
+            </div>
+            <div class="al-modal-row">
+                <span class="al-form-label">Value</span>
+                <input type="number" id="al-input-price" placeholder="Price" step="0.01" min="0" />
+                <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based</span>
+            </div>
+        </div>
+        <div class="al-modal-footer">
+            <button class="al-cancel-btn" onclick="alHideForm()">Cancel</button>
+            <button class="al-confirm-btn" id="al-modal-confirm-btn" onclick="alSubmitForm()">Set alert</button>
+        </div>
+    </div>
+</div>
 <!-- Alert history clear confirmation -->
 <div class="al-confirm-overlay" id="al-confirm-overlay" onclick="if(event.target===this)alConfirmClose()">
     <div class="al-confirm-box">
