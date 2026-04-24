@@ -8461,49 +8461,62 @@
         var anyFired = false;
         var toRemove = [];
         alertsList.forEach(function(a) {
-            var key = a.alertType === 'ma'
-                ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
-                : a.ticker + '_' + a.price + '_' + a.condition;
+            var key;
+            if (a.alertType === 'macross')
+                key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
+            else if (a.alertType === 'ma')
+                key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+            else
+                key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
             var hit = false;
             var hitVal = null;
-            if (a.alertType === 'ma') {
+
+            // Find this ticker in snapshot (shared by all MA checks)
+            var stockData = null;
+            if (snapshot && snapshot.by_industry) {
+                outer: for (var ind in snapshot.by_industry) {
+                    var stocks = snapshot.by_industry[ind];
+                    for (var si = 0; si < stocks.length; si++) {
+                        if (stocks[si].ticker === a.ticker) { stockData = stocks[si]; break outer; }
+                    }
+                }
+            }
+
+            if (a.alertType === 'macross') {
+                if (!stockData) return;
+                var v1 = stockData.ma_val ? stockData.ma_val[a.ma1Key] : null;
+                var v2 = stockData.ma_val ? stockData.ma_val[a.ma2Key] : null;
+                // Event-based: crossover happened in latest candle
+                var xKey = a.ma1Key + '|' + a.ma2Key + '|' + a.condition;
+                var eventHit = (stockData.ma_crossovers || []).indexOf(xKey) !== -1;
+                // State-based: MA 1 is currently above/below MA 2
+                var stateHit = (v1 != null && v2 != null) &&
+                    ((a.condition === 'above' && v1 > v2) || (a.condition === 'below' && v1 < v2));
+                hit = eventHit || stateHit;
+                hitVal = (v1 != null && v2 != null) ? ((v1 - v2) / v2 * 100) : 0;
+            } else if (a.alertType === 'ma') {
                 var livePrice = alertPrices[a.ticker];
                 var estMA     = alertEstimatedMAs[a.ticker + '_' + a.maKey];
-                if (livePrice != null && estMA != null) {
-                    // Live path: compare real-time price against estimated MA value
+                // Event-based: price crossed the MA in the latest candle
+                var pxKey    = a.maKey + '|' + a.condition;
+                var eventHit = stockData && (stockData.price_ma_crossovers || []).indexOf(pxKey) !== -1;
+                if (eventHit) {
+                    hit = true;
+                    hitVal = livePrice != null ? livePrice : (stockData ? (stockData.price || 0) : 0);
+                } else if (livePrice != null && estMA != null) {
                     hitVal = livePrice;
                     hit = (a.condition === 'above' && livePrice >= estMA) ||
                           (a.condition === 'below' && livePrice <= estMA);
                 } else {
-                    // Fallback: use snapshot dist_ma sign if live data not yet available
-                    var snapDist = null;
-                    if (snapshot && snapshot.by_industry) {
-                        outer: for (var ind in snapshot.by_industry) {
-                            var stocks = snapshot.by_industry[ind];
-                            for (var si = 0; si < stocks.length; si++) {
-                                if (stocks[si].ticker === a.ticker) {
-                                    snapDist = stocks[si].dist_ma ? stocks[si].dist_ma[a.maKey] : null;
-                                    break outer;
-                                }
-                            }
-                        }
-                    }
+                    var snapDist = stockData ? (stockData.dist_ma ? stockData.dist_ma[a.maKey] : null) : null;
                     if (snapDist == null) return;
                     hitVal = snapDist;
                     hit = (a.condition === 'above' && snapDist >= 0) ||
                           (a.condition === 'below' && snapDist <= 0);
                 }
             } else if (a.alertType === 'rsi14') {
-                var snapRsi = null;
-                if (snapshot && snapshot.by_industry) {
-                    outer: for (var ind in snapshot.by_industry) {
-                        var stocks = snapshot.by_industry[ind];
-                        for (var si = 0; si < stocks.length; si++) {
-                            if (stocks[si].ticker === a.ticker) { snapRsi = stocks[si].rsi14; break outer; }
-                        }
-                    }
-                }
+                var snapRsi = stockData ? stockData.rsi14 : null;
                 if (snapRsi == null) return;
                 hitVal = snapRsi;
                 hit = (a.condition === 'above' && snapRsi >= a.price) ||
@@ -8522,6 +8535,7 @@
                 alertPrice: a.price, hitPrice: hitVal,
                 alertType: a.alertType || 'price',
                 maKey: a.maKey || null,
+                ma1Key: a.ma1Key || null, ma2Key: a.ma2Key || null,
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
@@ -8529,8 +8543,11 @@
             anyFired = true;
             if (window.Notification && Notification.permission === 'granted') {
                 var body;
-                if (a.alertType === 'ma') {
-                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + a.maKey + ' · dist ' + hitVal.toFixed(2) + '%';
+                if (a.alertType === 'macross') {
+                    var dir = a.condition === 'above' ? '▲' : '▼';
+                    body = dir + ' ' + a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' ' + a.condition + ' ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' · spread ' + (hitVal >= 0 ? '+' : '') + hitVal.toFixed(2) + '%';
+                } else if (a.alertType === 'ma') {
+                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' · dist ' + (typeof hitVal === 'number' ? hitVal.toFixed(2) : '—') + '%';
                 } else if (a.alertType === 'rsi14') {
                     body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
                 } else {
@@ -8543,9 +8560,10 @@
             var removeSet = {};
             toRemove.forEach(function(k) { removeSet[k] = true; });
             alertsList = alertsList.filter(function(a) {
-                var k = a.alertType === 'ma'
-                    ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
-                    : a.ticker + '_' + a.price + '_' + a.condition;
+                var k;
+                if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
+                else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+                else k = a.ticker + '_' + a.price + '_' + a.condition;
                 return !removeSet[k];
             });
             alSave();
@@ -8642,17 +8660,47 @@
 
         listEl.innerHTML = displayList.map(function(item) {
             var a = item.a, idx = item.idx;
-            var key   = a.alertType === 'ma'
-                ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
-                : a.ticker + '_' + a.price + '_' + a.condition;
+            var key;
+            if (a.alertType === 'macross') key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
+            else if (a.alertType === 'ma') key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+            else key = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
             var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
-            var condHtml = a.condition === 'above'
-                ? '<span style="color:#3fb950;">▲ above</span>'
-                : '<span style="color:#f85149;">▼ below</span>';
+            var condHtml = a.alertType === 'macross'
+                ? (a.condition === 'above'
+                    ? '<span style="color:#3fb950;">▲ MA 1 above</span>'
+                    : '<span style="color:#f85149;">▼ MA 1 below</span>')
+                : a.condition === 'above'
+                    ? '<span style="color:#3fb950;">▲ above</span>'
+                    : '<span style="color:#f85149;">▼ below</span>';
             var awayHtml;
-            if (a.alertType === 'ma') {
+            if (a.alertType === 'macross') {
+                var mcStockData = null;
+                if (snapshot && snapshot.by_industry) {
+                    outerMC: for (var indMC in snapshot.by_industry) {
+                        var stMC = snapshot.by_industry[indMC];
+                        for (var siMC = 0; siMC < stMC.length; siMC++) {
+                            if (stMC[siMC].ticker === a.ticker) { mcStockData = stMC[siMC]; break outerMC; }
+                        }
+                    }
+                }
+                if (fired || !mcStockData || !mcStockData.ma_val) {
+                    awayHtml = '<div class="al-col-away">—</div>';
+                } else {
+                    var mcV1 = mcStockData.ma_val[a.ma1Key];
+                    var mcV2 = mcStockData.ma_val[a.ma2Key];
+                    if (mcV1 == null || mcV2 == null) {
+                        awayHtml = '<div class="al-col-away">—</div>';
+                    } else {
+                        var spread = ((mcV1 - mcV2) / mcV2 * 100);
+                        var spreadAbs = Math.abs(spread);
+                        var awayCls = spreadAbs < 0.5 ? ' imminent' : spreadAbs < 2 ? ' close' : '';
+                        var spreadStr = (spread >= 0 ? '+' : '') + spread.toFixed(2) + '%';
+                        awayHtml = '<div class="al-col-away' + awayCls + '">' + spreadStr + '</div>';
+                    }
+                }
+            } else if (a.alertType === 'ma') {
                 var snapDistMA = null;
                 if (snapshot && snapshot.by_industry) {
                     outerMA: for (var indMA in snapshot.by_industry) {
@@ -8711,7 +8759,7 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
@@ -8778,7 +8826,12 @@
             var ts = isToday
                 ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            var condHtml = f.alertType === 'ma'
+            var condHtml = f.alertType === 'macross'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' +
+                  (f.condition === 'above' ? '▲' : '▼') + ' ' +
+                  (f.ma1Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' +
+                  (f.ma2Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
+                : f.alertType === 'ma'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.condition === 'above'
                     ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
@@ -8867,25 +8920,41 @@
         var price    = document.getElementById('al-input-price');
         var note     = document.getElementById('al-rsi-note');
         var rowMA    = document.getElementById('al-row-ma');
+        var rowMA1   = document.getElementById('al-row-ma1');
+        var rowMA2   = document.getElementById('al-row-ma2');
         var rowValue = document.getElementById('al-row-value');
         if (type === 'rsi14') {
             cond.innerHTML = '<option value="above">above</option><option value="below">below</option>';
             price.placeholder = 'RSI'; price.step = '1'; price.min = '1'; price.max = '99'; price.value = '';
             if (note) note.style.display = '';
-            rowMA.style.display    = 'none';
+            rowMA.style.display = 'none'; rowMA1.style.display = 'none'; rowMA2.style.display = 'none';
             rowValue.style.display = '';
         } else if (type === 'ma') {
-            cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
-            if (note) note.style.display = '';
-            rowMA.style.display    = '';
+            cond.innerHTML =
+                '<option value="price_above">price crosses above</option>' +
+                '<option value="price_below">price crosses below</option>' +
+                '<option value="ma1_above">MA 1 crosses above MA 2</option>' +
+                '<option value="ma1_below">MA 1 crosses below MA 2</option>';
+            if (note) note.style.display = 'none';
             rowValue.style.display = 'none';
+            alMACondChange();
         } else {
             cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
             price.placeholder = 'Price'; price.step = '0.01'; price.min = '0'; price.removeAttribute('max'); price.value = '';
             if (note) note.style.display = 'none';
-            rowMA.style.display    = 'none';
+            rowMA.style.display = 'none'; rowMA1.style.display = 'none'; rowMA2.style.display = 'none';
             rowValue.style.display = '';
         }
+    };
+
+    window.alMACondChange = function() {
+        var type = document.getElementById('al-input-type').value;
+        if (type !== 'ma') return;
+        var condVal  = document.getElementById('al-input-cond').value;
+        var isMAvsMA = condVal === 'ma1_above' || condVal === 'ma1_below';
+        document.getElementById('al-row-ma').style.display  = isMAvsMA ? 'none' : '';
+        document.getElementById('al-row-ma1').style.display = isMAvsMA ? '' : 'none';
+        document.getElementById('al-row-ma2').style.display = isMAvsMA ? '' : 'none';
     };
 
     window.alShowForm = function(prefillTicker) {
@@ -8897,6 +8966,9 @@
         document.getElementById('al-input-price').value = '';
         document.getElementById('al-input-type').value = 'price';
         alFormTypeChange();
+        document.getElementById('al-input-ma').value  = 'SMA50';
+        document.getElementById('al-input-ma1').value = 'SMA5';
+        document.getElementById('al-input-ma2').value = 'SMA50';
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         document.getElementById('al-modal-title').textContent = 'Add Alert';
         document.getElementById('al-modal-overlay').classList.add('open');
@@ -8912,19 +8984,28 @@
         _alEditIdx = idx;
         document.getElementById('al-input-ticker').value = a.ticker;
         document.getElementById('al-input-ticker').readOnly = true;
-        document.getElementById('al-input-type').value = a.alertType === 'rsi14' ? 'rsi14' : a.alertType === 'ma' ? 'ma' : 'price';
+        var uiType = (a.alertType === 'rsi14') ? 'rsi14' : (a.alertType === 'ma' || a.alertType === 'macross') ? 'ma' : 'price';
+        document.getElementById('al-input-type').value = uiType;
         alFormTypeChange();
-        document.getElementById('al-input-cond').value = a.condition;
-        if (a.alertType === 'ma') {
+        if (a.alertType === 'macross') {
+            document.getElementById('al-input-cond').value = a.condition === 'above' ? 'ma1_above' : 'ma1_below';
+            alMACondChange();
+            document.getElementById('al-input-ma1').value = a.ma1Key || 'SMA5';
+            document.getElementById('al-input-ma2').value = a.ma2Key || 'SMA50';
+        } else if (a.alertType === 'ma') {
+            document.getElementById('al-input-cond').value = a.condition === 'above' ? 'price_above' : 'price_below';
+            alMACondChange();
             document.getElementById('al-input-ma').value = a.maKey || 'SMA50';
         } else {
+            document.getElementById('al-input-cond').value = a.condition;
             document.getElementById('al-input-price').value = a.price;
         }
         document.getElementById('al-modal-confirm-btn').textContent = 'Update';
         document.getElementById('al-modal-title').textContent = 'Edit Alert';
         document.getElementById('al-modal-overlay').classList.add('open');
         setTimeout(function() {
-            if (a.alertType === 'ma') document.getElementById('al-input-ma').focus();
+            if (a.alertType === 'macross') document.getElementById('al-input-ma1').focus();
+            else if (a.alertType === 'ma') document.getElementById('al-input-ma').focus();
             else document.getElementById('al-input-price').focus();
         }, 50);
     };
@@ -8935,7 +9016,9 @@
         document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-price').value = '';
         document.getElementById('al-input-type').value = 'price';
-        document.getElementById('al-input-ma').value = 'SMA50';
+        document.getElementById('al-input-ma').value  = 'SMA50';
+        document.getElementById('al-input-ma1').value = 'SMA5';
+        document.getElementById('al-input-ma2').value = 'SMA50';
         alFormTypeChange();
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         _alEditIdx = null;
@@ -8943,36 +9026,64 @@
 
     window.alSubmitForm = function() {
         var ticker    = document.getElementById('al-input-ticker').value.trim().toUpperCase();
-        var cond      = document.getElementById('al-input-cond').value;
-        var alertType = document.getElementById('al-input-type').value;
+        var uiType    = document.getElementById('al-input-type').value;
+        var uiCond    = document.getElementById('al-input-cond').value;
         var price     = parseFloat(document.getElementById('al-input-price').value);
         var maKey     = document.getElementById('al-input-ma').value;
+        var ma1Key    = document.getElementById('al-input-ma1').value;
+        var ma2Key    = document.getElementById('al-input-ma2').value;
+
+        // Resolve alertType and condition from UI values
+        var alertType, cond;
+        if (uiType === 'ma') {
+            if (uiCond === 'ma1_above') { alertType = 'macross'; cond = 'above'; }
+            else if (uiCond === 'ma1_below') { alertType = 'macross'; cond = 'below'; }
+            else if (uiCond === 'price_above') { alertType = 'ma'; cond = 'above'; }
+            else { alertType = 'ma'; cond = 'below'; }
+        } else if (uiType === 'rsi14') {
+            alertType = 'rsi14'; cond = uiCond;
+        } else {
+            alertType = 'price'; cond = uiCond;
+        }
+
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
-        if (alertType !== 'ma') {
+        if (alertType !== 'ma' && alertType !== 'macross') {
             if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
             if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
         }
+        if (alertType === 'macross' && ma1Key === ma2Key) {
+            document.getElementById('al-input-ma2').focus(); return;
+        }
+
+        var alKey = function(a) {
+            if (a.alertType === 'macross') return a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
+            if (a.alertType === 'ma') return a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+            return a.ticker + '_' + a.price + '_' + a.condition;
+        };
 
         if (_alEditIdx !== null) {
             var a = alertsList[_alEditIdx];
             if (a) {
-                var oldKey = a.alertType === 'ma'
-                    ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
-                    : a.ticker + '_' + a.price + '_' + a.condition;
-                delete _alertFiredSess[oldKey];
+                delete _alertFiredSess[alKey(a)];
                 a.condition = cond;
                 a.alertType = alertType;
-                if (alertType === 'ma') { a.maKey = maKey; a.price = 0; }
-                else { a.price = price; delete a.maKey; }
+                if (alertType === 'macross') { a.ma1Key = ma1Key; a.ma2Key = ma2Key; delete a.maKey; a.price = 0; }
+                else if (alertType === 'ma') { a.maKey = maKey; delete a.ma1Key; delete a.ma2Key; a.price = 0; }
+                else { a.price = price; delete a.maKey; delete a.ma1Key; delete a.ma2Key; }
             }
             alSave();
             alHideForm();
             if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
             renderAlerts();
         } else {
-            var entry = alertType === 'ma'
-                ? { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', addedAt: new Date().toISOString() }
-                : { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
+            var entry;
+            if (alertType === 'macross') {
+                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'macross', ma1Key: ma1Key, ma2Key: ma2Key, name: '', addedAt: new Date().toISOString() };
+            } else if (alertType === 'ma') {
+                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', addedAt: new Date().toISOString() };
+            } else {
+                entry = { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
+            }
             var entryIdx = alertsList.length;
             alertsList.push(entry);
             alSave();
@@ -9494,12 +9605,12 @@
                 <select id="al-input-type" onchange="alFormTypeChange()">
                     <option value="price" selected>Price</option>
                     <option value="rsi14">RSI</option>
-                    <option value="ma">MA Cross</option>
+                    <option value="ma">MA</option>
                 </select>
             </div>
             <div class="al-modal-row">
                 <span class="al-form-label">Condition</span>
-                <select id="al-input-cond">
+                <select id="al-input-cond" onchange="alMACondChange()">
                     <option value="above">crosses above</option>
                     <option value="below">crosses below</option>
                 </select>
@@ -9507,6 +9618,28 @@
             <div class="al-modal-row" id="al-row-ma" style="display:none;">
                 <span class="al-form-label">MA</span>
                 <select id="al-input-ma">
+                    <option value="SMA5">SMA 5</option>
+                    <option value="EMA8">EMA 8</option>
+                    <option value="EMA21">EMA 21</option>
+                    <option value="SMA50" selected>SMA 50</option>
+                    <option value="SMA150">SMA 150</option>
+                    <option value="SMA200">SMA 200</option>
+                </select>
+            </div>
+            <div class="al-modal-row" id="al-row-ma1" style="display:none;">
+                <span class="al-form-label">MA 1</span>
+                <select id="al-input-ma1">
+                    <option value="SMA5" selected>SMA 5</option>
+                    <option value="EMA8">EMA 8</option>
+                    <option value="EMA21">EMA 21</option>
+                    <option value="SMA50">SMA 50</option>
+                    <option value="SMA150">SMA 150</option>
+                    <option value="SMA200">SMA 200</option>
+                </select>
+            </div>
+            <div class="al-modal-row" id="al-row-ma2" style="display:none;">
+                <span class="al-form-label">MA 2</span>
+                <select id="al-input-ma2">
                     <option value="SMA5">SMA 5</option>
                     <option value="EMA8">EMA 8</option>
                     <option value="EMA21">EMA 21</option>
