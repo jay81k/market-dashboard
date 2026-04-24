@@ -8273,6 +8273,7 @@
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
     var alertPrevClose   = {};   // {ticker: prevClosePrice}
+    var alertEstimatedMAs = {};  // {"ticker_maKey": estimatedMAValue} derived from snapshot
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
@@ -8411,6 +8412,7 @@
                     }
                 });
             });
+            alUpdateEstimatedMAs();
             alCheckTriggers();
             if (currentView === 'alerts') renderAlerts();
         }).catch(function() {});
@@ -8436,15 +8438,63 @@
         } catch(e) {}
     }
 
+    function alUpdateEstimatedMAs() {
+        if (!snapshot || !snapshot.by_industry) return;
+        var maAlerts = alertsList.filter(function(a) { return a.alertType === 'ma'; });
+        if (!maAlerts.length) return;
+        maAlerts.forEach(function(a) {
+            var cacheKey = a.ticker + '_' + a.maKey;
+            outer: for (var ind in snapshot.by_industry) {
+                var stocks = snapshot.by_industry[ind];
+                for (var si = 0; si < stocks.length; si++) {
+                    var s = stocks[si];
+                    if (s.ticker === a.ticker && s.price != null && s.dist_ma && s.dist_ma[a.maKey] != null) {
+                        alertEstimatedMAs[cacheKey] = s.price / (1 + s.dist_ma[a.maKey] / 100);
+                        break outer;
+                    }
+                }
+            }
+        });
+    }
+
     function alCheckTriggers() {
         var anyFired = false;
         var toRemove = [];
         alertsList.forEach(function(a) {
-            var key = a.ticker + '_' + a.price + '_' + a.condition;
+            var key = a.alertType === 'ma'
+                ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
+                : a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
             var hit = false;
             var hitVal = null;
-            if (a.alertType === 'rsi14') {
+            if (a.alertType === 'ma') {
+                var livePrice = alertPrices[a.ticker];
+                var estMA     = alertEstimatedMAs[a.ticker + '_' + a.maKey];
+                if (livePrice != null && estMA != null) {
+                    // Live path: compare real-time price against estimated MA value
+                    hitVal = livePrice;
+                    hit = (a.condition === 'above' && livePrice >= estMA) ||
+                          (a.condition === 'below' && livePrice <= estMA);
+                } else {
+                    // Fallback: use snapshot dist_ma sign if live data not yet available
+                    var snapDist = null;
+                    if (snapshot && snapshot.by_industry) {
+                        outer: for (var ind in snapshot.by_industry) {
+                            var stocks = snapshot.by_industry[ind];
+                            for (var si = 0; si < stocks.length; si++) {
+                                if (stocks[si].ticker === a.ticker) {
+                                    snapDist = stocks[si].dist_ma ? stocks[si].dist_ma[a.maKey] : null;
+                                    break outer;
+                                }
+                            }
+                        }
+                    }
+                    if (snapDist == null) return;
+                    hitVal = snapDist;
+                    hit = (a.condition === 'above' && snapDist >= 0) ||
+                          (a.condition === 'below' && snapDist <= 0);
+                }
+            } else if (a.alertType === 'rsi14') {
                 var snapRsi = null;
                 if (snapshot && snapshot.by_industry) {
                     outer: for (var ind in snapshot.by_industry) {
@@ -8471,22 +8521,32 @@
                 ticker: a.ticker, condition: a.condition,
                 alertPrice: a.price, hitPrice: hitVal,
                 alertType: a.alertType || 'price',
+                maKey: a.maKey || null,
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
             toRemove.push(key);
             anyFired = true;
             if (window.Notification && Notification.permission === 'granted') {
-                var isRsi = a.alertType === 'rsi14';
-                var body = isRsi
-                    ? 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1)
-                    : (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
+                var body;
+                if (a.alertType === 'ma') {
+                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + a.maKey + ' · dist ' + hitVal.toFixed(2) + '%';
+                } else if (a.alertType === 'rsi14') {
+                    body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
+                } else {
+                    body = (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
+                }
                 new Notification(a.ticker + ' alert triggered', { body: body });
             }
         });
         if (toRemove.length) {
+            var removeSet = {};
+            toRemove.forEach(function(k) { removeSet[k] = true; });
             alertsList = alertsList.filter(function(a) {
-                return toRemove.indexOf(a.ticker + '_' + a.price + '_' + a.condition) === -1;
+                var k = a.alertType === 'ma'
+                    ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
+                    : a.ticker + '_' + a.price + '_' + a.condition;
+                return !removeSet[k];
             });
             alSave();
         }
@@ -8582,7 +8642,9 @@
 
         listEl.innerHTML = displayList.map(function(item) {
             var a = item.a, idx = item.idx;
-            var key   = a.ticker + '_' + a.price + '_' + a.condition;
+            var key   = a.alertType === 'ma'
+                ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
+                : a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
             var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
@@ -8590,7 +8652,24 @@
                 ? '<span style="color:#3fb950;">▲ above</span>'
                 : '<span style="color:#f85149;">▼ below</span>';
             var awayHtml;
-            if (a.alertType === 'rsi14') {
+            if (a.alertType === 'ma') {
+                var snapDistMA = null;
+                if (snapshot && snapshot.by_industry) {
+                    outerMA: for (var indMA in snapshot.by_industry) {
+                        var stMA = snapshot.by_industry[indMA];
+                        for (var siMA = 0; siMA < stMA.length; siMA++) {
+                            if (stMA[siMA].ticker === a.ticker) { snapDistMA = stMA[siMA].dist_ma ? stMA[siMA].dist_ma[a.maKey] : null; break outerMA; }
+                        }
+                    }
+                }
+                if (fired || snapDistMA == null) {
+                    awayHtml = '<div class="al-col-away">—</div>';
+                } else {
+                    var maDist = Math.abs(snapDistMA);
+                    var awayCls = maDist < 1 ? ' imminent' : maDist < 3 ? ' close' : '';
+                    awayHtml = '<div class="al-col-away' + awayCls + '">' + maDist.toFixed(2) + '%</div>';
+                }
+            } else if (a.alertType === 'rsi14') {
                 var snapRsi2 = null;
                 if (snapshot && snapshot.by_industry) {
                     outer4: for (var ind4 in snapshot.by_industry) {
@@ -8632,7 +8711,7 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
@@ -8699,14 +8778,16 @@
             var ts = isToday
                 ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            var condHtml = f.condition === 'above'
-                ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + f.alertPrice.toFixed(2) + '</span>'
-                : '<span class="al-hist-cond" style="color:#f85149;">▼ $' + f.alertPrice.toFixed(2) + '</span>';
+            var condHtml = f.alertType === 'ma'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
+                : f.condition === 'above'
+                    ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
+                    : '<span class="al-hist-cond" style="color:#f85149;">▼ $' + (f.alertPrice||0).toFixed(2) + '</span>';
             var hitCls = f.condition === 'above' ? 'up' : 'dn';
             var name = esc(f.name || '');
             var curPrice = alertPrices[f.ticker];
             var chgHtml = '';
-            if (curPrice != null && f.alertPrice > 0) {
+            if (curPrice != null && f.alertPrice > 0 && f.alertType !== 'ma') {
                 var chgPct = ((curPrice - f.alertPrice) / f.alertPrice) * 100;
                 var chgCls = chgPct > 0.05 ? 'up' : chgPct < -0.05 ? 'dn' : 'flat';
                 var chgSign = chgPct > 0 ? '+' : '';
@@ -8781,18 +8862,29 @@
     };
 
     window.alFormTypeChange = function() {
-        var type  = document.getElementById('al-input-type').value;
-        var cond  = document.getElementById('al-input-cond');
-        var price = document.getElementById('al-input-price');
-        var note  = document.getElementById('al-rsi-note');
+        var type     = document.getElementById('al-input-type').value;
+        var cond     = document.getElementById('al-input-cond');
+        var price    = document.getElementById('al-input-price');
+        var note     = document.getElementById('al-rsi-note');
+        var rowMA    = document.getElementById('al-row-ma');
+        var rowValue = document.getElementById('al-row-value');
         if (type === 'rsi14') {
             cond.innerHTML = '<option value="above">above</option><option value="below">below</option>';
             price.placeholder = 'RSI'; price.step = '1'; price.min = '1'; price.max = '99'; price.value = '';
             if (note) note.style.display = '';
+            rowMA.style.display    = 'none';
+            rowValue.style.display = '';
+        } else if (type === 'ma') {
+            cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
+            if (note) note.style.display = '';
+            rowMA.style.display    = '';
+            rowValue.style.display = 'none';
         } else {
             cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
             price.placeholder = 'Price'; price.step = '0.01'; price.min = '0'; price.removeAttribute('max'); price.value = '';
             if (note) note.style.display = 'none';
+            rowMA.style.display    = 'none';
+            rowValue.style.display = '';
         }
     };
 
@@ -8820,14 +8912,21 @@
         _alEditIdx = idx;
         document.getElementById('al-input-ticker').value = a.ticker;
         document.getElementById('al-input-ticker').readOnly = true;
-        document.getElementById('al-input-type').value = a.alertType === 'rsi14' ? 'rsi14' : 'price';
+        document.getElementById('al-input-type').value = a.alertType === 'rsi14' ? 'rsi14' : a.alertType === 'ma' ? 'ma' : 'price';
         alFormTypeChange();
         document.getElementById('al-input-cond').value = a.condition;
-        document.getElementById('al-input-price').value = a.price;
+        if (a.alertType === 'ma') {
+            document.getElementById('al-input-ma').value = a.maKey || 'SMA50';
+        } else {
+            document.getElementById('al-input-price').value = a.price;
+        }
         document.getElementById('al-modal-confirm-btn').textContent = 'Update';
         document.getElementById('al-modal-title').textContent = 'Edit Alert';
         document.getElementById('al-modal-overlay').classList.add('open');
-        setTimeout(function() { document.getElementById('al-input-price').focus(); }, 50);
+        setTimeout(function() {
+            if (a.alertType === 'ma') document.getElementById('al-input-ma').focus();
+            else document.getElementById('al-input-price').focus();
+        }, 50);
     };
 
     window.alHideForm = function() {
@@ -8836,6 +8935,7 @@
         document.getElementById('al-input-ticker').readOnly = false;
         document.getElementById('al-input-price').value = '';
         document.getElementById('al-input-type').value = 'price';
+        document.getElementById('al-input-ma').value = 'SMA50';
         alFormTypeChange();
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         _alEditIdx = null;
@@ -8846,25 +8946,33 @@
         var cond      = document.getElementById('al-input-cond').value;
         var alertType = document.getElementById('al-input-type').value;
         var price     = parseFloat(document.getElementById('al-input-price').value);
+        var maKey     = document.getElementById('al-input-ma').value;
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
-        if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
-        if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
+        if (alertType !== 'ma') {
+            if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
+            if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
+        }
 
         if (_alEditIdx !== null) {
             var a = alertsList[_alEditIdx];
             if (a) {
-                var oldKey = a.ticker + '_' + a.price + '_' + a.condition;
+                var oldKey = a.alertType === 'ma'
+                    ? a.ticker + '_ma_' + a.maKey + '_' + a.condition
+                    : a.ticker + '_' + a.price + '_' + a.condition;
                 delete _alertFiredSess[oldKey];
                 a.condition = cond;
-                a.price     = price;
                 a.alertType = alertType;
+                if (alertType === 'ma') { a.maKey = maKey; a.price = 0; }
+                else { a.price = price; delete a.maKey; }
             }
             alSave();
             alHideForm();
             if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
             renderAlerts();
         } else {
-            var entry = { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
+            var entry = alertType === 'ma'
+                ? { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', addedAt: new Date().toISOString() }
+                : { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
             var entryIdx = alertsList.length;
             alertsList.push(entry);
             alSave();
@@ -9386,6 +9494,7 @@
                 <select id="al-input-type" onchange="alFormTypeChange()">
                     <option value="price" selected>Price</option>
                     <option value="rsi14">RSI</option>
+                    <option value="ma">MA Cross</option>
                 </select>
             </div>
             <div class="al-modal-row">
@@ -9395,7 +9504,18 @@
                     <option value="below">crosses below</option>
                 </select>
             </div>
-            <div class="al-modal-row">
+            <div class="al-modal-row" id="al-row-ma" style="display:none;">
+                <span class="al-form-label">MA</span>
+                <select id="al-input-ma">
+                    <option value="SMA5">SMA 5</option>
+                    <option value="EMA8">EMA 8</option>
+                    <option value="EMA21">EMA 21</option>
+                    <option value="SMA50" selected>SMA 50</option>
+                    <option value="SMA150">SMA 150</option>
+                    <option value="SMA200">SMA 200</option>
+                </select>
+            </div>
+            <div class="al-modal-row" id="al-row-value">
                 <span class="al-form-label">Value</span>
                 <input type="number" id="al-input-price" placeholder="Price" step="0.01" min="0" />
                 <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based</span>
