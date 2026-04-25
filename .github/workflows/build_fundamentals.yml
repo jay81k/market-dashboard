@@ -2,8 +2,8 @@ name: Build Fundamentals Data
 
 on:
   schedule:
-    - cron: '0 21 * * 5' # 9 PM UTC = 5 PM EDT every Friday
-  workflow_dispatch:
+    - cron: '0 21 * * 5'  # 9 PM UTC = 5 PM EDT every Friday
+  workflow_dispatch:       # allow manual trigger from GitHub UI
 
 permissions:
   contents: write
@@ -32,7 +32,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git diff --staged --quiet || git commit -m "refresh fundamentals"
+          git add data/fundamentals.json data/snapshot.json
+          git diff --staged --quiet || git commit -m "refresh fundamentals and snapshot"
           git pull --rebase origin main
           git push
