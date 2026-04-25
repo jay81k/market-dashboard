@@ -8669,8 +8669,8 @@
             var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
             var condHtml = a.alertType === 'macross'
                 ? (a.condition === 'above'
-                    ? '<span style="color:#3fb950;">▲ MA 1 above</span>'
-                    : '<span style="color:#f85149;">▼ MA 1 below</span>')
+                    ? '<span style="color:#3fb950;">▲ MA above</span>'
+                    : '<span style="color:#f85149;">▼ MA below</span>')
                 : a.condition === 'above'
                     ? '<span style="color:#3fb950;">▲ above</span>'
                     : '<span style="color:#f85149;">▼ below</span>';
@@ -8933,8 +8933,8 @@
             cond.innerHTML =
                 '<option value="price_above">price crosses above</option>' +
                 '<option value="price_below">price crosses below</option>' +
-                '<option value="ma1_above">MA 1 crosses above MA 2</option>' +
-                '<option value="ma1_below">MA 1 crosses below MA 2</option>';
+                '<option value="ma1_above">MA crosses above MA</option>' +
+                '<option value="ma1_below">MA crosses below MA</option>';
             if (note) note.style.display = 'none';
             rowValue.style.display = 'none';
             alMACondChange();
