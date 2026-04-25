@@ -18,12 +18,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Install finvizfinance
-        run: pip install finvizfinance
 
       - name: Build fundamentals data
         run: python scripts/fetch_fundamentals.py --snapshot-path data/snapshot.json --out-dir data
@@ -34,5 +32,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/fundamentals.json data/snapshot.json
           git diff --staged --quiet || git commit -m "refresh fundamentals and snapshot"
-          git pull --rebase origin main
+          git pull --rebase origin ${{ github.ref_name }}
           git push
