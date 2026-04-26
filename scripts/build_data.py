@@ -63,75 +63,11 @@ DIST_MA_COMBOS = [
 # Required fields: Ticker, Sector, Industry
 # Optional: any CSV_PASSTHROUGH column (leave blank to use None)
 # ---------------------------------------------------------------------------
-SUPPLEMENTAL_TICKERS = [
-    {"Ticker": "SNDK", "Sector": "Technology", "Industry": "Computer Hardware"},
-    {"Ticker": "Q", "Sector": "Technology", "Industry": "Semiconductor Equipment & Materials"},
-    {"Ticker": "AERO", "Sector": "Industrials", "Industry": "Airlines"},
-    {"Ticker": "AGBK", "Sector": "Financial", "Industry": "Banks - Regional"},
-    {"Ticker": "AGCC", "Sector": "Consumer Defensive", "Industry": "Beverages - Wineries & Distilleries"},
-    {"Ticker": "AGMB", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "AKTS", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "ANDG", "Sector": "Consumer Cyclical", "Industry": "Personal Services"},
-    {"Ticker": "APC", "Sector": "Energy", "Industry": "Oil & Gas Refining & Marketing"},
-    {"Ticker": "BETA", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "BLLN", "Sector": "Healthcare", "Industry": "Diagnostics & Research"},
-    {"Ticker": "BOBS", "Sector": "Consumer Cyclical", "Industry": "Specialty Retail"},
-    {"Ticker": "BTGO", "Sector": "Financial", "Industry": "Capital Markets"},
-    {"Ticker": "CBC", "Sector": "Financial", "Industry": "Banks - Regional"},
-    {"Ticker": "CDNL", "Sector": "Industrials", "Industry": "Engineering & Construction"},
-    {"Ticker": "EIKN", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "EQPT", "Sector": "Industrials", "Industry": "Rental & Leasing Services"},
-    {"Ticker": "EVMN", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "FPS", "Sector": "Industrials", "Industry": "Electrical Equipment & Parts"},
-    {"Ticker": "FRMI", "Sector": "Real Estate", "Industry": "REIT - Specialty"},
-    {"Ticker": "GENB", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "INFQ", "Sector": "Technology", "Industry": "Software - Infrastructure"},
-    {"Ticker": "LIFE", "Sector": "Financial", "Industry": "Insurance Brokers"},
-    {"Ticker": "LMRI", "Sector": "Healthcare", "Industry": "Medical Devices"},
-    {"Ticker": "MANE", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "MDA", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "MDLN", "Sector": "Healthcare", "Industry": "Medical Instruments & Supplies"},
-    {"Ticker": "MICC", "Sector": "Consumer Defensive", "Industry": "Packaged Foods"},
-    {"Ticker": "MPLT", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "MWH", "Sector": "Utilities", "Industry": "Utilities - Renewable"},
-    {"Ticker": "NAVN", "Sector": "Technology", "Industry": "Software - Application"},
-    {"Ticker": "NINE", "Sector": "Energy", "Industry": "Oil & Gas Equipment & Services"},
-    {"Ticker": "OFRM", "Sector": "Consumer Defensive", "Industry": "Packaged Foods"},
-    {"Ticker": "PAYP", "Sector": "Technology", "Industry": "Software - Infrastructure"},
-    {"Ticker": "PICS", "Sector": "Technology", "Industry": "Software - Infrastructure"},
-    {"Ticker": "PLYX", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "PPHC", "Sector": "Industrials", "Industry": "Consulting Services"},
-    {"Ticker": "PPLC", "Sector": "Utilities", "Industry": "Utilities - Regulated Electric"},
-    {"Ticker": "PURR", "Sector": "Financial", "Industry": "Capital Markets"},
-    {"Ticker": "RVI", "Sector": "Financial", "Industry": "Asset Management"},
-    {"Ticker": "SGP", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "SOLS", "Sector": "Basic Materials", "Industry": "Specialty Chemicals"},
-    {"Ticker": "SUNB", "Sector": "Industrials", "Industry": "Rental & Leasing Services"},
-    {"Ticker": "SUNC", "Sector": "Energy", "Industry": "Oil & Gas Midstream"},
-    {"Ticker": "SWMR", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "VSNT", "Sector": "Communication Services", "Industry": "Entertainment"},
-    {"Ticker": "WLTH", "Sector": "Technology", "Industry": "Software - Application"},
-    {"Ticker": "XZO", "Sector": "Financial", "Industry": "Insurance - Diversified"},
-    {"Ticker": "YSS", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "AAOI", "Sector": "Technology", "Industry": "Communication Equipment"},
-    {"Ticker": "ALMR", "Sector": "Healthcare", "Industry": "Medical Instruments & Supplies"},
-    {"Ticker": "ARXS", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "AVEX", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "ELMT", "Sector": "Industrials", "Industry": "Aerospace & Defense"},
-    {"Ticker": "HMH", "Sector": "Energy", "Industry": "Oil & Gas Equipment & Services"},
-    {"Ticker": "KLRA", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "LABT", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "MAIR", "Sector": "Industrials", "Industry": "Building Products & Equipment"},
-    {"Ticker": "NHP", "Sector": "Real Estate", "Industry": "REIT - Healthcare Facilities"},
-    {"Ticker": "NICM", "Sector": "Basic Materials", "Industry": "Other Industrial Metals & Mining"},
-    {"Ticker": "TMCR", "Sector": "Basic Materials", "Industry": "Other Industrial Metals & Mining"},
-    {"Ticker": "TRAX", "Sector": "Healthcare", "Industry": "Biotechnology"},
-    {"Ticker": "VGNT", "Sector": "Consumer Cyclical", "Industry": "Auto Parts"},
-    {"Ticker": "YSWY", "Sector": "Consumer Defensive", "Industry": "Grocery Stores"},
-
-    # Add more rows here as needed:
-    # {"Ticker": "XYZ", "Sector": "Healthcare", "Industry": "Biotechnology"},
-]
+_SUPPLEMENTAL_CSV = os.path.join(os.path.dirname(__file__), 'supplemental.csv')
+SUPPLEMENTAL_TICKERS = (
+    pd.read_csv(_SUPPLEMENTAL_CSV).to_dict('records')
+    if os.path.exists(_SUPPLEMENTAL_CSV) else []
+)
 
 # ---------------------------------------------------------------------------
 # Universe loading
