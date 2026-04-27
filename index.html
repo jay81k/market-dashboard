@@ -9104,6 +9104,7 @@
             }
             var entryIdx = alertsList.length;
             alertsList.push(entry);
+            delete _alertFiredSess[alKey(entry)];
             alSave();
             alHideForm();
             alStartBackgroundPolling();
