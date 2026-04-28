@@ -1594,9 +1594,9 @@
                 <button class="mc-tf-btn" data-tf="W" onclick="setMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setMcTf('M')">Monthly</button>
                 <div class="mc-toolbar-sep"></div>
-                <button class="mc-col-btn" data-cols="2" onclick="setMcCols(2)">2</button>
-                <button class="mc-col-btn" data-cols="3" onclick="setMcCols(3)">3</button>
-                <button class="mc-col-btn active" data-cols="4" onclick="setMcCols(4)">4</button>
+                <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
+                <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
+                <button class="mc-col-btn active" data-cols="4" onclick="setSharedMcCols(4)">4</button>
             </div>
             <div class="multichart-grid" id="multichart-grid"></div>
         </div>
@@ -1690,9 +1690,9 @@
                 <button class="mc-tf-btn" data-tf="W" onclick="setScansMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setScansMcTf('M')">Monthly</button>
                 <div class="mc-toolbar-sep"></div>
-                <button class="mc-col-btn" data-cols="2" onclick="setScansMcCols(2)">2</button>
-                <button class="mc-col-btn" data-cols="3" onclick="setScansMcCols(3)">3</button>
-                <button class="mc-col-btn active" data-cols="4" onclick="setScansMcCols(4)">4</button>
+                <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
+                <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
+                <button class="mc-col-btn active" data-cols="4" onclick="setSharedMcCols(4)">4</button>
             </div>
             <div class="multichart-grid" id="scans-multichart-grid"></div>
         </div>
@@ -1731,9 +1731,9 @@
                         <button class="mc-tf-btn" data-tf="W" onclick="setWlMcTf('W')">Weekly</button>
                         <button class="mc-tf-btn" data-tf="M" onclick="setWlMcTf('M')">Monthly</button>
                         <div class="mc-toolbar-sep"></div>
-                        <button class="mc-col-btn" data-cols="2" onclick="setWlMcCols(2)">2</button>
-                        <button class="mc-col-btn" data-cols="3" onclick="setWlMcCols(3)">3</button>
-                        <button class="mc-col-btn active" data-cols="4" onclick="setWlMcCols(4)">4</button>
+                        <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
+                        <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
+                        <button class="mc-col-btn active" data-cols="4" onclick="setSharedMcCols(4)">4</button>
                     </div>
                     <div class="multichart-grid" id="wl-multichart-grid"></div>
                 </div>
@@ -1896,9 +1896,9 @@
             <button class="mc-tf-btn" data-tf="W" onclick="setAlMcTf('W')">Weekly</button>
             <button class="mc-tf-btn" data-tf="M" onclick="setAlMcTf('M')">Monthly</button>
             <div class="mc-toolbar-sep"></div>
-            <button class="mc-col-btn" data-cols="2" onclick="setAlMcCols(2)">2</button>
-            <button class="mc-col-btn" data-cols="3" onclick="setAlMcCols(3)">3</button>
-            <button class="mc-col-btn active" data-cols="4" onclick="setAlMcCols(4)">4</button>
+            <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
+            <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
+            <button class="mc-col-btn active" data-cols="4" onclick="setSharedMcCols(4)">4</button>
         </div>
         <div class="multichart-grid" id="al-multichart-grid"></div>
     </div>
@@ -2630,7 +2630,7 @@
 
     var multichartActive = false;
     var mcTimeframe      = 'D';
-    var mcCols           = 4;
+    var mcCols           = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var mcTickers        = [];
     var mcWidgets        = {};
 
@@ -3696,7 +3696,7 @@
     var scansMultichartActive = false;
     var activeScan = null;
     var scansMcTimeframe    = 'D';
-    var scansMcCols         = 4;
+    var scansMcCols         = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
     var scansSortState      = { by: 'weighted_rs_pct', dir: -1 };
@@ -6063,7 +6063,7 @@
     var wlChartWidget  = null;
     var wlMcActive     = false;
     var wlMcTimeframe  = 'D';
-    var wlMcCols       = 4;
+    var wlMcCols       = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var wlMcWidgets    = {};
     var wlLivePrices   = {};   // { ticker: { price, prevClose, updatedAt } }
     var wlPriceTimer   = null;
@@ -9547,7 +9547,7 @@
     // ── Alerts Multichart ─────────────────────────────────────────────────
     var alMcActive    = false;
     var alMcTimeframe = 'D';
-    var alMcCols      = 4;
+    var alMcCols      = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var alMcWidgets   = {};
 
     window.toggleAlMultichart = function() {
@@ -9579,6 +9579,24 @@
         });
         document.getElementById('al-multichart-grid').style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
     };
+
+    // ── Shared multichart column setter — syncs all 4 menus ──────────────────
+    window.setSharedMcCols = function(n) {
+        localStorage.setItem('mcSharedCols', String(n));
+        if (window.setMcCols)      window.setMcCols(n);
+        if (window.setScansMcCols) window.setScansMcCols(n);
+        if (window.setWlMcCols)    window.setWlMcCols(n);
+        if (window.setAlMcCols)    window.setAlMcCols(n);
+    };
+
+    // Apply stored col count to all button groups on load
+    (function() {
+        var stored = parseInt(localStorage.getItem('mcSharedCols') || '4');
+        document.querySelectorAll('.mc-col-btn').forEach(function(b) {
+            b.classList.toggle('active', +b.getAttribute('data-cols') === stored);
+        });
+    })();
+    // ── END Shared multichart column setter ───────────────────────────────────
 
     function renderAlMc() {
         var grid = document.getElementById('al-multichart-grid');
