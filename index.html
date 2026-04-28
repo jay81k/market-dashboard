@@ -171,6 +171,17 @@
         .mc-tf-btn:hover  { background: #161b22; color: #c8d0dc; }
         .mc-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
 
+        .mc-col-btn {
+            width: 26px; height: 22px; border-radius: 4px; border: 1px solid #21262d;
+            background: transparent; color: #6e7681; font-size: 0.825em;
+            font-family: inherit; cursor: pointer; font-weight: 600;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.12s;
+        }
+        .mc-col-btn:hover  { background: #161b22; color: #c8d0dc; }
+        .mc-col-btn.active { background: #1f3a5c; border-color: #388bfd; color: #58a6ff; }
+        .mc-toolbar-sep { width: 1px; height: 14px; background: #21262d; flex-shrink: 0; margin: 0 2px; }
+
         .multichart-grid {
             flex: 1; overflow-y: auto; min-height: 0;
             display: grid; grid-template-columns: repeat(4, 1fr);
@@ -1582,6 +1593,10 @@
                 <button class="mc-tf-btn active" data-tf="D" onclick="setMcTf('D')">Daily</button>
                 <button class="mc-tf-btn" data-tf="W" onclick="setMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setMcTf('M')">Monthly</button>
+                <div class="mc-toolbar-sep"></div>
+                <button class="mc-col-btn" data-cols="2" onclick="setMcCols(2)">2</button>
+                <button class="mc-col-btn" data-cols="3" onclick="setMcCols(3)">3</button>
+                <button class="mc-col-btn active" data-cols="4" onclick="setMcCols(4)">4</button>
             </div>
             <div class="multichart-grid" id="multichart-grid"></div>
         </div>
@@ -1674,6 +1689,10 @@
                 <button class="mc-tf-btn active" data-tf="D" onclick="setScansMcTf('D')">Daily</button>
                 <button class="mc-tf-btn" data-tf="W" onclick="setScansMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setScansMcTf('M')">Monthly</button>
+                <div class="mc-toolbar-sep"></div>
+                <button class="mc-col-btn" data-cols="2" onclick="setScansMcCols(2)">2</button>
+                <button class="mc-col-btn" data-cols="3" onclick="setScansMcCols(3)">3</button>
+                <button class="mc-col-btn active" data-cols="4" onclick="setScansMcCols(4)">4</button>
             </div>
             <div class="multichart-grid" id="scans-multichart-grid"></div>
         </div>
@@ -1711,6 +1730,10 @@
                         <button class="mc-tf-btn active" data-tf="D" onclick="setWlMcTf('D')">Daily</button>
                         <button class="mc-tf-btn" data-tf="W" onclick="setWlMcTf('W')">Weekly</button>
                         <button class="mc-tf-btn" data-tf="M" onclick="setWlMcTf('M')">Monthly</button>
+                        <div class="mc-toolbar-sep"></div>
+                        <button class="mc-col-btn" data-cols="2" onclick="setWlMcCols(2)">2</button>
+                        <button class="mc-col-btn" data-cols="3" onclick="setWlMcCols(3)">3</button>
+                        <button class="mc-col-btn active" data-cols="4" onclick="setWlMcCols(4)">4</button>
                     </div>
                     <div class="multichart-grid" id="wl-multichart-grid"></div>
                 </div>
@@ -1872,6 +1895,10 @@
             <button class="mc-tf-btn active" data-tf="D" onclick="setAlMcTf('D')">Daily</button>
             <button class="mc-tf-btn" data-tf="W" onclick="setAlMcTf('W')">Weekly</button>
             <button class="mc-tf-btn" data-tf="M" onclick="setAlMcTf('M')">Monthly</button>
+            <div class="mc-toolbar-sep"></div>
+            <button class="mc-col-btn" data-cols="2" onclick="setAlMcCols(2)">2</button>
+            <button class="mc-col-btn" data-cols="3" onclick="setAlMcCols(3)">3</button>
+            <button class="mc-col-btn active" data-cols="4" onclick="setAlMcCols(4)">4</button>
         </div>
         <div class="multichart-grid" id="al-multichart-grid"></div>
     </div>
@@ -2603,8 +2630,17 @@
 
     var multichartActive = false;
     var mcTimeframe      = 'D';
+    var mcCols           = 4;
     var mcTickers        = [];
     var mcWidgets        = {};
+
+    window.setMcCols = function(n) {
+        mcCols = n;
+        document.querySelectorAll('#stocks-multichart-view .mc-col-btn').forEach(function(b){
+            b.classList.toggle('active', +b.getAttribute('data-cols') === n);
+        });
+        document.getElementById('multichart-grid').style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    };
 
     window.toggleMultichart = function() {
         multichartActive = !multichartActive;
@@ -2627,6 +2663,7 @@
         var grid = document.getElementById('multichart-grid');
         if (!mcTickers.length) { grid.innerHTML = '<div style="color:#484f58;padding:20px;">No stocks.</div>'; return; }
         grid.innerHTML = '';
+        grid.style.gridTemplateColumns = 'repeat(' + mcCols + ', 1fr)';
         mcWidgets = {};
         mcTickers.forEach(function(sym) {
             var cell = document.createElement('div');
@@ -3659,6 +3696,7 @@
     var scansMultichartActive = false;
     var activeScan = null;
     var scansMcTimeframe    = 'D';
+    var scansMcCols         = 4;
     var scansMcTickers      = [];
     var scansMcWidgets      = {};
     var scansSortState      = { by: 'weighted_rs_pct', dir: -1 };
@@ -5610,10 +5648,19 @@
         renderScansMc();
     };
 
+    window.setScansMcCols = function(n) {
+        scansMcCols = n;
+        document.querySelectorAll('#scans-multichart-view .mc-col-btn').forEach(function(b){
+            b.classList.toggle('active', +b.getAttribute('data-cols') === n);
+        });
+        document.getElementById('scans-multichart-grid').style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    };
+
     function renderScansMc() {
         var grid = document.getElementById('scans-multichart-grid');
         if (!scansMcTickers.length) { grid.innerHTML = '<div style="color:#484f58;padding:20px;">No stocks.</div>'; return; }
         grid.innerHTML = '';
+        grid.style.gridTemplateColumns = 'repeat(' + scansMcCols + ', 1fr)';
         scansMcWidgets = {};
         scansMcTickers.forEach(function(sym) {
             var cell = document.createElement('div');
@@ -5885,6 +5932,14 @@
         renderWlMc();
     };
 
+    window.setWlMcCols = function(n) {
+        wlMcCols = n;
+        document.querySelectorAll('#wl-multichart-toolbar .mc-col-btn').forEach(function(b){
+            b.classList.toggle('active', +b.getAttribute('data-cols') === n);
+        });
+        document.getElementById('wl-multichart-grid').style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    };
+
     function renderWlMc() {
         var grid = document.getElementById('wl-multichart-grid');
         var active = wlGetLastList();
@@ -5895,9 +5950,9 @@
             return;
         }
         grid.innerHTML = '';
+        grid.style.gridTemplateColumns = 'repeat(' + wlMcCols + ', 1fr)';
         wlMcWidgets = {};
         tickers.forEach(function(sym) {
-            var cell = document.createElement('div');
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
@@ -6008,6 +6063,7 @@
     var wlChartWidget  = null;
     var wlMcActive     = false;
     var wlMcTimeframe  = 'D';
+    var wlMcCols       = 4;
     var wlMcWidgets    = {};
     var wlLivePrices   = {};   // { ticker: { price, prevClose, updatedAt } }
     var wlPriceTimer   = null;
@@ -9491,6 +9547,7 @@
     // ── Alerts Multichart ─────────────────────────────────────────────────
     var alMcActive    = false;
     var alMcTimeframe = 'D';
+    var alMcCols      = 4;
     var alMcWidgets   = {};
 
     window.toggleAlMultichart = function() {
@@ -9515,6 +9572,14 @@
         renderAlMc();
     };
 
+    window.setAlMcCols = function(n) {
+        alMcCols = n;
+        document.querySelectorAll('#al-multichart-view .mc-col-btn').forEach(function(b){
+            b.classList.toggle('active', +b.getAttribute('data-cols') === n);
+        });
+        document.getElementById('al-multichart-grid').style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    };
+
     function renderAlMc() {
         var grid = document.getElementById('al-multichart-grid');
         if (!grid) return;
@@ -9528,6 +9593,7 @@
             return;
         }
         grid.innerHTML = '';
+        grid.style.gridTemplateColumns = 'repeat(' + alMcCols + ', 1fr)';
         alMcWidgets = {};
         tickers.forEach(function(sym) {
             var cell = document.createElement('div');
