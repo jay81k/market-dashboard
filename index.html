@@ -1259,7 +1259,7 @@
         .al-modal-overlay.open { display:flex; }
         .al-modal-box {
             background:#161b22; border:1px solid #30363d; border-radius:8px;
-            min-width:320px; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+            width:320px; box-shadow:0 8px 32px rgba(0,0,0,0.6);
             display:flex; flex-direction:column;
         }
         .al-modal-header {
@@ -1272,6 +1272,13 @@
         .al-modal-body { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
         .al-modal-row { display:flex; align-items:center; gap:8px; }
         .al-modal-row .al-form-label { font-size:0.792em; color:#484f58; width:68px; flex-shrink:0; }
+        .al-pattern-row { padding:0; }
+        .al-pattern-row .al-form-label { display:block; font-size:0.792em; color:#484f58; margin-bottom:7px; }
+        .al-pattern-grid { display:flex; flex-wrap:wrap; gap:5px; }
+        .al-pat-chip { display:inline-flex; align-items:center; padding:4px 9px; border-radius:5px; border:1px solid #21262d; background:#161b22; color:#6e7681; font-size:0.78em; cursor:pointer; user-select:none; transition:all 0.12s; width:calc(33.333% - 4px); box-sizing:border-box; }
+        .al-pat-chip:hover { border-color:#484f58; color:#c8d0dc; }
+        .al-pat-chip.selected { background:#1a3a5c; border-color:#388bfd; color:#58a6ff; }
+        .al-pat-chip input[type=checkbox] { display:none; }
         .al-modal-row input, .al-modal-row select {
             background:#0d1117; border:1px solid #21262d; border-radius:5px;
             color:#c8d0dc; padding:4px 8px; height:28px; font-size:0.858em;
@@ -8542,7 +8549,7 @@
             else if (a.alertType === 'ma')
                 key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
             else if (a.alertType === 'pattern')
-                key = a.ticker + '_pattern_' + a.patternKey + '_' + (a.patternTf || 'd');
+                key = window.alPatternAlertKey(a);
             else
                 key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
@@ -8601,8 +8608,8 @@
             } else if (a.alertType === 'pattern') {
                 if (!stockData) return;
                 var ptfSuffix = (a.patternTf === 'w') ? '_w' : (a.patternTf === 'm') ? '_m' : '';
-                var patKey = a.patternKey + ptfSuffix;
-                hit = !!stockData[patKey];
+                var pKeys = window.alGetPatternKeys(a);
+                hit = pKeys.some(function(pk) { return !!stockData[pk + ptfSuffix]; });
                 hitVal = stockData.price || 0;
             } else {
                 var price = alertPrices[a.ticker];
@@ -8619,7 +8626,7 @@
                 alertType: a.alertType || 'price',
                 maKey: a.maKey || null,
                 ma1Key: a.ma1Key || null, ma2Key: a.ma2Key || null,
-                patternKey: a.patternKey || null, patternTf: a.patternTf || null,
+                patternKeys: window.alGetPatternKeys(a), patternTf: a.patternTf || null,
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
@@ -8635,8 +8642,8 @@
                 } else if (a.alertType === 'rsi14') {
                     body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
                 } else if (a.alertType === 'pattern') {
-                    var patLabel = (a.patternKey || '').replace(/_/g, ' ');
-                    body = 'Pattern detected: ' + patLabel + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
+                    var pLabels = window.alGetPatternKeys(a).map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' or ');
+                    body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
                 } else {
                     body = (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                 }
@@ -8650,6 +8657,7 @@
                 var k;
                 if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
                 else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+                else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
                 else k = a.ticker + '_' + a.price + '_' + a.condition;
                 return !removeSet[k];
             });
@@ -8752,7 +8760,7 @@
             var key;
             if (a.alertType === 'macross') key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
             else if (a.alertType === 'ma') key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            else if (a.alertType === 'pattern') key = a.ticker + '_pattern_' + a.patternKey + '_' + (a.patternTf || 'd');
+            else if (a.alertType === 'pattern') key = window.alPatternAlertKey(a);
             else key = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
@@ -8853,7 +8861,7 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (AL_PATTERN_LABELS[a.patternKey] || a.patternKey) + ' (' + (a.patternTf||'d').toUpperCase() + ')' : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + '">' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join(' or ') + ' (' + (a.patternTf||'d').toUpperCase() + ')' : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
@@ -8929,7 +8937,11 @@
                 : f.alertType === 'ma'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'pattern'
-                ? '<span class="al-hist-cond" style="color:#8b949e;">⬡ ' + (AL_HIST_PAT_LABELS[f.patternKey] || (f.patternKey||'').replace(/_/g,' ')) + ' (' + (f.patternTf||'d').toUpperCase() + ')</span>'
+                ? (function() {
+                    var pKeys = f.patternKeys && f.patternKeys.length ? f.patternKeys : (f.patternKey ? [f.patternKey] : ['?']);
+                    var pLabels = pKeys.map(function(k){ return AL_HIST_PAT_LABELS[k] || k.replace(/_/g,' '); }).join(' or ');
+                    return '<span class="al-hist-cond" style="color:#8b949e;">⬡ ' + pLabels + ' (' + (f.patternTf||'d').toUpperCase() + ')</span>';
+                })()
                 : f.condition === 'above'
                     ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
                     : '<span class="al-hist-cond" style="color:#f85149;">▼ $' + (f.alertPrice||0).toFixed(2) + '</span>';
@@ -9082,6 +9094,55 @@
         });
     };
 
+    // Multi-pattern helpers
+    window.alPatChipToggle = function(chip) {
+        var cb = chip.querySelector('input[type=checkbox]');
+        var willCheck = !cb.checked;
+        // Prevent deselecting the last checked chip
+        if (!willCheck) {
+            var grid = document.getElementById('al-pattern-grid');
+            var checked = grid ? grid.querySelectorAll('input[type=checkbox]:checked') : [];
+            if (checked.length <= 1) return;
+        }
+        cb.checked = willCheck;
+        chip.classList.toggle('selected', willCheck);
+    };
+
+    window.alGetSelectedPatterns = function() {
+        var grid = document.getElementById('al-pattern-grid');
+        if (!grid) return ['inside_day'];
+        var checked = grid.querySelectorAll('input[type=checkbox]:checked');
+        var keys = [];
+        checked.forEach(function(cb) { keys.push(cb.value); });
+        return keys.length ? keys : ['inside_day'];
+    };
+
+    window.alSetSelectedPatterns = function(keys) {
+        var grid = document.getElementById('al-pattern-grid');
+        if (!grid) return;
+        var keySet = {};
+        (keys || ['inside_day']).forEach(function(k) { keySet[k] = true; });
+        grid.querySelectorAll('label.al-pat-chip').forEach(function(chip) {
+            var cb = chip.querySelector('input[type=checkbox]');
+            var on = !!keySet[cb.value];
+            cb.checked = on;
+            chip.classList.toggle('selected', on);
+        });
+    };
+
+    // Returns array of pattern keys for an alert — handles old single-key & new multi-key
+    window.alGetPatternKeys = function(a) {
+        if (a.patternKeys && a.patternKeys.length) return a.patternKeys;
+        if (a.patternKey) return [a.patternKey];
+        return ['inside_day'];
+    };
+
+    // Canonical dedup key for a pattern alert
+    window.alPatternAlertKey = function(a) {
+        var keys = window.alGetPatternKeys(a).slice().sort();
+        return a.ticker + '_pattern_' + keys.join('+') + '_' + (a.patternTf || 'd');
+    };
+
     window.alShowForm = function(prefillTicker) {
         if (window.Notification && Notification.permission === 'default') Notification.requestPermission();
         _alEditIdx = null;
@@ -9094,7 +9155,7 @@
         document.getElementById('al-input-ma').value  = 'SMA50';
         document.getElementById('al-input-ma1').value = 'SMA5';
         document.getElementById('al-input-ma2').value = 'SMA50';
-        document.getElementById('al-input-pattern').value = 'inside_day';
+        alSetSelectedPatterns(['inside_day']);
         alPatternTfSelect('d');
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         document.getElementById('al-modal-title').textContent = 'Add Alert';
@@ -9124,7 +9185,7 @@
             alMACondChange();
             document.getElementById('al-input-ma').value = a.maKey || 'SMA50';
         } else if (a.alertType === 'pattern') {
-            document.getElementById('al-input-pattern').value = a.patternKey || 'inside_day';
+            alSetSelectedPatterns(window.alGetPatternKeys(a));
             alPatternTfSelect(a.patternTf || 'd');
         } else {
             document.getElementById('al-input-cond').value = a.condition;
@@ -9136,7 +9197,7 @@
         setTimeout(function() {
             if (a.alertType === 'macross') document.getElementById('al-input-ma1').focus();
             else if (a.alertType === 'ma') document.getElementById('al-input-ma').focus();
-            else if (a.alertType === 'pattern') document.getElementById('al-input-pattern').focus();
+            else if (a.alertType === 'pattern') { /* chips — no text focus needed */ }
             else document.getElementById('al-input-price').focus();
         }, 50);
     };
@@ -9150,7 +9211,7 @@
         document.getElementById('al-input-ma').value  = 'SMA50';
         document.getElementById('al-input-ma1').value = 'SMA5';
         document.getElementById('al-input-ma2').value = 'SMA50';
-        document.getElementById('al-input-pattern').value = 'inside_day';
+        alSetSelectedPatterns(['inside_day']);
         alPatternTfSelect('d');
         alFormTypeChange();
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
@@ -9165,7 +9226,7 @@
         var maKey     = document.getElementById('al-input-ma').value;
         var ma1Key    = document.getElementById('al-input-ma1').value;
         var ma2Key    = document.getElementById('al-input-ma2').value;
-        var patternKey = document.getElementById('al-input-pattern').value;
+        var patternKeys = alGetSelectedPatterns();
         var patternTf  = window._alPatternTf || 'd';
 
         // Resolve alertType and condition from UI values
@@ -9195,7 +9256,7 @@
         var alKey = function(a) {
             if (a.alertType === 'macross') return a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
             if (a.alertType === 'ma') return a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            if (a.alertType === 'pattern') return a.ticker + '_pattern_' + a.patternKey + '_' + (a.patternTf || 'd');
+            if (a.alertType === 'pattern') return window.alPatternAlertKey(a);
             return a.ticker + '_' + a.price + '_' + a.condition;
         };
 
@@ -9205,10 +9266,10 @@
                 delete _alertFiredSess[alKey(a)];
                 a.condition = cond;
                 a.alertType = alertType;
-                if (alertType === 'macross') { a.ma1Key = ma1Key; a.ma2Key = ma2Key; delete a.maKey; delete a.patternKey; delete a.patternTf; a.price = 0; }
-                else if (alertType === 'ma') { a.maKey = maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternTf; a.price = 0; }
-                else if (alertType === 'pattern') { a.patternKey = patternKey; a.patternTf = patternTf; delete a.maKey; delete a.ma1Key; delete a.ma2Key; a.price = 0; }
-                else { a.price = price; delete a.maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternTf; }
+                if (alertType === 'macross') { a.ma1Key = ma1Key; a.ma2Key = ma2Key; delete a.maKey; delete a.patternKey; delete a.patternKeys; delete a.patternTf; a.price = 0; }
+                else if (alertType === 'ma') { a.maKey = maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternKeys; delete a.patternTf; a.price = 0; }
+                else if (alertType === 'pattern') { a.patternKeys = patternKeys; delete a.patternKey; a.patternTf = patternTf; delete a.maKey; delete a.ma1Key; delete a.ma2Key; a.price = 0; }
+                else { a.price = price; delete a.maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternKeys; delete a.patternTf; }
             }
             alSave();
             alHideForm();
@@ -9221,7 +9282,7 @@
             } else if (alertType === 'ma') {
                 entry = { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', addedAt: new Date().toISOString() };
             } else if (alertType === 'pattern') {
-                entry = { ticker: ticker, condition: 'detected', price: 0, alertType: 'pattern', patternKey: patternKey, patternTf: patternTf, name: '', addedAt: new Date().toISOString() };
+                entry = { ticker: ticker, condition: 'detected', price: 0, alertType: 'pattern', patternKeys: patternKeys, patternTf: patternTf, name: '', addedAt: new Date().toISOString() };
             } else {
                 entry = { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
             }
@@ -9257,7 +9318,7 @@
             var k;
             if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
             else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            else if (a.alertType === 'pattern') k = a.ticker + '_pattern_' + a.patternKey + '_' + (a.patternTf || 'd');
+            else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
             else k = a.ticker + '_' + a.price + '_' + a.condition;
             delete _alertFiredSess[k];
         }
@@ -9831,19 +9892,19 @@
                 <input type="number" id="al-input-price" placeholder="Price" step="0.01" min="0" />
                 <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based</span>
             </div>
-            <div class="al-modal-row" id="al-row-pattern" style="display:none;">
-                <span class="al-form-label">Pattern</span>
-                <select id="al-input-pattern">
-                    <option value="inside_day">Inside Day</option>
-                    <option value="double_inside_day">Double Inside Day</option>
-                    <option value="bullish_outside">Bullish Outside</option>
-                    <option value="bearish_outside">Bearish Outside</option>
-                    <option value="hammer">Hammer</option>
-                    <option value="bullish_reversal_bar">Bullish Reversal Bar</option>
-                    <option value="upside_reversal">Upside Reversal</option>
-                    <option value="oops_reversal">Oops Reversal</option>
-                    <option value="pocket_pivot">Pocket Pivot</option>
-                </select>
+            <div id="al-row-pattern" class="al-pattern-row" style="display:none;">
+                <span class="al-form-label">Patterns <span id="al-pat-hint" style="color:#484f58;font-style:italic;font-size:0.9em;">(pick one or more)</span></span>
+                <div class="al-pattern-grid" id="al-pattern-grid">
+                    <label class="al-pat-chip selected" onclick="alPatChipToggle(this)"><input type="checkbox" value="inside_day" checked>Inside Day</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="double_inside_day">Double Inside Day</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="bullish_outside">Bullish Outside</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="bearish_outside">Bearish Outside</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="hammer">Hammer</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="bullish_reversal_bar">Bullish Reversal Bar</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="upside_reversal">Upside Reversal</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="oops_reversal">Oops Reversal</label>
+                    <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="pocket_pivot">Pocket Pivot</label>
+                </div>
             </div>
             <div class="al-modal-row" id="al-row-pattern-tf" style="display:none;">
                 <span class="al-form-label">Timeframe</span>
