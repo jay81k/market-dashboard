@@ -1335,6 +1335,11 @@
         .al-col-edit { width:28px;text-align:center;flex-shrink:0;color:#21262d;font-size:0.9em;cursor:pointer;line-height:1;user-select:none; }
         .al-col-edit:hover { color:#58a6ff; }
         .al-empty { padding:40px;text-align:center;color:#484f58;font-size:0.902em; }
+        .al-pat-multi { display:inline-flex; align-items:center; gap:5px; color:#a78bfa; font-size:0.858em; font-weight:500; }
+        .al-pat-multi-count { background:#2d2250; color:#a78bfa; border-radius:10px; padding:1px 6px; font-size:0.858em; font-weight:600; }
+        .al-pat-multi-tf { font-size:0.792em; color:#7c6bbf; font-weight:600; }
+        .al-pat-single { display:inline-flex; align-items:center; gap:4px; color:#a78bfa; font-size:0.858em; font-weight:500; }
+        .al-pat-single-tf { font-size:0.792em; color:#7c6bbf; font-weight:600; }
 
         /* ── Alert history side panel ── */
         .al-body-wrap { display:flex; flex:1; min-height:0; overflow:hidden; }
@@ -8874,7 +8879,7 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + '"' + (a.alertType === 'pattern' && window.alGetPatternKeys(a).length > 1 ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); return (pk.length === 1 ? (AL_PATTERN_LABELS[pk[0]] || pk[0]) : pk.length + ' Patterns') + ' (' + (a.patternTf||'d').toUpperCase() + ')'; })() : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
