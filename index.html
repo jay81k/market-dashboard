@@ -8960,8 +8960,12 @@
                     var pKeys = (f.triggeredPatternKeys && f.triggeredPatternKeys.length)
                         ? f.triggeredPatternKeys
                         : (f.patternKeys && f.patternKeys.length ? f.patternKeys : (f.patternKey ? [f.patternKey] : ['?']));
-                    var pLabels = pKeys.map(function(k){ return AL_HIST_PAT_LABELS[k] || k.replace(/_/g,' '); }).join(' + ');
-                    return '<span class="al-hist-cond" style="color:#8b949e;">⬡ ' + pLabels + ' (' + (f.patternTf||'d').toUpperCase() + ')</span>';
+                    var tf = (f.patternTf||'d').toUpperCase();
+                    var tipText = pKeys.map(function(k){ return AL_HIST_PAT_LABELS[k] || k.replace(/_/g,' '); }).join('\n');
+                    if (pKeys.length === 1) {
+                        return '<span class="al-hist-cond al-pat-single" style="color:#a78bfa;" data-al-tip="' + tipText + '">' + (AL_HIST_PAT_LABELS[pKeys[0]] || pKeys[0].replace(/_/g,' ')) + ' <span class="al-pat-single-tf">' + tf + '</span></span>';
+                    }
+                    return '<span class="al-hist-cond al-pat-multi" data-al-tip="' + tipText + '"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0;vertical-align:middle;margin-right:2px"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pKeys.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>';
                 })()
                 : f.condition === 'above'
                     ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
