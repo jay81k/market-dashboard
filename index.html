@@ -8483,6 +8483,12 @@
             var count = alertsList.filter(function(a) { return a.ticker === ticker; }).length;
             if (count > 0) el.insertBefore(_alMakePill(ticker, count), el.firstChild);
         };
+        // For side panel: append pill inside element to the right of the text
+        var _stampInsideRight = function(el, ticker) {
+            Array.from(el.querySelectorAll('.al-ticker-pill')).forEach(function(p) { p.parentNode.removeChild(p); });
+            var count = alertsList.filter(function(a) { return a.ticker === ticker; }).length;
+            if (count > 0) el.appendChild(_alMakePill(ticker, count));
+        };
         document.querySelectorAll('.ticker-badge').forEach(function(el) {
             _stampSibling(el, el.textContent.trim());
         });
@@ -8491,7 +8497,7 @@
             if (t && t !== 'Symbol') _stampInside(el, t);
         });
         document.querySelectorAll('.snp-ticker').forEach(function(el) {
-            _stampInside(el, el.textContent.trim());
+            _stampInsideRight(el, el.textContent.trim());
         });
     };
     window.alGoToTicker = function(ticker) {
