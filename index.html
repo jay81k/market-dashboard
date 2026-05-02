@@ -3186,6 +3186,7 @@
         allStockRows = Array.from(tbody.querySelectorAll('.stock-row'));
         currentStockIndex = -1;
         wlRefreshStars();
+        if (typeof alStampBadges === 'function') alStampBadges();
     }
 
     // ── Industry-drill stocks table sorting ─────────────────────────────────
@@ -5595,6 +5596,7 @@
         if (scansMultichartActive) renderScansMc();
         // Refresh live prices for the newly rendered set
         if (currentView === 'scans') scanFetchPrices();
+        if (typeof alStampBadges === 'function') alStampBadges();
     }
 
     // ── Scans live prices ─────────────────────────────────────────────────
@@ -6305,6 +6307,7 @@
             });
         }
         scroll.innerHTML = html;
+        if (typeof alStampBadges === 'function') alStampBadges();
         if (wlMcActive) renderWlMc();
     };
 
