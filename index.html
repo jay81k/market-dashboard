@@ -8250,6 +8250,7 @@
         var listEl = document.getElementById('snp-list');
         if (listEl) {
             listEl.innerHTML = html;
+            if (typeof alStampBadges === 'function') alStampBadges();
             listEl.onclick = function(e) {
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
@@ -8488,6 +8489,9 @@
         document.querySelectorAll('.wl-c-sym').forEach(function(el) {
             var t = el.textContent.trim();
             if (t && t !== 'Symbol') _stampInside(el, t);
+        });
+        document.querySelectorAll('.snp-ticker').forEach(function(el) {
+            _stampSibling(el, el.textContent.trim());
         });
     };
     window.alGoToTicker = function(ticker) {
