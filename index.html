@@ -8460,8 +8460,8 @@
     function _alMakePill(ticker, count) {
         var pill = document.createElement('span');
         pill.className = 'al-ticker-pill';
-        pill.title = count + ' alert' + (count !== 1 ? 's' : '');
-        pill.innerHTML = _AL_BELL_SVG + count;
+        pill.title = count > 1 ? count + ' alerts' : 'Alert set';
+        pill.innerHTML = _AL_BELL_SVG;
         pill.addEventListener('click', function(e) { e.stopPropagation(); alGoToTicker(ticker); });
         return pill;
     }
