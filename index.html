@@ -436,7 +436,7 @@
         .snp-row:hover:not(.snp-active) { background: #161b22; }
         .snp-row.snp-active { background: #1f2d3d; border-right: 2px solid #388bfd; padding-right: 2px; }
         .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 4px; }
-        .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: #c8d0dc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: #c8d0dc; overflow: hidden; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
         /* ── END SCAN NAV PANEL ── */
         .chart-modal {
             width: calc(98vw - 70px); height: calc(100vh - 111px); background: #0d1117;
@@ -8491,7 +8491,7 @@
             if (t && t !== 'Symbol') _stampInside(el, t);
         });
         document.querySelectorAll('.snp-ticker').forEach(function(el) {
-            _stampSibling(el, el.textContent.trim());
+            _stampInside(el, el.textContent.trim());
         });
     };
     window.alGoToTicker = function(ticker) {
