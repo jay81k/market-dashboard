@@ -70,6 +70,24 @@ SUPPLEMENTAL_TICKERS = (
 )
 
 # ---------------------------------------------------------------------------
+# Industry overrides — reclassify specific tickers into custom industries.
+# Tickers must already exist in the CSV feed (or supplemental.csv).
+# Required columns: Ticker, Industry, Sector
+# ---------------------------------------------------------------------------
+_INDUSTRY_OVERRIDES_CSV = os.path.join(os.path.dirname(__file__), 'industry_overrides.csv')
+INDUSTRY_OVERRIDES: dict[str, dict] = {}
+if os.path.exists(_INDUSTRY_OVERRIDES_CSV):
+    _ov_df = pd.read_csv(_INDUSTRY_OVERRIDES_CSV)
+    for _, _row in _ov_df.iterrows():
+        ticker = str(_row["Ticker"]).strip()
+        if ticker:
+            INDUSTRY_OVERRIDES[ticker] = {
+                "industry": str(_row["Industry"]).strip(),
+                "sector":   str(_row["Sector"]).strip(),
+            }
+    print(f"Loaded {len(INDUSTRY_OVERRIDES)} industry overrides from industry_overrides.csv")
+
+# ---------------------------------------------------------------------------
 # Universe loading
 # ---------------------------------------------------------------------------
 
@@ -868,6 +886,11 @@ def main():
         csv_row  = csv_lookup.get(ticker, {})
         industry = str(csv_row.get("Industry", "Unknown")).strip() or "Unknown"
         sector   = str(csv_row.get("Sector",   "Unknown")).strip() or "Unknown"
+
+        # Apply custom industry override if present
+        if ticker in INDUSTRY_OVERRIDES:
+            industry = INDUSTRY_OVERRIDES[ticker]["industry"]
+            sector   = INDUSTRY_OVERRIDES[ticker]["sector"]
 
         # Numeric passthrough fields
         passthrough: dict = {}
