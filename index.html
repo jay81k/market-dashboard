@@ -8479,7 +8479,7 @@
         var _stampInside = function(el, ticker) {
             Array.from(el.querySelectorAll('.al-ticker-pill')).forEach(function(p) { p.parentNode.removeChild(p); });
             var count = alertsList.filter(function(a) { return a.ticker === ticker; }).length;
-            if (count > 0) el.appendChild(_alMakePill(ticker, count));
+            if (count > 0) el.insertBefore(_alMakePill(ticker, count), el.firstChild);
         };
         document.querySelectorAll('.ticker-badge').forEach(function(el) {
             _stampSibling(el, el.textContent.trim());
