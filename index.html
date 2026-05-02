@@ -786,7 +786,7 @@
             background: #0d1117; border-bottom: 1px solid #21262d;
         }
         /* Single set of column widths shared by both header and data rows */
-        .wl-c-sym  { width: 75px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wl-c-sym  { width: 92px; flex-shrink: 0; display: flex; align-items: center; gap: 3px; overflow: hidden; white-space: nowrap; }
         .wl-c-last { width: 72px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
         .wl-c-chg  { width: 64px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
         .wl-c-chgp { width: 64px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; margin-left: 8px; }
@@ -8383,6 +8383,7 @@
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
+    var _alActiveTicker  = null; // ticker whose rows are currently selected in the alert list
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
     var _alEditIdx       = null;  // index of alert being edited, null when adding new
 
@@ -8465,7 +8466,8 @@
         return pill;
     }
     window.alStampBadges = function() {
-        var _stamp = function(el, ticker) {
+        // For table rows: insert pill as sibling after the badge element
+        var _stampSibling = function(el, ticker) {
             var sib = el.nextSibling;
             while (sib && sib.classList && sib.classList.contains('al-ticker-pill')) {
                 var rem = sib; sib = sib.nextSibling; rem.parentNode.removeChild(rem);
@@ -8473,29 +8475,38 @@
             var count = alertsList.filter(function(a) { return a.ticker === ticker; }).length;
             if (count > 0) el.parentNode.insertBefore(_alMakePill(ticker, count), el.nextSibling);
         };
+        // For watchlist sym cells: append pill inside the element so it doesn't affect flex layout
+        var _stampInside = function(el, ticker) {
+            Array.from(el.querySelectorAll('.al-ticker-pill')).forEach(function(p) { p.parentNode.removeChild(p); });
+            var count = alertsList.filter(function(a) { return a.ticker === ticker; }).length;
+            if (count > 0) el.appendChild(_alMakePill(ticker, count));
+        };
         document.querySelectorAll('.ticker-badge').forEach(function(el) {
-            _stamp(el, el.textContent.trim());
+            _stampSibling(el, el.textContent.trim());
         });
         document.querySelectorAll('.wl-c-sym').forEach(function(el) {
             var t = el.textContent.trim();
-            if (t && t !== 'Symbol') _stamp(el, t);
+            if (t && t !== 'Symbol') _stampInside(el, t);
         });
     };
     window.alGoToTicker = function(ticker) {
+        _alActiveTicker = ticker;
         showView('alerts');
         setTimeout(function() {
             var listEl = document.getElementById('al-list');
             if (!listEl) return;
             var rows = listEl.querySelectorAll('.al-row');
-            for (var i = 0; i < rows.length; i++) {
-                var tEl = rows[i].querySelector('.al-col-ticker');
+            // Clear any existing active selection
+            rows.forEach(function(r) { r.classList.remove('al-row-active'); });
+            var firstMatch = null;
+            rows.forEach(function(row) {
+                var tEl = row.querySelector('.al-col-ticker');
                 if (tEl && tEl.textContent.trim() === ticker) {
-                    rows[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
-                    rows[i].classList.add('al-row-highlight');
-                    setTimeout(function(r) { r.classList.remove('al-row-highlight'); }, 1400, rows[i]);
-                    break;
+                    row.classList.add('al-row-active');
+                    if (!firstMatch) firstMatch = row;
                 }
-            }
+            });
+            if (firstMatch) firstMatch.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }, 80);
     };
 
@@ -8949,6 +8960,31 @@
         // Restore scroll so price polls and async name updates don't snap to top.
         listEl.scrollTop = savedScrollTop;
         alStampBadges();
+
+        // Re-apply active ticker selection that was set via bell-click (survives re-renders)
+        if (_alActiveTicker) {
+            listEl.querySelectorAll('.al-row').forEach(function(r) {
+                var tEl = r.querySelector('.al-col-ticker');
+                if (tEl && tEl.textContent.trim() === _alActiveTicker) r.classList.add('al-row-active');
+            });
+        }
+
+        // Click a row to select it (clears previous selection)
+        listEl.onclick = function(e) {
+            var row = e.target.closest('.al-row');
+            if (!row) return;
+            // Don't steal clicks from edit/delete/ticker-link buttons
+            if (e.target.closest('.al-col-edit') || e.target.closest('.al-col-del') || e.target.closest('.al-col-ticker-link')) return;
+            var tEl = row.querySelector('.al-col-ticker');
+            var ticker = tEl ? tEl.textContent.trim() : null;
+            if (!ticker) return;
+            _alActiveTicker = ticker;
+            listEl.querySelectorAll('.al-row').forEach(function(r) { r.classList.remove('al-row-active'); });
+            listEl.querySelectorAll('.al-row').forEach(function(r) {
+                var t = r.querySelector('.al-col-ticker');
+                if (t && t.textContent.trim() === ticker) r.classList.add('al-row-active');
+            });
+        };
 
         // Right-click on any alert row → watchlist / add-alert picker
         listEl.oncontextmenu = function(e) {
