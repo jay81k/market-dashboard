@@ -2203,6 +2203,19 @@
             var _indWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
             if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
         }
+        // Save chart modal + SNP state when leaving scans so it can be restored on return
+        if (currentView === 'scans' && view !== 'scans') {
+            var _mOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+            var _sOpen = document.getElementById('scan-nav-panel').classList.contains('snp-open');
+            if (_mOpen || _sOpen) {
+                var _sym = _mOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
+                var _sec = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].sector   || '') : '';
+                var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
+                _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _sOpen };
+            } else {
+                _scanReturnState = null;
+            }
+        }
         currentView = view;
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
@@ -2275,6 +2288,14 @@
             document.getElementById('view-scans').style.display = 'flex';
             renderScans();
             scanStartPricePolling();
+            if (_scanReturnState) {
+                var _sr = _scanReturnState;
+                _scanReturnState = null;
+                setTimeout(function() {
+                    if (_sr.ticker) openChartModal(_sr.ticker, _sr.sector, _sr.industry);
+                    else if (_sr.snpOpen) snpBuild();
+                }, 80);
+            }
         } else if (view === 'sector') {
             document.getElementById('view-sector').style.display = 'flex';
         } else if (view === 'watchlists') {
@@ -8421,7 +8442,7 @@
     window.closeChartModal = function() {
         _origCloseChartModal();
         snpHide();
-        if (!_alGoToTickerClosing) { _alReturnState = null; }
+        if (!_alGoToTickerClosing) { _alReturnState = null; _scanReturnState = null; }
     };
 
     // Arrow key nav when modal is open — capture phase so it takes priority
@@ -8471,6 +8492,7 @@
     var _alertFiredSess  = {};   // prevents re-firing in same session
     var _alActiveTicker  = null; // ticker whose rows are currently selected in the alert list
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
+    var _scanReturnState = null;  // saved state to restore when returning to scans/stocks view
     var _alEditIdx       = null;  // index of alert being edited, null when adding new
 
     var LS_AL_KEY       = 'price_alerts_local';
