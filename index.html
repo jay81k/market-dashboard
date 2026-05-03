@@ -3802,7 +3802,8 @@
         { value: 'rvol',    label: 'Rel. Volume' },
         { value: 'udv',     label: 'U/D Vol' },
         { value: 'pattern', label: 'Pattern' },
-        { value: 'fund',    label: 'Fundamental' },
+        { value: 'fund',      label: 'Fundamental' },
+        { value: 'valuation', label: 'Valuation' },
         { value: 'gap',     label: 'Gap' },
         { value: 'range',   label: 'Range' },
         { value: 'sector',  label: 'Sector' },
@@ -3816,6 +3817,12 @@
         { value: 'eps_qoq_pct',       label: 'EPS Q/Q %' },
         { value: 'sales_qoq_pct',     label: 'Sales Q/Q %' },
         { value: 'profit_margin_pct', label: 'Profit Margin %' },
+    ];
+
+    var VAL_METRICS = [
+        { value: 'fwd_pe',    label: 'Forward P/E' },
+        { value: 'ps_ratio',  label: 'P/S' },
+        { value: 'peg_ratio', label: 'PEG' },
     ];
 
     function sfParseVol(str) {
@@ -3880,6 +3887,12 @@
             var mLabel = m ? m.label : (row.fundMetric || 'metric');
             var dirLabel2 = row.dir === 'gt' ? '>' : '<';
             return mLabel + ' ' + dirLabel2 + ' ' + (row.val !== '' && row.val != null ? row.val : '—') + '%';
+        }
+        if (row.type === 'valuation') {
+            var vm = VAL_METRICS.find(function(x){ return x.value === row.valMetric; });
+            var vmLabel = vm ? vm.label : (row.valMetric || 'metric');
+            var vDir = row.dir === 'gt' ? '>' : '<';
+            return vmLabel + ' ' + vDir + ' ' + (row.val !== '' && row.val != null ? row.val : '—');
         }
         if (row.type === 'gap') {
             var gapDir = row.dir === 'up' ? 'Up' : 'Down';
@@ -3977,6 +3990,7 @@
             pattern: 'Filter by candlestick or price pattern.',
             ma:      'Moving Average — filter by price position relative to a moving average.',
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
+            valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
             udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
             perf:    'Price performance over a selected timeframe.',
             gap:     'Filter stocks that gapped up or down at the open.',
@@ -4142,6 +4156,14 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" style="max-width:160px;" onchange="sfPopChange('+id+',\'fundMetric\',this.value)">'+metricOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts3+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+        } else if (row.type === 'valuation') {
+            var valMetricOpts = VAL_METRICS.map(function(m){
+                return '<option value="'+m.value+'"'+(row.valMetric===m.value?' selected':'')+'>'+m.label+'</option>';
+            }).join('');
+            var valDirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Above</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Below</option>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" style="max-width:160px;" onchange="sfPopChange('+id+',\'valMetric\',this.value)">'+valMetricOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+valDirOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:20)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
         } else if (row.type === 'gap') {
             var gapDirOpts = '<option value="up"'+(row.dir==='up'?' selected':'')+'>Gap Up</option><option value="down"'+(row.dir==='down'?' selected':'')+'>Gap Down</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+gapDirOpts+'</select></div>';
@@ -4319,7 +4341,7 @@
         var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
                        rvol: 'Relative Volume', udv: 'U/D Vol', pattern: 'Pattern', ma: 'Moving Average',
-                       fund: 'Fundamental', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry',
+                       fund: 'Fundamental', valuation: 'Valuation', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry',
                        indrank: 'Industry Rank' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
         var pop  = document.getElementById('sf-popover');
@@ -4576,7 +4598,8 @@
             { value: 'rvol',    label: 'Rel. Volume' },
             { value: 'udv',     label: 'U/D Vol' },
             { value: 'pattern', label: 'Pattern' },
-            { value: 'fund',    label: 'Fundamental' },
+            { value: 'fund',      label: 'Fundamental' },
+            { value: 'valuation', label: 'Valuation' },
             { value: 'gap',     label: 'Gap' },
             { value: 'range',   label: 'Range' },
             { value: 'sector',  label: 'Sector' },
@@ -4602,6 +4625,7 @@
             udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
             pattern: 'Filter by candlestick or price pattern.',
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
+            valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
             gap:     'Filter stocks that gapped up or down at the open.',
             range:   'Filter by where price sits within its 52-week or recent range.',
             sector:  'Filter by market sector or specific industry.',
@@ -4645,6 +4669,7 @@
             maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
             rangeCondition: type === 'range' ? 'relative' : null,
             fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
+            valMetric: type === 'valuation' ? 'fwd_pe' : null,
             rsMetric: 'Percentile',
             perfTf: '1d', perfDir: 'up', patternTf: 'd', crTf: 'd', udvPeriod: 50,
             sectors: type === 'sector' ? [] : undefined,
@@ -4656,7 +4681,7 @@
             indrankMode: type === 'indrank' ? 'top' : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
-                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : type === 'rsi' ? 50 : null };
+                 type === 'rvol' ? 1 : type === 'udv' ? 1.5 : type === 'pattern' ? 'inside_day' : type === 'gap' ? 1 : type === 'range' ? 50 : type === 'perf' ? 5 : type === 'sector' ? null : type === 'indrank' ? 15 : type === 'rsi' ? 50 : type === 'valuation' ? 20 : null };
         sfRows.push(defaults);
         sfRenderPills();
 
@@ -5253,6 +5278,15 @@
                     if (!isNaN(fthresh)) {
                         if (f.dir === 'gt' && fv <= fthresh) return false;
                         if (f.dir === 'lt' && fv >= fthresh) return false;
+                    }
+                } else if (f.type === 'valuation') {
+                    var valMetric = f.valMetric || 'fwd_pe';
+                    var vv = r[valMetric];
+                    if (vv == null || vv <= 0) return false;
+                    var vthresh = parseFloat(f.val);
+                    if (!isNaN(vthresh)) {
+                        if (f.dir === 'gt' && vv <= vthresh) return false;
+                        if (f.dir === 'lt' && vv >= vthresh) return false;
                     }
                 } else if (f.type === 'gap') {
                     var gv = r.gap_pct;
