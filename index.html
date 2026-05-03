@@ -2203,10 +2203,6 @@
             var _indWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
             if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
         }
-        // Discard saved bell-click return state if user navigates somewhere other than the saved view
-        if (_alReturnState && _alReturnState.view !== view && view !== 'alerts') {
-            _alReturnState = null;
-        }
         currentView = view;
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
@@ -8421,9 +8417,11 @@
 
     // Wrap closeChartModal to hide panel
     var _origCloseChartModal = window.closeChartModal;
+    var _alGoToTickerClosing = false;
     window.closeChartModal = function() {
         _origCloseChartModal();
         snpHide();
+        if (!_alGoToTickerClosing) { _alReturnState = null; }
     };
 
     // Arrow key nav when modal is open — capture phase so it takes priority
@@ -8597,7 +8595,7 @@
         if (_modalOpen || _snpOpen) {
             _alReturnState = { view: currentView, ticker: _openSym, sector: _openSec, industry: _openInd, snpOpen: _snpOpen };
         }
-        if (_modalOpen) { closeChartModal(); } // also calls snpHide() internally
+        if (_modalOpen) { _alGoToTickerClosing = true; closeChartModal(); _alGoToTickerClosing = false; }
         if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
         snpHide();
         showView('alerts');
