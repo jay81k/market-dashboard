@@ -314,6 +314,17 @@
         .stocks-table th:nth-child(23) { width: 60px; }   /* Sales Q/Q */
         .stocks-table th:nth-child(24) { width: 52px; }   /* Margin */
 
+        /* Industries drill-down: 3 valuation cols inserted after CR (col 18), EPS cols shift +3 */
+        #view-industry-stocks .stocks-table th:nth-child(19) { width: 46px; }   /* PE (Fwd P/E) */
+        #view-industry-stocks .stocks-table th:nth-child(20) { width: 42px; }   /* P/S */
+        #view-industry-stocks .stocks-table th:nth-child(21) { width: 42px; }   /* PEG */
+        #view-industry-stocks .stocks-table th:nth-child(22) { width: 52px; }   /* EPS TY */
+        #view-industry-stocks .stocks-table th:nth-child(23) { width: 52px; }   /* EPS NY */
+        #view-industry-stocks .stocks-table th:nth-child(24) { width: 48px; }   /* EPS 5Y */
+        #view-industry-stocks .stocks-table th:nth-child(25) { width: 54px; }   /* EPS Q/Q */
+        #view-industry-stocks .stocks-table th:nth-child(26) { width: 60px; }   /* Sales Q/Q */
+        #view-industry-stocks .stocks-table th:nth-child(27) { width: 52px; }   /* Margin */
+
         /* Scans tab: Ticker+btn|Industry|Price|RS|3MRS|Chg|Chg%|1W|1M|3M|1Y|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
         #scans-table th:nth-child(1)  { width: 90px; }   /* Ticker */
         #scans-table th:nth-child(2)  { width: 136px; }  /* Industry */
@@ -3029,6 +3040,9 @@
             { key:'cr',         label:'CR',        tip:'Closing range (100=high, 0=low)' },
         ];
         var fundCols = [
+            { key:'fwd_pe',            label:'PE',        tip:'Forward P/E ratio' },
+            { key:'ps_ratio',          label:'P/S',       tip:'Price / Sales ratio' },
+            { key:'peg_ratio',         label:'PEG',       tip:'Price / Earnings / Growth ratio' },
             { key:'eps_this_y_pct',    label:'EPS TY',    tip:'EPS Growth This Year %' },
             { key:'eps_next_y_pct',    label:'EPS NY',    tip:'EPS Growth Next Year %' },
             { key:'eps_next_5y_pct',   label:'EPS 5Y',    tip:'EPS Growth Next 5 Years %' },
@@ -3083,6 +3097,9 @@
                     ' data-avg_vol="' + (row.AvgVol50   != null ? row.AvgVol50   : '')  + '"' +
                     ' data-adr_pct="' + (row.adr_pct    != null ? row.adr_pct    : '')  + '"' +
                     ' data-cr="'      + (row.cr         != null ? row.cr         : '')  + '"' +
+                    ' data-fwd_pe="'        + (row.fwd_pe        != null ? row.fwd_pe        : '') + '"' +
+                    ' data-ps_ratio="'      + (row.ps_ratio      != null ? row.ps_ratio      : '') + '"' +
+                    ' data-peg_ratio="'     + (row.peg_ratio     != null ? row.peg_ratio     : '') + '"' +
                     ' data-eps_this_y_pct="'     + (row.eps_this_y_pct    != null ? row.eps_this_y_pct    : '') + '"' +
                     ' data-eps_next_y_pct="'    + (row.eps_next_y_pct    != null ? row.eps_next_y_pct    : '') + '"' +
                     ' data-eps_next_5y_pct="'   + (row.eps_next_5y_pct   != null ? row.eps_next_5y_pct   : '') + '"' +
@@ -3143,6 +3160,28 @@
                 else crColor = '#f85149';
             }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
+            // Valuation columns (lower = better — color logic inverted)
+            var fwdPeColor = '#484f58';
+            if (row.fwd_pe != null && row.fwd_pe > 0) {
+                if (row.fwd_pe < 15)       fwdPeColor = '#3fb950';
+                else if (row.fwd_pe <= 25) fwdPeColor = '#8b949e';
+                else                       fwdPeColor = '#f85149';
+            }
+            html += '<td><span style="color:' + fwdPeColor + ';font-weight:600;">' + (row.fwd_pe != null && row.fwd_pe > 0 ? row.fwd_pe.toFixed(1) : '—') + '</span></td>';
+            var psColor = '#484f58';
+            if (row.ps_ratio != null && row.ps_ratio >= 0) {
+                if (row.ps_ratio < 2)      psColor = '#3fb950';
+                else if (row.ps_ratio <= 5) psColor = '#8b949e';
+                else                        psColor = '#f85149';
+            }
+            html += '<td><span style="color:' + psColor + ';font-weight:600;">' + (row.ps_ratio != null ? row.ps_ratio.toFixed(1) : '—') + '</span></td>';
+            var pegColor = '#484f58';
+            if (row.peg_ratio != null && row.peg_ratio > 0) {
+                if (row.peg_ratio < 1)      pegColor = '#3fb950';
+                else if (row.peg_ratio <= 2) pegColor = '#8b949e';
+                else                         pegColor = '#f85149';
+            }
+            html += '<td><span style="color:' + pegColor + ';font-weight:600;">' + (row.peg_ratio != null && row.peg_ratio > 0 ? row.peg_ratio.toFixed(1) : '—') + '</span></td>';
             // Fundamental columns
             html += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
