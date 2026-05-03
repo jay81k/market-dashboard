@@ -2334,17 +2334,17 @@
     window.navTo = function(view) {
         var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
         var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
-        // Save scans state now, while modal is still open
-        if (currentView === 'scans' && view !== 'scans' && (_modalOpen || _snpOpen)) {
+        var _wasScans  = (currentView === 'scans');
+        if (_modalOpen) { closeChartModal(); }
+        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
+        // Set AFTER close calls so the closeChartModal wrapper doesn't wipe it
+        // _snpOpen captured before close; chart-modal-sym text persists in DOM after close
+        if (_wasScans && view !== 'scans' && (_modalOpen || _snpOpen)) {
             var _sym = _modalOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
             var _sec = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].sector   || '') : '';
             var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
             _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _snpOpen };
-        } else if (currentView !== 'scans') {
-            // Navigating between non-scans views — don't touch _scanReturnState
         }
-        if (_modalOpen) { closeChartModal(); }
-        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
         if (view === 'industries') { navToIndustries(); } else { showView(view); }
     };
 
