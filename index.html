@@ -4572,6 +4572,9 @@
                     row.val = value === 'flat' ? 0.5 : 1;
                 }
                 if (field === 'rangeCondition') { row.val = null; }
+                if (field === 'valMetric') {
+                    row.val = value === 'fwd_pe' ? 20 : value === 'ps_ratio' ? 5 : value === 'peg_ratio' ? 1.5 : 20;
+                }
                 var c2 = sfPopoverHtml(row, true);
                 document.getElementById('sf-popover-content').innerHTML = c2;
             }
@@ -5285,8 +5288,8 @@
                     if (vv == null || vv <= 0) return false;
                     var vthresh = parseFloat(f.val);
                     if (!isNaN(vthresh)) {
-                        if (f.dir === 'gt' && vv <= vthresh) return false;
-                        if (f.dir === 'lt' && vv >= vthresh) return false;
+                        if (f.dir === 'gt' && vv < vthresh) return false;
+                        if (f.dir === 'lt' && vv > vthresh) return false;
                     }
                 } else if (f.type === 'gap') {
                     var gv = r.gap_pct;
