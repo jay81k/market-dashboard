@@ -4573,7 +4573,7 @@
                 }
                 if (field === 'rangeCondition') { row.val = null; }
                 if (field === 'valMetric') {
-                    row.val = value === 'fwd_pe' ? 20 : value === 'ps_ratio' ? 5 : value === 'peg_ratio' ? 1.5 : 20;
+                    row.val = value === 'fwd_pe' ? 20 : value === 'ps_ratio' ? 4 : value === 'peg_ratio' ? 1 : 20;
                 }
                 var c2 = sfPopoverHtml(row, true);
                 document.getElementById('sf-popover-content').innerHTML = c2;
