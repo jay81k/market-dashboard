@@ -1506,23 +1506,23 @@
 <!-- Top nav -->
 <div class="topnav">
     <div class="nav-tabs">
-        <div class="nav-tab active" id="tab-market" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}if(document.getElementById('mc-fullscreen-overlay').classList.contains('open')){closeMcFullscreen();}showView('market')">
+        <div class="nav-tab active" id="tab-market" onclick="navTo('market')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="7" width="3" height="6" rx="1" fill="currentColor"/><rect x="5.5" y="4" width="3" height="6" rx="1" fill="currentColor"/><rect x="10" y="1" width="3" height="12" rx="1" fill="currentColor"/></svg>
             Market
         </div>
-        <div class="nav-tab" id="tab-industries" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}if(document.getElementById('mc-fullscreen-overlay').classList.contains('open')){closeMcFullscreen();}navToIndustries()">
+        <div class="nav-tab" id="tab-industries" onclick="navTo('industries')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor"/></svg>
             Industries
         </div>
-        <div class="nav-tab" id="tab-scans" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}if(document.getElementById('mc-fullscreen-overlay').classList.contains('open')){closeMcFullscreen();}showView('scans')">
+        <div class="nav-tab" id="tab-scans" onclick="navTo('scans')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 11 L4 7 L7 9 L10 4 L13 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Stocks
         </div>
-        <div class="nav-tab" id="tab-watchlists" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}if(document.getElementById('mc-fullscreen-overlay').classList.contains('open')){closeMcFullscreen();}showView('watchlists')">
+        <div class="nav-tab" id="tab-watchlists" onclick="navTo('watchlists')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
             Watchlists
         </div>
-        <div class="nav-tab" id="tab-alerts" onclick="if(document.getElementById('chart-modal-overlay').classList.contains('open')){closeChartModal();}if(document.getElementById('mc-fullscreen-overlay').classList.contains('open')){closeMcFullscreen();}showView('alerts')">
+        <div class="nav-tab" id="tab-alerts" onclick="navTo('alerts')">
             <svg class="nav-tab-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5a4 4 0 0 1 4 4v2.5l1 2H2L3 8V5.5a4 4 0 0 1 4-4zm-1 10a1 1 0 0 0 2 0" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
             Alerts<span class="al-nav-badge" id="al-nav-badge"></span>
         </div>
@@ -2203,19 +2203,6 @@
             var _indWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
             if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
         }
-        // Save chart modal + SNP state when leaving scans so it can be restored on return
-        if (currentView === 'scans' && view !== 'scans') {
-            var _mOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
-            var _sOpen = document.getElementById('scan-nav-panel').classList.contains('snp-open');
-            if (_mOpen || _sOpen) {
-                var _sym = _mOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
-                var _sec = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].sector   || '') : '';
-                var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
-                _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _sOpen };
-            } else {
-                _scanReturnState = null;
-            }
-        }
         currentView = view;
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
@@ -2341,6 +2328,24 @@
                 if (_rs.snpOpen) snpBuild();
             }, 50);
         }
+    };
+
+    // ── Nav tab routing — captures scans state BEFORE modal closes ────────
+    window.navTo = function(view) {
+        var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
+        // Save scans state now, while modal is still open
+        if (currentView === 'scans' && view !== 'scans' && (_modalOpen || _snpOpen)) {
+            var _sym = _modalOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
+            var _sec = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].sector   || '') : '';
+            var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
+            _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _snpOpen };
+        } else if (currentView !== 'scans') {
+            // Navigating between non-scans views — don't touch _scanReturnState
+        }
+        if (_modalOpen) { closeChartModal(); }
+        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
+        if (view === 'industries') { navToIndustries(); } else { showView(view); }
     };
 
     // ── Industry list click delegation ──────────────────────────────────
