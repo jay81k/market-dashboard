@@ -2221,7 +2221,6 @@
         }
         if (view !== 'scans')           scanStopPricePolling();
         if (view !== 'industry-stocks') indStopPricePolling();
-        if (view !== 'scans' && view !== 'industry-stocks') snpHide();
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
@@ -8329,6 +8328,7 @@
             listEl.innerHTML = html;
             if (typeof alStampBadges === 'function') alStampBadges();
             listEl.onclick = function(e) {
+                if (e.target.closest('.al-ticker-pill')) return;
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
                 snpNavigateTo(parseInt(row.getAttribute('data-snp-idx'), 10));
