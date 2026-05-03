@@ -40,6 +40,9 @@ FIELD_MAP = {
     "eps_qoq_pct":       "EPS Q/Q",
     "sales_qoq_pct":     "Sales Q/Q",
     "profit_margin_pct": "Profit Margin",
+    "fwd_pe":            "Forward P/E",
+    "ps_ratio":          "P/S",
+    "peg_ratio":         "PEG",
 }
 
 # ---------------------------------------------------------------------------
@@ -59,6 +62,19 @@ def parse_pct(val) -> float | None:
         return None
 
 
+def parse_float(val) -> float | None:
+    """Parse a plain Finviz float string like '24.5' or '1.8' into a float."""
+    if val is None:
+        return None
+    try:
+        s = str(val).strip().replace(",", "")
+        if s in ("-", "", "N/A"):
+            return None
+        return round(float(s), 2)
+    except (ValueError, TypeError):
+        return None
+
+
 def fetch_fundamentals(ticker: str) -> dict | None:
     """Fetch and parse fundamental fields for a single ticker."""
     try:
@@ -71,6 +87,9 @@ def fetch_fundamentals(ticker: str) -> dict | None:
             "eps_qoq_pct":       parse_pct(fundament.get("EPS Q/Q")),
             "sales_qoq_pct":     parse_pct(fundament.get("Sales Q/Q")),
             "profit_margin_pct": parse_pct(fundament.get("Profit Margin")),
+            "fwd_pe":            parse_float(fundament.get("Forward P/E")),
+            "ps_ratio":          parse_float(fundament.get("P/S")),
+            "peg_ratio":         parse_float(fundament.get("PEG")),
         }
     except Exception as e:
         print(f"  ERROR [{ticker}]: {e}")
@@ -118,7 +137,10 @@ def main():
                   f"EPS_5Y={str(data['eps_next_5y_pct']):<8} "
                   f"EPS_QQ={str(data['eps_qoq_pct']):<8} "
                   f"SLS_QQ={str(data['sales_qoq_pct']):<8} "
-                  f"PM={str(data['profit_margin_pct'])}")
+                  f"PM={str(data['profit_margin_pct']):<8} "
+                  f"FWD_PE={str(data['fwd_pe']):<8} "
+                  f"PS={str(data['ps_ratio']):<8} "
+                  f"PEG={str(data['peg_ratio'])}")
         else:
             failed.append(ticker)
             print(f"  [{i:04d}/{total}] {ticker:<8} FAILED")
