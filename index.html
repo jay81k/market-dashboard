@@ -8584,6 +8584,9 @@
     };
     window.alGoToTicker = function(ticker) {
         _alActiveTicker = ticker;
+        if (document.getElementById('chart-modal-overlay').classList.contains('open')) { closeChartModal(); }
+        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
+        snpHide();
         showView('alerts');
         setTimeout(function() {
             var listEl = document.getElementById('al-list');
