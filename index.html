@@ -8328,10 +8328,15 @@
             listEl.innerHTML = html;
             if (typeof alStampBadges === 'function') alStampBadges();
             listEl.onclick = function(e) {
-                if (e.target.closest('.al-ticker-pill')) return;
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
-                snpNavigateTo(parseInt(row.getAttribute('data-snp-idx'), 10));
+                var idx = parseInt(row.getAttribute('data-snp-idx'), 10);
+                if (e.target.closest('.al-ticker-pill')) {
+                    var d = _snpData[idx];
+                    if (d && typeof alGoToTicker === 'function') alGoToTicker(d.ticker);
+                    return;
+                }
+                snpNavigateTo(idx);
             };
             listEl.oncontextmenu = function(e) {
                 var row = e.target.closest('.snp-row');
