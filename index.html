@@ -2221,6 +2221,7 @@
         }
         if (view !== 'scans')           scanStopPricePolling();
         if (view !== 'industry-stocks') indStopPricePolling();
+        if (view !== 'scans' && view !== 'industry-stocks') snpHide();
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
