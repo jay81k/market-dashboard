@@ -2203,6 +2203,10 @@
             var _indWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
             if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
         }
+        // Discard saved bell-click return state if user navigates somewhere other than the saved view
+        if (_alReturnState && _alReturnState.view !== view && view !== 'alerts') {
+            _alReturnState = null;
+        }
         currentView = view;
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
@@ -8584,7 +8588,16 @@
     };
     window.alGoToTicker = function(ticker) {
         _alActiveTicker = ticker;
-        if (document.getElementById('chart-modal-overlay').classList.contains('open')) { closeChartModal(); }
+        // Capture state BEFORE closing anything so it can be restored when returning
+        var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
+        var _openSym   = _modalOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
+        var _openSec   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].sector   || '') : '';
+        var _openInd   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].industry || '') : '';
+        if (_modalOpen || _snpOpen) {
+            _alReturnState = { view: currentView, ticker: _openSym, sector: _openSec, industry: _openInd, snpOpen: _snpOpen };
+        }
+        if (_modalOpen) { closeChartModal(); } // also calls snpHide() internally
         if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
         snpHide();
         showView('alerts');
