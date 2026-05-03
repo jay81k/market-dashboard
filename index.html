@@ -2273,16 +2273,14 @@
             document.getElementById('view-industry-stocks').classList.add('active');
         } else if (view === 'scans') {
             document.getElementById('view-scans').style.display = 'flex';
-            renderScans();
-            scanStartPricePolling();
             if (_scanReturnState) {
                 var _sr = _scanReturnState;
                 _scanReturnState = null;
-                setTimeout(function() {
-                    if (_sr.ticker) openChartModal(_sr.ticker, _sr.sector, _sr.industry);
-                    else if (_sr.snpOpen) snpBuild();
-                }, 80);
+                if (_sr.ticker) openChartModal(_sr.ticker, _sr.sector, _sr.industry);
+                else if (_sr.snpOpen) snpBuild();
             }
+            renderScans();
+            scanStartPricePolling();
         } else if (view === 'sector') {
             document.getElementById('view-sector').style.display = 'flex';
         } else if (view === 'watchlists') {
