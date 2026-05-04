@@ -8618,6 +8618,7 @@
         var _openSec   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].sector   || '') : '';
         var _openInd   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].industry || '') : '';
         if (_modalOpen || _snpOpen) {
+            _scanReturnState = null;  // prevent stale _scanReturnState from colliding with _alReturnState on return
             _alReturnState = { view: currentView, ticker: _openSym, sector: _openSec, industry: _openInd, snpOpen: _snpOpen };
         }
         if (_modalOpen) { _alGoToTickerClosing = true; closeChartModal(); _alGoToTickerClosing = false; }
