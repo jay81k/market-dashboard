@@ -921,6 +921,9 @@ def main():
             row["eps_qoq_pct"]       = fund.get("eps_qoq_pct")
             row["sales_qoq_pct"]     = fund.get("sales_qoq_pct")
             row["profit_margin_pct"] = fund.get("profit_margin_pct")
+            row["fwd_pe"]            = fund.get("fwd_pe")
+            row["ps_ratio"]          = fund.get("ps_ratio")
+            row["peg_ratio"]         = fund.get("peg_ratio")
         else:
             row["eps_this_y_pct"]    = None
             row["eps_next_y_pct"]    = None
@@ -928,6 +931,9 @@ def main():
             row["eps_qoq_pct"]       = None
             row["sales_qoq_pct"]     = None
             row["profit_margin_pct"] = None
+            row["fwd_pe"]            = None
+            row["ps_ratio"]          = None
+            row["peg_ratio"]         = None
 
         # For supplemental tickers, compute CSV passthrough fields from price history
         if ticker in supplemental_set and ticker in histories:
