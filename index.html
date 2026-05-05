@@ -3191,21 +3191,21 @@
                 else if (row.fwd_pe <= 25) fwdPeColor = '#8b949e';
                 else                       fwdPeColor = '#f85149';
             }
-            html += '<td><span style="color:' + fwdPeColor + ';font-weight:600;">' + (row.fwd_pe != null && row.fwd_pe > 0 ? row.fwd_pe.toFixed(1) : '—') + '</span></td>';
+            html += '<td><span style="color:' + fwdPeColor + ';font-weight:600;">' + (row.fwd_pe != null && row.fwd_pe > 0 ? row.fwd_pe.toFixed(2) : '—') + '</span></td>';
             var psColor = '#484f58';
             if (row.ps_ratio != null && row.ps_ratio >= 0) {
                 if (row.ps_ratio < 2)      psColor = '#3fb950';
                 else if (row.ps_ratio <= 5) psColor = '#8b949e';
                 else                        psColor = '#f85149';
             }
-            html += '<td><span style="color:' + psColor + ';font-weight:600;">' + (row.ps_ratio != null ? row.ps_ratio.toFixed(1) : '—') + '</span></td>';
+            html += '<td><span style="color:' + psColor + ';font-weight:600;">' + (row.ps_ratio != null ? row.ps_ratio.toFixed(2) : '—') + '</span></td>';
             var pegColor = '#484f58';
             if (row.peg_ratio != null && row.peg_ratio > 0) {
                 if (row.peg_ratio < 1)      pegColor = '#3fb950';
                 else if (row.peg_ratio <= 2) pegColor = '#8b949e';
                 else                         pegColor = '#f85149';
             }
-            html += '<td><span style="color:' + pegColor + ';font-weight:600;">' + (row.peg_ratio != null && row.peg_ratio > 0 ? row.peg_ratio.toFixed(1) : '—') + '</span></td>';
+            html += '<td><span style="color:' + pegColor + ';font-weight:600;">' + (row.peg_ratio != null && row.peg_ratio > 0 ? row.peg_ratio.toFixed(2) : '—') + '</span></td>';
             // Fundamental columns
             html += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '—') + '</td>';
             html += '<td class="' + cc(row.eps_next_y_pct)    + '">' + (row.eps_next_y_pct    != null ? fmt(row.eps_next_y_pct,2,'%')    : '—') + '</td>';
