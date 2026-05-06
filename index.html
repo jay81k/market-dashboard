@@ -3275,7 +3275,10 @@
                 tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
                 applyDistMA(tbody);
                 thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
-                allStockRows = rows; return;
+                allStockRows = rows;
+                mcTickers = rows.map(function(r){ return r.getAttribute('data-symbol'); });
+                if (multichartActive) renderMulticharts();
+                return;
             }
         } else { currentStockSort.count = 1; }
         currentStockSort.by = sortBy;
@@ -3292,6 +3295,8 @@
         tbody.innerHTML = ''; rows.forEach(function(r){ tbody.appendChild(r); });
         applyDistMA(tbody);
         allStockRows = rows;
+        mcTickers = rows.map(function(r){ return r.getAttribute('data-symbol'); });
+        if (multichartActive) renderMulticharts();
     });
 
         // ── Dist/MA ───────────────────────────────────────────────────────────
