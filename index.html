@@ -3022,6 +3022,9 @@
             if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
             if (tds[5]) { tds[5].textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014'; tds[5].className = cl; }
             if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
+            tr.setAttribute('data-price', price);
+            if (chgAbs != null) tr.setAttribute('data-chg', chgAbs.toFixed(4));
+            if (chgPct != null) tr.setAttribute('data-daily', chgPct);
         });
     }
 
@@ -5620,9 +5623,9 @@
             if (key === 'industry') { av = _indRankMap[a.industry] || 9999; bv = _indRankMap[b.industry] || 9999; return (av - bv) * scansSortState.dir; }
             if (key === 'rs')                   { av = a.Percentile;          bv = b.Percentile; }
             else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct;     bv = b.weighted_rs_pct; }
-            else if (key === 'chg')      { av = a.price != null && a.daily != null ? (a.price/(1+a.daily/100))*(a.daily/100) : null; bv = b.price != null && b.daily != null ? (b.price/(1+b.daily/100))*(b.daily/100) : null; }
-            else if (key === 'price')    { av = a.price;     bv = b.price; }
-            else if (key === 'daily')    { av = a.daily;     bv = b.daily; }
+            else if (key === 'chg')      { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price&&la.prevClose)?la.price-la.prevClose:(a.price!=null&&a.daily!=null?(a.price/(1+a.daily/100))*(a.daily/100):null); bv=(lb&&lb.price&&lb.prevClose)?lb.price-lb.prevClose:(b.price!=null&&b.daily!=null?(b.price/(1+b.daily/100))*(b.daily/100):null); }
+            else if (key === 'price')    { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price)?la.price:a.price; bv=(lb&&lb.price)?lb.price:b.price; }
+            else if (key === 'daily')    { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price&&la.prevClose)?((la.price-la.prevClose)/la.prevClose)*100:a.daily; bv=(lb&&lb.price&&lb.prevClose)?((lb.price-lb.prevClose)/lb.prevClose)*100:b.daily; }
             else if (key === '1w')       { av = a['1w'];     bv = b['1w']; }
             else if (key === '1m')       { av = a['1m'];     bv = b['1m']; }
             else if (key === '3m')       { av = a['3m'];     bv = b['3m']; }
