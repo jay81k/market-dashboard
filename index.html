@@ -6,8 +6,9 @@
     <title>Stock Dashboard</title>
     <link rel="icon" href="data:,">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c8d0dc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c8d0dc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
         /* ── Top nav ── */
         .topnav {
@@ -98,11 +99,12 @@
             display: flex; align-items: center; gap: 0;
             padding: 10px 16px; border-bottom: 1px solid #161b22;
             cursor: pointer; transition: background 0.1s;
+            border-left: 2px solid transparent;
         }
-        .industry-row:hover { background: #161b22; }
+        .industry-row:hover { background: #161b22; border-left-color: #388bfd; }
 
         /* Fixed column widths — must match .ind-hdr-* exactly */
-        .industry-rank   { font-size: 0.88em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
+        .industry-rank   { font-size: 0.88em; color: #4d5562; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
         .industry-name   { font-size: 1.045em; font-weight: 500; color: #c8d0dc; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding-right: 16px; overflow: hidden; }
         .industry-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
         .ind-rank-delta { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
@@ -134,8 +136,8 @@
         .ind-hdr-count  { width: 36px; flex-shrink: 0; padding-right: 16px; }
         .ind-col-hdr {
             width: 76px; flex-shrink: 0; text-align: right;
-            font-size: 0.825em; font-weight: 600; color: #6e7681;
-            text-transform: uppercase; letter-spacing: 0.05em;
+            font-size: 0.77em; font-weight: 600; color: #4d5562;
+            text-transform: uppercase; letter-spacing: 0.07em;
             cursor: pointer; user-select: none; transition: color 0.1s;
         }
         .ind-col-hdr:hover { color: #c8d0dc; }
