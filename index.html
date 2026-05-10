@@ -3703,6 +3703,11 @@
         if (currentView === 'watchlists') {
             var wlRows = Array.from(document.querySelectorAll('.wl-ticker-row'));
             if (!wlRows.length) return;
+            // Sync index with visually active row in case it drifted (e.g. after view switch)
+            if (currentWlIndex < 0) {
+                var _wlActiveIdx = wlRows.findIndex(function(r) { return r.classList.contains('active'); });
+                if (_wlActiveIdx >= 0) currentWlIndex = _wlActiveIdx;
+            }
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 currentWlIndex = Math.min(currentWlIndex + 1, wlRows.length - 1);
@@ -10121,8 +10126,11 @@
         } else {
             var rows = alKbGetAlertRows();
             if (!rows.length) return;
-            if (_alKbIdx < 0) _alKbIdx = dir === 1 ? 0 : rows.length - 1;
-            else _alKbIdx = Math.max(0, Math.min(rows.length - 1, _alKbIdx + dir));
+            if (_alKbIdx < 0) {
+                // Sync from visually active row before snapping to first/last
+                var _alActiveIdx = rows.findIndex(function(r) { return r.classList.contains('al-row-active'); });
+                _alKbIdx = _alActiveIdx >= 0 ? _alActiveIdx : (dir === 1 ? 0 : rows.length - 1);
+            } else _alKbIdx = Math.max(0, Math.min(rows.length - 1, _alKbIdx + dir));
             alKbSetAlertActive(rows, _alKbIdx);
             var aticker = alKbTickerFromAlertRow(rows[_alKbIdx]);
             if (aticker) alSelectChart(aticker);
