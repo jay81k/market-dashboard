@@ -8492,8 +8492,8 @@
     })();
     // ── PRICE ALERTS ─────────────────────────────────────────────────────────
     var alertsList       = [];   // [{ticker, condition:'above'|'below', price, addedAt}]
-    var alSortKey = null;   // 'away' | 'added' | null
-    var alSortDir = 'asc';  // 'asc' | 'desc'
+    var alSortKey = 'away';  // 'away' | 'added' | 'chgpct' | null
+    var alSortDir = 'asc';   // 'asc' | 'desc'
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
     var alertPrevClose   = {};   // {ticker: prevClosePrice}
@@ -8945,6 +8945,15 @@
 
         hdrRow.style.display = 'flex';
 
+        // Sync sort header indicators
+        ['away','added','chgpct'].forEach(function(k) {
+            var el = document.getElementById('al-hdr-' + k);
+            if (!el) return;
+            el.classList.toggle('sorted', k === alSortKey);
+            el.textContent = k === 'away' ? 'Away' : k === 'added' ? 'Added' : 'Chg%';
+            if (k === alSortKey) el.textContent += alSortDir === 'asc' ? ' ↑' : ' ↓';
+        });
+
         // Build indexed copy for display, then sort if needed
         var displayList = alertsList.map(function(a, idx) { return { a: a, idx: idx }; });
         if (alSortKey === 'added') {
@@ -8958,9 +8967,38 @@
             });
         } else if (alSortKey === 'away') {
             displayList.sort(function(x, y) {
-                var ca = alertPrices[x.a.ticker], cb = alertPrices[y.a.ticker];
-                var pa = (ca != null) ? Math.abs((ca - x.a.price) / x.a.price * 100) : Infinity;
-                var pb = (cb != null) ? Math.abs((cb - y.a.price) / y.a.price * 100) : Infinity;
+                function awayVal(a) {
+                    if (a.alertType === 'rsi14' || a.alertType === 'pattern') return Infinity;
+                    if (a.alertType === 'macross') {
+                        var sd = null;
+                        if (snapshot && snapshot.by_industry) {
+                            outerS: for (var ind in snapshot.by_industry) {
+                                var st = snapshot.by_industry[ind];
+                                for (var si = 0; si < st.length; si++) {
+                                    if (st[si].ticker === a.ticker) { sd = st[si]; break outerS; }
+                                }
+                            }
+                        }
+                        if (!sd || !sd.ma_val) return Infinity;
+                        var v1 = sd.ma_val[a.ma1Key], v2 = sd.ma_val[a.ma2Key];
+                        return (v1 != null && v2 != null) ? Math.abs((v1 - v2) / v2 * 100) : Infinity;
+                    }
+                    if (a.alertType === 'ma') {
+                        var dist = null;
+                        if (snapshot && snapshot.by_industry) {
+                            outerM: for (var indM in snapshot.by_industry) {
+                                var stM = snapshot.by_industry[indM];
+                                for (var siM = 0; siM < stM.length; siM++) {
+                                    if (stM[siM].ticker === a.ticker) { dist = stM[siM].dist_ma ? stM[siM].dist_ma[a.maKey] : null; break outerM; }
+                                }
+                            }
+                        }
+                        return dist != null ? Math.abs(dist) : Infinity;
+                    }
+                    var curr = alertPrices[a.ticker];
+                    return (curr != null && a.price > 0) ? Math.abs((curr - a.price) / a.price * 100) : Infinity;
+                }
+                var pa = awayVal(x.a), pb = awayVal(y.a);
                 if (pa === Infinity && pb === Infinity) return 0;
                 if (pa === Infinity) return 1;
                 if (pb === Infinity) return -1;
