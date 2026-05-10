@@ -9553,7 +9553,8 @@
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
-                        var pdPrice = quote && (isPrevDayHighE ? quote.high[0] : quote.low[0]);
+                        var len = quote && quote.high && quote.high.length;
+                        var pdPrice = len && (isPrevDayHighE ? quote.high[len - 1] : quote.low[len - 1]);
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtnE.textContent = 'Update';
                             confirmBtnE.disabled = false;
@@ -9608,7 +9609,8 @@
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
-                        var pdPrice = quote && (isPrevDayHigh ? quote.high[0] : quote.low[0]);
+                        var len = quote && quote.high && quote.high.length;
+                        var pdPrice = len && (isPrevDayHigh ? quote.high[len - 1] : quote.low[len - 1]);
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtn.textContent = 'Set alert';
                             confirmBtn.disabled = false;
