@@ -9039,7 +9039,11 @@
                         ? '<span style="color:#3fb950;">▲ PDH</span>'
                         : a.isPrevDay === 'low'
                             ? '<span style="color:#f85149;">▼ PDL</span>'
-                            : a.condition === 'above'
+                            : a.isPrevDay === '52wk-high'
+                                ? '<span style="color:#3fb950;">▲ 52WH</span>'
+                                : a.isPrevDay === '52wk-low'
+                                    ? '<span style="color:#f85149;">▼ 52WL</span>'
+                                    : a.condition === 'above'
                                 ? '<span style="color:#3fb950;">▲ above</span>'
                                 : '<span style="color:#f85149;">▼ below</span>';
             var awayHtml;
@@ -9397,6 +9401,8 @@
             if (rowValue)  rowValue.style.display  = isPrevDay ? 'none' : '';
             if (rowCandle) rowCandle.style.display = isPrevDay ? '' : 'none';
             if (!isPrevDay) alCandleSelect(1);
+            var btn52 = document.getElementById('al-candle-52wk');
+            if (btn52) btn52.textContent = condVal === 'prevdaylow' ? '52W L' : '52W H';
         }
     };
 
@@ -9407,6 +9413,8 @@
             var btn = document.getElementById('al-candle-' + i);
             if (btn) btn.classList.toggle('active', i === n);
         });
+        var btn52 = document.getElementById('al-candle-52wk');
+        if (btn52) btn52.classList.toggle('active', n === '52wk');
     };
 
     window._alPatternTf = 'd';
@@ -9506,9 +9514,9 @@
             alPatternTfSelect(a.patternTf || 'd');
         } else {
             if (a.isPrevDay) {
-                document.getElementById('al-input-cond').value = a.isPrevDay === 'high' ? 'prevdayhigh' : 'prevdaylow';
+                document.getElementById('al-input-cond').value = (a.isPrevDay === 'high' || a.isPrevDay === '52wk-high') ? 'prevdayhigh' : 'prevdaylow';
                 alCondChange();
-                alCandleSelect(a.prevDayCandle || 1);
+                alCandleSelect(a.isPrevDay === '52wk-high' || a.isPrevDay === '52wk-low' ? '52wk' : (a.prevDayCandle || 1));
             } else {
                 document.getElementById('al-input-cond').value = a.condition;
                 document.getElementById('al-input-price').value = a.price;
@@ -9598,6 +9606,7 @@
             if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
                 var isPrevDayHighE = uiCond === 'prevdayhigh';
                 var candleOffsetE  = window._alCandleOffset || 1;
+                var is52wkE        = candleOffsetE === '52wk';
                 var confirmBtnE = document.getElementById('al-modal-confirm-btn');
                 confirmBtnE.textContent = 'Fetching…';
                 confirmBtnE.disabled = true;
@@ -9607,8 +9616,14 @@
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
-                        var len = quote && quote.high && quote.high.length;
-                        var pdPrice = len && (isPrevDayHighE ? quote.high[len - candleOffsetE] : quote.low[len - candleOffsetE]);
+                        var pdPrice;
+                        if (is52wkE) {
+                            var meta52E = result && result.meta;
+                            pdPrice = meta52E && (isPrevDayHighE ? meta52E.fiftyTwoWeekHigh : meta52E.fiftyTwoWeekLow);
+                        } else {
+                            var len = quote && quote.high && quote.high.length;
+                            pdPrice = len && (isPrevDayHighE ? quote.high[len - candleOffsetE] : quote.low[len - candleOffsetE]);
+                        }
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtnE.textContent = 'Update';
                             confirmBtnE.disabled = false;
@@ -9621,8 +9636,8 @@
                             ae.condition     = isPrevDayHighE ? 'above' : 'below';
                             ae.alertType     = 'price';
                             ae.price         = pdPrice;
-                            ae.isPrevDay     = isPrevDayHighE ? 'high' : 'low';
-                            ae.prevDayCandle = candleOffsetE;
+                            ae.isPrevDay     = is52wkE ? (isPrevDayHighE ? '52wk-high' : '52wk-low') : (isPrevDayHighE ? 'high' : 'low');
+                            ae.prevDayCandle = is52wkE ? null : candleOffsetE;
                             delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key;
                             delete ae.patternKey; delete ae.patternKeys; delete ae.patternTf;
                         }
@@ -9657,6 +9672,7 @@
             if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
                 var isPrevDayHigh = uiCond === 'prevdayhigh';
                 var candleOffset  = window._alCandleOffset || 1;
+                var is52wk        = candleOffset === '52wk';
                 var confirmBtn = document.getElementById('al-modal-confirm-btn');
                 confirmBtn.textContent = 'Fetching…';
                 confirmBtn.disabled = true;
@@ -9665,8 +9681,14 @@
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
-                        var len = quote && quote.high && quote.high.length;
-                        var pdPrice = len && (isPrevDayHigh ? quote.high[len - candleOffset] : quote.low[len - candleOffset]);
+                        var pdPrice;
+                        if (is52wk) {
+                            var meta52 = result && result.meta;
+                            pdPrice = meta52 && (isPrevDayHigh ? meta52.fiftyTwoWeekHigh : meta52.fiftyTwoWeekLow);
+                        } else {
+                            var len = quote && quote.high && quote.high.length;
+                            pdPrice = len && (isPrevDayHigh ? quote.high[len - candleOffset] : quote.low[len - candleOffset]);
+                        }
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtn.textContent = 'Set alert';
                             confirmBtn.disabled = false;
@@ -9680,8 +9702,8 @@
                             condition: isPrevDayHigh ? 'above' : 'below',
                             price: pdPrice,
                             alertType: 'price',
-                            isPrevDay: isPrevDayHigh ? 'high' : 'low',
-                            prevDayCandle: candleOffset,
+                            isPrevDay: is52wk ? (isPrevDayHigh ? '52wk-high' : '52wk-low') : (isPrevDayHigh ? 'high' : 'low'),
+                            prevDayCandle: is52wk ? null : candleOffset,
                             name: resolvedName,
                             addedAt: new Date().toISOString()
                         };
@@ -10285,6 +10307,7 @@
                     <button type="button" id="al-candle-1" class="sf-seg-btn active" onclick="alCandleSelect(1)">-1</button>
                     <button type="button" id="al-candle-2" class="sf-seg-btn" onclick="alCandleSelect(2)">-2</button>
                     <button type="button" id="al-candle-3" class="sf-seg-btn" onclick="alCandleSelect(3)">-3</button>
+                    <button type="button" id="al-candle-52wk" class="sf-seg-btn" onclick="alCandleSelect('52wk')">52W H</button>
                 </div>
             </div>
             <div class="al-modal-row" id="al-row-ma" style="display:none;">
