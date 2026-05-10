@@ -2297,7 +2297,12 @@
                         autoTicker = autoAll[autoList][0];
                     }
                 }
-                if (autoTicker) wlSelectTicker(autoTicker);
+                if (autoTicker) {
+                    wlSelectTicker(autoTicker);
+                    var _wlRestoreRows = Array.from(document.querySelectorAll('.wl-ticker-row'));
+                    var _wlRestoreIdx  = _wlRestoreRows.findIndex(function(r) { return r.getAttribute('data-wl-ticker') === autoTicker; });
+                    if (_wlRestoreIdx >= 0) currentWlIndex = _wlRestoreIdx;
+                }
             }
         } else if (view === 'market') {
             document.getElementById('view-market').style.display = 'flex';
