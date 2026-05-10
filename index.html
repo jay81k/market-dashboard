@@ -9388,13 +9388,25 @@
     window.alCondChange = function() {
         var type    = document.getElementById('al-input-type').value;
         var condVal = document.getElementById('al-input-cond').value;
-        var rowValue = document.getElementById('al-row-value');
+        var rowValue  = document.getElementById('al-row-value');
+        var rowCandle = document.getElementById('al-row-candle');
         if (type === 'ma') {
             alMACondChange();
         } else if (type === 'price') {
             var isPrevDay = condVal === 'prevdayhigh' || condVal === 'prevdaylow';
-            if (rowValue) rowValue.style.display = isPrevDay ? 'none' : '';
+            if (rowValue)  rowValue.style.display  = isPrevDay ? 'none' : '';
+            if (rowCandle) rowCandle.style.display = isPrevDay ? '' : 'none';
+            if (!isPrevDay) alCandleSelect(1);
         }
+    };
+
+    window._alCandleOffset = 1;
+    window.alCandleSelect = function(n) {
+        window._alCandleOffset = n;
+        [1, 2, 3].forEach(function(i) {
+            var btn = document.getElementById('al-candle-' + i);
+            if (btn) btn.classList.toggle('active', i === n);
+        });
     };
 
     window._alPatternTf = 'd';
@@ -9496,6 +9508,7 @@
             if (a.isPrevDay) {
                 document.getElementById('al-input-cond').value = a.isPrevDay === 'high' ? 'prevdayhigh' : 'prevdaylow';
                 alCondChange();
+                alCandleSelect(a.prevDayCandle || 1);
             } else {
                 document.getElementById('al-input-cond').value = a.condition;
                 document.getElementById('al-input-price').value = a.price;
@@ -9523,6 +9536,7 @@
         document.getElementById('al-input-ma2').value = 'SMA50';
         alSetSelectedPatterns([]);
         alPatternTfSelect('d');
+        alCandleSelect(1);
         alFormTypeChange();
         document.getElementById('al-modal-confirm-btn').textContent = 'Set alert';
         document.getElementById('al-modal-confirm-btn').disabled = false;
@@ -9583,17 +9597,18 @@
             // ── Prev Day High / Low edit: re-fetch ──
             if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
                 var isPrevDayHighE = uiCond === 'prevdayhigh';
+                var candleOffsetE  = window._alCandleOffset || 1;
                 var confirmBtnE = document.getElementById('al-modal-confirm-btn');
                 confirmBtnE.textContent = 'Fetching…';
                 confirmBtnE.disabled = true;
                 var editIdxCapture = _alEditIdx;
-                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=5d')
                     .then(function(r) { return r.ok ? r.json() : null; })
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
                         var len = quote && quote.high && quote.high.length;
-                        var pdPrice = len && (isPrevDayHighE ? quote.high[len - 1] : quote.low[len - 1]);
+                        var pdPrice = len && (isPrevDayHighE ? quote.high[len - candleOffsetE] : quote.low[len - candleOffsetE]);
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtnE.textContent = 'Update';
                             confirmBtnE.disabled = false;
@@ -9603,10 +9618,11 @@
                         var ae = alertsList[editIdxCapture];
                         if (ae) {
                             delete _alertFiredSess[alKey(ae)];
-                            ae.condition   = isPrevDayHighE ? 'above' : 'below';
-                            ae.alertType   = 'price';
-                            ae.price       = pdPrice;
-                            ae.isPrevDay   = isPrevDayHighE ? 'high' : 'low';
+                            ae.condition     = isPrevDayHighE ? 'above' : 'below';
+                            ae.alertType     = 'price';
+                            ae.price         = pdPrice;
+                            ae.isPrevDay     = isPrevDayHighE ? 'high' : 'low';
+                            ae.prevDayCandle = candleOffsetE;
                             delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key;
                             delete ae.patternKey; delete ae.patternKeys; delete ae.patternTf;
                         }
@@ -9640,16 +9656,17 @@
             // ── Prev Day High / Low: async fetch then save ──
             if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
                 var isPrevDayHigh = uiCond === 'prevdayhigh';
+                var candleOffset  = window._alCandleOffset || 1;
                 var confirmBtn = document.getElementById('al-modal-confirm-btn');
                 confirmBtn.textContent = 'Fetching…';
                 confirmBtn.disabled = true;
-                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=5d')
                     .then(function(r) { return r.ok ? r.json() : null; })
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
                         var len = quote && quote.high && quote.high.length;
-                        var pdPrice = len && (isPrevDayHigh ? quote.high[len - 1] : quote.low[len - 1]);
+                        var pdPrice = len && (isPrevDayHigh ? quote.high[len - candleOffset] : quote.low[len - candleOffset]);
                         if (!pdPrice || pdPrice <= 0) {
                             confirmBtn.textContent = 'Set alert';
                             confirmBtn.disabled = false;
@@ -9664,6 +9681,7 @@
                             price: pdPrice,
                             alertType: 'price',
                             isPrevDay: isPrevDayHigh ? 'high' : 'low',
+                            prevDayCandle: candleOffset,
                             name: resolvedName,
                             addedAt: new Date().toISOString()
                         };
@@ -10260,6 +10278,14 @@
                     <option value="above">crosses above</option>
                     <option value="below">crosses below</option>
                 </select>
+            </div>
+            <div class="al-modal-row" id="al-row-candle" style="display:none;">
+                <span class="al-form-label">Candle</span>
+                <div style="display:flex;border:1px solid #21262d;border-radius:5px;overflow:hidden;">
+                    <button type="button" id="al-candle-1" class="sf-seg-btn active" onclick="alCandleSelect(1)">-1</button>
+                    <button type="button" id="al-candle-2" class="sf-seg-btn" onclick="alCandleSelect(2)">-2</button>
+                    <button type="button" id="al-candle-3" class="sf-seg-btn" onclick="alCandleSelect(3)">-3</button>
+                </div>
             </div>
             <div class="al-modal-row" id="al-row-ma" style="display:none;">
                 <span class="al-form-label">MA</span>
