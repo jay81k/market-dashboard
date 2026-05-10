@@ -9064,7 +9064,7 @@
                         var spread = ((mcV1 - mcV2) / mcV2 * 100);
                         var spreadAbs = Math.abs(spread);
                         var awayCls = spreadAbs < 0.5 ? ' imminent' : spreadAbs < 2 ? ' close' : '';
-                        var spreadStr = (spread >= 0 ? '+' : '') + spread.toFixed(2) + '%';
+                        var spreadStr = (spread >= 0 ? '+' : '') + spread.toFixed(1) + '%';
                         awayHtml = '<div class="al-col-away' + awayCls + '">' + spreadStr + '</div>';
                     }
                 }
@@ -9083,7 +9083,7 @@
                 } else {
                     var maDist = Math.abs(snapDistMA);
                     var awayCls = maDist < 1 ? ' imminent' : maDist < 3 ? ' close' : '';
-                    awayHtml = '<div class="al-col-away' + awayCls + '">' + maDist.toFixed(2) + '%</div>';
+                    awayHtml = '<div class="al-col-away' + awayCls + '">' + maDist.toFixed(1) + '%</div>';
                 }
             } else if (a.alertType === 'rsi14') {
                 var snapRsi2 = null;
