@@ -8997,9 +8997,13 @@
                     : '<span style="color:#f85149;">▼ MA below</span>')
                 : a.alertType === 'pattern'
                     ? '<span style="color:#8b949e;">⬡ Pattern</span>'
-                    : a.condition === 'above'
-                        ? '<span style="color:#3fb950;">▲ above</span>'
-                        : '<span style="color:#f85149;">▼ below</span>';
+                    : a.isPrevDay === 'high'
+                        ? '<span style="color:#3fb950;">▲ PDH</span>'
+                        : a.isPrevDay === 'low'
+                            ? '<span style="color:#f85149;">▼ PDL</span>'
+                            : a.condition === 'above'
+                                ? '<span style="color:#3fb950;">▲ above</span>'
+                                : '<span style="color:#f85149;">▼ below</span>';
             var awayHtml;
             if (a.alertType === 'macross') {
                 var mcStockData = null;
@@ -9322,14 +9326,14 @@
             if (rowPat)   rowPat.style.display   = '';
             if (rowPatTf) rowPatTf.style.display = '';
         } else {
-            cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option>';
+            cond.innerHTML = '<option value="above">crosses above</option><option value="below">crosses below</option><option value="prevdayhigh">prev day high</option><option value="prevdaylow">prev day low</option>';
             price.placeholder = 'Price'; price.step = '0.01'; price.min = '0'; price.removeAttribute('max'); price.value = '';
             if (note) note.style.display = 'none';
             rowMA.style.display = 'none'; rowMA1.style.display = 'none'; rowMA2.style.display = 'none';
-            rowValue.style.display = '';
             if (rowCond)  rowCond.style.display  = '';
             if (rowPat)   rowPat.style.display   = 'none';
             if (rowPatTf) rowPatTf.style.display = 'none';
+            alCondChange();
         }
     };
 
@@ -9341,6 +9345,18 @@
         document.getElementById('al-row-ma').style.display  = isMAvsMA ? 'none' : '';
         document.getElementById('al-row-ma1').style.display = isMAvsMA ? '' : 'none';
         document.getElementById('al-row-ma2').style.display = isMAvsMA ? '' : 'none';
+    };
+
+    window.alCondChange = function() {
+        var type    = document.getElementById('al-input-type').value;
+        var condVal = document.getElementById('al-input-cond').value;
+        var rowValue = document.getElementById('al-row-value');
+        if (type === 'ma') {
+            alMACondChange();
+        } else if (type === 'price') {
+            var isPrevDay = condVal === 'prevdayhigh' || condVal === 'prevdaylow';
+            if (rowValue) rowValue.style.display = isPrevDay ? 'none' : '';
+        }
     };
 
     window._alPatternTf = 'd';
@@ -9439,8 +9455,13 @@
             alSetSelectedPatterns(window.alGetPatternKeys(a));
             alPatternTfSelect(a.patternTf || 'd');
         } else {
-            document.getElementById('al-input-cond').value = a.condition;
-            document.getElementById('al-input-price').value = a.price;
+            if (a.isPrevDay) {
+                document.getElementById('al-input-cond').value = a.isPrevDay === 'high' ? 'prevdayhigh' : 'prevdaylow';
+                alCondChange();
+            } else {
+                document.getElementById('al-input-cond').value = a.condition;
+                document.getElementById('al-input-price').value = a.price;
+            }
         }
         document.getElementById('al-modal-confirm-btn').textContent = 'Update';
         document.getElementById('al-modal-title').textContent = 'Edit Alert';
@@ -9503,8 +9524,10 @@
             return;
         }
         if (alertType !== 'ma' && alertType !== 'macross' && alertType !== 'pattern') {
-            if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
-            if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
+            if (uiCond !== 'prevdayhigh' && uiCond !== 'prevdaylow') {
+                if (!price || price <= 0) { document.getElementById('al-input-price').focus(); return; }
+                if (alertType === 'rsi14' && (price < 1 || price > 99)) { document.getElementById('al-input-price').focus(); return; }
+            }
         }
         if (alertType === 'macross' && ma1Key === ma2Key) {
             document.getElementById('al-input-ma2').focus(); return;
@@ -9518,6 +9541,47 @@
         };
 
         if (_alEditIdx !== null) {
+            // ── Prev Day High / Low edit: re-fetch ──
+            if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
+                var isPrevDayHighE = uiCond === 'prevdayhigh';
+                var confirmBtnE = document.getElementById('al-modal-confirm-btn');
+                confirmBtnE.textContent = 'Fetching…';
+                confirmBtnE.disabled = true;
+                var editIdxCapture = _alEditIdx;
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(data) {
+                        var result = data && data.chart && data.chart.result && data.chart.result[0];
+                        var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
+                        var pdPrice = quote && (isPrevDayHighE ? quote.high[0] : quote.low[0]);
+                        if (!pdPrice || pdPrice <= 0) {
+                            confirmBtnE.textContent = 'Update';
+                            confirmBtnE.disabled = false;
+                            return;
+                        }
+                        pdPrice = parseFloat(pdPrice.toFixed(2));
+                        var ae = alertsList[editIdxCapture];
+                        if (ae) {
+                            delete _alertFiredSess[alKey(ae)];
+                            ae.condition   = isPrevDayHighE ? 'above' : 'below';
+                            ae.alertType   = 'price';
+                            ae.price       = pdPrice;
+                            ae.isPrevDay   = isPrevDayHighE ? 'high' : 'low';
+                            delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key;
+                            delete ae.patternKey; delete ae.patternKeys; delete ae.patternTf;
+                        }
+                        alSave();
+                        alHideForm();
+                        if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
+                        renderAlerts();
+                    })
+                    .catch(function() {
+                        confirmBtnE.textContent = 'Update';
+                        confirmBtnE.disabled = false;
+                    });
+                return;
+            }
+
             var a = alertsList[_alEditIdx];
             if (a) {
                 delete _alertFiredSess[alKey(a)];
@@ -9533,6 +9597,51 @@
             if (!alertPriceTimer && !alertOpenTimer) alStartBackgroundPolling();
             renderAlerts();
         } else {
+            // ── Prev Day High / Low: async fetch then save ──
+            if (uiCond === 'prevdayhigh' || uiCond === 'prevdaylow') {
+                var isPrevDayHigh = uiCond === 'prevdayhigh';
+                var confirmBtn = document.getElementById('al-modal-confirm-btn');
+                confirmBtn.textContent = 'Fetching…';
+                confirmBtn.disabled = true;
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(data) {
+                        var result = data && data.chart && data.chart.result && data.chart.result[0];
+                        var quote  = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
+                        var pdPrice = quote && (isPrevDayHigh ? quote.high[0] : quote.low[0]);
+                        if (!pdPrice || pdPrice <= 0) {
+                            confirmBtn.textContent = 'Set alert';
+                            confirmBtn.disabled = false;
+                            return;
+                        }
+                        pdPrice = parseFloat(pdPrice.toFixed(2));
+                        var meta = result && result.meta;
+                        var resolvedName = (meta && (meta.shortName || meta.longName)) || '';
+                        var pdEntry = {
+                            ticker: ticker,
+                            condition: isPrevDayHigh ? 'above' : 'below',
+                            price: pdPrice,
+                            alertType: 'price',
+                            isPrevDay: isPrevDayHigh ? 'high' : 'low',
+                            name: resolvedName,
+                            addedAt: new Date().toISOString()
+                        };
+                        alertsList.push(pdEntry);
+                        delete _alertFiredSess[alKey(pdEntry)];
+                        alSave();
+                        alHideForm();
+                        alStartBackgroundPolling();
+                        renderAlerts();
+                        var _alList = document.getElementById('al-list');
+                        if (_alList) _alList.scrollTop = _alList.scrollHeight;
+                    })
+                    .catch(function() {
+                        confirmBtn.textContent = 'Set alert';
+                        confirmBtn.disabled = false;
+                    });
+                return;
+            }
+
             var entry;
             if (alertType === 'macross') {
                 entry = { ticker: ticker, condition: cond, price: 0, alertType: 'macross', ma1Key: ma1Key, ma2Key: ma2Key, name: '', addedAt: new Date().toISOString() };
@@ -10106,7 +10215,7 @@
             </div>
             <div class="al-modal-row" id="al-row-cond">
                 <span class="al-form-label">Condition</span>
-                <select id="al-input-cond" onchange="alMACondChange()">
+                <select id="al-input-cond" onchange="alCondChange()">
                     <option value="above">crosses above</option>
                     <option value="below">crosses below</option>
                 </select>
