@@ -2100,7 +2100,8 @@
     var currentView   = 'industries';
     var _lastIndustryName        = null;
     var _lastIndustryScrollTop   = 0;
-    var _industriesListScrollTop = 0;
+    var _industriesListScrollTop      = 0;
+    var _indStocksScrollBeforeModal   = 0;
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
@@ -3524,6 +3525,12 @@
 
     function openChartModal(symbol, sector, industry) {
         var sym = TV_MAP[symbol] || symbol;
+
+        // Save scroll position of the industry stocks table before modal opens
+        if (currentView === 'industry-stocks') {
+            var _stWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
+            if (_stWrap) _indStocksScrollBeforeModal = _stWrap.scrollTop;
+        }
 
         // Resolve sector/industry from args, row attrs, or snapshot for initial header
         if (!sector || !industry) {
@@ -8474,6 +8481,14 @@
         _origCloseChartModal();
         snpHide();
         if (!_alGoToTickerClosing) { _alReturnState = null; _scanReturnState = null; }
+        // Restore industry stocks table scroll position after modal closes
+        if (currentView === 'industry-stocks' && _indStocksScrollBeforeModal > 0) {
+            var _savedScroll = _indStocksScrollBeforeModal;
+            setTimeout(function() {
+                var _stWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
+                if (_stWrap) _stWrap.scrollTop = _savedScroll;
+            }, 0);
+        }
     };
 
     // Arrow key nav when modal is open — capture phase so it takes priority
