@@ -2340,8 +2340,12 @@
         var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
         var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
         var _wasScans  = (currentView === 'scans');
+        var _wasIndStocks = (currentView === 'industry-stocks');
         if (_modalOpen) { closeChartModal(); }
         if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
+        // If modal was open while browsing an industry's stock table, just close
+        // the modal and stay — don't navigate back to the full industry list.
+        if (_modalOpen && _wasIndStocks && view === 'industries') return;
         // Set AFTER close calls so the closeChartModal wrapper doesn't wipe it
         // _snpOpen captured before close; chart-modal-sym text persists in DOM after close
         if (_wasScans && view !== 'scans' && (_modalOpen || _snpOpen)) {
