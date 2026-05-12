@@ -9419,7 +9419,7 @@
     window._alCandleOffset = 1;
     window.alCandleSelect = function(n) {
         window._alCandleOffset = n;
-        [1, 2, 3].forEach(function(i) {
+        [1, 2, 3, 4].forEach(function(i) {
             var btn = document.getElementById('al-candle-' + i);
             if (btn) btn.classList.toggle('active', i === n);
         });
@@ -10320,6 +10320,7 @@
                     <button type="button" id="al-candle-1" class="sf-seg-btn active" onclick="alCandleSelect(1)">-1</button>
                     <button type="button" id="al-candle-2" class="sf-seg-btn" onclick="alCandleSelect(2)">-2</button>
                     <button type="button" id="al-candle-3" class="sf-seg-btn" onclick="alCandleSelect(3)">-3</button>
+                    <button type="button" id="al-candle-4" class="sf-seg-btn" onclick="alCandleSelect(4)">-4</button>
                     <button type="button" id="al-candle-52wk" class="sf-seg-btn" onclick="alCandleSelect('52wk')">52W H</button>
                 </div>
             </div>
