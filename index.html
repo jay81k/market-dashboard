@@ -2098,8 +2098,9 @@
     var industriesData= null;
     var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
     var currentView   = 'industries';
-    var _lastIndustryName      = null;
-    var _lastIndustryScrollTop = 0;
+    var _lastIndustryName        = null;
+    var _lastIndustryScrollTop   = 0;
+    var _industriesListScrollTop = 0;
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
@@ -2640,6 +2641,8 @@
     window.openIndustry = function(industryName) {
         _lastIndustryName      = industryName;
         _lastIndustryScrollTop = 0;
+        var _mainArea = document.getElementById('main-area');
+        if (_mainArea) _industriesListScrollTop = _mainArea.scrollTop;
         var ind  = industriesData && industriesData.industries.find(function(i){ return i.industry === industryName; });
         var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
 
@@ -2989,6 +2992,13 @@
         document.getElementById('multichart-toggle-btn').style.color       = '';
         indStopPricePolling();
         showView('industries');
+        var _savedIndListScroll = _industriesListScrollTop;
+        if (_savedIndListScroll > 0) {
+            setTimeout(function() {
+                var _mainArea = document.getElementById('main-area');
+                if (_mainArea) _mainArea.scrollTop = _savedIndListScroll;
+            }, 0);
+        }
     };
 
     // ── Industry-stocks live prices ───────────────────────────────────────
