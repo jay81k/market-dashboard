@@ -5764,9 +5764,12 @@
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker && q.price) {
                         scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
-                        if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow) {
-                            var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
-                            if (dataRow) dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+                        var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
+                        if (dataRow) {
+                            if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
+                                dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+                            if (q.prevClose && q.prevClose > 0)
+                                dataRow.daily = ((q.price - q.prevClose) / q.prevClose) * 100;
                         }
                     }
                 });
