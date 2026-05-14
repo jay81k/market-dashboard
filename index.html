@@ -3020,7 +3020,7 @@
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker && q.price) {
-                        indLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null };
+                        indLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
                     }
                 });
                 indUpdatePriceRows();
@@ -3042,6 +3042,12 @@
             if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
             if (tds[5]) { tds[5].textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014'; tds[5].className = cl; }
             if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
+            if (tds[17] && live.dayHigh != null && live.dayLow != null && live.dayHigh > live.dayLow) {
+                var liveCr = ((price - live.dayLow) / (live.dayHigh - live.dayLow)) * 100;
+                var liveCrColor = liveCr >= 60 ? '#3fb950' : liveCr >= 30 ? '#e3852b' : '#f85149';
+                tds[17].innerHTML = '<span style="color:' + liveCrColor + ';font-weight:600;">' + Math.round(liveCr) + '%</span>';
+                tr.setAttribute('data-cr', liveCr);
+            }
             tr.setAttribute('data-price', price);
             if (chgAbs != null) tr.setAttribute('data-chg', chgAbs.toFixed(4));
             if (chgPct != null) tr.setAttribute('data-daily', chgPct);
@@ -5532,7 +5538,13 @@
             else if (row.adr_pct < 8) adrColor = '#e3852b';
             else adrColor = '#f85149';
         }
-        var crVal   = row.cr != null ? Math.round(row.cr)+'%' : '\u2014';
+        var _scanLiveForCr = scanLivePrices[row.ticker];
+        var _liveCrVal = null;
+        if (_scanLiveForCr && _scanLiveForCr.price && _scanLiveForCr.dayHigh != null && _scanLiveForCr.dayLow != null && _scanLiveForCr.dayHigh > _scanLiveForCr.dayLow) {
+            _liveCrVal = ((_scanLiveForCr.price - _scanLiveForCr.dayLow) / (_scanLiveForCr.dayHigh - _scanLiveForCr.dayLow)) * 100;
+        }
+        var _crDisplay = _liveCrVal != null ? _liveCrVal : row.cr;
+        var crVal   = _crDisplay != null ? Math.round(_crDisplay)+'%' : '\u2014';
         var isAdded = selectedScans.has(row.ticker);
         var addIcon = isAdded
             ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
@@ -5555,7 +5567,7 @@
             pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
         }
         var crColor = '#484f58';
-        if (row.cr != null) { if (row.cr >= 60) crColor = '#3fb950'; else if (row.cr >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
+        if (_crDisplay != null) { if (_crDisplay >= 60) crColor = '#3fb950'; else if (_crDisplay >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
 
         var h = '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">';
         h += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
@@ -5751,7 +5763,11 @@
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker && q.price) {
-                        scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null };
+                        scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
+                        if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow) {
+                            var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
+                            if (dataRow) dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+                        }
                     }
                 });
                 scanUpdatePriceRows();
@@ -5773,6 +5789,11 @@
             if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
             if (tds[5]) { tds[5].textContent = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014'; tds[5].className = cl; }
             if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
+            if (tds[17] && live.dayHigh != null && live.dayLow != null && live.dayHigh > live.dayLow) {
+                var liveCr = ((price - live.dayLow) / (live.dayHigh - live.dayLow)) * 100;
+                var liveCrColor = liveCr >= 60 ? '#3fb950' : liveCr >= 30 ? '#e3852b' : '#f85149';
+                tds[17].innerHTML = '<span style="color:' + liveCrColor + ';font-weight:600;">' + Math.round(liveCr) + '%</span>';
+            }
         });
     }
 
