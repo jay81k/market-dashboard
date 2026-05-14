@@ -2165,10 +2165,17 @@
     }
 
     function _applyLiveIndustryDay(acc) {
-        // Patch avg_daily in-memory only
+        // Patch avg_daily in both industriesData and snapshot.industry_summary
+        // (renderers read from snapshot.industry_summary, so that must be updated)
         industriesData.industries.forEach(function(ind) {
             var a = acc[ind.industry];
-            if (a && a.count > 0) ind.avg_daily = parseFloat((a.sum / a.count).toFixed(4));
+            if (a && a.count > 0) {
+                var liveVal = parseFloat((a.sum / a.count).toFixed(4));
+                ind.avg_daily = liveVal; // keep in sync for sort paths
+                if (snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]) {
+                    snapshot.industry_summary[ind.industry].avg_daily = liveVal;
+                }
+            }
         });
         // Re-render only if user is on the industry view
         if (currentView !== 'industries' && currentView !== 'sector') return;
