@@ -5879,6 +5879,26 @@
                 var liveCr = ((price - live.dayLow) / (live.dayHigh - live.dayLow)) * 100;
                 var liveCrColor = liveCr >= 60 ? '#3fb950' : liveCr >= 30 ? '#e3852b' : '#f85149';
                 tds[17].innerHTML = '<span style="color:' + liveCrColor + ';font-weight:600;">' + Math.round(liveCr) + '%</span>';
+                tr.setAttribute('data-cr', liveCr);
+            }
+            tr.setAttribute('data-price', price);
+            if (chgAbs != null) tr.setAttribute('data-chg', chgAbs.toFixed(4));
+            if (chgPct != null) tr.setAttribute('data-daily', chgPct);
+            // ── Live Dist/MA ──────────────────────────────────────────────
+            var distCell = tr.querySelector('.dist-ma-cell');
+            if (distCell) {
+                var snapRow     = tickerMap && tickerMap[ticker];
+                var snapPrice   = snapRow ? snapRow.price   : null;
+                var snapDistAll = snapRow ? snapRow.dist_ma : null;
+                var dmaKey      = activeMAType + activeMALength;
+                var snapDist    = snapDistAll ? snapDistAll[dmaKey] : null;
+                if (snapPrice && snapDist != null) {
+                    var ma       = snapPrice / (1 + snapDist / 100);
+                    var liveDist = (price - ma) / ma * 100;
+                    var ldCl     = liveDist > 0 ? 'up' : liveDist < 0 ? 'down' : '';
+                    distCell.innerHTML = '<span class="' + ldCl + '">' + fmt(liveDist, 2, '%') + '</span>';
+                    tr.setAttribute('data-dist_ma', liveDist);
+                }
             }
         });
     }
