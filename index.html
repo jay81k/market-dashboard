@@ -3450,11 +3450,13 @@
         activeMAType = t; localStorage.setItem('distMAType', t);
         document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === t); });
         applyDistMA();
+        scanUpdatePriceRows();
     };
     window.setDistMALength = function(l) {
         activeMALength = l; localStorage.setItem('distMALength', String(l));
         document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === l); });
         applyDistMA();
+        scanUpdatePriceRows();
     };
 
     // ── Chart modal ───────────────────────────────────────────────────────
@@ -5644,6 +5646,21 @@
             _dailyPct = row.daily;
         }
         var chgStr  = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '\u2014';
+        // ── Live Dist/MA inline ──────────────────────────────────────────
+        var _dmaKey      = activeMAType + activeMALength;
+        var _snapForDist = tickerMap && tickerMap[row.ticker];
+        var _snapPriceD  = _snapForDist ? _snapForDist.price  : null;
+        var _snapDistVal = (row.dist_ma && row.dist_ma[_dmaKey] != null) ? row.dist_ma[_dmaKey] : null;
+        var _distDisplay;
+        if (_usePrice && _snapPriceD && _snapDistVal != null) {
+            var _maVal   = _snapPriceD / (1 + _snapDistVal / 100);
+            _distDisplay = (_usePrice - _maVal) / _maVal * 100;
+        } else {
+            _distDisplay = _snapDistVal;
+        }
+        var _distHtml = _distDisplay != null
+            ? '<span class="' + (_distDisplay > 0 ? 'up' : _distDisplay < 0 ? 'down' : '') + '">' + fmt(_distDisplay, 2, '%') + '</span>'
+            : '<span style="color:#30363d">\u2014</span>';
         var pct52Val = '\u2014', pct52Color = '#484f58';
         if (row.PctFrom52WkHigh != null) {
             pct52Val   = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
@@ -5672,7 +5689,7 @@
         h += '<td class="' + cc(row['1y'])     + '">' + (row['1y']     != null ? fmt(row['1y'],2,'%')     : '\u2014') + '</td>';
         h += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '\u2014') + '</td>';
         h += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '\u2014') + '</td>';
-        h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '"></td>';
+        h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '">' + _distHtml + '</td>';
         h += '<td style="color:#8b949e;">' + volVal + '</td>';
         h += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
         h += '<td><span style="color:' + adrColor   + ';font-weight:600;">' + adrVal   + '</span></td>';
@@ -5714,6 +5731,7 @@
 
         tbody.innerHTML = html;
         applyDistMA(document.getElementById('scans-table'));
+        scanUpdatePriceRows();
         wlRefreshStars();
 
         allStockRows  = { length: _vsData.length };
