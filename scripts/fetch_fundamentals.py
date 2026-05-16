@@ -26,6 +26,7 @@ import os
 import time
 from datetime import datetime
 
+import requests
 from finvizfinance.quote import finvizfinance
 
 # ---------------------------------------------------------------------------
@@ -33,6 +34,10 @@ from finvizfinance.quote import finvizfinance
 # ---------------------------------------------------------------------------
 
 DELAY_BETWEEN_REQUESTS = 0.5   # seconds — keeps Finviz happy
+MAX_RETRIES            = 3     # max retry attempts per ticker on transient errors
+RETRY_BASE_DELAY       = 2.0   # seconds — exponential backoff base (2, 4, 8)
+RETRY_STATUS_CODES     = {429, 502, 503, 504}  # HTTP codes worth retrying
+
 FIELD_MAP = {
     "eps_this_y_pct":    "EPS this Y",
     "eps_next_y_pct":    "EPS next Y Percentage",
@@ -75,25 +80,49 @@ def parse_float(val) -> float | None:
         return None
 
 
+def _is_retryable(exc: Exception) -> bool:
+    """Return True if the exception looks like a transient server error worth retrying."""
+    if isinstance(exc, requests.exceptions.HTTPError):
+        code = exc.response.status_code if exc.response is not None else None
+        return code in RETRY_STATUS_CODES
+    # finvizfinance raises plain exceptions with the status text in the message
+    msg = str(exc).lower()
+    return any(str(c) in msg for c in RETRY_STATUS_CODES)
+
+
 def fetch_fundamentals(ticker: str) -> dict | None:
-    """Fetch and parse fundamental fields for a single ticker."""
-    try:
-        stock     = finvizfinance(ticker)
-        fundament = stock.ticker_fundament()
-        return {
-            "eps_this_y_pct":    parse_pct(fundament.get("EPS this Y")),
-            "eps_next_y_pct":    parse_pct(fundament.get("EPS next Y Percentage")),
-            "eps_next_5y_pct":   parse_pct(fundament.get("EPS next 5Y")),
-            "eps_qoq_pct":       parse_pct(fundament.get("EPS Q/Q")),
-            "sales_qoq_pct":     parse_pct(fundament.get("Sales Q/Q")),
-            "profit_margin_pct": parse_pct(fundament.get("Profit Margin")),
-            "fwd_pe":            parse_float(fundament.get("Forward P/E")),
-            "ps_ratio":          parse_float(fundament.get("P/S")),
-            "peg_ratio":         parse_float(fundament.get("PEG")),
-        }
-    except Exception as e:
-        print(f"  ERROR [{ticker}]: {e}")
-        return None
+    """Fetch and parse fundamental fields for a single ticker, with retry/backoff."""
+    last_exc = None
+
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            stock     = finvizfinance(ticker)
+            fundament = stock.ticker_fundament()
+            return {
+                "eps_this_y_pct":    parse_pct(fundament.get("EPS this Y")),
+                "eps_next_y_pct":    parse_pct(fundament.get("EPS next Y Percentage")),
+                "eps_next_5y_pct":   parse_pct(fundament.get("EPS next 5Y")),
+                "eps_qoq_pct":       parse_pct(fundament.get("EPS Q/Q")),
+                "sales_qoq_pct":     parse_pct(fundament.get("Sales Q/Q")),
+                "profit_margin_pct": parse_pct(fundament.get("Profit Margin")),
+                "fwd_pe":            parse_float(fundament.get("Forward P/E")),
+                "ps_ratio":          parse_float(fundament.get("P/S")),
+                "peg_ratio":         parse_float(fundament.get("PEG")),
+            }
+
+        except Exception as e:
+            last_exc = e
+            if _is_retryable(e) and attempt < MAX_RETRIES:
+                wait = RETRY_BASE_DELAY * (2 ** attempt)   # 2s, 4s, 8s
+                print(f"  RETRY [{ticker}] attempt {attempt + 1}/{MAX_RETRIES} "
+                      f"after {wait:.0f}s — {e}")
+                time.sleep(wait)
+            else:
+                # Non-retryable error or retries exhausted
+                break
+
+    print(f"  ERROR [{ticker}]: {last_exc}")
+    return None
 
 
 # ---------------------------------------------------------------------------
