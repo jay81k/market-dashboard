@@ -3125,13 +3125,25 @@
                 var snapPrice   = snapRow ? snapRow.price    : null;
                 var snapDistAll = snapRow ? snapRow.dist_ma  : null;
                 var dmaKey      = activeMAType + activeMALength;
-                var snapDist    = snapDistAll  ? snapDistAll[dmaKey] : null;
-                if (snapPrice && snapDist != null) {
-                    var ma       = snapPrice / (1 + snapDist / 100);
-                    var liveDist = (price - ma) / ma * 100;
-                    var ldCl     = liveDist > 0 ? 'up' : liveDist < 0 ? 'down' : '';
-                    distCell.innerHTML = '<span class="' + ldCl + '">' + fmt(liveDist, 2, '%') + '</span>';
-                    tr.setAttribute('data-dist_ma', liveDist);
+                if (snapPrice && snapDistAll) {
+                    // Recompute live dist for every MA key and persist to
+                    // data-dist-all so applyDistMA (called on sort / MA change)
+                    // never overwrites live values with stale snapshot values.
+                    var liveDistAll = {};
+                    Object.keys(snapDistAll).forEach(function(k) {
+                        var sd = snapDistAll[k];
+                        if (sd != null) {
+                            var maVal = snapPrice / (1 + sd / 100);
+                            liveDistAll[k] = (price - maVal) / maVal * 100;
+                        }
+                    });
+                    distCell.setAttribute('data-dist-all', JSON.stringify(liveDistAll));
+                    var liveDist = liveDistAll[dmaKey];
+                    if (liveDist != null) {
+                        var ldCl = liveDist > 0 ? 'up' : liveDist < 0 ? 'down' : '';
+                        distCell.innerHTML = '<span class="' + ldCl + '">' + fmt(liveDist, 2, '%') + '</span>';
+                        tr.setAttribute('data-dist_ma', liveDist);
+                    }
                 }
             }
         });
@@ -3451,12 +3463,14 @@
         document.querySelectorAll('.dist-ma-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-type') === t); });
         applyDistMA();
         scanUpdatePriceRows();
+        indUpdatePriceRows(); // re-apply live prices to industry stocks table
     };
     window.setDistMALength = function(l) {
         activeMALength = l; localStorage.setItem('distMALength', String(l));
         document.querySelectorAll('.dist-ma-len-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.getAttribute('data-len')) === l); });
         applyDistMA();
         scanUpdatePriceRows();
+        indUpdatePriceRows(); // re-apply live prices to industry stocks table
     };
 
     // ── Chart modal ───────────────────────────────────────────────────────
