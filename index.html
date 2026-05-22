@@ -6282,6 +6282,27 @@
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = 'repeat(' + wlMcCols + ', 1fr)';
         wlMcWidgets = {};
+
+        // Sort by chg% highest to lowest (mirrors watchlist default)
+        var tickerData = {};
+        tickers.forEach(function(t) {
+            var sd   = wlLookupStock(t);
+            var live = wlLivePrices[t];
+            var dayVal;
+            if (live && live.price && live.prevClose) {
+                dayVal = ((live.price - live.prevClose) / live.prevClose) * 100;
+            } else {
+                dayVal = sd ? sd.daily : null;
+            }
+            tickerData[t] = dayVal;
+        });
+        tickers.sort(function(a, b) {
+            var av = tickerData[a], bv = tickerData[b];
+            av = av != null ? av : -Infinity;
+            bv = bv != null ? bv : -Infinity;
+            return bv - av;
+        });
+
         tickers.forEach(function(sym) {
             var cell = document.createElement('div');
             cell.className = 'mc-cell';
