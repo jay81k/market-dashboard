@@ -6283,6 +6283,7 @@
         grid.style.gridTemplateColumns = 'repeat(' + wlMcCols + ', 1fr)';
         wlMcWidgets = {};
         tickers.forEach(function(sym) {
+            var cell = document.createElement('div');
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
