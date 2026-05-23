@@ -1192,7 +1192,6 @@
         }
         .mm-popup-price { font-size: 14px; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; }
         .mm-popup-chg   { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .mm-popup-hint  { font-size: 10px; color: #484f58; }
         .mm-popup-caret {
             position: absolute; left: 50%; transform: translateX(-50%);
             width: 0; height: 0;
@@ -7737,7 +7736,6 @@
         'HYPE': 'BINANCE:HYPEUSDT',
         'BTC':  'BINANCE:BTCUSDT',
     };
-    window.MACRO_TV_MAP = MACRO_TV_MAP; // expose for hover popup script
 
     function marketFetchMacro() {
         // Macro cards always use daily interval — 1D locks to range=2d,
@@ -10759,11 +10757,6 @@ var _mmPopup = (function () {
             clearTimeout(hideTimer);
             activeCard = card;
             hoverTimer = setTimeout(function () { showPopup(card); }, 200);
-        });
-        card.addEventListener('click', function () {
-            hidePopup();
-            var id = card.getAttribute('data-tv-id');
-            if (typeof openMarketChart === 'function') openMarketChart(id);
         });
     }
 
