@@ -3074,10 +3074,11 @@
 
     window.goToSector = function(sector) {
         showView('industries');
+        setIndView('heatmap');
         searchQuery = sector;
         var si = document.getElementById('search-input');
         if (si) { si.value = sector; _updateSearchClear(sector); }
-        renderIndustries();
+        renderHeatmap();
     };
 
     window.navToIndustries = function() {
