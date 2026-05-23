@@ -10679,6 +10679,22 @@ var _mmPopup = (function () {
         }
         ema21.setData(ema21data);
 
+        // Volume
+        var volSeries = lwChart.addHistogramSeries({
+            priceFormat:  { type: 'volume' },
+            priceScaleId: 'volume',
+        });
+        lwChart.priceScale('volume').applyOptions({
+            scaleMargins: { top: 0.8, bottom: 0 },
+        });
+        volSeries.setData(ohlcv.map(function(d) {
+            return {
+                time:  d.time,
+                value: d.volume,
+                color: d.close >= d.open ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)',
+            };
+        }));
+
         lwChart.timeScale().fitContent();
         var totalBars = ohlcv.length;
         lwChart.timeScale().setVisibleLogicalRange({ from: totalBars - 65, to: totalBars - 1 });
@@ -10724,11 +10740,12 @@ var _mmPopup = (function () {
                 for (var i = 0; i < ts.length; i++) {
                     if (q.open[i] == null || q.close[i] == null) continue;
                     ohlcv.push({
-                        time:  ts[i],
-                        open:  q.open[i],
-                        high:  q.high[i],
-                        low:   q.low[i],
-                        close: q.close[i],
+                        time:   ts[i],
+                        open:   q.open[i],
+                        high:   q.high[i],
+                        low:    q.low[i],
+                        close:  q.close[i],
+                        volume: q.volume[i] || 0,
                     });
                 }
                 renderChart(ohlcv);
