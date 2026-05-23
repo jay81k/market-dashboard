@@ -3073,10 +3073,10 @@
 
 
     window.goToSector = function(sector) {
+        showView('industries');
         searchQuery = sector;
         var si = document.getElementById('search-input');
         if (si) { si.value = sector; _updateSearchClear(sector); }
-        showView('industries');
         renderIndustries();
     };
 
