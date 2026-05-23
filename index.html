@@ -2126,6 +2126,7 @@
 <div id="col-tooltip"></div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 (function() {
     // ── State ──────────────────────────────────────────────────────────────
@@ -7724,17 +7725,17 @@
     ];
 
     var MACRO_TV_MAP = {
-        'OIL':  'NYMEX:CL1!',
-        'GLD':  'COMEX:GC1!',
-        'SLV':  'COMEX:SI1!',
-        'CPR':  'COMEX:HG1!',
+        'OIL':  'TVC:USOIL',
+        'GLD':  'TVC:GOLD',
+        'SLV':  'TVC:SILVER',
+        'CPR':  'TVC:COPPER',
         'VIX':  'TVC:VIX',
-        'TNX':  'TVC:TNX',
-        'ETH':  'COINBASE:ETHUSD',
-        'XRP':  'COINBASE:XRPUSD',
-        'SOL':  'COINBASE:SOLUSD',
-        'HYPE': 'BYBIT:HYPEUSDTPERP',
-        'BTC':  'COINBASE:BTCUSD',
+        'TNX':  'TVC:US10Y',
+        'ETH':  'BINANCE:ETHUSDT',
+        'XRP':  'BINANCE:XRPUSDT',
+        'SOL':  'BINANCE:SOLUSDT',
+        'HYPE': 'BINANCE:HYPEUSDT',
+        'BTC':  'BINANCE:BTCUSDT',
     };
     window.MACRO_TV_MAP = MACRO_TV_MAP; // expose for hover popup script
 
@@ -7778,6 +7779,7 @@
 
                 el.className = 'market-macro-card ' + dir;
                 el.setAttribute('data-tv-id',    t.id);
+                el.setAttribute('data-yf-sym',   t.symbol);
                 el.setAttribute('data-tv-label', t.label);
                 el.setAttribute('data-tv-name',  t.name);
                 el.setAttribute('data-tv-price', priceStr);
@@ -10536,7 +10538,7 @@
 </script>
 
 <script>
-// ── Macro card hover chart popup ──────────────────────────────────────────
+// ── Macro card hover chart popup (Lightweight Charts + Yahoo Finance) ─────
 var _mmPopup = (function () {
     var popup      = null;
     var popupSym   = null;
@@ -10546,13 +10548,14 @@ var _mmPopup = (function () {
     var popupChg   = null;
     var popupCaret = null;
 
-    var hoverTimer   = null;
-    var hideTimer    = null;
-    var activeWidget = null;
-    var activeCard   = null;
-    var POPUP_W      = 400;
-    var POPUP_H      = 300;
-    var ready        = false;
+    var hoverTimer  = null;
+    var hideTimer   = null;
+    var lwChart     = null;
+    var candleSeries = null;
+    var activeCard  = null;
+    var POPUP_W     = 420;
+    var POPUP_H     = 310;
+    var ready       = false;
 
     function init() {
         popup      = document.getElementById('mm-hover-popup');
@@ -10568,41 +10571,21 @@ var _mmPopup = (function () {
         popup.addEventListener('mouseleave', function () {
             hideTimer = setTimeout(hidePopup, 200);
         });
-
         window.addEventListener('scroll', hidePopup, true);
         window.addEventListener('resize', hidePopup);
         ready = true;
     }
 
-    function destroyWidget() {
-        if (activeWidget) {
-            try { activeWidget.remove(); } catch(e) {}
-            activeWidget = null;
+    function destroyChart() {
+        if (lwChart) {
+            try { lwChart.remove(); } catch(e) {}
+            lwChart = null;
+            candleSeries = null;
         }
         if (popupChart) popupChart.innerHTML = '';
     }
 
-    function showPopup(card) {
-        if (!ready) init();
-        if (!popup) return;
-
-        var id    = card.getAttribute('data-tv-id');
-        var tvSym = (typeof MACRO_TV_MAP !== 'undefined') ? MACRO_TV_MAP[id] : null;
-        if (!tvSym) return;
-
-        var label  = card.getAttribute('data-tv-label');
-        var name   = card.getAttribute('data-tv-name');
-        var price  = card.getAttribute('data-tv-price');
-        var chgAbs = card.getAttribute('data-tv-chgabs');
-        var chgPct = card.getAttribute('data-tv-chgpct');
-        var dir    = card.getAttribute('data-tv-dir');
-
-        popupSym.textContent   = label;
-        popupName.textContent  = ' · ' + name;
-        popupPrice.textContent = price;
-        popupChg.textContent   = chgAbs + ' ' + chgPct;
-        popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
-
+    function positionPopup(card) {
         var rect       = card.getBoundingClientRect();
         var spaceAbove = rect.top;
         var spaceBelow = window.innerHeight - rect.bottom;
@@ -10616,55 +10599,110 @@ var _mmPopup = (function () {
         if (placeAbove) {
             popup.style.top    = '';
             popup.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
-            popupCaret.className = 'mm-popup-caret down';
-            popupCaret.style.bottom = '-8px';
-            popupCaret.style.top    = '';
+            popupCaret.className      = 'mm-popup-caret down';
+            popupCaret.style.bottom   = '-8px';
+            popupCaret.style.top      = '';
         } else {
             popup.style.bottom = '';
             popup.style.top    = (rect.bottom + 8) + 'px';
-            popupCaret.className = 'mm-popup-caret up';
+            popupCaret.className    = 'mm-popup-caret up';
             popupCaret.style.top    = '-8px';
             popupCaret.style.bottom = '';
         }
-
         var caretLeft = (rect.left + rect.width / 2) - left;
-        caretLeft = Math.max(16, Math.min(caretLeft, POPUP_W - 16));
-        popupCaret.style.left      = caretLeft + 'px';
+        popupCaret.style.left      = Math.max(16, Math.min(caretLeft, POPUP_W - 16)) + 'px';
         popupCaret.style.transform = 'none';
+    }
 
-        popup.classList.add('visible');
+    function renderChart(ohlcv) {
+        destroyChart();
+        if (!LightweightCharts) return;
 
-        destroyWidget();
-        activeWidget = new TradingView.widget({
-            container_id:        'mm-popup-chart',
-            symbol:              tvSym,
-            interval:            'D',
-            timezone:            'Etc/UTC',
-            theme:               'dark',
-            style:               '1',
-            locale:              'en',
-            toolbar_bg:          '#0d1117',
-            enable_publishing:   false,
-            hide_top_toolbar:    true,
-            hide_legend:         true,
-            hide_side_toolbar:   true,
-            allow_symbol_change: false,
-            save_image:          false,
-            autosize:            true,
-            withdateranges:      false,
-            range:               '6M',
-            no_referral_id:      true,
+        lwChart = LightweightCharts.createChart(popupChart, {
+            width:  popupChart.clientWidth  || POPUP_W,
+            height: popupChart.clientHeight || 220,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
+            grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
+            timeScale: { borderColor: '#21262d', timeVisible: true },
+            handleScroll: false,
+            handleScale:  false,
         });
+
+        candleSeries = lwChart.addCandlestickSeries({
+            upColor:       '#3fb950',
+            downColor:     '#f85149',
+            borderVisible: false,
+            wickUpColor:   '#3fb950',
+            wickDownColor: '#f85149',
+        });
+
+        candleSeries.setData(ohlcv);
+        lwChart.timeScale().fitContent();
+    }
+
+    function showPopup(card) {
+        if (!ready) init();
+        if (!popup) return;
+
+        var yfSym  = card.getAttribute('data-yf-sym');
+        var label  = card.getAttribute('data-tv-label');
+        var name   = card.getAttribute('data-tv-name');
+        var price  = card.getAttribute('data-tv-price');
+        var chgAbs = card.getAttribute('data-tv-chgabs');
+        var chgPct = card.getAttribute('data-tv-chgpct');
+        var dir    = card.getAttribute('data-tv-dir');
+
+        if (!yfSym) return;
+
+        popupSym.textContent  = label;
+        popupName.textContent = ' · ' + name;
+        popupPrice.textContent = price;
+        popupChg.textContent   = chgAbs + ' ' + chgPct;
+        popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        positionPopup(card);
+        popup.classList.add('visible');
+        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
+
+        var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
+                  encodeURIComponent(yfSym) + '?range=6mo&interval=1d&events=false';
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (card !== activeCard) return; // user moved away
+                var result = data && data.chart && data.chart.result && data.chart.result[0];
+                if (!result) throw new Error('no data');
+
+                var ts     = result.timestamp;
+                var q      = result.indicators.quote[0];
+                var ohlcv  = [];
+                for (var i = 0; i < ts.length; i++) {
+                    if (q.open[i] == null || q.close[i] == null) continue;
+                    ohlcv.push({
+                        time:  ts[i],
+                        open:  q.open[i],
+                        high:  q.high[i],
+                        low:   q.low[i],
+                        close: q.close[i],
+                    });
+                }
+                renderChart(ohlcv);
+            })
+            .catch(function() {
+                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            });
     }
 
     function hidePopup() {
         if (!popup) return;
         popup.classList.remove('visible');
-        destroyWidget();
+        destroyChart();
         activeCard = null;
     }
 
-    // Called per-card directly after each card renders
     function bindCard(card) {
         card.addEventListener('mouseenter', function () {
             if (card === activeCard) return;
@@ -10687,7 +10725,6 @@ var _mmPopup = (function () {
     }
 
     document.addEventListener('DOMContentLoaded', init);
-
     return { bindCard: bindCard, hide: hidePopup };
 })();
 
