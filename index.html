@@ -1210,7 +1210,8 @@
         /* Sector perf */
         .sp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
         .sp-row:last-child { margin-bottom: 0; }
-        .sp-name { font-size: 13px; color: #8b949e; width: 152px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sp-name { font-size: 13px; color: #8b949e; width: 152px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .sp-name:hover { color: #c8d0dc; text-decoration: underline; }
         .sp-bar-wrap { flex: 1; height: 12px; background: #21262d; border-radius: 3px; overflow: visible; position: relative; }
         .sp-bar { height: 100%; border-radius: 3px; position: absolute; }
         .sp-center { position: absolute; left: 50%; top: -4px; width: 1px; height: 20px; background: #30363d; }
@@ -1230,7 +1231,8 @@
         .ib-master-dec  { background: #f85149; flex: 1; }
         .ib-sec-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
         .ib-sec-row:last-child { margin-bottom: 0; }
-        .ib-sec-name { font-size: 12px; color: #8b949e; width: 148px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ib-sec-name { font-size: 12px; color: #8b949e; width: 148px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .ib-sec-name:hover { color: #c8d0dc; text-decoration: underline; }
         .ib-sec-bar  { flex: 1; height: 7px; background: #21262d; border-radius: 3px; overflow: hidden; display: flex; }
         .ib-sec-adv  { background: #3fb950; border-radius: 3px 0 0 3px; }
         .ib-sec-dec  { background: #f85149; border-radius: 0 3px 3px 0; flex: 1; }
@@ -3069,6 +3071,14 @@
     };
 
 
+
+    window.goToSector = function(sector) {
+        searchQuery = sector;
+        var si = document.getElementById('search-input');
+        if (si) { si.value = sector; _updateSearchClear(sector); }
+        showView('industries');
+        renderIndustries();
+    };
 
     window.navToIndustries = function() {
         if (currentView === 'industry-stocks') {
@@ -8131,7 +8141,7 @@
             }
             var sign = pct >= 0 ? '+' : '';
             return '<div class="sp-row">' +
-                '<div class="sp-name">' + esc(s.name) + '</div>' +
+                '<div class="sp-name" onclick="goToSector(\'' + esc(s.name) + '\')">' + esc(s.name) + '</div>' +
                 '<div class="sp-bar-wrap">' +
                     '<div class="sp-center"></div>' +
                     '<div class="sp-bar" style="background:' + clr + ';' + barStyle + '"></div>' +
@@ -8182,7 +8192,7 @@
             var tot    = s.adv + s.dec || 1;
             var advW   = (s.adv / tot * 100).toFixed(1);
             return '<div class="ib-sec-row">' +
-                '<div class="ib-sec-name">' + esc(s.name) + '</div>' +
+                '<div class="ib-sec-name" onclick="goToSector(\'' + esc(s.name) + '\')">' + esc(s.name) + '</div>' +
                 '<div class="ib-sec-bar">' +
                     '<div class="ib-sec-adv" style="width:' + advW + '%"></div>' +
                     '<div class="ib-sec-dec"></div>' +
