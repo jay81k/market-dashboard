@@ -10635,6 +10635,40 @@ var _mmPopup = (function () {
         });
 
         candleSeries.setData(ohlcv);
+
+        // SMA 50
+        var sma50 = lwChart.addLineSeries({
+            color:           '#2979c8',
+            lineWidth:       1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+        });
+        var sma50data = [];
+        for (var i = 49; i < ohlcv.length; i++) {
+            var sum = 0;
+            for (var j = i - 49; j <= i; j++) sum += ohlcv[j].close;
+            sma50data.push({ time: ohlcv[i].time, value: sum / 50 });
+        }
+        sma50.setData(sma50data);
+
+        // EMA 21
+        var ema21 = lwChart.addLineSeries({
+            color:           '#e3852b',
+            lineWidth:       1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+        });
+        var ema21data = [];
+        var k = 2 / (21 + 1);
+        var emaVal = ohlcv[0].close;
+        for (var i = 0; i < ohlcv.length; i++) {
+            emaVal = ohlcv[i].close * k + emaVal * (1 - k);
+            if (i >= 20) ema21data.push({ time: ohlcv[i].time, value: emaVal });
+        }
+        ema21.setData(ema21data);
+
         lwChart.timeScale().fitContent();
     }
 
@@ -10870,7 +10904,6 @@ function mmBindHover(card) { _mmPopup.bindCard(card); }
     <div class="mm-popup-footer">
         <span class="mm-popup-price" id="mm-popup-price"></span>
         <span class="mm-popup-chg"   id="mm-popup-chg"></span>
-        <span class="mm-popup-hint">click to open full chart</span>
     </div>
     <div class="mm-popup-caret" id="mm-popup-caret"></div>
 </div>
