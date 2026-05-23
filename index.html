@@ -10680,6 +10680,8 @@ var _mmPopup = (function () {
         ema21.setData(ema21data);
 
         lwChart.timeScale().fitContent();
+        var totalBars = ohlcv.length;
+        lwChart.timeScale().setVisibleLogicalRange({ from: totalBars - 65, to: totalBars - 1 });
     }
 
     function showPopup(card) {
