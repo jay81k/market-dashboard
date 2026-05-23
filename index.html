@@ -10567,15 +10567,7 @@ var _mmPopup = (function () {
         popupCaret = document.getElementById('mm-popup-caret');
         if (!popup) return;
 
-        popup.addEventListener('mouseover',  function () { clearTimeout(hideTimer); });
-        popup.addEventListener('mouseout', function (e) {
-            // don't hide if moving back to the card that triggered this popup
-            if (activeCard && activeCard.contains(e.relatedTarget)) {
-                clearTimeout(hideTimer); return;
-            }
-            if (popup.contains(e.relatedTarget)) return;
-            hideTimer = setTimeout(hidePopup, 300);
-        });
+        // mousemove tracker handles hide logic — no listeners needed on popup itself
         window.addEventListener('resize', hidePopup);
         ready = true;
     }
@@ -10707,27 +10699,30 @@ var _mmPopup = (function () {
         activeCard = null;
     }
 
+    // Track mouse position and hide only when truly outside both card and popup
+    function startMouseTracking() {
+        document.addEventListener('mousemove', function (e) {
+            if (!popup || !popup.classList.contains('visible') || !activeCard) return;
+            var el       = document.elementFromPoint(e.clientX, e.clientY);
+            var overCard = activeCard.contains(el) || el === activeCard;
+            var overPop  = popup.contains(el)      || el === popup;
+            if (overCard || overPop) {
+                clearTimeout(hideTimer);
+            } else {
+                clearTimeout(hideTimer);
+                hideTimer = setTimeout(hidePopup, 300);
+            }
+        });
+    }
+
     function bindCard(card) {
-        // mouseover bubbles — fires regardless of which child the cursor is over
         card.addEventListener('mouseover', function (e) {
-            // ignore if moving between children of the same card
             if (card.contains(e.relatedTarget)) return;
             if (card === activeCard) return;
             clearTimeout(hoverTimer);
             clearTimeout(hideTimer);
             activeCard = card;
             hoverTimer = setTimeout(function () { showPopup(card); }, 200);
-        });
-        // mouseout bubbles — fires when leaving card or moving between children
-        card.addEventListener('mouseout', function (e) {
-            // ignore moves between children of the same card
-            if (card.contains(e.relatedTarget)) return;
-            // ignore if moving directly into the popup
-            if (popup && popup.contains(e.relatedTarget)) return;
-            clearTimeout(hoverTimer);
-            hideTimer = setTimeout(function () {
-                if (!popup || !popup.matches(':hover')) hidePopup();
-            }, 450);
         });
         card.addEventListener('click', function () {
             hidePopup();
@@ -10736,7 +10731,7 @@ var _mmPopup = (function () {
         });
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', function () { init(); startMouseTracking(); });
     return { bindCard: bindCard, hide: hidePopup };
 })();
 
