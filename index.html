@@ -10567,9 +10567,14 @@ var _mmPopup = (function () {
         popupCaret = document.getElementById('mm-popup-caret');
         if (!popup) return;
 
-        popup.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
-        popup.addEventListener('mouseleave', function () {
-            hideTimer = setTimeout(hidePopup, 200);
+        popup.addEventListener('mouseover',  function () { clearTimeout(hideTimer); });
+        popup.addEventListener('mouseout', function (e) {
+            // don't hide if moving back to the card that triggered this popup
+            if (activeCard && activeCard.contains(e.relatedTarget)) {
+                clearTimeout(hideTimer); return;
+            }
+            if (popup.contains(e.relatedTarget)) return;
+            hideTimer = setTimeout(hidePopup, 300);
         });
         window.addEventListener('resize', hidePopup);
         ready = true;
@@ -10703,18 +10708,26 @@ var _mmPopup = (function () {
     }
 
     function bindCard(card) {
-        card.addEventListener('mouseenter', function () {
+        // mouseover bubbles — fires regardless of which child the cursor is over
+        card.addEventListener('mouseover', function (e) {
+            // ignore if moving between children of the same card
+            if (card.contains(e.relatedTarget)) return;
             if (card === activeCard) return;
             clearTimeout(hoverTimer);
             clearTimeout(hideTimer);
             activeCard = card;
-            hoverTimer = setTimeout(function () { showPopup(card); }, 220);
+            hoverTimer = setTimeout(function () { showPopup(card); }, 200);
         });
-        card.addEventListener('mouseleave', function () {
+        // mouseout bubbles — fires when leaving card or moving between children
+        card.addEventListener('mouseout', function (e) {
+            // ignore moves between children of the same card
+            if (card.contains(e.relatedTarget)) return;
+            // ignore if moving directly into the popup
+            if (popup && popup.contains(e.relatedTarget)) return;
             clearTimeout(hoverTimer);
             hideTimer = setTimeout(function () {
                 if (!popup || !popup.matches(':hover')) hidePopup();
-            }, 300);
+            }, 450);
         });
         card.addEventListener('click', function () {
             hidePopup();
