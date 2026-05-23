@@ -10638,7 +10638,7 @@ var _mmPopup = (function () {
 
         // SMA 50
         var sma50 = lwChart.addLineSeries({
-            color:           '#2979c8',
+            color:           '#e3852b',
             lineWidth:       1,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -10654,7 +10654,7 @@ var _mmPopup = (function () {
 
         // EMA 21
         var ema21 = lwChart.addLineSeries({
-            color:           '#e3852b',
+            color:           '#2979c8',
             lineWidth:       1,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -10697,7 +10697,7 @@ var _mmPopup = (function () {
         popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
 
         var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
-                  encodeURIComponent(yfSym) + '&interval=1d&range=6mo';
+                  encodeURIComponent(yfSym) + '&interval=1d&range=3mo';
 
         fetch(url)
             .then(function(r) { return r.json(); })
