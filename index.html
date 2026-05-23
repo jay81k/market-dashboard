@@ -10571,7 +10571,6 @@ var _mmPopup = (function () {
         popup.addEventListener('mouseleave', function () {
             hideTimer = setTimeout(hidePopup, 200);
         });
-        window.addEventListener('scroll', hidePopup, true);
         window.addEventListener('resize', hidePopup);
         ready = true;
     }
@@ -10666,8 +10665,8 @@ var _mmPopup = (function () {
         popup.classList.add('visible');
         popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
 
-        var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' +
-                  encodeURIComponent(yfSym) + '?range=6mo&interval=1d&events=false';
+        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+                  encodeURIComponent(yfSym) + '&interval=1d&range=6mo';
 
         fetch(url)
             .then(function(r) { return r.json(); })
