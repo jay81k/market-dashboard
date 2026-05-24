@@ -10817,6 +10817,10 @@ var _mmPopup = (function () {
             prevClose = (typeof alertPrevClose !== 'undefined') ? (alertPrevClose[ticker] || null) : null;
         }
         if (!price && row && row.price != null) { price = row.price; }
+        // Derive prevClose from snapshot daily% when no live prevClose is available
+        if (!prevClose && row && row.price != null && row.daily != null) {
+            prevClose = row.price / (1 + row.daily / 100);
+        }
 
         var chgAbs = (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
