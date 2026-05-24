@@ -8092,6 +8092,7 @@
                         '<div class="gl-vol" style="color:#58a6ff;font-weight:700;">' + r.rel_vol.toFixed(1) + 'x</div>' +
                     '</div>';
                 }).join('');
+            tickerHoverBind(rvolEl, '.gl-ticker');
         }
 
         function buildRows(stocks, dir) {
@@ -8111,6 +8112,8 @@
 
         gainEl.innerHTML = '<div class="gl-header"><div class="gl-title up">Top Gainers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(gainers, 'up');
         lossEl.innerHTML = '<div class="gl-header"><div class="gl-title down">Top Losers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(losers, 'down');
+        tickerHoverBind(gainEl, '.gl-ticker');
+        tickerHoverBind(lossEl, '.gl-ticker');
     }
 
     // ── Sector Performance ────────────────────────────────────────────────
