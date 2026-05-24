@@ -10575,7 +10575,17 @@
         }
         var rs   = (row && row.Percentile      != null) ? row.Percentile      : null;
         var rs3m = (row && row.weighted_rs_pct != null) ? row.weighted_rs_pct : null;
-        return { name: name, price: price, prevClose: prevClose, rs: rs, rs3m: rs3m };
+        var indRank = null, indTotal = null, indPct = null;
+        var industry = (row && row.industry) ? row.industry : null;
+        if (industry && typeof industriesData !== 'undefined' && industriesData && industriesData.industries) {
+            var indRow = industriesData.industries.find(function(x) { return x.industry === industry; });
+            indTotal = industriesData.industries.length;
+            if (indRow && indRow.rank != null) {
+                indRank = indRow.rank;
+                indPct  = indRow.percentile != null ? indRow.percentile : null;
+            }
+        }
+        return { name: name, price: price, prevClose: prevClose, rs: rs, rs3m: rs3m, indRank: indRank, indTotal: indTotal, indPct: indPct };
     };
 
 })();
@@ -10590,6 +10600,7 @@ var _mmPopup = (function () {
     var popupPrice = null;
     var popupChg   = null;
     var popupCaret = null;
+    var popupIndRank   = null;
     var popupRsBadge   = null;
     var popup3mrsBadge = null;
 
@@ -10609,6 +10620,7 @@ var _mmPopup = (function () {
         popupPrice   = document.getElementById('mm-popup-price');
         popupChg     = document.getElementById('mm-popup-chg');
         popupCaret   = document.getElementById('mm-popup-caret');
+        popupIndRank   = document.getElementById('mm-popup-ind-rank');
         popupRsBadge   = document.getElementById('mm-popup-rs-badge');
         popup3mrsBadge = document.getElementById('mm-popup-3mrs-badge');
         if (!popup) return;
@@ -10813,6 +10825,7 @@ var _mmPopup = (function () {
         popupPrice.textContent = price;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+        if (popupIndRank)   popupIndRank.style.display   = 'none';
         if (popupRsBadge)   popupRsBadge.style.display   = 'none';
         if (popup3mrsBadge) popup3mrsBadge.style.display = 'none';
 
@@ -10910,6 +10923,16 @@ var _mmPopup = (function () {
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
         popupChg.textContent = chgAbsStr + chgPctStr;
         popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        // Industry rank
+        if (popupIndRank) {
+            if (_td.indRank != null && _td.indTotal != null) {
+                popupIndRank.textContent   = '(' + _td.indRank + '/' + _td.indTotal + ')';
+                popupIndRank.style.display = '';
+            } else {
+                popupIndRank.style.display = 'none';
+            }
+        }
 
         // RS badge
         if (popupRsBadge) {
@@ -11123,8 +11146,9 @@ window.tickerHoverBind = function(container, selector, tickerFn) {
 <!-- Macro card hover chart popup -->
 <div id="mm-hover-popup">
     <div class="mm-popup-header">
-        <div style="display:flex;align-items:center;gap:5px;">
+        <div style="display:flex;align-items:center;gap:6px;">
             <span class="mm-popup-sym" id="mm-popup-sym">BTC</span>
+            <span id="mm-popup-ind-rank" style="font-size:11px;color:#484f58;display:none;"></span>
             <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;"></span>
             <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;"></span>
         </div>
