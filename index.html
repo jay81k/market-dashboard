@@ -3389,6 +3389,7 @@
         });
         var tbody = document.getElementById(tbodyId);
         tbody.innerHTML = html;
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(tbody, '.ticker-badge', null);
         applyDistMA(tbody);
 
         // Attach click/dblclick via delegation
@@ -5792,6 +5793,7 @@
         if (bottomPad > 0) html += '<tr id="vs-bot-spacer" style="height:' + bottomPad + 'px;"><td colspan="24"></td></tr>';
 
         tbody.innerHTML = html;
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(tbody, '.ticker-badge', null);
         applyDistMA(document.getElementById('scans-table'));
         scanUpdatePriceRows();
         wlRefreshStars();
@@ -6676,6 +6678,10 @@
             });
         }
         scroll.innerHTML = html;
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(scroll, '.wl-c-sym', function(el) {
+            var t = el.textContent.trim();
+            return (t && t !== 'Symbol') ? t : null;
+        });
         if (typeof alStampBadges === 'function') alStampBadges();
         if (wlMcActive) renderWlMc();
     };
@@ -9415,6 +9421,7 @@
         }).join('');
         // Restore scroll so price polls and async name updates don't snap to top.
         listEl.scrollTop = savedScrollTop;
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(listEl, '.al-col-ticker', null);
         alStampBadges();
 
         // Re-apply active ticker selection that was set via bell-click (survives re-renders)
@@ -10790,11 +10797,103 @@ var _mmPopup = (function () {
         });
     }
 
+    function showTickerPopup(el, ticker) {
+        if (!ready) init();
+        if (!popup) return;
+
+        // Look up name + price from available data sources
+        var row = (typeof tickerMap !== 'undefined' && tickerMap) ? tickerMap[ticker] : null;
+        var name = (row && row.name) ? row.name : '';
+
+        var price = null, prevClose = null;
+        var slp = (typeof scanLivePrices !== 'undefined') ? scanLivePrices[ticker] : null;
+        if (slp && slp.price) { price = slp.price; prevClose = slp.prevClose || null; }
+        if (!price) {
+            var wlp = (typeof wlLivePrices !== 'undefined') ? wlLivePrices[ticker] : null;
+            if (wlp && wlp.price) { price = wlp.price; prevClose = wlp.prevClose || null; }
+        }
+        if (!price && typeof alertPrices !== 'undefined' && alertPrices[ticker]) {
+            price = alertPrices[ticker];
+            prevClose = (typeof alertPrevClose !== 'undefined') ? (alertPrevClose[ticker] || null) : null;
+        }
+        if (!price && row && row.price != null) { price = row.price; }
+
+        var chgAbs = (price != null && prevClose != null) ? price - prevClose : null;
+        var chgPct = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
+        var dir    = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
+
+        popupSym.textContent   = ticker;
+        popupName.textContent  = name ? ' · ' + name : '';
+        popupPrice.textContent = price != null ? '$' + price.toFixed(2) : '—';
+
+        var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
+        var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
+        popupChg.textContent = chgAbsStr + chgPctStr;
+        popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        positionPopup(el);
+        popup.classList.add('visible');
+        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
+
+        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+                  encodeURIComponent(ticker) + '&interval=1d&range=6mo';
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (el !== activeCard) return;
+                var result = data && data.chart && data.chart.result && data.chart.result[0];
+                if (!result) throw new Error('no data');
+                var ts    = result.timestamp;
+                var q     = result.indicators.quote[0];
+                var ohlcv = [];
+                for (var i = 0; i < ts.length; i++) {
+                    if (q.open[i] == null || q.close[i] == null) continue;
+                    ohlcv.push({
+                        time:   ts[i],
+                        open:   q.open[i],
+                        high:   q.high[i],
+                        low:    q.low[i],
+                        close:  q.close[i],
+                        volume: q.volume[i] || 0,
+                    });
+                }
+                renderChart(ohlcv);
+            })
+            .catch(function() {
+                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            });
+    }
+
+    function bindTicker(el, ticker) {
+        el.addEventListener('mouseenter', function() {
+            clearTimeout(hoverTimer);
+            clearTimeout(hideTimer);
+            activeCard = el;
+            hoverTimer = setTimeout(function() { showTickerPopup(el, ticker); }, 200);
+        });
+        el.addEventListener('mouseleave', function() {
+            clearTimeout(hoverTimer);
+            hideTimer = setTimeout(hidePopup, 300);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () { init(); startMouseTracking(); });
-    return { bindCard: bindCard, hide: hidePopup };
+    return { bindCard: bindCard, hide: hidePopup, bindTicker: bindTicker };
 })();
 
 function mmBindHover(card) { _mmPopup.bindCard(card); }
+
+// Bind hover chart popup to all ticker elements in a container.
+// selector: CSS selector for ticker elements (e.g. '.ticker-badge')
+// tickerFn: optional function(el) → ticker string; defaults to el.textContent.trim()
+window.tickerHoverBind = function(container, selector, tickerFn) {
+    if (!container) return;
+    container.querySelectorAll(selector).forEach(function(el) {
+        var ticker = tickerFn ? tickerFn(el) : el.textContent.trim();
+        if (ticker) _mmPopup.bindTicker(el, ticker);
+    });
+};
 // ── END Macro card hover chart popup ─────────────────────────────────────
 
 </script>
