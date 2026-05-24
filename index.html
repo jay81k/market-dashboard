@@ -10550,6 +10550,28 @@
 
     // ── END PRICE ALERTS ─────────────────────────────────────────────────────
 
+    // Exposes ticker data to _mmPopup which lives outside this IIFE
+    window._getTickerPopupData = function(ticker) {
+        var row = tickerMap ? tickerMap[ticker] : null;
+        var name = (row && row.name) ? row.name : '';
+        var price = null, prevClose = null;
+        var slp = scanLivePrices[ticker];
+        if (slp && slp.price) { price = slp.price; prevClose = slp.prevClose || null; }
+        if (!price) {
+            var wlp = wlLivePrices[ticker];
+            if (wlp && wlp.price) { price = wlp.price; prevClose = wlp.prevClose || null; }
+        }
+        if (!price && alertPrices[ticker]) {
+            price = alertPrices[ticker];
+            prevClose = alertPrevClose[ticker] || null;
+        }
+        if (!price && row && row.price != null) { price = row.price; }
+        if (!prevClose && row && row.price != null && row.daily != null) {
+            prevClose = row.price / (1 + row.daily / 100);
+        }
+        return { name: name, price: price, prevClose: prevClose };
+    };
+
 })();
 </script>
 
@@ -10802,25 +10824,10 @@ var _mmPopup = (function () {
         if (!popup) return;
 
         // Look up name + price from available data sources
-        var row = (typeof tickerMap !== 'undefined' && tickerMap) ? tickerMap[ticker] : null;
-        var name = (row && row.name) ? row.name : '';
-
-        var price = null, prevClose = null;
-        var slp = (typeof scanLivePrices !== 'undefined') ? scanLivePrices[ticker] : null;
-        if (slp && slp.price) { price = slp.price; prevClose = slp.prevClose || null; }
-        if (!price) {
-            var wlp = (typeof wlLivePrices !== 'undefined') ? wlLivePrices[ticker] : null;
-            if (wlp && wlp.price) { price = wlp.price; prevClose = wlp.prevClose || null; }
-        }
-        if (!price && typeof alertPrices !== 'undefined' && alertPrices[ticker]) {
-            price = alertPrices[ticker];
-            prevClose = (typeof alertPrevClose !== 'undefined') ? (alertPrevClose[ticker] || null) : null;
-        }
-        if (!price && row && row.price != null) { price = row.price; }
-        // Derive prevClose from snapshot daily% when no live prevClose is available
-        if (!prevClose && row && row.price != null && row.daily != null) {
-            prevClose = row.price / (1 + row.daily / 100);
-        }
+        var _td = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
+        var name = _td.name || '';
+        var price = _td.price != null ? _td.price : null;
+        var prevClose = _td.prevClose != null ? _td.prevClose : null;
 
         var chgAbs = (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
