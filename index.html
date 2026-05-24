@@ -8630,6 +8630,7 @@
         if (listEl) {
             listEl.innerHTML = html;
             if (typeof alStampBadges === 'function') alStampBadges();
+            tickerHoverBind(listEl, '.snp-ticker');
             listEl.onclick = function(e) {
                 var row = e.target.closest('.snp-row');
                 if (!row) return;
