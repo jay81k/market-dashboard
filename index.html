@@ -10569,7 +10569,9 @@
         if (!prevClose && row && row.price != null && row.daily != null) {
             prevClose = row.price / (1 + row.daily / 100);
         }
-        return { name: name, price: price, prevClose: prevClose };
+        var rs   = (row && row.Percentile      != null) ? row.Percentile      : null;
+        var rs3m = (row && row.weighted_rs_pct != null) ? row.weighted_rs_pct : null;
+        return { name: name, price: price, prevClose: prevClose, rs: rs, rs3m: rs3m };
     };
 
 })();
@@ -10580,11 +10582,12 @@
 var _mmPopup = (function () {
     var popup      = null;
     var popupSym   = null;
-    var popupName  = null;
     var popupChart = null;
     var popupPrice = null;
     var popupChg   = null;
     var popupCaret = null;
+    var popupRsBadge   = null;
+    var popup3mrsBadge = null;
 
     var hoverTimer  = null;
     var hideTimer   = null;
@@ -10596,13 +10599,14 @@ var _mmPopup = (function () {
     var ready       = false;
 
     function init() {
-        popup      = document.getElementById('mm-hover-popup');
-        popupSym   = document.getElementById('mm-popup-sym');
-        popupName  = document.getElementById('mm-popup-name');
-        popupChart = document.getElementById('mm-popup-chart');
-        popupPrice = document.getElementById('mm-popup-price');
-        popupChg   = document.getElementById('mm-popup-chg');
-        popupCaret = document.getElementById('mm-popup-caret');
+        popup        = document.getElementById('mm-hover-popup');
+        popupSym     = document.getElementById('mm-popup-sym');
+        popupChart   = document.getElementById('mm-popup-chart');
+        popupPrice   = document.getElementById('mm-popup-price');
+        popupChg     = document.getElementById('mm-popup-chg');
+        popupCaret   = document.getElementById('mm-popup-caret');
+        popupRsBadge   = document.getElementById('mm-popup-rs-badge');
+        popup3mrsBadge = document.getElementById('mm-popup-3mrs-badge');
         if (!popup) return;
 
         // mousemove tracker handles hide logic — no listeners needed on popup itself
@@ -10786,10 +10790,11 @@ var _mmPopup = (function () {
         if (!yfSym) return;
 
         popupSym.textContent  = label;
-        popupName.textContent = ' · ' + name;
         popupPrice.textContent = price;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+        if (popupRsBadge)   popupRsBadge.style.display   = 'none';
+        if (popup3mrsBadge) popup3mrsBadge.style.display = 'none';
 
         positionPopup(card);
         popup.classList.add('visible');
@@ -10875,13 +10880,37 @@ var _mmPopup = (function () {
         var dir    = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
         popupSym.textContent   = ticker;
-        popupName.textContent  = name ? ' · ' + name : '';
         popupPrice.textContent = price != null ? '$' + price.toFixed(2) : '—';
 
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
         popupChg.textContent = chgAbsStr + chgPctStr;
         popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        // RS badge
+        if (popupRsBadge) {
+            var rsVal = _td.rs != null ? Math.round(_td.rs) : null;
+            if (rsVal != null) {
+                var rsCls = rsVal >= 75 ? 'rs-high' : rsVal >= 40 ? 'rs-mid' : 'rs-low';
+                popupRsBadge.className   = 'chart-rs-badge ' + rsCls;
+                popupRsBadge.textContent = 'RS ' + rsVal;
+                popupRsBadge.style.display = '';
+            } else {
+                popupRsBadge.style.display = 'none';
+            }
+        }
+        // 3MRS badge
+        if (popup3mrsBadge) {
+            var rs3mVal = _td.rs3m != null ? Math.round(_td.rs3m) : null;
+            if (rs3mVal != null) {
+                var rs3mCls = rs3mVal >= 75 ? 'rs-high' : rs3mVal >= 40 ? 'rs-mid' : 'rs-low';
+                popup3mrsBadge.className   = 'chart-rs-badge ' + rs3mCls;
+                popup3mrsBadge.textContent = rs3mVal;
+                popup3mrsBadge.style.display = '';
+            } else {
+                popup3mrsBadge.style.display = 'none';
+            }
+        }
 
         positionPopup(el);
         popup.classList.add('visible');
@@ -11070,11 +11099,12 @@ window.tickerHoverBind = function(container, selector, tickerFn) {
 <!-- Macro card hover chart popup -->
 <div id="mm-hover-popup">
     <div class="mm-popup-header">
-        <div style="display:flex;align-items:center;">
-            <span class="mm-popup-sym" id="mm-popup-sym">BTC</span>
-            <span class="mm-popup-name" id="mm-popup-name">Bitcoin</span>
+        <span class="mm-popup-sym" id="mm-popup-sym">BTC</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+            <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;"></span>
+            <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;"></span>
+            <span class="mm-popup-tf">1D</span>
         </div>
-        <span class="mm-popup-tf">1D</span>
     </div>
     <div class="mm-popup-chart" id="mm-popup-chart"></div>
     <div class="mm-popup-footer">
