@@ -10607,6 +10607,12 @@ var _mmPopup = (function () {
 
         // mousemove tracker handles hide logic — no listeners needed on popup itself
         window.addEventListener('resize', hidePopup);
+        // Close immediately when user scrolls anywhere
+        window.addEventListener('wheel', function() {
+            clearTimeout(hoverTimer);
+            clearTimeout(hideTimer);
+            hidePopup();
+        }, { passive: true });
         ready = true;
     }
 
@@ -10838,7 +10844,7 @@ var _mmPopup = (function () {
                 clearTimeout(hideTimer);
             } else {
                 clearTimeout(hideTimer);
-                hideTimer = setTimeout(hidePopup, 300);
+                hideTimer = setTimeout(hidePopup, 120);
             }
         });
     }
@@ -10920,7 +10926,7 @@ var _mmPopup = (function () {
         });
         el.addEventListener('mouseleave', function() {
             clearTimeout(hoverTimer);
-            hideTimer = setTimeout(hidePopup, 300);
+            hideTimer = setTimeout(hidePopup, 120);
         });
     }
 
