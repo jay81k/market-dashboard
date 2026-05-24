@@ -3770,6 +3770,7 @@
         };
         window.addEventListener('message', _chartModalMsgHandler);
     }
+    window.openChartModal  = openChartModal;
     window.closeChartModal = function() {
         document.getElementById('chart-modal-overlay').classList.remove('open');
         var _sw = document.getElementById('search-input') && document.getElementById('search-input').closest('.search-wrap');
