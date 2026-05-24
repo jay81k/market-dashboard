@@ -1175,7 +1175,7 @@
             border: 1px solid #388bfd; border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 16px 48px rgba(0,0,0,0.85);
-            pointer-events: auto;
+            pointer-events: auto; cursor: pointer;
         }
         #mm-hover-popup.visible { display: block; }
         .mm-popup-header {
@@ -10585,7 +10585,7 @@
                 indPct  = indRow.percentile != null ? indRow.percentile : null;
             }
         }
-        return { name: name, price: price, prevClose: prevClose, rs: rs, rs3m: rs3m, indRank: indRank, indTotal: indTotal, indPct: indPct };
+        return { name: name, price: price, prevClose: prevClose, rs: rs, rs3m: rs3m, indRank: indRank, indTotal: indTotal, indPct: indPct, industry: industry };
     };
 
 })();
@@ -10633,6 +10633,16 @@ var _mmPopup = (function () {
             clearTimeout(hideTimer);
             hidePopup();
         }, { passive: true });
+
+        // Left-click anywhere in popup → close popup then open fullscreen chart modal
+        popup.addEventListener('click', function(e) {
+            var ticker = popupSym ? popupSym.textContent.trim() : '';
+            if (!ticker || ticker === '—') return;
+            var _td = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
+            var industry = (_td && _td.industry) ? _td.industry : '';
+            hidePopup();
+            if (typeof openChartModal === 'function') openChartModal(ticker, '', industry);
+        });
 
         // Right-click anywhere in popup → watchlist / alert picker
         popup.addEventListener('contextmenu', function(e) {
