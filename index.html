@@ -10862,6 +10862,10 @@ var _mmPopup = (function () {
     function startMouseTracking() {
         document.addEventListener('mousemove', function (e) {
             if (!popup || !popup.classList.contains('visible') || !activeCard) return;
+            // Don't hide while the watchlist/alert picker is open — its backdrop
+            // sits on top of the popup and would otherwise trigger the hide timer
+            var picker = document.getElementById('wl-picker');
+            if (picker && picker.style.display !== 'none') return;
             var el       = document.elementFromPoint(e.clientX, e.clientY);
             var overCard = activeCard.contains(el) || el === activeCard;
             var overPop  = popup.contains(el)      || el === popup;
