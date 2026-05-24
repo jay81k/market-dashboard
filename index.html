@@ -10621,6 +10621,22 @@ var _mmPopup = (function () {
             clearTimeout(hideTimer);
             hidePopup();
         }, { passive: true });
+
+        // Right-click anywhere in popup → watchlist / alert picker
+        popup.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var ticker = popupSym ? popupSym.textContent.trim() : '';
+            if (!ticker || ticker === '—') return;
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+            wlPickerJustOpened = false;
+        });
+
         ready = true;
     }
 
