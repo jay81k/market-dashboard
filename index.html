@@ -10685,7 +10685,7 @@ var _mmPopup = (function () {
 
     function positionPopup(card) {
         var panelEl   = card.closest('#scan-nav-panel') || card.closest('.wl-side-panel');
-        var tableWrap = card.closest('.stocks-table-wrap');
+        var tableWrap = card.closest('.stocks-table-wrap') || card.closest('#al-list');
 
         popup.style.width = POPUP_W + 'px';
 
