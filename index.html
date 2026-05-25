@@ -10679,7 +10679,7 @@ var _mmPopup = (function () {
     }
 
     function positionPopup(card) {
-        var panelEl = card.closest('#scan-nav-panel');
+        var panelEl = card.closest('#scan-nav-panel') || card.closest('.wl-side-panel');
 
         popup.style.width = POPUP_W + 'px';
 
