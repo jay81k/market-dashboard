@@ -1206,6 +1206,11 @@
             border-top: 8px solid transparent; border-bottom: 8px solid transparent;
             border-left: 8px solid #388bfd; border-right: none;
         }
+        .mm-popup-caret.left {
+            left: -8px; right: auto; top: 50%; transform: translateY(-50%);
+            border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+            border-right: 8px solid #388bfd; border-left: none;
+        }
         .market-macro-card { cursor: pointer; }
 
         /* ── Analytics row ── */
@@ -10679,12 +10684,13 @@ var _mmPopup = (function () {
     }
 
     function positionPopup(card) {
-        var panelEl = card.closest('#scan-nav-panel') || card.closest('.wl-side-panel');
+        var panelEl   = card.closest('#scan-nav-panel') || card.closest('.wl-side-panel');
+        var tableWrap = card.closest('.stocks-table-wrap');
 
         popup.style.width = POPUP_W + 'px';
 
         if (panelEl) {
-            // ── Side placement: popup appears to the LEFT of the scan nav panel ──
+            // ── Side placement: popup appears to the LEFT of the scan nav / watchlist panel ──
             var panelRect = panelEl.getBoundingClientRect();
             var rowRect   = card.getBoundingClientRect();
 
@@ -10700,6 +10706,29 @@ var _mmPopup = (function () {
             // Right-pointing caret aligned to the hovered row
             popupCaret.className       = 'mm-popup-caret right';
             popupCaret.style.left      = '';
+            popupCaret.style.bottom    = '';
+            popupCaret.style.transform = '';
+            var caretTop = (centerY - top) - 8;
+            popupCaret.style.top = Math.max(16, Math.min(caretTop, POPUP_H - 16)) + 'px';
+            return;
+        }
+
+        if (tableWrap) {
+            // ── Side placement: popup appears to the RIGHT of the ticker cell ──
+            var rowRect  = card.getBoundingClientRect();
+            var left     = rowRect.right + 10;
+            if (left + POPUP_W > window.innerWidth - 8) left = window.innerWidth - POPUP_W - 8;
+            popup.style.left   = left + 'px';
+            popup.style.right  = '';
+
+            var centerY = rowRect.top + rowRect.height / 2;
+            var top     = Math.max(8, Math.min(centerY - POPUP_H / 2, window.innerHeight - POPUP_H - 8));
+            popup.style.top    = top + 'px';
+            popup.style.bottom = '';
+
+            // Left-pointing caret aligned to the hovered row
+            popupCaret.className       = 'mm-popup-caret left';
+            popupCaret.style.right     = '';
             popupCaret.style.bottom    = '';
             popupCaret.style.transform = '';
             var caretTop = (centerY - top) - 8;
