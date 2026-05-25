@@ -8971,7 +8971,7 @@
     function alStartBackgroundPolling() {
         if (alertPriceTimer) { clearInterval(alertPriceTimer); alertPriceTimer = null; }
         if (alertOpenTimer)  { clearTimeout(alertOpenTimer);   alertOpenTimer  = null; }
-        if (!alertsList.length) return;
+        if (!alertsList.length && !alertFiredList.length) return;
         alFetchPrices();
         if (!wlIsMarketOpen()) {
             alertOpenTimer = setTimeout(alStartBackgroundPolling, alMsUntilMarketOpen());
@@ -8992,11 +8992,11 @@
         var historyTickers = alertFiredList.map(function(f) { return f.ticker; });
         var tickers = activeTickers.concat(historyTickers)
             .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-        if (!tickers.length) return;
+        if (!tickers.length) return Promise.resolve();
         // Batch into chunks of 50 to avoid URL length limits
         var batches = [];
         for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
-        Promise.all(batches.map(function(batch) {
+        return Promise.all(batches.map(function(batch) {
             var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
             return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
         })).then(function(results) {
@@ -9577,6 +9577,10 @@
         exp.classList.add('open');
         exp.style.display = 'flex';
         renderHistory();
+        // Fetch latest prices for history tickers then re-render with real values
+        if (alertFiredList.length) {
+            alFetchPrices().then(function() { renderHistory(); }).catch(function() {});
+        }
     };
 
     window.alHistClose = function() {
