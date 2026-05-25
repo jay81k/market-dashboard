@@ -1199,8 +1199,13 @@
             border-left: 8px solid transparent;
             border-right: 8px solid transparent;
         }
-        .mm-popup-caret.down { bottom: -8px; border-top: 8px solid #388bfd; }
-        .mm-popup-caret.up   { top: -8px;    border-bottom: 8px solid #388bfd; }
+        .mm-popup-caret.down  { bottom: -8px; border-top: 8px solid #388bfd; }
+        .mm-popup-caret.up    { top: -8px;    border-bottom: 8px solid #388bfd; }
+        .mm-popup-caret.right {
+            right: -8px; left: auto; top: 50%; transform: translateY(-50%);
+            border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+            border-left: 8px solid #388bfd; border-right: none;
+        }
         .market-macro-card { cursor: pointer; }
 
         /* ── Analytics row ── */
@@ -10674,12 +10679,40 @@ var _mmPopup = (function () {
     }
 
     function positionPopup(card) {
+        var panelEl = card.closest('#scan-nav-panel');
+
+        popup.style.width = POPUP_W + 'px';
+
+        if (panelEl) {
+            // ── Side placement: popup appears to the LEFT of the scan nav panel ──
+            var panelRect = panelEl.getBoundingClientRect();
+            var rowRect   = card.getBoundingClientRect();
+
+            var left = Math.max(8, panelRect.left - POPUP_W - 10);
+            popup.style.left   = left + 'px';
+            popup.style.right  = '';
+
+            var centerY = rowRect.top + rowRect.height / 2;
+            var top     = Math.max(8, Math.min(centerY - POPUP_H / 2, window.innerHeight - POPUP_H - 8));
+            popup.style.top    = top + 'px';
+            popup.style.bottom = '';
+
+            // Right-pointing caret aligned to the hovered row
+            popupCaret.className       = 'mm-popup-caret right';
+            popupCaret.style.left      = '';
+            popupCaret.style.bottom    = '';
+            popupCaret.style.transform = '';
+            var caretTop = (centerY - top) - 8;
+            popupCaret.style.top = Math.max(16, Math.min(caretTop, POPUP_H - 16)) + 'px';
+            return;
+        }
+
+        // ── Default: above / below placement ──
         var rect       = card.getBoundingClientRect();
         var spaceAbove = rect.top;
         var spaceBelow = window.innerHeight - rect.bottom;
         var placeAbove = spaceAbove > POPUP_H + 16 || spaceAbove >= spaceBelow;
 
-        popup.style.width = POPUP_W + 'px';
         var left = rect.left + (rect.width / 2) - (POPUP_W / 2);
         left = Math.max(8, Math.min(left, window.innerWidth - POPUP_W - 8));
         popup.style.left = left + 'px';
