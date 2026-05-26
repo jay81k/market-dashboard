@@ -1184,15 +1184,15 @@
             flex-shrink: 0;
         }
         .mm-popup-sym  { font-size: 13px; font-weight: 700; color: #58a6ff; letter-spacing: 0.05em; }
-        .mm-popup-name { font-size: 11px; color: #6e7681; margin-left: 7px; }
+        .mm-popup-name { font-size: 11px; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
         .mm-popup-tf   { font-size: 10px; font-weight: 600; color: #58a6ff; background: #1a3a5c; border: 1px solid #1f6feb55; border-radius: 3px; padding: 2px 7px; letter-spacing: 0.04em; }
         .mm-popup-chart { width: 100%; height: 220px; }
         .mm-popup-footer {
             display: flex; align-items: center; justify-content: space-between;
             padding: 7px 12px; background: #0d1117; border-top: 1px solid #21262d;
         }
-        .mm-popup-price { font-size: 14px; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; }
-        .mm-popup-chg   { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .mm-popup-price { font-size: 13px; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .mm-popup-chg   { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
         .mm-popup-caret {
             position: absolute; left: 50%; transform: translateX(-50%);
             width: 0; height: 0;
@@ -10639,6 +10639,7 @@ var _mmPopup = (function () {
         popupIndRank   = document.getElementById('mm-popup-ind-rank');
         popupRsBadge   = document.getElementById('mm-popup-rs-badge');
         popup3mrsBadge = document.getElementById('mm-popup-3mrs-badge');
+        popupName      = document.getElementById('mm-popup-name');
         if (!popup) return;
 
         // mousemove tracker handles hide logic — no listeners needed on popup itself
@@ -10996,6 +10997,7 @@ var _mmPopup = (function () {
 
         popupSym.textContent   = ticker;
         popupPrice.textContent = price != null ? '$' + price.toFixed(2) : '—';
+        if (popupName) popupName.textContent = name || '';
 
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
@@ -11232,12 +11234,15 @@ window.tickerHoverBind = function(container, selector, tickerFn) {
             <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;"></span>
             <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;"></span>
         </div>
-        <span class="mm-popup-tf">1D</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span class="mm-popup-price" id="mm-popup-price"></span>
+            <span class="mm-popup-tf">1D</span>
+        </div>
     </div>
     <div class="mm-popup-chart" id="mm-popup-chart"></div>
     <div class="mm-popup-footer">
-        <span class="mm-popup-price" id="mm-popup-price"></span>
-        <span class="mm-popup-chg"   id="mm-popup-chg"></span>
+        <span class="mm-popup-name" id="mm-popup-name"></span>
+        <span class="mm-popup-chg"  id="mm-popup-chg"></span>
     </div>
     <div class="mm-popup-caret" id="mm-popup-caret"></div>
 </div>
