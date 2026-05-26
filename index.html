@@ -10904,6 +10904,7 @@ var _mmPopup = (function () {
         popupPrice.textContent = price;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+        if (popupName) popupName.textContent = name || '';
         if (popupIndRank)   popupIndRank.style.display   = 'none';
         if (popupRsBadge)   popupRsBadge.style.display   = 'none';
         if (popup3mrsBadge) popup3mrsBadge.style.display = 'none';
@@ -11236,7 +11237,6 @@ window.tickerHoverBind = function(container, selector, tickerFn) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
             <span class="mm-popup-price" id="mm-popup-price"></span>
-            <span class="mm-popup-tf">1D</span>
         </div>
     </div>
     <div class="mm-popup-chart" id="mm-popup-chart"></div>
