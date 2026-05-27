@@ -1179,20 +1179,21 @@
         }
         #mm-hover-popup.visible { display: block; }
         .mm-popup-header {
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex; align-items: center; gap: 6px;
             padding: 8px 12px; background: #0d1117; border-bottom: 1px solid #21262d;
-            flex-shrink: 0;
+            flex-shrink: 0; overflow: hidden;
         }
-        .mm-popup-sym  { font-size: 13px; font-weight: 700; color: #58a6ff; letter-spacing: 0.05em; }
-        .mm-popup-name { font-size: 11px; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .mm-popup-sym  { font-size: 13px; font-weight: 700; color: #58a6ff; letter-spacing: 0.05em; flex-shrink: 0; }
+        .mm-popup-sep  { font-size: 11px; color: #30363d; flex-shrink: 0; }
+        .mm-popup-ind  { font-size: 11px; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .mm-popup-name { font-size: 11px; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
         .mm-popup-tf   { font-size: 10px; font-weight: 600; color: #58a6ff; background: #1a3a5c; border: 1px solid #1f6feb55; border-radius: 3px; padding: 2px 7px; letter-spacing: 0.04em; }
         .mm-popup-chart { width: 100%; height: 220px; }
         .mm-popup-footer {
             display: flex; align-items: center; justify-content: space-between;
             padding: 7px 12px; background: #0d1117; border-top: 1px solid #21262d;
         }
-        .mm-popup-price { font-size: 13px; font-weight: 700; color: #c8d0dc; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-        .mm-popup-chg   { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .mm-popup-chg  { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
         .mm-popup-caret {
             position: absolute; left: 50%; transform: translateX(-50%);
             width: 0; height: 0;
@@ -10613,12 +10614,14 @@ var _mmPopup = (function () {
     var popup      = null;
     var popupSym   = null;
     var popupChart = null;
-    var popupPrice = null;
     var popupChg   = null;
     var popupCaret = null;
     var popupIndRank   = null;
     var popupRsBadge   = null;
     var popup3mrsBadge = null;
+    var popupName    = null;
+    var popupIndName = null;
+    var popupIndSep  = null;
 
     var hoverTimer  = null;
     var hideTimer   = null;
@@ -10633,13 +10636,14 @@ var _mmPopup = (function () {
         popup        = document.getElementById('mm-hover-popup');
         popupSym     = document.getElementById('mm-popup-sym');
         popupChart   = document.getElementById('mm-popup-chart');
-        popupPrice   = document.getElementById('mm-popup-price');
         popupChg     = document.getElementById('mm-popup-chg');
         popupCaret   = document.getElementById('mm-popup-caret');
         popupIndRank   = document.getElementById('mm-popup-ind-rank');
         popupRsBadge   = document.getElementById('mm-popup-rs-badge');
         popup3mrsBadge = document.getElementById('mm-popup-3mrs-badge');
         popupName      = document.getElementById('mm-popup-name');
+        popupIndName   = document.getElementById('mm-popup-ind-name');
+        popupIndSep    = document.getElementById('mm-popup-ind-sep');
         if (!popup) return;
 
         // mousemove tracker handles hide logic — no listeners needed on popup itself
@@ -10901,10 +10905,11 @@ var _mmPopup = (function () {
         if (!yfSym) return;
 
         popupSym.textContent  = label;
-        popupPrice.textContent = price;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
         if (popupName) popupName.textContent = name || '';
+        if (popupIndName) { popupIndName.textContent = ''; }
+        if (popupIndSep)  { popupIndSep.style.display = 'none'; }
         if (popupIndRank)   popupIndRank.style.display   = 'none';
         if (popupRsBadge)   popupRsBadge.style.display   = 'none';
         if (popup3mrsBadge) popup3mrsBadge.style.display = 'none';
@@ -10986,19 +10991,22 @@ var _mmPopup = (function () {
         if (!ready) init();
         if (!popup) return;
 
-        // Look up name + price from available data sources
         var _td = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
-        var name = _td.name || '';
-        var price = _td.price != null ? _td.price : null;
+        var name     = _td.name || '';
+        var industry = _td.industry || '';
+        var price    = _td.price != null ? _td.price : null;
         var prevClose = _td.prevClose != null ? _td.prevClose : null;
 
         var chgAbs = (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var dir    = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
-        popupSym.textContent   = ticker;
-        popupPrice.textContent = price != null ? '$' + price.toFixed(2) : '—';
+        popupSym.textContent = ticker;
         if (popupName) popupName.textContent = name || '';
+
+        // Industry name in header
+        if (popupIndName) { popupIndName.textContent = industry; }
+        if (popupIndSep)  { popupIndSep.style.display = industry ? '' : 'none'; }
 
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
@@ -11229,15 +11237,12 @@ window.tickerHoverBind = function(container, selector, tickerFn) {
 <!-- Macro card hover chart popup -->
 <div id="mm-hover-popup">
     <div class="mm-popup-header">
-        <div style="display:flex;align-items:center;gap:6px;">
-            <span class="mm-popup-sym" id="mm-popup-sym">BTC</span>
-            <span id="mm-popup-ind-rank" style="font-size:11px;color:#484f58;display:none;"></span>
-            <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;"></span>
-            <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;"></span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-            <span class="mm-popup-price" id="mm-popup-price"></span>
-        </div>
+        <span class="mm-popup-sym" id="mm-popup-sym"></span>
+        <span class="mm-popup-sep" id="mm-popup-ind-sep" style="display:none;">·</span>
+        <span class="mm-popup-ind" id="mm-popup-ind-name"></span>
+        <span id="mm-popup-ind-rank" style="font-size:11px;color:#484f58;flex-shrink:0;display:none;"></span>
+        <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;flex-shrink:0;"></span>
+        <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;flex-shrink:0;"></span>
     </div>
     <div class="mm-popup-chart" id="mm-popup-chart"></div>
     <div class="mm-popup-footer">
