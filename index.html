@@ -10846,7 +10846,7 @@ var _mmPopup = (function () {
             return {
                 time:  d.time,
                 value: d.volume,
-                color: d.close >= d.open ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)',
+                color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)',
             };
         }));
 
@@ -10888,6 +10888,35 @@ var _mmPopup = (function () {
                 '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
                 volStr;
         });
+    }
+
+    function appendTodayCandle(sym, activeRef) {
+        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+                  encodeURIComponent(sym) + '&interval=5m&range=1d';
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (activeRef !== activeCard || !candleSeries) return;
+                var result = data && data.chart && data.chart.result && data.chart.result[0];
+                if (!result) return;
+                var ts = result.timestamp;
+                var q  = result.indicators.quote[0];
+                if (!ts || !ts.length) return;
+                var open = null, high = null, low = null, close = null, vol = 0;
+                for (var i = 0; i < ts.length; i++) {
+                    if (q.open[i] == null || q.close[i] == null) continue;
+                    if (open === null) open = q.open[i];
+                    high  = high === null ? q.high[i]  : Math.max(high,  q.high[i]);
+                    low   = low  === null ? q.low[i]   : Math.min(low,   q.low[i]);
+                    close = q.close[i];
+                    vol  += (q.volume[i] || 0);
+                }
+                if (open === null) return;
+                var now = new Date();
+                var todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+                candleSeries.update({ time: todayTs, open: open, high: high, low: low, close: close, volume: vol });
+            })
+            .catch(function() {});
     }
 
     function showPopup(card) {
@@ -10943,6 +10972,7 @@ var _mmPopup = (function () {
                     });
                 }
                 renderChart(ohlcv);
+                appendTodayCandle(yfSym, card);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
@@ -11081,6 +11111,7 @@ var _mmPopup = (function () {
                     });
                 }
                 renderChart(ohlcv);
+                appendTodayCandle(ticker, el);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
