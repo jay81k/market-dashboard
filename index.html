@@ -10623,9 +10623,10 @@ var _mmPopup = (function () {
     var popupIndName = null;
     var popupIndSep  = null;
 
-    var hoverTimer  = null;
-    var hideTimer   = null;
-    var lwChart     = null;
+    var hoverTimer       = null;
+    var hideTimer        = null;
+    var liveRefreshTimer = null;
+    var lwChart          = null;
     var candleSeries = null;
     var activeCard  = null;
     var POPUP_W     = 420;
@@ -10999,6 +11000,13 @@ var _mmPopup = (function () {
                 }
                 renderChart(ohlcv);
                 appendTodayCandle(yfSym, card, capturedTodayTs);
+                if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
+                liveRefreshTimer = setInterval(function() {
+                    if (!popup || !popup.classList.contains('visible') || activeCard !== card) {
+                        clearInterval(liveRefreshTimer); liveRefreshTimer = null; return;
+                    }
+                    appendTodayCandle(yfSym, card, capturedTodayTs);
+                }, 30000);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
@@ -11010,6 +11018,7 @@ var _mmPopup = (function () {
         popup.classList.remove('visible');
         destroyChart();
         activeCard = null;
+        if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
     }
 
     // Track mouse position and hide only when truly outside both card and popup
@@ -11153,6 +11162,23 @@ var _mmPopup = (function () {
                 }
                 renderChart(ohlcv);
                 appendTodayCandle(ticker, el, capturedTodayTs);
+                if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
+                liveRefreshTimer = setInterval(function() {
+                    if (!popup || !popup.classList.contains('visible') || activeCard !== el) {
+                        clearInterval(liveRefreshTimer); liveRefreshTimer = null; return;
+                    }
+                    appendTodayCandle(ticker, el, capturedTodayTs);
+                    var _tdLive = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
+                    if (_tdLive && _tdLive.price != null && _tdLive.prevClose != null) {
+                        var chgA = _tdLive.price - _tdLive.prevClose;
+                        var chgP = (_tdLive.prevClose > 0) ? (chgA / _tdLive.prevClose) * 100 : null;
+                        var dirL = chgP == null ? 'flat' : chgP > 0 ? 'up' : chgP < 0 ? 'down' : 'flat';
+                        var chgAs = (chgA >= 0 ? '+' : '') + chgA.toFixed(2);
+                        var chgPs = chgP != null ? ' (' + (chgP >= 0 ? '+' : '') + chgP.toFixed(2) + '%)' : '';
+                        popupChg.textContent = chgAs + chgPs;
+                        popupChg.style.color = dirL === 'up' ? '#3fb950' : dirL === 'down' ? '#f85149' : '#484f58';
+                    }
+                }, 30000);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
