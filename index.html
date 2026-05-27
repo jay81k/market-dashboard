@@ -10890,7 +10890,7 @@ var _mmPopup = (function () {
         });
     }
 
-    function appendTodayCandle(sym, activeRef) {
+    function appendTodayCandle(sym, activeRef, todayTs) {
         var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
                   encodeURIComponent(sym) + '&interval=5m&range=1d';
         fetch(url)
@@ -10912,8 +10912,10 @@ var _mmPopup = (function () {
                     vol  += (q.volume[i] || 0);
                 }
                 if (open === null) return;
-                var now = new Date();
-                var todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+                if (!todayTs) {
+                    var now = new Date();
+                    todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+                }
                 candleSeries.update({ time: todayTs, open: open, high: high, low: low, close: close, volume: vol });
             })
             .catch(function() {});
@@ -10975,15 +10977,19 @@ var _mmPopup = (function () {
                 var todayStr = now.getUTCFullYear() + '-' +
                     String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
                     String(now.getUTCDate()).padStart(2, '0');
-                ohlcv = ohlcv.filter(function(d) {
-                    var dd = new Date(d.time * 1000);
-                    var ds = dd.getUTCFullYear() + '-' +
-                        String(dd.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                        String(dd.getUTCDate()).padStart(2, '0');
-                    return ds < todayStr;
-                });
+                var capturedTodayTs = null;
+                if (ohlcv.length) {
+                    var last = ohlcv[ohlcv.length - 1];
+                    var lastD = new Date(last.time * 1000);
+                    var lastDs = lastD.getUTCFullYear() + '-' +
+                        String(lastD.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(lastD.getUTCDate()).padStart(2, '0');
+                    if (lastDs === todayStr) {
+                        capturedTodayTs = ohlcv.pop().time;
+                    }
+                }
                 renderChart(ohlcv);
-                appendTodayCandle(yfSym, card);
+                appendTodayCandle(yfSym, card, capturedTodayTs);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
@@ -11125,15 +11131,19 @@ var _mmPopup = (function () {
                 var todayStr = now.getUTCFullYear() + '-' +
                     String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
                     String(now.getUTCDate()).padStart(2, '0');
-                ohlcv = ohlcv.filter(function(d) {
-                    var dd = new Date(d.time * 1000);
-                    var ds = dd.getUTCFullYear() + '-' +
-                        String(dd.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                        String(dd.getUTCDate()).padStart(2, '0');
-                    return ds < todayStr;
-                });
+                var capturedTodayTs = null;
+                if (ohlcv.length) {
+                    var last = ohlcv[ohlcv.length - 1];
+                    var lastD = new Date(last.time * 1000);
+                    var lastDs = lastD.getUTCFullYear() + '-' +
+                        String(lastD.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(lastD.getUTCDate()).padStart(2, '0');
+                    if (lastDs === todayStr) {
+                        capturedTodayTs = ohlcv.pop().time;
+                    }
+                }
                 renderChart(ohlcv);
-                appendTodayCandle(ticker, el);
+                appendTodayCandle(ticker, el, capturedTodayTs);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
