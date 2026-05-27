@@ -10902,9 +10902,18 @@ var _mmPopup = (function () {
                 var ts = result.timestamp;
                 var q  = result.indicators.quote[0];
                 if (!ts || !ts.length) return;
+                var now2 = new Date();
+                var todayDateStr = now2.getUTCFullYear() + '-' +
+                    String(now2.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                    String(now2.getUTCDate()).padStart(2, '0');
                 var open = null, high = null, low = null, close = null, vol = 0;
                 for (var i = 0; i < ts.length; i++) {
                     if (q.open[i] == null || q.close[i] == null) continue;
+                    var bd = new Date(ts[i] * 1000);
+                    var bds = bd.getUTCFullYear() + '-' +
+                        String(bd.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(bd.getUTCDate()).padStart(2, '0');
+                    if (bds !== todayDateStr) continue;
                     if (open === null) open = q.open[i];
                     high  = high === null ? q.high[i]  : Math.max(high,  q.high[i]);
                     low   = low  === null ? q.low[i]   : Math.min(low,   q.low[i]);
