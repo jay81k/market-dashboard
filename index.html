@@ -11063,6 +11063,9 @@ var _mmPopup = (function () {
                 if (el !== activeCard) return;
                 var result = data && data.chart && data.chart.result && data.chart.result[0];
                 if (!result) throw new Error('no data');
+                var meta = result.meta;
+                var resolvedName = (meta && (meta.shortName || meta.longName)) || '';
+                if (resolvedName && popupName) popupName.textContent = resolvedName;
                 var ts    = result.timestamp;
                 var q     = result.indicators.quote[0];
                 var ohlcv = [];
