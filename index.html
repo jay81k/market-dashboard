@@ -10971,6 +10971,9 @@ var _mmPopup = (function () {
                         volume: q.volume[i] || 0,
                     });
                 }
+                var now = new Date();
+                var todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+                ohlcv = ohlcv.filter(function(d) { return d.time < todayUtc; });
                 renderChart(ohlcv);
                 appendTodayCandle(yfSym, card);
             })
@@ -11110,6 +11113,9 @@ var _mmPopup = (function () {
                         volume: q.volume[i] || 0,
                     });
                 }
+                var now = new Date();
+                var todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+                ohlcv = ohlcv.filter(function(d) { return d.time < todayUtc; });
                 renderChart(ohlcv);
                 appendTodayCandle(ticker, el);
             })
