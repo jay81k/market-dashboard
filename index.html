@@ -10972,8 +10972,16 @@ var _mmPopup = (function () {
                     });
                 }
                 var now = new Date();
-                var todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-                ohlcv = ohlcv.filter(function(d) { return d.time < todayUtc; });
+                var todayStr = now.getUTCFullYear() + '-' +
+                    String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                    String(now.getUTCDate()).padStart(2, '0');
+                ohlcv = ohlcv.filter(function(d) {
+                    var dd = new Date(d.time * 1000);
+                    var ds = dd.getUTCFullYear() + '-' +
+                        String(dd.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(dd.getUTCDate()).padStart(2, '0');
+                    return ds < todayStr;
+                });
                 renderChart(ohlcv);
                 appendTodayCandle(yfSym, card);
             })
@@ -11114,8 +11122,16 @@ var _mmPopup = (function () {
                     });
                 }
                 var now = new Date();
-                var todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-                ohlcv = ohlcv.filter(function(d) { return d.time < todayUtc; });
+                var todayStr = now.getUTCFullYear() + '-' +
+                    String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                    String(now.getUTCDate()).padStart(2, '0');
+                ohlcv = ohlcv.filter(function(d) {
+                    var dd = new Date(d.time * 1000);
+                    var ds = dd.getUTCFullYear() + '-' +
+                        String(dd.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(dd.getUTCDate()).padStart(2, '0');
+                    return ds < todayStr;
+                });
                 renderChart(ohlcv);
                 appendTodayCandle(ticker, el);
             })
