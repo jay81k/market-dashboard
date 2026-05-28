@@ -206,10 +206,7 @@
             flex: 1; min-width: 0; overflow: hidden;
         }
         .mc-cell-hdr-sym  { font-size: 0.825em; font-weight: 700; color: #58a6ff; flex-shrink: 0; letter-spacing: 0.04em; }
-        .mc-cell-hdr-sep  { font-size: 0.748em; color: #30363d; flex-shrink: 0; }
-        .mc-cell-hdr-ind  { font-size: 0.715em; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; cursor: pointer; transition: color 0.12s; }
-        .mc-cell-hdr-ind:hover { color: #79c0ff; }
-        .mc-cell-hdr-rank { font-size: 0.68em; color: rgba(56,139,253,0.65); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .mc-cell-hdr-rank { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 4px; }
         .mc-cell-flag {
             background: none; border: none; border-radius: 3px;
@@ -2878,11 +2875,19 @@
             dayPct = sd.daily;
         }
 
+        // Industry rank in (rank/total) format, percentile-coloured
         var indRankHtml = '';
         if (ind && industriesData && industriesData.industries) {
-            var indObj = industriesData.industries.find(function(x){ return x.industry === ind; });
-            if (indObj && indObj.rank != null) indRankHtml = '<span class="mc-cell-hdr-rank">#' + indObj.rank + '</span>';
+            var indObj  = industriesData.industries.find(function(x){ return x.industry === ind; });
+            var total   = industriesData.industries.length;
+            if (indObj && indObj.rank != null) {
+                var pctile   = indObj.percentile != null ? indObj.percentile : null;
+                var rkColor  = pctile != null ? (pctile >= 75 ? '#3fb950' : pctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                indRankHtml  = '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
+            }
         }
+
+        // RS badges
         var rsBadgeHtml = '';
         if (pct != null) {
             var b = rsBadge(pct);
@@ -2892,23 +2897,20 @@
             var wCls = wrs >= 75 ? 'rs-high' : wrs >= 40 ? 'rs-mid' : 'rs-low';
             rsBadgeHtml += '<span class="chart-rs-badge ' + wCls + '" style="font-size:0.62em;padding:1px 5px;">' + wrs + '</span>';
         }
+
+        // Change %
         var chgHtml = '';
         if (dayPct != null) {
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
             chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
         }
-        var indHtml = ind
-            ? '<span class="mc-cell-hdr-sep">·</span>' +
-              '<span class="mc-cell-hdr-ind" onclick="event.stopPropagation();openIndustry(\'' + esc(ind) + '\')" title="' + esc(ind) + '">' + esc(ind) + '</span>' +
-              indRankHtml
-            : '';
 
         var hdr = document.createElement('div');
         hdr.className = 'mc-cell-hdr';
         if (flagEl) hdr.appendChild(flagEl);
         var inner = document.createElement('div');
         inner.className = 'mc-cell-hdr-inner';
-        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indHtml + rsBadgeHtml + chgHtml;
+        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + chgHtml;
         hdr.appendChild(inner);
         return hdr;
     }
