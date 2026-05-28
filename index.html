@@ -611,6 +611,8 @@
         }
         .scan-add-btn:hover { border-color: #6e7681; color: #8b949e; background: #161b22; }
         .scan-add-btn.added { border-color: #3fb950; background: #12261e; }
+        .scan-ind-link { cursor: pointer; }
+        .scan-ind-link:hover { color: #79c0ff !important; text-decoration: underline; text-underline-offset: 2px; }
         .sf-export-modal {
             display: none; position: fixed; inset: 0; z-index: 10000;
             background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
@@ -5753,7 +5755,11 @@
             '<span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
         var _indRk = _indRankMap[row.industry] && _indRankMap[row.industry] !== 9999 ? _indRankMap[row.industry] : null;
         var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:rgba(56,139,253,0.75);font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
-        h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;"><span style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(row.industry||'\u2014') + '</span>' + _indRkHtml + '</div></td>';
+        var _indName = row.industry || '';
+        var _indSpan = _indName
+            ? '<span class="scan-ind-link" data-ind="' + esc(_indName) + '" onclick="event.stopPropagation();openIndustry(this.dataset.ind);" style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(_indName) + '</span>'
+            : '<span style="font-size:0.858em;color:#8b949e;">\u2014</span>';
+        h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;">' + _indSpan + _indRkHtml + '</div></td>';
         h += '<td style="color:#c8d0dc;font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
         h += '<td style="color:#c8d0dc;font-weight:600;">'  + wrsVal2  + '</td>';
@@ -10623,10 +10629,9 @@ var _mmPopup = (function () {
     var popupIndName = null;
     var popupIndSep  = null;
 
-    var hoverTimer       = null;
-    var hideTimer        = null;
-    var liveRefreshTimer = null;
-    var lwChart          = null;
+    var hoverTimer  = null;
+    var hideTimer   = null;
+    var lwChart     = null;
     var candleSeries = null;
     var activeCard  = null;
     var POPUP_W     = 420;
@@ -11000,13 +11005,6 @@ var _mmPopup = (function () {
                 }
                 renderChart(ohlcv);
                 appendTodayCandle(yfSym, card, capturedTodayTs);
-                if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
-                liveRefreshTimer = setInterval(function() {
-                    if (!popup || !popup.classList.contains('visible') || activeCard !== card) {
-                        clearInterval(liveRefreshTimer); liveRefreshTimer = null; return;
-                    }
-                    appendTodayCandle(yfSym, card, capturedTodayTs);
-                }, 30000);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
@@ -11018,7 +11016,6 @@ var _mmPopup = (function () {
         popup.classList.remove('visible');
         destroyChart();
         activeCard = null;
-        if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
     }
 
     // Track mouse position and hide only when truly outside both card and popup
@@ -11162,23 +11159,6 @@ var _mmPopup = (function () {
                 }
                 renderChart(ohlcv);
                 appendTodayCandle(ticker, el, capturedTodayTs);
-                if (liveRefreshTimer) { clearInterval(liveRefreshTimer); liveRefreshTimer = null; }
-                liveRefreshTimer = setInterval(function() {
-                    if (!popup || !popup.classList.contains('visible') || activeCard !== el) {
-                        clearInterval(liveRefreshTimer); liveRefreshTimer = null; return;
-                    }
-                    appendTodayCandle(ticker, el, capturedTodayTs);
-                    var _tdLive = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
-                    if (_tdLive && _tdLive.price != null && _tdLive.prevClose != null) {
-                        var chgA = _tdLive.price - _tdLive.prevClose;
-                        var chgP = (_tdLive.prevClose > 0) ? (chgA / _tdLive.prevClose) * 100 : null;
-                        var dirL = chgP == null ? 'flat' : chgP > 0 ? 'up' : chgP < 0 ? 'down' : 'flat';
-                        var chgAs = (chgA >= 0 ? '+' : '') + chgA.toFixed(2);
-                        var chgPs = chgP != null ? ' (' + (chgP >= 0 ? '+' : '') + chgP.toFixed(2) + '%)' : '';
-                        popupChg.textContent = chgAs + chgPs;
-                        popupChg.style.color = dirL === 'up' ? '#3fb950' : dirL === 'down' ? '#f85149' : '#484f58';
-                    }
-                }, 30000);
             })
             .catch(function() {
                 if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
