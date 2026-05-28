@@ -2906,15 +2906,14 @@
         if (live && live.price && live.prevClose) {
             var absDelta = live.price - live.prevClose;
             var absDeltaColor = absDelta > 0 ? '#3fb950' : absDelta < 0 ? '#f85149' : '#484f58';
-            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';margin-left:auto;">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
+            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';font-size:0.748em;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
         }
 
         // Change %
         var chgHtml = '';
         if (dayPct != null) {
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
-            var chgMargin = priceChgHtml ? '' : 'margin-left:auto;';
-            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';' + chgMargin + '">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
+            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
         }
 
         var hdr = document.createElement('div');
@@ -2922,7 +2921,7 @@
         if (flagEl) hdr.appendChild(flagEl);
         var inner = document.createElement('div');
         inner.className = 'mc-cell-hdr-inner';
-        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + priceChgHtml + chgHtml;
+        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + '<span style="flex:1;"></span>' + priceChgHtml + chgHtml;
         hdr.appendChild(inner);
         return hdr;
     }
