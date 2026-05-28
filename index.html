@@ -10707,8 +10707,9 @@ var _mmPopup = (function () {
     var popupIndName = null;
     var popupIndSep  = null;
 
-    var hoverTimer  = null;
-    var hideTimer   = null;
+    var hoverTimer        = null;
+    var hideTimer         = null;
+    var liveRefreshTimer  = null;
     var lwChart     = null;
     var candleSeries = null;
     var activeCard  = null;
@@ -11032,6 +11033,18 @@ var _mmPopup = (function () {
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
         if (popupName) popupName.textContent = name || '';
+
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = setInterval(function() {
+            if (!activeCard) return;
+            var liveChgAbs = activeCard.getAttribute('data-tv-chgabs');
+            var liveChgPct = activeCard.getAttribute('data-tv-chgpct');
+            var liveDir    = activeCard.getAttribute('data-tv-dir');
+            if (liveChgAbs != null && liveChgPct != null) {
+                popupChg.textContent = liveChgAbs + ' ' + liveChgPct;
+                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+            }
+        }, 5000);
         if (popupIndName) { popupIndName.textContent = ''; }
         if (popupIndSep)  { popupIndSep.style.display = 'none'; }
         if (popupIndRank)   popupIndRank.style.display   = 'none';
@@ -11091,6 +11104,8 @@ var _mmPopup = (function () {
 
     function hidePopup() {
         if (!popup) return;
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = null;
         popup.classList.remove('visible');
         destroyChart();
         activeCard = null;
@@ -11152,6 +11167,22 @@ var _mmPopup = (function () {
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
         popupChg.textContent = chgAbsStr + chgPctStr;
         popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = setInterval(function() {
+            var ltd = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
+            var livePrice     = ltd.price != null ? ltd.price : null;
+            var livePrevClose = ltd.prevClose != null ? ltd.prevClose : null;
+            var liveChgAbs = (livePrice != null && livePrevClose != null) ? livePrice - livePrevClose : null;
+            var liveChgPct = (liveChgAbs != null && livePrevClose > 0) ? (liveChgAbs / livePrevClose) * 100 : null;
+            var liveDir    = liveChgPct == null ? 'flat' : liveChgPct > 0 ? 'up' : liveChgPct < 0 ? 'down' : 'flat';
+            var liveAbsStr = liveChgAbs != null ? (liveChgAbs >= 0 ? '+' : '') + liveChgAbs.toFixed(2) : '';
+            var livePctStr = liveChgPct != null ? ' (' + (liveChgPct >= 0 ? '+' : '') + liveChgPct.toFixed(2) + '%)' : '';
+            if (liveAbsStr || livePctStr) {
+                popupChg.textContent = liveAbsStr + livePctStr;
+                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+            }
+        }, 5000);
 
         // Industry rank
         if (popupIndRank) {
