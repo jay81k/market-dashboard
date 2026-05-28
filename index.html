@@ -2907,8 +2907,13 @@
         if (dayPct != null) {
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
             var chgStyle = 'color:' + chgColor + ';font-size:0.748em;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap;';
+            var absDelta = null;
             if (live && live.price && live.prevClose) {
-                var absDelta = live.price - live.prevClose;
+                absDelta = live.price - live.prevClose;
+            } else if (sd && sd.price != null && dayPct != null) {
+                absDelta = sd.price / (1 + dayPct / 100) * (dayPct / 100);
+            }
+            if (absDelta != null) {
                 chgHtml = '<span class="mc-cell-hdr-chg" style="' + chgStyle + '">'
                         + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2)
                         + ' (' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%)'
