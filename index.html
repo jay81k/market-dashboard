@@ -10670,6 +10670,11 @@
             price = alertPrices[ticker];
             prevClose = alertPrevClose[ticker] || null;
         }
+        // If we resolved a price from scan/wl but prevClose is still null,
+        // fall back to alertPrevClose so the popup chg matches the alerts table.
+        if (price && !prevClose && alertPrevClose[ticker]) {
+            prevClose = alertPrevClose[ticker];
+        }
         if (!price && row && row.price != null) { price = row.price; }
         if (!prevClose && row && row.price != null && row.daily != null) {
             prevClose = row.price / (1 + row.daily / 100);
