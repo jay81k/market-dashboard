@@ -2875,7 +2875,7 @@
             dayPct = sd.daily;
         }
 
-        // Industry rank in (rank/total) format, percentile-coloured
+        // Industry name + rank in (rank/total) format, percentile-coloured
         var indRankHtml = '';
         if (ind && industriesData && industriesData.industries) {
             var indObj  = industriesData.industries.find(function(x){ return x.industry === ind; });
@@ -2883,7 +2883,10 @@
             if (indObj && indObj.rank != null) {
                 var pctile   = indObj.percentile != null ? indObj.percentile : null;
                 var rkColor  = pctile != null ? (pctile >= 75 ? '#3fb950' : pctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                indRankHtml  = '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>'
+                             + '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
+            } else if (ind) {
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>';
             }
         }
 
@@ -2898,6 +2901,14 @@
             rsBadgeHtml += '<span class="chart-rs-badge ' + wCls + '" style="font-size:0.62em;padding:1px 5px;">' + wrs + '</span>';
         }
 
+        // Absolute price change
+        var priceChgHtml = '';
+        if (live && live.price && live.prevClose) {
+            var absDelta = live.price - live.prevClose;
+            var absDeltaColor = absDelta > 0 ? '#3fb950' : absDelta < 0 ? '#f85149' : '#484f58';
+            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
+        }
+
         // Change %
         var chgHtml = '';
         if (dayPct != null) {
@@ -2910,7 +2921,7 @@
         if (flagEl) hdr.appendChild(flagEl);
         var inner = document.createElement('div');
         inner.className = 'mc-cell-hdr-inner';
-        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + chgHtml;
+        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + priceChgHtml + chgHtml;
         hdr.appendChild(inner);
         return hdr;
     }
