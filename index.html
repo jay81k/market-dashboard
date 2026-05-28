@@ -2932,6 +2932,16 @@
         inner.className = 'mc-cell-hdr-inner';
         inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + '<span style="flex:1;"></span>' + priceChgHtml + chgHtml;
         hdr.appendChild(inner);
+        hdr.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        });
         return hdr;
     }
 
