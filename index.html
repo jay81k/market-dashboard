@@ -207,7 +207,7 @@
         }
         .mc-cell-hdr-sym  { font-size: 0.825em; font-weight: 700; color: #58a6ff; flex-shrink: 0; letter-spacing: 0.04em; }
         .mc-cell-hdr-rank { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-        .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 4px; }
+        .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; padding-left: 4px; }
         .mc-cell-flag {
             background: none; border: none; border-radius: 3px;
             color: #484f58; font-size: 0.92em; padding: 1px 3px;
@@ -2883,10 +2883,10 @@
             if (indObj && indObj.rank != null) {
                 var pctile   = indObj.percentile != null ? indObj.percentile : null;
                 var rkColor  = pctile != null ? (pctile >= 75 ? '#3fb950' : pctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>'
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' + esc(ind) + '</span>'
                              + '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
             } else if (ind) {
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' + esc(ind) + '</span>';
             }
         }
 
@@ -2906,14 +2906,15 @@
         if (live && live.price && live.prevClose) {
             var absDelta = live.price - live.prevClose;
             var absDeltaColor = absDelta > 0 ? '#3fb950' : absDelta < 0 ? '#f85149' : '#484f58';
-            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
+            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';margin-left:auto;">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
         }
 
         // Change %
         var chgHtml = '';
         if (dayPct != null) {
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
-            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
+            var chgMargin = priceChgHtml ? '' : 'margin-left:auto;';
+            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';' + chgMargin + '">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
         }
 
         var hdr = document.createElement('div');
