@@ -192,26 +192,36 @@
             background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
             overflow: hidden; position: relative; height: 420px;
             cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+            display: flex; flex-direction: column;
         }
         .mc-cell:hover { border-color: #388bfd; box-shadow: 0 0 0 1px #388bfd; }
-        .mc-cell-label {
-            position: absolute; top: 6px; left: 22px; z-index: 5;
-            font-size: 0.858em; font-weight: 700; color: #58a6ff;
-            background: rgba(13,17,23,0.75); padding: 1px 5px; border-radius: 3px;
-            pointer-events: none;
+        .mc-cell-hdr {
+            display: flex; align-items: center; gap: 3px;
+            padding: 0 8px; height: 30px; flex-shrink: 0;
+            background: #0d1117; border-bottom: 1px solid #21262d;
+            position: relative; z-index: 5; overflow: hidden;
         }
+        .mc-cell-hdr-inner {
+            display: flex; align-items: center; gap: 3px;
+            flex: 1; min-width: 0; overflow: hidden;
+        }
+        .mc-cell-hdr-sym  { font-size: 0.825em; font-weight: 700; color: #58a6ff; flex-shrink: 0; letter-spacing: 0.04em; }
+        .mc-cell-hdr-sep  { font-size: 0.748em; color: #30363d; flex-shrink: 0; }
+        .mc-cell-hdr-ind  { font-size: 0.715em; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; cursor: pointer; transition: color 0.12s; }
+        .mc-cell-hdr-ind:hover { color: #79c0ff; }
+        .mc-cell-hdr-rank { font-size: 0.68em; color: rgba(56,139,253,0.65); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 4px; }
         .mc-cell-flag {
-            position: absolute; top: 5px; left: 7px; z-index: 6;
-            background: rgba(13,17,23,0.75); border: none; border-radius: 3px;
-            color: #484f58; font-size: 0.92em; padding: 1px 4px;
+            background: none; border: none; border-radius: 3px;
+            color: #484f58; font-size: 0.92em; padding: 1px 3px;
             cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.1s;
-            line-height: 1.3;
+            line-height: 1.3; flex-shrink: 0;
         }
         .mc-cell:hover .mc-cell-flag { opacity: 1; }
         .mc-cell-flag:hover { color: #f9c74f; }
         .mc-cell-flag.flagged { color: #f9c74f; opacity: 1; }
         .mc-cell-overlay {
-            position: absolute; inset: 0; z-index: 4;
+            position: absolute; inset: 30px 0 0 0; z-index: 4;
             pointer-events: all; cursor: pointer;
         }
         .mc-cell-hint {
@@ -2855,6 +2865,54 @@
         renderMulticharts();
     };
 
+    function buildMcCellHeader(sym, flagEl) {
+        var sd   = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
+        var ind  = sd ? (sd.industry || '') : '';
+        var pct  = sd ? (sd.Percentile != null ? sd.Percentile : null) : null;
+        var wrs  = sd && sd.weighted_rs_pct != null ? Math.round(sd.weighted_rs_pct) : null;
+        var live = scanLivePrices && scanLivePrices[sym];
+        var dayPct = null;
+        if (live && live.price && live.prevClose) {
+            dayPct = (live.price - live.prevClose) / live.prevClose * 100;
+        } else if (sd && sd.daily != null) {
+            dayPct = sd.daily;
+        }
+
+        var indRankHtml = '';
+        if (ind && industriesData && industriesData.industries) {
+            var indObj = industriesData.industries.find(function(x){ return x.industry === ind; });
+            if (indObj && indObj.rank != null) indRankHtml = '<span class="mc-cell-hdr-rank">#' + indObj.rank + '</span>';
+        }
+        var rsBadgeHtml = '';
+        if (pct != null) {
+            var b = rsBadge(pct);
+            if (b) rsBadgeHtml += '<span class="chart-rs-badge ' + b.cls + '" style="font-size:0.62em;padding:1px 5px;">' + b.text + '</span>';
+        }
+        if (wrs != null) {
+            var wCls = wrs >= 75 ? 'rs-high' : wrs >= 40 ? 'rs-mid' : 'rs-low';
+            rsBadgeHtml += '<span class="chart-rs-badge ' + wCls + '" style="font-size:0.62em;padding:1px 5px;">' + wrs + '</span>';
+        }
+        var chgHtml = '';
+        if (dayPct != null) {
+            var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
+            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
+        }
+        var indHtml = ind
+            ? '<span class="mc-cell-hdr-sep">·</span>' +
+              '<span class="mc-cell-hdr-ind" onclick="event.stopPropagation();openIndustry(\'' + esc(ind) + '\')" title="' + esc(ind) + '">' + esc(ind) + '</span>' +
+              indRankHtml
+            : '';
+
+        var hdr = document.createElement('div');
+        hdr.className = 'mc-cell-hdr';
+        if (flagEl) hdr.appendChild(flagEl);
+        var inner = document.createElement('div');
+        inner.className = 'mc-cell-hdr-inner';
+        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indHtml + rsBadgeHtml + chgHtml;
+        hdr.appendChild(inner);
+        return hdr;
+    }
+
     function renderMulticharts() {
         var grid = document.getElementById('multichart-grid');
         if (!mcTickers.length) { grid.innerHTML = '<div style="color:#484f58;padding:20px;">No stocks.</div>'; return; }
@@ -2866,10 +2924,6 @@
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
-            var label = document.createElement('div');
-            label.className = 'mc-cell-label';
-            label.textContent = sym;
-
             var flag = document.createElement('button');
             flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
             flag.textContent = '⚑';
@@ -2879,13 +2933,15 @@
                 wlFlagTicker(sym, flag);
             });
 
+            var hdr = buildMcCellHeader(sym, flag);
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
 
             var chartDiv = document.createElement('div');
             chartDiv.id = 'mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g,'_');
-            chartDiv.style.cssText = 'width:100%;height:100%;';
+            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
@@ -2904,8 +2960,7 @@
                 wlOpenPicker(fakeBtn, e, false);
             });
 
-            cell.appendChild(flag);
-            cell.appendChild(label);
+            cell.appendChild(hdr);
             cell.appendChild(hint);
             cell.appendChild(overlay);
             cell.appendChild(chartDiv);
@@ -6065,10 +6120,6 @@
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
-            var label = document.createElement('div');
-            label.className = 'mc-cell-label';
-            label.textContent = sym;
-
             var flag = document.createElement('button');
             flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
             flag.textContent = '⚑';
@@ -6078,13 +6129,15 @@
                 wlFlagTicker(sym, flag);
             });
 
+            var hdr = buildMcCellHeader(sym, flag);
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
 
             var chartDiv = document.createElement('div');
             chartDiv.id = 'sc-chart-' + sym.replace(/[^a-zA-Z0-9]/g,'_');
-            chartDiv.style.cssText = 'width:100%;height:100%;';
+            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
@@ -6103,8 +6156,7 @@
                 wlOpenPicker(fakeBtn, e, false);
             });
 
-            cell.appendChild(flag);
-            cell.appendChild(label);
+            cell.appendChild(hdr);
             cell.appendChild(hint);
             cell.appendChild(overlay);
             cell.appendChild(chartDiv);
@@ -6376,10 +6428,6 @@
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
-            var label = document.createElement('div');
-            label.className = 'mc-cell-label';
-            label.textContent = sym;
-
             var flag = document.createElement('button');
             flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
             flag.textContent = '⚑';
@@ -6389,13 +6437,15 @@
                 wlFlagTicker(sym, flag);
             });
 
+            var hdr = buildMcCellHeader(sym, flag);
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
 
             var chartDiv = document.createElement('div');
             chartDiv.id = 'wl-mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g, '_');
-            chartDiv.style.cssText = 'width:100%;height:100%;';
+            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
@@ -6414,8 +6464,7 @@
                 wlOpenPicker(fakeBtn, e, false);
             });
 
-            cell.appendChild(flag);
-            cell.appendChild(label);
+            cell.appendChild(hdr);
             cell.appendChild(hint);
             cell.appendChild(overlay);
             cell.appendChild(chartDiv);
@@ -10505,10 +10554,6 @@
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
 
-            var label = document.createElement('div');
-            label.className = 'mc-cell-label';
-            label.textContent = sym;
-
             var flag = document.createElement('button');
             flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
             flag.textContent = '⚑';
@@ -10518,13 +10563,15 @@
                 wlFlagTicker(sym, flag);
             });
 
+            var hdr = buildMcCellHeader(sym, flag);
+
             var hint = document.createElement('div');
             hint.className = 'mc-cell-hint';
             hint.textContent = 'click to expand';
 
             var chartDiv = document.createElement('div');
             chartDiv.id = 'al-mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g, '_');
-            chartDiv.style.cssText = 'width:100%;height:100%;';
+            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
@@ -10543,8 +10590,7 @@
                 wlOpenPicker(fakeBtn, e, false);
             });
 
-            cell.appendChild(flag);
-            cell.appendChild(label);
+            cell.appendChild(hdr);
             cell.appendChild(hint);
             cell.appendChild(overlay);
             cell.appendChild(chartDiv);
