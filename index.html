@@ -2140,6 +2140,27 @@
             <button class="mc-fullscreen-close" onclick="closeMcFullscreen()">×</button>
         </div>
     </div>
+    <!-- LW Fullscreen Settings Bar -->
+    <div id="mc-fullscreen-settings" style="display:flex;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
+        <div style="display:flex;gap:3px;">
+            <button class="mc-tf-btn mc-fs-range-btn" data-bars="21"  onclick="mcFsSetRange(21)">1M</button>
+            <button class="mc-tf-btn mc-fs-range-btn active" data-bars="65"  onclick="mcFsSetRange(65)">3M</button>
+            <button class="mc-tf-btn mc-fs-range-btn" data-bars="130" onclick="mcFsSetRange(130)">6M</button>
+            <button class="mc-tf-btn mc-fs-range-btn" data-bars="252" onclick="mcFsSetRange(252)">1Y</button>
+        </div>
+        <div class="mc-toolbar-sep"></div>
+        <div style="display:flex;gap:3px;">
+            <button class="mc-tf-btn" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#f9c74f33;">SMA5</button>
+            <button class="mc-tf-btn" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#a78bfa33;">EMA8</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#2979c8;">EMA21</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;">SMA50</button>
+            <button class="mc-tf-btn" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#58a6ff33;">SMA150</button>
+            <button class="mc-tf-btn" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#3fb95033;">SMA200</button>
+        </div>
+        <div class="mc-toolbar-sep"></div>
+        <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()">AVWAP</button>
+        <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
+    </div>
     <div class="mc-fullscreen-body">
         <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
     </div>
@@ -2861,10 +2882,421 @@
 
     window.setMcTf = function(tf) {
         mcTimeframe = tf;
-        document.querySelectorAll('.mc-tf-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tf') === tf); });
-        mcWidgets = {};
+        document.querySelectorAll('#stocks-multichart-view .mc-tf-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tf') === tf); });
         renderMulticharts();
     };
+
+    // ── LW Multichart Infrastructure ─────────────────────────────────────────
+
+    var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
+    var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
+    var MC_FETCH_LIMIT  = 50;
+
+    // Fullscreen state
+    var _mcFsOhlcv       = [];
+    var _mcFsSym         = null;
+    var _mcFsTf          = 'D';
+    var _mcFsChart       = null;
+    var _mcFsCandle      = null;
+    var _mcFsVol         = null;
+    var _mcFsMaSeries    = {};
+    var _mcFsVwapSeries  = null;
+    var _mcFsVwapMode    = false;
+    var _mcFsVwapAnchor  = null;
+    var _mcFsVisibleBars = 65;
+    var _mcFsActiveMas   = { EMA21: true, SMA50: true };
+
+    // Render-token per multichart context (prevents stale renders)
+    var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
+
+    // MA definitions (period, color, type)
+    var _MC_MA_DEFS = {
+        SMA5:   { period: 5,   color: '#f9c74f', ema: false },
+        EMA8:   { period: 8,   color: '#a78bfa', ema: true  },
+        EMA21:  { period: 21,  color: '#2979c8', ema: true  },
+        SMA50:  { period: 50,  color: '#f23645', ema: false },
+        SMA150: { period: 150, color: '#58a6ff', ema: false },
+        SMA200: { period: 200, color: '#3fb950', ema: false },
+    };
+
+    function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
+    function _mcRange(tf)    { return tf === 'W' ? '2y'  : tf === 'M' ? '5y'  : '1y'; }
+
+    // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
+    function fetchMcOhlcv(sym, tf) {
+        var key = sym + '_' + tf;
+        if (_mcOhlcvCache[key] !== undefined) return Promise.resolve(_mcOhlcvCache[key]);
+        return new Promise(function(resolve) {
+            if (!_mcFetchQueue[tf]) _mcFetchQueue[tf] = { pending: [], active: 0, resolvers: {} };
+            var q = _mcFetchQueue[tf];
+            if (!q.resolvers[sym]) q.resolvers[sym] = [];
+            q.resolvers[sym].push(resolve);
+            if (q.pending.indexOf(sym) === -1) q.pending.push(sym);
+            _drainMcQueue(tf);
+        });
+    }
+
+    function _drainMcQueue(tf) {
+        var q = _mcFetchQueue[tf];
+        if (!q) return;
+        while (q.pending.length > 0 && q.active < MC_FETCH_LIMIT) {
+            var sym = q.pending.shift();
+            var key = sym + '_' + tf;
+            if (_mcOhlcvCache[key] !== undefined) {
+                var res0 = (q.resolvers[sym] || []).splice(0);
+                delete q.resolvers[sym];
+                res0.forEach(function(r) { r(_mcOhlcvCache[key]); });
+                continue;
+            }
+            q.active++;
+            (function(s) {
+                var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf);
+                fetch(url).then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var result = data && data.chart && data.chart.result && data.chart.result[0];
+                        var ohlcv = [];
+                        if (result && result.timestamp) {
+                            var ts = result.timestamp;
+                            var qt = result.indicators && result.indicators.quote && result.indicators.quote[0];
+                            if (qt) {
+                                for (var i = 0; i < ts.length; i++) {
+                                    if (qt.open[i] == null || qt.close[i] == null) continue;
+                                    ohlcv.push({ time: ts[i], open: qt.open[i], high: qt.high[i], low: qt.low[i], close: qt.close[i], volume: qt.volume[i] || 0 });
+                                }
+                            }
+                        }
+                        _mcOhlcvCache[s + '_' + tf] = ohlcv;
+                        var res = (q.resolvers[s] || []).splice(0);
+                        delete q.resolvers[s];
+                        res.forEach(function(r) { r(ohlcv); });
+                    })
+                    .catch(function() {
+                        _mcOhlcvCache[s + '_' + tf] = [];
+                        var res = (q.resolvers[s] || []).splice(0);
+                        delete q.resolvers[s];
+                        res.forEach(function(r) { r([]); });
+                    })
+                    .then(function() {
+                        q.active = Math.max(0, q.active - 1);
+                        _drainMcQueue(tf);
+                    });
+            })(sym);
+        }
+    }
+
+    // ── MA / AVWAP maths ──────────────────────────────────────────────────────
+    function _calcSMA(ohlcv, period) {
+        var out = [];
+        for (var i = period - 1; i < ohlcv.length; i++) {
+            var sum = 0;
+            for (var j = i - (period - 1); j <= i; j++) sum += ohlcv[j].close;
+            out.push({ time: ohlcv[i].time, value: sum / period });
+        }
+        return out;
+    }
+    function _calcEMA(ohlcv, period) {
+        var out = [], k = 2 / (period + 1), ema = ohlcv[0] ? ohlcv[0].close : 0;
+        for (var i = 0; i < ohlcv.length; i++) {
+            ema = ohlcv[i].close * k + ema * (1 - k);
+            if (i >= period - 1) out.push({ time: ohlcv[i].time, value: ema });
+        }
+        return out;
+    }
+    function _calcAVWAP(ohlcv, anchorIdx) {
+        var out = [], cumVT = 0, cumV = 0;
+        for (var i = anchorIdx; i < ohlcv.length; i++) {
+            var tp = (ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 3;
+            cumVT += tp * (ohlcv[i].volume || 0);
+            cumV  += (ohlcv[i].volume || 0);
+            if (cumV > 0) out.push({ time: ohlcv[i].time, value: cumVT / cumV });
+        }
+        return out;
+    }
+    function _calcMA(ohlcv, key) {
+        var def = _MC_MA_DEFS[key];
+        if (!def) return [];
+        return def.ema ? _calcEMA(ohlcv, def.period) : _calcSMA(ohlcv, def.period);
+    }
+    function _barIdxByTime(ohlcv, time) {
+        for (var i = 0; i < ohlcv.length; i++) { if (ohlcv[i].time >= time) return i; }
+        return -1;
+    }
+
+    // ── Shared cell chart renderer ────────────────────────────────────────────
+    function renderLwMcCellChart(container, ohlcv) {
+        container.innerHTML = '';
+        if (!window.LightweightCharts || !ohlcv || !ohlcv.length) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">No data</div>';
+            return null;
+        }
+        var chart = LightweightCharts.createChart(container, {
+            autoSize: true,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
+            grid:    { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.06, bottom: 0.22 } },
+            timeScale: { borderColor: '#21262d', timeVisible: false },
+            handleScroll: false, handleScale: false,
+        });
+        var candle = chart.addCandlestickSeries({
+            upColor: '#3fb950', downColor: '#f85149', borderVisible: false,
+            wickUpColor: '#3fb950', wickDownColor: '#f85149',
+            priceLineVisible: false, lastValueVisible: true,
+        });
+        candle.setData(ohlcv);
+
+        // SMA 50
+        var sma50s = chart.addLineSeries({ color: '#f23645', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        sma50s.setData(_calcSMA(ohlcv, 50));
+        // EMA 21
+        var ema21s = chart.addLineSeries({ color: '#2979c8', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        ema21s.setData(_calcEMA(ohlcv, 21));
+        // Volume
+        var vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+        chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+        vol.setData(ohlcv.map(function(d) {
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+        }));
+
+        var n = ohlcv.length;
+        chart.timeScale().setVisibleLogicalRange({ from: n - 65, to: n - 1 });
+
+        // OHLC legend
+        var leg = document.createElement('div');
+        leg.style.cssText = 'position:absolute;top:0;left:6px;z-index:10;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.5;background:rgba(13,17,23,0.7);padding:2px 5px;border-radius:3px;';
+        container.style.position = 'relative';
+        container.appendChild(leg);
+        function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+        function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
+        chart.subscribeCrosshairMove(function(p) {
+            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
+            var d = p.seriesData.get(candle); if (!d) { leg.innerHTML = ''; return; }
+            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var vd = p.seriesData.get(vol);
+            leg.innerHTML = '<span style="color:#6e7681">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:#6e7681">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:#6e7681">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:#6e7681">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:#484f58">V</span><span style="color:#6e7681">'+fv(vd.value)+'</span>':'');
+        });
+        return { chart: chart };
+    }
+
+    function _destroyMcWidgets(widgets) {
+        Object.keys(widgets).forEach(function(sym) {
+            var inst = widgets[sym];
+            if (inst && inst.chart) { try { inst.chart.remove(); } catch(e) {} }
+        });
+    }
+
+    // ── Shared multichart grid builder ────────────────────────────────────────
+    function _buildLwMcGrid(grid, tickers, tf, cols, widgetsObj, contextKey) {
+        _destroyMcWidgets(widgetsObj);
+        Object.keys(widgetsObj).forEach(function(k) { delete widgetsObj[k]; });
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+
+        _mcRenderTokens[contextKey]++;
+        var token = _mcRenderTokens[contextKey];
+
+        tickers.forEach(function(sym) {
+            var cell = document.createElement('div');
+            cell.className = 'mc-cell';
+            cell.setAttribute('data-sym', sym);
+
+            var flag = document.createElement('button');
+            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
+            flag.textContent = '⚑'; flag.title = 'Add to Flagged';
+            flag.addEventListener('click', function(e) { e.stopPropagation(); wlFlagTicker(sym, flag); });
+
+            var hdr = buildMcCellHeader(sym, flag);
+
+            var hint = document.createElement('div');
+            hint.className = 'mc-cell-hint'; hint.textContent = 'click to expand';
+
+            var chartDiv = document.createElement('div');
+            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;position:relative;overflow:hidden;';
+            chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
+
+            var overlay = document.createElement('div');
+            overlay.className = 'mc-cell-overlay';
+            overlay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                openMcFullscreen(sym, tf);
+            });
+            overlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault(); e.stopPropagation();
+                var fakeBtn = {
+                    getAttribute: function(a) { return a === 'data-ticker' ? sym : null; },
+                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                    _wlNoSwitch: true
+                };
+                wlOpenPicker(fakeBtn, e, false);
+            });
+
+            cell.appendChild(hdr); cell.appendChild(hint); cell.appendChild(overlay); cell.appendChild(chartDiv);
+            grid.appendChild(cell);
+
+            var rendered = false;
+            var obs = new IntersectionObserver(function(entries) {
+                if (!entries[0].isIntersecting || rendered) return;
+                obs.disconnect();
+                fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+                    if (_mcRenderTokens[contextKey] !== token) return;
+                    rendered = true;
+                    var inst = renderLwMcCellChart(chartDiv, ohlcv);
+                    if (inst) widgetsObj[sym] = inst;
+                });
+            }, { threshold: 0.05 });
+            obs.observe(cell);
+        });
+
+        // Pre-warm cache for all tickers (background, non-blocking)
+        tickers.forEach(function(sym) {
+            var key = sym + '_' + tf;
+            if (_mcOhlcvCache[key] !== undefined) return;
+            fetchMcOhlcv(sym, tf);
+        });
+    }
+
+    // ── Fullscreen LW chart ────────────────────────────────────────────────────
+    function _applyFsVwap() {
+        if (!_mcFsChart || !_mcFsOhlcv.length || _mcFsVwapAnchor == null) return;
+        if (_mcFsVwapSeries) { try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(e) {} _mcFsVwapSeries = null; }
+        var data = _calcAVWAP(_mcFsOhlcv, _mcFsVwapAnchor);
+        if (!data.length) return;
+        _mcFsVwapSeries = _mcFsChart.addLineSeries({ color: '#ffb800', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        _mcFsVwapSeries.setData(data);
+    }
+
+    function _buildFsChart(sym, ohlcv, tf) {
+        var container = document.getElementById('mc-fullscreen-chart');
+        container.innerHTML = '';
+        if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
+        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = null;
+
+        _mcFsOhlcv = ohlcv || [];
+        _mcFsSym   = sym;
+        _mcFsTf    = tf;
+
+        if (!window.LightweightCharts || !_mcFsOhlcv.length) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
+            return;
+        }
+
+        _mcFsChart = LightweightCharts.createChart(container, {
+            autoSize: true,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
+            grid:    { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.15 } },
+            timeScale: { borderColor: '#21262d', timeVisible: true },
+            handleScroll: true, handleScale: true,
+        });
+
+        _mcFsCandle = _mcFsChart.addCandlestickSeries({
+            upColor: '#3fb950', downColor: '#f85149', borderVisible: false,
+            wickUpColor: '#3fb950', wickDownColor: '#f85149',
+            priceLineVisible: true, lastValueVisible: true,
+        });
+        _mcFsCandle.setData(_mcFsOhlcv);
+
+        _mcFsVol = _mcFsChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'fsvol' });
+        _mcFsChart.priceScale('fsvol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+        _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+        }));
+
+        // Active MAs
+        Object.keys(_mcFsActiveMas).forEach(function(key) {
+            if (!_mcFsActiveMas[key]) return;
+            var def = _MC_MA_DEFS[key]; if (!def) return;
+            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            s.setData(_calcMA(_mcFsOhlcv, key));
+            _mcFsMaSeries[key] = s;
+        });
+
+        // AVWAP (if previously set)
+        if (_mcFsVwapMode && _mcFsVwapAnchor != null) _applyFsVwap();
+
+        // Visible range
+        var n = _mcFsOhlcv.length;
+        _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n - 1 });
+
+        // AVWAP click handler
+        _mcFsChart.subscribeClick(function(param) {
+            if (!_mcFsVwapMode || !param.time) return;
+            var idx = _barIdxByTime(_mcFsOhlcv, param.time);
+            if (idx < 0) return;
+            _mcFsVwapAnchor = idx;
+            _applyFsVwap();
+            var hint = document.getElementById('mc-fs-vwap-hint');
+            if (hint) hint.textContent = 'anchored · click to move';
+        });
+
+        // OHLC legend
+        var leg = document.createElement('div');
+        leg.id = 'mc-fs-legend';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.6;background:rgba(13,17,23,0.85);padding:3px 8px;border-radius:3px;';
+        container.style.position = 'relative';
+        container.appendChild(leg);
+
+        function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+        function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
+
+        _mcFsChart.subscribeCrosshairMove(function(p) {
+            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
+            var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
+            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var vd = p.seriesData.get(_mcFsVol);
+            var vwapD = _mcFsVwapSeries ? p.seriesData.get(_mcFsVwapSeries) : null;
+            leg.innerHTML =
+                '<span style="color:#6e7681">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
+                '<span style="color:#6e7681">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
+                '<span style="color:#6e7681">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
+                '<span style="color:#6e7681">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                (vd ? '&nbsp;&nbsp;<span style="color:#484f58">V</span> <span>'+fv(vd.value)+'</span>' : '') +
+                (vwapD ? '&nbsp;&nbsp;<span style="color:#ffb800">AVWAP</span> <span style="color:#ffb800">'+fp(vwapD.value)+'</span>' : '');
+        });
+    }
+
+    // Fullscreen window-level controls
+    window.mcFsSetRange = function(bars) {
+        _mcFsVisibleBars = bars;
+        document.querySelectorAll('.mc-fs-range-btn').forEach(function(b) {
+            b.classList.toggle('active', parseInt(b.getAttribute('data-bars')) === bars);
+        });
+        if (_mcFsChart && _mcFsOhlcv.length) {
+            _mcFsChart.timeScale().setVisibleLogicalRange({ from: _mcFsOhlcv.length - bars, to: _mcFsOhlcv.length - 1 });
+        }
+    };
+
+    window.mcFsToggleMa = function(key) {
+        _mcFsActiveMas[key] = !_mcFsActiveMas[key];
+        var btn = document.getElementById('mc-fs-ma-' + key);
+        if (btn) btn.classList.toggle('active', _mcFsActiveMas[key]);
+        if (!_mcFsChart || !_mcFsOhlcv.length) return;
+        if (_mcFsActiveMas[key]) {
+            if (_mcFsMaSeries[key]) return;
+            var def = _MC_MA_DEFS[key]; if (!def) return;
+            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            s.setData(_calcMA(_mcFsOhlcv, key));
+            _mcFsMaSeries[key] = s;
+        } else {
+            if (_mcFsMaSeries[key]) { try { _mcFsChart.removeSeries(_mcFsMaSeries[key]); } catch(e) {} delete _mcFsMaSeries[key]; }
+        }
+    };
+
+    window.mcFsToggleVwap = function() {
+        _mcFsVwapMode = !_mcFsVwapMode;
+        var btn  = document.getElementById('mc-fs-vwap-btn');
+        var hint = document.getElementById('mc-fs-vwap-hint');
+        if (btn) btn.classList.toggle('active', _mcFsVwapMode);
+        if (!_mcFsVwapMode) {
+            if (_mcFsVwapSeries && _mcFsChart) { try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(e) {} _mcFsVwapSeries = null; }
+            _mcFsVwapAnchor = null;
+            if (hint) { hint.style.display = 'none'; hint.textContent = 'click chart to anchor'; }
+        } else {
+            if (hint) { hint.style.display = ''; hint.textContent = 'click chart to anchor'; }
+        }
+    };
+    // ── END LW Multichart Infrastructure ─────────────────────────────────────
 
     function buildMcCellHeader(sym, flagEl) {
         var sd   = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
@@ -2951,99 +3383,26 @@
 
     function renderMulticharts() {
         var grid = document.getElementById('multichart-grid');
-        if (!mcTickers.length) { grid.innerHTML = '<div style="color:#484f58;padding:20px;">No stocks.</div>'; return; }
-        grid.innerHTML = '';
-        grid.style.gridTemplateColumns = 'repeat(' + mcCols + ', 1fr)';
-        mcWidgets = {};
-        mcTickers.forEach(function(sym) {
-            var cell = document.createElement('div');
-            cell.className = 'mc-cell';
-            cell.setAttribute('data-sym', sym);
-
-            var flag = document.createElement('button');
-            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
-            flag.textContent = '⚑';
-            flag.title = 'Add to Flagged';
-            flag.addEventListener('click', function(e) {
-                e.stopPropagation();
-                wlFlagTicker(sym, flag);
-            });
-
-            var hdr = buildMcCellHeader(sym, flag);
-
-            var hint = document.createElement('div');
-            hint.className = 'mc-cell-hint';
-            hint.textContent = 'click to expand';
-
-            var chartDiv = document.createElement('div');
-            chartDiv.id = 'mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g,'_');
-            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
-
-            var overlay = document.createElement('div');
-            overlay.className = 'mc-cell-overlay';
-            overlay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                openMcFullscreen(sym);
-            });
-            overlay.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var fakeBtn = {
-                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
-                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
-                    _wlNoSwitch: true
-                };
-                wlOpenPicker(fakeBtn, e, false);
-            });
-
-            cell.appendChild(hdr);
-            cell.appendChild(hint);
-            cell.appendChild(overlay);
-            cell.appendChild(chartDiv);
-            grid.appendChild(cell);
-
-            var observer = new IntersectionObserver(function(entries) {
-                if (!entries[0].isIntersecting) return;
-                observer.disconnect();
-                var mappedSym = TV_MAP[sym] || sym;
-                try {
-                    mcWidgets[sym] = new TradingView.widget({
-                        symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
-                        theme: 'dark', timezone: 'America/Toronto',
-                        toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                        gridColor: 'rgba(255,255,255,0.04)',
-                        hide_side_toolbar: true, hide_top_toolbar: true,
-                        hide_legend: true, hide_volume: true,
-                        withdateranges: false, allow_symbol_change: false,
-                        save_image: false, enable_publishing: false,
-                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 1,
-                        autosize: true, container_id: chartDiv.id,
-                    });
-                } catch(e) {}
-            }, { threshold: 0.1 });
-            observer.observe(cell);
-        });
+        if (!grid) return;
+        _buildLwMcGrid(grid, mcTickers, mcTimeframe, mcCols, mcWidgets, 'ind');
     }
 
-    window.openMcFullscreen = function(sym) {
+    window.openMcFullscreen = function(sym, tf) {
+        tf = tf || mcTimeframe || 'D';
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = sym;
         var mcTicker = sym.replace(/[^A-Z0-9]/gi, '');
         var mcFBtn = document.getElementById('mc-fullscreen-details-btn');
         if (mcFBtn) mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
+
         // RS badge + industry meta
-        var mcPct = null;
-        var mcIndustry = '';
-        var mcFundRow = null;
+        var mcPct = null, mcIndustry = '', mcFundRow = null;
         if (snapshot && snapshot.by_industry) {
             outer: for (var ind in snapshot.by_industry) {
                 var rows = snapshot.by_industry[ind];
                 for (var i = 0; i < rows.length; i++) {
                     if (rows[i].ticker === sym) {
-                        mcPct      = rows[i].Percentile;
-                        mcIndustry = rows[i].industry || '';
-                        mcFundRow  = rows[i];
+                        mcPct = rows[i].Percentile; mcIndustry = rows[i].industry || ''; mcFundRow = rows[i];
                         break outer;
                     }
                 }
@@ -3061,109 +3420,39 @@
                 if (mcIndData && mcIndData.rank != null) {
                     var mcPctile  = mcIndData.percentile != null ? mcIndData.percentile : null;
                     var mcRankClr = mcPctile != null ? (mcPctile >= 75 ? '#3fb950' : mcPctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                    mcIndRankHtml = '<span class="meta-sep">·</span>' +
-                        '<span class="meta-ind-rank" style="color:' + mcRankClr + '">' +
-                        '(' + mcIndData.rank + '/' + mcTotal + ')' +
-                        '</span>';
+                    mcIndRankHtml = '<span class="meta-sep">·</span><span class="meta-ind-rank" style="color:' + mcRankClr + '">(' + mcIndData.rank + '/' + mcTotal + ')</span>';
                 }
             }
-            if (mcIndustry) {
-                mcMetaEl.innerHTML = industryLinkHtml(mcIndustry, 'closeMcFullscreen') + mcIndRankHtml;
-                mcMetaEl.style.display = '';
-            } else {
-                mcMetaEl.innerHTML = '';
-                mcMetaEl.style.display = 'none';
-            }
+            mcMetaEl.innerHTML = mcIndustry ? industryLinkHtml(mcIndustry, 'closeMcFullscreen') + mcIndRankHtml : '';
+            mcMetaEl.style.display = mcIndustry ? '' : 'none';
         }
+
+        // Reset VWAP state for new symbol
+        _mcFsVwapMode = false; _mcFsVwapAnchor = null;
+        var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
+        var vwapHint = document.getElementById('mc-fs-vwap-hint');
+        if (vwapBtn)  vwapBtn.classList.remove('active');
+        if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
+
         overlay.classList.add('open');
         updateQueueButtons();
 
-        var _mcLastSym = sym;
-        var _mcReady = false;
-        setTimeout(function() { _mcReady = true; }, 2000);
-        var _mcFullscreenIframe = null;
-        setTimeout(function() {
-            var container = document.getElementById('mc-fullscreen-chart');
-            if (container) _mcFullscreenIframe = container.querySelector('iframe');
-        }, 500);
-        if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); }
-        window._mcFullscreenMsgHandler = function(e) {
-            if (!_mcReady) return;
-            if (_mcFullscreenIframe && e.source !== _mcFullscreenIframe.contentWindow) return;
-            try {
-                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                var newSym = null;
-                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                    newSym = data.data.original_name;
-                }
-                if (newSym) {
-                    var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
-                    if (bare && bare !== _mcLastSym) {
-                        _mcLastSym = bare;
-                        document.getElementById('mc-fullscreen-sym').textContent = bare;
-                        var mcPct2 = null, mcIndustry2 = '', mcFundRow2 = null;
-                        if (snapshot && snapshot.by_industry) {
-                            outer3: for (var ind3 in snapshot.by_industry) {
-                                var rows3 = snapshot.by_industry[ind3];
-                                for (var k = 0; k < rows3.length; k++) {
-                                    if (rows3[k].ticker === bare) {
-                                        mcPct2      = rows3[k].Percentile;
-                                        mcIndustry2 = rows3[k].industry || '';
-                                        mcFundRow2  = rows3[k];
-                                        break outer3;
-                                    }
-                                }
-                            }
-                        }
-                        applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct2, mcFundRow2 ? mcFundRow2.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
-                        var mcMetaEl2 = document.getElementById('mc-fullscreen-meta');
-                        if (mcMetaEl2) {
-                            var mcIndRankHtml2 = '';
-                            if (mcIndustry2 && industriesData && industriesData.industries) {
-                                var mcIndData2 = industriesData.industries.find(function(x){ return x.industry === mcIndustry2; });
-                                var mcTotal2   = industriesData.industries.length;
-                                if (mcIndData2 && mcIndData2.rank != null) {
-                                    var mcPctile2  = mcIndData2.percentile != null ? mcIndData2.percentile : null;
-                                    var mcRankClr2 = mcPctile2 != null ? (mcPctile2 >= 75 ? '#3fb950' : mcPctile2 >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                                    mcIndRankHtml2 = '<span class="meta-sep">·</span>' +
-                                        '<span class="meta-ind-rank" style="color:' + mcRankClr2 + '">(' + mcIndData2.rank + '/' + mcTotal2 + ')</span>';
-                                }
-                            }
-                            mcMetaEl2.innerHTML = mcIndustry2 ? industryLinkHtml(mcIndustry2, 'closeMcFullscreen') + mcIndRankHtml2 : '';
-                            mcMetaEl2.style.display = mcIndustry2 ? '' : 'none';
-                        }
-                    }
-                }
-            } catch(err) {}
-        };
-        window.addEventListener('message', window._mcFullscreenMsgHandler);
-
-        var mappedSym = TV_MAP[sym] || sym;
-        setTimeout(function() {
-            try {
-                document.getElementById('mc-fullscreen-chart').innerHTML = '';
-                new TradingView.widget({
-                    symbol: mappedSym, interval: mcTimeframe, locale: 'en', style: '1',
-                    theme: 'dark', timezone: 'America/Toronto',
-                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                    gridColor: 'rgba(255,255,255,0.06)',
-                    hide_side_toolbar: false, hide_top_toolbar: false,
-                    hide_legend: false, hide_volume: true,
-                    details: true, hotlist: false, calendar: false,
-                    withdateranges: true, allow_symbol_change: true,
-                    save_image: false, enable_publishing: false,
-                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                    right_bar_margin: 1,
-                    autosize: true,
-                    container_id: 'mc-fullscreen-chart',
-                });
-            } catch(e) {}
-        }, 50);
+        // Show loading state then fetch + render LW chart
+        var container = document.getElementById('mc-fullscreen-chart');
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
+        var openSym = sym;
+        fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+            if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
+            if (_mcFsSym === openSym && _mcFsTf === tf && _mcFsChart) return; // already rendered
+            _buildFsChart(sym, ohlcv, tf);
+        });
     };
 
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
-        if (window._mcFullscreenMsgHandler) { window.removeEventListener('message', window._mcFullscreenMsgHandler); window._mcFullscreenMsgHandler = null; }
+        if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
+        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = null;
+        _mcFsSym = null;
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
     };
 
@@ -6133,7 +6422,6 @@
         document.querySelectorAll('#scans-multichart-view .mc-tf-btn').forEach(function(b){
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        scansMcWidgets = {};
         renderScansMc();
     };
 
@@ -6147,79 +6435,7 @@
 
     function renderScansMc() {
         var grid = document.getElementById('scans-multichart-grid');
-        if (!scansMcTickers.length) { grid.innerHTML = '<div style="color:#484f58;padding:20px;">No stocks.</div>'; return; }
-        grid.innerHTML = '';
-        grid.style.gridTemplateColumns = 'repeat(' + scansMcCols + ', 1fr)';
-        scansMcWidgets = {};
-        scansMcTickers.forEach(function(sym) {
-            var cell = document.createElement('div');
-            cell.className = 'mc-cell';
-            cell.setAttribute('data-sym', sym);
-
-            var flag = document.createElement('button');
-            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
-            flag.textContent = '⚑';
-            flag.title = 'Add to Flagged';
-            flag.addEventListener('click', function(e) {
-                e.stopPropagation();
-                wlFlagTicker(sym, flag);
-            });
-
-            var hdr = buildMcCellHeader(sym, flag);
-
-            var hint = document.createElement('div');
-            hint.className = 'mc-cell-hint';
-            hint.textContent = 'click to expand';
-
-            var chartDiv = document.createElement('div');
-            chartDiv.id = 'sc-chart-' + sym.replace(/[^a-zA-Z0-9]/g,'_');
-            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
-
-            var overlay = document.createElement('div');
-            overlay.className = 'mc-cell-overlay';
-            overlay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                openMcFullscreen(sym);
-            });
-            overlay.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var fakeBtn = {
-                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
-                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
-                    _wlNoSwitch: true
-                };
-                wlOpenPicker(fakeBtn, e, false);
-            });
-
-            cell.appendChild(hdr);
-            cell.appendChild(hint);
-            cell.appendChild(overlay);
-            cell.appendChild(chartDiv);
-            grid.appendChild(cell);
-
-            var observer = new IntersectionObserver(function(entries) {
-                if (!entries[0].isIntersecting) return;
-                observer.disconnect();
-                var mappedSym = TV_MAP[sym] || sym;
-                try {
-                    scansMcWidgets[sym] = new TradingView.widget({
-                        symbol: mappedSym, interval: scansMcTimeframe, locale: 'en', style: '1',
-                        theme: 'dark', timezone: 'America/Toronto',
-                        toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                        gridColor: 'rgba(255,255,255,0.04)',
-                        hide_side_toolbar: true, hide_top_toolbar: true,
-                        hide_legend: true, hide_volume: true,
-                        withdateranges: false, allow_symbol_change: false,
-                        save_image: false, enable_publishing: false,
-                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 1,
-                        autosize: true, container_id: chartDiv.id,
-                    });
-                } catch(e) {}
-            }, { threshold: 0.1 });
-            observer.observe(cell);
-        });
+        _buildLwMcGrid(grid, scansMcTickers, scansMcTimeframe, scansMcCols, scansMcWidgets, 'scans');
     }
 
     function wlSearchQuery(q) {
@@ -6414,7 +6630,6 @@
         document.querySelectorAll('#wl-multichart-toolbar .mc-tf-btn').forEach(function(b){
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        wlMcWidgets = {};
         renderWlMc();
     };
 
@@ -6428,106 +6643,25 @@
 
     function renderWlMc() {
         var grid = document.getElementById('wl-multichart-grid');
-        var active = wlGetLastList();
-        var all    = wlGetAll();
-        var tickers = (active && all[active]) ? all[active] : [];
+        var active  = wlGetLastList();
+        var all     = wlGetAll();
+        var tickers = (active && all[active]) ? all[active].slice() : [];
         if (!tickers.length) {
             grid.innerHTML = '<div style="color:#484f58;padding:20px;">No tickers in this watchlist.</div>';
             return;
         }
-        grid.innerHTML = '';
-        grid.style.gridTemplateColumns = 'repeat(' + wlMcCols + ', 1fr)';
-        wlMcWidgets = {};
-
-        // Sort by chg% highest to lowest (mirrors watchlist default)
+        // Sort by chg% highest → lowest (mirrors watchlist default)
         var tickerData = {};
         tickers.forEach(function(t) {
-            var sd   = wlLookupStock(t);
-            var live = wlLivePrices[t];
-            var dayVal;
-            if (live && live.price && live.prevClose) {
-                dayVal = ((live.price - live.prevClose) / live.prevClose) * 100;
-            } else {
-                dayVal = sd ? sd.daily : null;
-            }
-            tickerData[t] = dayVal;
+            var sd = wlLookupStock(t), live = wlLivePrices[t];
+            tickerData[t] = (live && live.price && live.prevClose) ? ((live.price - live.prevClose) / live.prevClose) * 100 : (sd ? sd.daily : null);
         });
         tickers.sort(function(a, b) {
-            var av = tickerData[a], bv = tickerData[b];
-            av = av != null ? av : -Infinity;
-            bv = bv != null ? bv : -Infinity;
+            var av = tickerData[a] != null ? tickerData[a] : -Infinity;
+            var bv = tickerData[b] != null ? tickerData[b] : -Infinity;
             return bv - av;
         });
-
-        tickers.forEach(function(sym) {
-            var cell = document.createElement('div');
-            cell.className = 'mc-cell';
-            cell.setAttribute('data-sym', sym);
-
-            var flag = document.createElement('button');
-            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
-            flag.textContent = '⚑';
-            flag.title = 'Add to Flagged';
-            flag.addEventListener('click', function(e) {
-                e.stopPropagation();
-                wlFlagTicker(sym, flag);
-            });
-
-            var hdr = buildMcCellHeader(sym, flag);
-
-            var hint = document.createElement('div');
-            hint.className = 'mc-cell-hint';
-            hint.textContent = 'click to expand';
-
-            var chartDiv = document.createElement('div');
-            chartDiv.id = 'wl-mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g, '_');
-            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
-
-            var overlay = document.createElement('div');
-            overlay.className = 'mc-cell-overlay';
-            overlay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                openMcFullscreen(sym);
-            });
-            overlay.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var fakeBtn = {
-                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
-                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
-                    _wlNoSwitch: true
-                };
-                wlOpenPicker(fakeBtn, e, false);
-            });
-
-            cell.appendChild(hdr);
-            cell.appendChild(hint);
-            cell.appendChild(overlay);
-            cell.appendChild(chartDiv);
-            grid.appendChild(cell);
-
-            var observer = new IntersectionObserver(function(entries) {
-                if (!entries[0].isIntersecting) return;
-                observer.disconnect();
-                var mappedSym = TV_MAP[sym] || sym;
-                try {
-                    wlMcWidgets[sym] = new TradingView.widget({
-                        symbol: mappedSym, interval: wlMcTimeframe, locale: 'en', style: '1',
-                        theme: 'dark', timezone: 'America/Toronto',
-                        toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                        gridColor: 'rgba(255,255,255,0.04)',
-                        hide_side_toolbar: true, hide_top_toolbar: true,
-                        hide_legend: true, hide_volume: true,
-                        withdateranges: false, allow_symbol_change: false,
-                        save_image: false, enable_publishing: false,
-                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 1,
-                        autosize: true, container_id: chartDiv.id,
-                    });
-                } catch(e) {}
-            }, { threshold: 0.1 });
-            observer.observe(cell);
-        });
+        _buildLwMcGrid(grid, tickers, wlMcTimeframe, wlMcCols, wlMcWidgets, 'wl');
     }
 
     // ── Watchlists ────────────────────────────────────────────────────────
@@ -10540,7 +10674,6 @@
         document.querySelectorAll('#al-multichart-view .mc-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        alMcWidgets = {};
         renderAlMc();
     };
 
@@ -10573,89 +10706,12 @@
     function renderAlMc() {
         var grid = document.getElementById('al-multichart-grid');
         if (!grid) return;
-        // Deduplicate tickers from alertsList
         var seen = {}, tickers = [];
         alertsList.forEach(function(a) {
             if (!seen[a.ticker]) { seen[a.ticker] = true; tickers.push(a.ticker); }
         });
-        if (!tickers.length) {
-            grid.innerHTML = '<div style="color:#484f58;padding:20px;">No alerts set.</div>';
-            return;
-        }
-        grid.innerHTML = '';
-        grid.style.gridTemplateColumns = 'repeat(' + alMcCols + ', 1fr)';
-        alMcWidgets = {};
-        tickers.forEach(function(sym) {
-            var cell = document.createElement('div');
-            cell.className = 'mc-cell';
-            cell.setAttribute('data-sym', sym);
-
-            var flag = document.createElement('button');
-            flag.className = 'mc-cell-flag' + (wlIsFlagged(sym) ? ' flagged' : '');
-            flag.textContent = '⚑';
-            flag.title = 'Add to Flagged';
-            flag.addEventListener('click', function(e) {
-                e.stopPropagation();
-                wlFlagTicker(sym, flag);
-            });
-
-            var hdr = buildMcCellHeader(sym, flag);
-
-            var hint = document.createElement('div');
-            hint.className = 'mc-cell-hint';
-            hint.textContent = 'click to expand';
-
-            var chartDiv = document.createElement('div');
-            chartDiv.id = 'al-mc-chart-' + sym.replace(/[^a-zA-Z0-9]/g, '_');
-            chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;';
-
-            var overlay = document.createElement('div');
-            overlay.className = 'mc-cell-overlay';
-            overlay.addEventListener('click', function(e) {
-                e.stopPropagation();
-                openMcFullscreen(sym);
-            });
-            overlay.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var fakeBtn = {
-                    getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
-                    getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
-                    _wlNoSwitch: true
-                };
-                wlOpenPicker(fakeBtn, e, false);
-            });
-
-            cell.appendChild(hdr);
-            cell.appendChild(hint);
-            cell.appendChild(overlay);
-            cell.appendChild(chartDiv);
-            grid.appendChild(cell);
-
-            var observer = new IntersectionObserver(function(entries) {
-                if (!entries[0].isIntersecting) return;
-                observer.disconnect();
-                var mappedSym = TV_MAP[sym] || sym;
-                try {
-                    alMcWidgets[sym] = new TradingView.widget({
-                        symbol: mappedSym, interval: alMcTimeframe, locale: 'en', style: '1',
-                        theme: 'dark', timezone: 'America/Toronto',
-                        toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                        gridColor: 'rgba(255,255,255,0.04)',
-                        hide_side_toolbar: true, hide_top_toolbar: true,
-                        hide_legend: true, hide_volume: true,
-                        withdateranges: false, allow_symbol_change: false,
-                        save_image: false, enable_publishing: false,
-                        studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                        right_bar_margin: 1,
-                        autosize: true, container_id: chartDiv.id,
-                    });
-                } catch(e) {}
-            }, { threshold: 0.1 });
-            observer.observe(cell);
-        });
+        _buildLwMcGrid(grid, tickers, alMcTimeframe, alMcCols, alMcWidgets, 'al');
     }
-    // ── END Alerts Multichart ─────────────────────────────────────────────
 
     // ── END PRICE ALERTS ─────────────────────────────────────────────────────
 
