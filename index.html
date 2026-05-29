@@ -2214,6 +2214,9 @@
                         var pct = ((q.price - q.prevClose) / q.prevClose) * 100;
                         acc[indName].sum   += pct;
                         acc[indName].count += 1;
+                        // Write live price & daily % back so renderMarketMovers() sees fresh data
+                        var row = tickerMap[q.ticker];
+                        if (row) { row.price = q.price; row.daily = pct; }
                     });
                 }
             }).catch(function() {}).finally(function() {
@@ -2236,7 +2239,8 @@
                 }
             }
         });
-        // Re-render only if user is on the industry view
+        // Re-render only if user is on the industry or market view
+        if (currentView === 'market') renderMarketMovers();
         if (currentView !== 'industries' && currentView !== 'sector') return;
         if (indView === 'heatmap') renderHeatmap();
         else renderIndustries();
