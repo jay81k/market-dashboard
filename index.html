@@ -2151,7 +2151,7 @@
         <div class="mc-toolbar-sep"></div>
         <!-- MA dropdown trigger -->
         <div id="mc-fs-ma-wrap" style="position:relative;">
-            <button class="mc-tf-btn" id="mc-fs-ma-toggle-btn" onclick="mcFsToggleMaPanel(event)" title="Moving Averages &amp; AVWAP" style="display:flex;align-items:center;gap:4px;">
+            <button class="mc-tf-btn" id="mc-fs-ma-toggle-btn" onclick="mcFsToggleMaPanel(event)" title="Moving Averages" style="display:flex;align-items:center;gap:4px;">
                 MA
                 <span id="mc-fs-ma-count" style="display:none;background:#388bfd;color:#fff;border-radius:8px;font-size:0.7em;padding:0 5px;line-height:1.5;font-variant-numeric:tabular-nums;"></span>
                 <svg id="mc-fs-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
@@ -2164,12 +2164,12 @@
                     <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;justify-content:flex-start;width:100%;text-align:left;">SMA 50</button>
                     <button class="mc-tf-btn active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#757575;justify-content:flex-start;width:100%;text-align:left;">SMA 150</button>
                     <button class="mc-tf-btn active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#2e2e2e;justify-content:flex-start;width:100%;text-align:left;">SMA 200</button>
-                    <div style="height:1px;background:#21262d;margin:3px 0;"></div>
-                    <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()" style="justify-content:flex-start;width:100%;text-align:left;">AVWAP</button>
-                    <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;padding-left:2px;">click chart to anchor</span>
                 </div>
             </div>
         </div>
+        <div class="mc-toolbar-sep"></div>
+        <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()">AVWAP</button>
+        <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
     </div>
     <div class="mc-fullscreen-body">
         <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
@@ -2910,10 +2910,10 @@
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
     var _mcFsMaSeries    = {};
-    var _mcFsVwapSeries  = null;
+    var _mcFsVwapSeries  = [];   // array of { series, anchor, color }
     var _mcFsVwapMode    = false;
-    var _mcFsVwapAnchor  = null;
     var _mcFsVisibleBars = 65;
+    var _AVWAP_COLORS    = ['#26a69a','#42a5f5','#ffa726','#ab47bc','#ef5350','#66bb6a','#ec407a'];
     var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
     var _mcFsKeyHandler  = null;
 
@@ -3167,20 +3167,21 @@
     }
 
     // ── Fullscreen LW chart ────────────────────────────────────────────────────
-    function _applyFsVwap() {
-        if (!_mcFsChart || !_mcFsOhlcv.length || _mcFsVwapAnchor == null) return;
-        if (_mcFsVwapSeries) { try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(e) {} _mcFsVwapSeries = null; }
-        var data = _calcAVWAP(_mcFsOhlcv, _mcFsVwapAnchor);
+    function _addFsVwap(anchorIdx) {
+        if (!_mcFsChart || !_mcFsOhlcv.length) return;
+        var color = _AVWAP_COLORS[_mcFsVwapSeries.length % _AVWAP_COLORS.length];
+        var data  = _calcAVWAP(_mcFsOhlcv, anchorIdx);
         if (!data.length) return;
-        _mcFsVwapSeries = _mcFsChart.addLineSeries({ color: '#388e3c', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
-        _mcFsVwapSeries.setData(data);
+        var s = _mcFsChart.addLineSeries({ color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        s.setData(data);
+        _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
 
     function _buildFsChart(sym, ohlcv, tf) {
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
-        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = null;
+        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
 
         _mcFsOhlcv = ohlcv || [];
         _mcFsSym   = sym;
@@ -3223,22 +3224,18 @@
             _mcFsMaSeries[key] = s;
         });
 
-        // AVWAP (if previously set)
-        if (_mcFsVwapMode && _mcFsVwapAnchor != null) _applyFsVwap();
-
         // Visible range
         var n = _mcFsOhlcv.length;
         _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n - 1 });
 
-        // AVWAP click handler
+        // AVWAP click handler — each click adds a new line
         _mcFsChart.subscribeClick(function(param) {
             if (!_mcFsVwapMode || !param.time) return;
             var idx = _barIdxByTime(_mcFsOhlcv, param.time);
             if (idx < 0) return;
-            _mcFsVwapAnchor = idx;
-            _applyFsVwap();
+            _addFsVwap(idx);
             var hint = document.getElementById('mc-fs-vwap-hint');
-            if (hint) hint.textContent = 'anchored · click to move';
+            if (hint) hint.textContent = 'click to add more \u00b7 Del removes last';
         });
 
         // OHLC legend
@@ -3256,7 +3253,6 @@
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
-            var vwapD = _mcFsVwapSeries ? p.seriesData.get(_mcFsVwapSeries) : null;
             // Price change from previous candle
             var chgHtml = '';
             var barIdx = _barIdxByTime(_mcFsOhlcv, p.time);
@@ -3270,6 +3266,11 @@
                         + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
                         + '</span>';
             }
+            var vwapLegend = '';
+            _mcFsVwapSeries.forEach(function(entry, i) {
+                var avd = p.seriesData.get(entry.series);
+                if (avd) vwapLegend += '&nbsp;&nbsp;<span style="color:' + entry.color + '">AV' + (i + 1) + '</span> <span style="color:' + entry.color + '">' + fp(avd.value) + '</span>';
+            });
             leg.innerHTML =
                 '<span style="color:#6e7681">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
                 '<span style="color:#6e7681">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
@@ -3277,22 +3278,26 @@
                 '<span style="color:#6e7681">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
                 (vd ? '&nbsp;&nbsp;<span style="color:#484f58">V</span> <span>'+fv(vd.value)+'</span>' : '') +
-                (vwapD ? '&nbsp;&nbsp;<span style="color:#388e3c">AVWAP</span> <span style="color:#388e3c">'+fp(vwapD.value)+'</span>' : '');
+                vwapLegend;
         });
 
-        // Delete key removes AVWAP
+        // Delete key removes the most recently added AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
         _mcFsKeyHandler = function(evt) {
             if (evt.key !== 'Delete') return;
-            if (!_mcFsVwapSeries || !_mcFsChart) return;
-            try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(err) {}
-            _mcFsVwapSeries  = null;
-            _mcFsVwapMode    = false;
-            _mcFsVwapAnchor  = null;
-            var vBtn  = document.getElementById('mc-fs-vwap-btn');
+            if (!_mcFsVwapSeries.length || !_mcFsChart) return;
+            var last = _mcFsVwapSeries.pop();
+            try { _mcFsChart.removeSeries(last.series); } catch(err) {}
             var vHint = document.getElementById('mc-fs-vwap-hint');
-            if (vBtn)  vBtn.classList.remove('active');
-            if (vHint) { vHint.style.display = 'none'; vHint.textContent = 'click chart to anchor'; }
+            if (_mcFsVwapSeries.length === 0) {
+                if (!_mcFsVwapMode) {
+                    var vBtn = document.getElementById('mc-fs-vwap-btn');
+                    if (vBtn) vBtn.classList.remove('active');
+                    if (vHint) { vHint.style.display = 'none'; vHint.textContent = 'click chart to anchor'; }
+                } else {
+                    if (vHint) vHint.textContent = 'click chart to anchor';
+                }
+            }
         };
         document.addEventListener('keydown', _mcFsKeyHandler);
     }
@@ -3361,12 +3366,23 @@
         var btn  = document.getElementById('mc-fs-vwap-btn');
         var hint = document.getElementById('mc-fs-vwap-hint');
         if (btn) btn.classList.toggle('active', _mcFsVwapMode);
-        if (!_mcFsVwapMode) {
-            if (_mcFsVwapSeries && _mcFsChart) { try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(e) {} _mcFsVwapSeries = null; }
-            _mcFsVwapAnchor = null;
-            if (hint) { hint.style.display = 'none'; hint.textContent = 'click chart to anchor'; }
+        if (_mcFsVwapMode) {
+            // Drawing mode on
+            if (hint) {
+                hint.style.display = '';
+                hint.textContent = _mcFsVwapSeries.length > 0 ? 'click to add more \u00b7 Del removes last' : 'click chart to anchor';
+            }
         } else {
-            if (hint) { hint.style.display = ''; hint.textContent = 'click chart to anchor'; }
+            // Drawing mode off — lines stay on chart
+            if (hint) {
+                if (_mcFsVwapSeries.length > 0) {
+                    hint.style.display = '';
+                    hint.textContent = 'Del removes last';
+                } else {
+                    hint.style.display = 'none';
+                    hint.textContent = 'click chart to anchor';
+                }
+            }
         }
     };
     // ── END LW Multichart Infrastructure ─────────────────────────────────────
@@ -3501,7 +3517,7 @@
         }
 
         // Reset VWAP state for new symbol
-        _mcFsVwapMode = false; _mcFsVwapAnchor = null;
+        _mcFsVwapMode = false; _mcFsVwapSeries = [];
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
         var vwapHint = document.getElementById('mc-fs-vwap-hint');
         if (vwapBtn)  vwapBtn.classList.remove('active');
@@ -3532,7 +3548,7 @@
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
-        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = null;
+        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsSym = null;
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
