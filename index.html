@@ -2913,7 +2913,7 @@
     var _mcFsVwapSeries  = [];   // array of { series, anchor, color }
     var _mcFsVwapMode    = false;
     var _mcFsVisibleBars = 65;
-    var _AVWAP_COLORS    = ['#26a69a','#42a5f5','#ffa726','#ab47bc','#ef5350','#66bb6a','#ec407a'];
+    var _AVWAP_COLOR     = '#4caf50';
     var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
     var _mcFsKeyHandler  = null;
 
@@ -3169,7 +3169,7 @@
     // ── Fullscreen LW chart ────────────────────────────────────────────────────
     function _addFsVwap(anchorIdx) {
         if (!_mcFsChart || !_mcFsOhlcv.length) return;
-        var color = _AVWAP_COLORS[_mcFsVwapSeries.length % _AVWAP_COLORS.length];
+        var color = _AVWAP_COLOR;
         var data  = _calcAVWAP(_mcFsOhlcv, anchorIdx);
         if (!data.length) return;
         var s = _mcFsChart.addLineSeries({ color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
