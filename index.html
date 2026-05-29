@@ -2149,17 +2149,27 @@
             <button class="mc-tf-btn mc-fs-range-btn" data-bars="252" onclick="mcFsSetRange(252)">1Y</button>
         </div>
         <div class="mc-toolbar-sep"></div>
-        <div style="display:flex;gap:3px;">
-            <button class="mc-tf-btn active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#673ab7;">SMA5</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#f48fb1;">EMA8</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#1848cc;">EMA21</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;">SMA50</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#757575;">SMA150</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#2e2e2e;">SMA200</button>
+        <!-- MA dropdown trigger -->
+        <div id="mc-fs-ma-wrap" style="position:relative;">
+            <button class="mc-tf-btn" id="mc-fs-ma-toggle-btn" onclick="mcFsToggleMaPanel(event)" title="Moving Averages &amp; AVWAP" style="display:flex;align-items:center;gap:4px;">
+                MA
+                <span id="mc-fs-ma-count" style="display:none;background:#388bfd;color:#fff;border-radius:8px;font-size:0.7em;padding:0 5px;line-height:1.5;font-variant-numeric:tabular-nums;"></span>
+                <svg id="mc-fs-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
+            </button>
+            <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 5px);left:0;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:7px;z-index:10000;min-width:130px;box-shadow:0 6px 20px rgba(0,0,0,0.55);">
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#673ab7;justify-content:flex-start;width:100%;text-align:left;">SMA 5</button>
+                    <button class="mc-tf-btn active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#f48fb1;justify-content:flex-start;width:100%;text-align:left;">EMA 8</button>
+                    <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#1848cc;justify-content:flex-start;width:100%;text-align:left;">EMA 21</button>
+                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;justify-content:flex-start;width:100%;text-align:left;">SMA 50</button>
+                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#757575;justify-content:flex-start;width:100%;text-align:left;">SMA 150</button>
+                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#2e2e2e;justify-content:flex-start;width:100%;text-align:left;">SMA 200</button>
+                    <div style="height:1px;background:#21262d;margin:3px 0;"></div>
+                    <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()" style="justify-content:flex-start;width:100%;text-align:left;">AVWAP</button>
+                    <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;padding-left:2px;">click chart to anchor</span>
+                </div>
+            </div>
         </div>
-        <div class="mc-toolbar-sep"></div>
-        <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()">AVWAP</button>
-        <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
     </div>
     <div class="mc-fullscreen-body">
         <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
@@ -3298,10 +3308,42 @@
         }
     };
 
+    function _mcFsUpdateMaBadge() {
+        var active = Object.keys(_mcFsActiveMas).filter(function(k) { return _mcFsActiveMas[k]; }).length;
+        var badge   = document.getElementById('mc-fs-ma-count');
+        var trigger = document.getElementById('mc-fs-ma-toggle-btn');
+        if (badge) { badge.textContent = active; badge.style.display = active > 0 ? '' : 'none'; }
+        if (trigger) trigger.classList.toggle('active', active > 0);
+    }
+
+    window.mcFsToggleMaPanel = function(e) {
+        e.stopPropagation();
+        var panel   = document.getElementById('mc-fs-ma-panel');
+        var chevron = document.getElementById('mc-fs-ma-chevron');
+        if (!panel) return;
+        var opening = panel.style.display === 'none';
+        panel.style.display = opening ? '' : 'none';
+        if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+        if (opening) {
+            setTimeout(function() {
+                function _outsideClick(ev) {
+                    var wrap = document.getElementById('mc-fs-ma-wrap');
+                    if (wrap && !wrap.contains(ev.target)) {
+                        panel.style.display = 'none';
+                        if (chevron) chevron.style.transform = '';
+                        document.removeEventListener('click', _outsideClick, true);
+                    }
+                }
+                document.addEventListener('click', _outsideClick, true);
+            }, 0);
+        }
+    };
+
     window.mcFsToggleMa = function(key) {
         _mcFsActiveMas[key] = !_mcFsActiveMas[key];
         var btn = document.getElementById('mc-fs-ma-' + key);
         if (btn) btn.classList.toggle('active', _mcFsActiveMas[key]);
+        _mcFsUpdateMaBadge();
         if (!_mcFsChart || !_mcFsOhlcv.length) return;
         if (_mcFsActiveMas[key]) {
             if (_mcFsMaSeries[key]) return;
@@ -3465,6 +3507,14 @@
         if (vwapBtn)  vwapBtn.classList.remove('active');
         if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
 
+        // Sync MA badge with current state
+        _mcFsUpdateMaBadge();
+        // Ensure MA panel is closed when opening a new symbol
+        var maPanel   = document.getElementById('mc-fs-ma-panel');
+        var maChevron = document.getElementById('mc-fs-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
+
         overlay.classList.add('open');
         updateQueueButtons();
 
@@ -3486,6 +3536,11 @@
         _mcFsSym = null;
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
+        // Close MA panel if open
+        var maPanel   = document.getElementById('mc-fs-ma-panel');
+        var maChevron = document.getElementById('mc-fs-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
     };
 
     window.filterStocksTable = function(q) {
