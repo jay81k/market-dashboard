@@ -2153,7 +2153,6 @@
         <div id="mc-fs-ma-wrap" style="position:relative;">
             <button class="mc-tf-btn" id="mc-fs-ma-toggle-btn" onclick="mcFsToggleMaPanel(event)" title="Moving Averages" style="display:flex;align-items:center;gap:4px;">
                 MA
-                <span id="mc-fs-ma-count" style="display:none;background:#388bfd;color:#fff;border-radius:8px;font-size:0.7em;padding:0 5px;line-height:1.5;font-variant-numeric:tabular-nums;"></span>
                 <svg id="mc-fs-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
             </button>
             <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 5px);left:0;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:7px;z-index:10000;min-width:130px;box-shadow:0 6px 20px rgba(0,0,0,0.55);">
@@ -2168,7 +2167,16 @@
             </div>
         </div>
         <div class="mc-toolbar-sep"></div>
-        <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()">AVWAP</button>
+        <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()" title="AVWAP" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                <line x1="3" y1="2" x2="3" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="13" y1="2" x2="13" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <rect x="1" y="9" width="4" height="2" rx="1" fill="currentColor"/>
+                <rect x="6" y="5" width="4" height="2" rx="1" fill="currentColor"/>
+                <rect x="11" y="11" width="4" height="2" rx="1" fill="currentColor"/>
+            </svg>
+        </button>
         <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
     </div>
     <div class="mc-fullscreen-body">
@@ -3314,11 +3322,7 @@
     };
 
     function _mcFsUpdateMaBadge() {
-        var active = Object.keys(_mcFsActiveMas).filter(function(k) { return _mcFsActiveMas[k]; }).length;
-        var badge   = document.getElementById('mc-fs-ma-count');
-        var trigger = document.getElementById('mc-fs-ma-toggle-btn');
-        if (badge) { badge.textContent = active; badge.style.display = active > 0 ? '' : 'none'; }
-        if (trigger) trigger.classList.toggle('active', active > 0);
+        // no-op: MA button stays neutral regardless of active MA count
     }
 
     window.mcFsToggleMaPanel = function(e) {
