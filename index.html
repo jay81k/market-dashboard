@@ -3227,7 +3227,7 @@
         Object.keys(_mcFsActiveMas).forEach(function(key) {
             if (!_mcFsActiveMas[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
-            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
             s.setData(_calcMA(_mcFsOhlcv, key));
             _mcFsMaSeries[key] = s;
         });
@@ -3357,7 +3357,7 @@
         if (_mcFsActiveMas[key]) {
             if (_mcFsMaSeries[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
-            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
             s.setData(_calcMA(_mcFsOhlcv, key));
             _mcFsMaSeries[key] = s;
         } else {
