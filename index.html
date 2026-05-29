@@ -3033,7 +3033,7 @@
         var chart = LightweightCharts.createChart(container, {
             autoSize: true,
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
-            grid:    { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            grid:    { vertLines: { color: '#171b22' }, horzLines: { color: '#171b22' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.06, bottom: 0.22 } },
             timeScale: { borderColor: '#21262d', timeVisible: false },
@@ -3184,7 +3184,7 @@
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
-            grid:    { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.15 } },
             timeScale: { borderColor: '#21262d', timeVisible: true },
@@ -3247,11 +3247,25 @@
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
             var vwapD = _mcFsVwapSeries ? p.seriesData.get(_mcFsVwapSeries) : null;
+            // Price change from previous candle
+            var chgHtml = '';
+            var barIdx = _barIdxByTime(_mcFsOhlcv, p.time);
+            if (barIdx > 0) {
+                var prevClose = _mcFsOhlcv[barIdx - 1].close;
+                var delta = d.close - prevClose;
+                var pct = (delta / prevClose) * 100;
+                var chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+                chgHtml = '&nbsp;&nbsp;<span style="color:' + chgClr + '">'
+                        + (delta >= 0 ? '+' : '') + delta.toFixed(2)
+                        + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
+                        + '</span>';
+            }
             leg.innerHTML =
                 '<span style="color:#6e7681">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
                 '<span style="color:#6e7681">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
                 '<span style="color:#6e7681">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
                 '<span style="color:#6e7681">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                chgHtml +
                 (vd ? '&nbsp;&nbsp;<span style="color:#484f58">V</span> <span>'+fv(vd.value)+'</span>' : '') +
                 (vwapD ? '&nbsp;&nbsp;<span style="color:#388e3c">AVWAP</span> <span style="color:#388e3c">'+fp(vwapD.value)+'</span>' : '');
         });
