@@ -2150,12 +2150,12 @@
         </div>
         <div class="mc-toolbar-sep"></div>
         <div style="display:flex;gap:3px;">
-            <button class="mc-tf-btn" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#f9c74f33;">SMA5</button>
-            <button class="mc-tf-btn" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#a78bfa33;">EMA8</button>
-            <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#2979c8;">EMA21</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#673ab7;">SMA5</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#f48fb1;">EMA8</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#1848cc;">EMA21</button>
             <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;">SMA50</button>
-            <button class="mc-tf-btn" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#58a6ff33;">SMA150</button>
-            <button class="mc-tf-btn" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#3fb95033;">SMA200</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#757575;">SMA150</button>
+            <button class="mc-tf-btn active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#2e2e2e;">SMA200</button>
         </div>
         <div class="mc-toolbar-sep"></div>
         <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()">AVWAP</button>
@@ -2904,19 +2904,20 @@
     var _mcFsVwapMode    = false;
     var _mcFsVwapAnchor  = null;
     var _mcFsVisibleBars = 65;
-    var _mcFsActiveMas   = { EMA21: true, SMA50: true };
+    var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
+    var _mcFsKeyHandler  = null;
 
     // Render-token per multichart context (prevents stale renders)
     var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
 
     // MA definitions (period, color, type)
     var _MC_MA_DEFS = {
-        SMA5:   { period: 5,   color: '#f9c74f', ema: false },
-        EMA8:   { period: 8,   color: '#a78bfa', ema: true  },
-        EMA21:  { period: 21,  color: '#2979c8', ema: true  },
+        SMA5:   { period: 5,   color: '#673ab7', ema: false },
+        EMA8:   { period: 8,   color: '#f48fb1', ema: true  },
+        EMA21:  { period: 21,  color: '#1848cc', ema: true  },
         SMA50:  { period: 50,  color: '#f23645', ema: false },
-        SMA150: { period: 150, color: '#58a6ff', ema: false },
-        SMA200: { period: 200, color: '#3fb950', ema: false },
+        SMA150: { period: 150, color: '#757575', ema: false },
+        SMA200: { period: 200, color: '#2e2e2e', ema: false },
     };
 
     function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
@@ -3005,7 +3006,7 @@
     function _calcAVWAP(ohlcv, anchorIdx) {
         var out = [], cumVT = 0, cumV = 0;
         for (var i = anchorIdx; i < ohlcv.length; i++) {
-            var tp = (ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 3;
+            var tp = (ohlcv[i].open + ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 4;
             cumVT += tp * (ohlcv[i].volume || 0);
             cumV  += (ohlcv[i].volume || 0);
             if (cumV > 0) out.push({ time: ohlcv[i].time, value: cumVT / cumV });
@@ -3049,7 +3050,7 @@
         var sma50s = chart.addLineSeries({ color: '#f23645', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         sma50s.setData(_calcSMA(ohlcv, 50));
         // EMA 21
-        var ema21s = chart.addLineSeries({ color: '#2979c8', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        var ema21s = chart.addLineSeries({ color: '#1848cc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         ema21s.setData(_calcEMA(ohlcv, 21));
         // Volume
         var vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
@@ -3161,7 +3162,7 @@
         if (_mcFsVwapSeries) { try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(e) {} _mcFsVwapSeries = null; }
         var data = _calcAVWAP(_mcFsOhlcv, _mcFsVwapAnchor);
         if (!data.length) return;
-        _mcFsVwapSeries = _mcFsChart.addLineSeries({ color: '#ffb800', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        _mcFsVwapSeries = _mcFsChart.addLineSeries({ color: '#388e3c', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
         _mcFsVwapSeries.setData(data);
     }
 
@@ -3252,8 +3253,24 @@
                 '<span style="color:#6e7681">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
                 '<span style="color:#6e7681">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 (vd ? '&nbsp;&nbsp;<span style="color:#484f58">V</span> <span>'+fv(vd.value)+'</span>' : '') +
-                (vwapD ? '&nbsp;&nbsp;<span style="color:#ffb800">AVWAP</span> <span style="color:#ffb800">'+fp(vwapD.value)+'</span>' : '');
+                (vwapD ? '&nbsp;&nbsp;<span style="color:#388e3c">AVWAP</span> <span style="color:#388e3c">'+fp(vwapD.value)+'</span>' : '');
         });
+
+        // Delete key removes AVWAP
+        if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
+        _mcFsKeyHandler = function(evt) {
+            if (evt.key !== 'Delete') return;
+            if (!_mcFsVwapSeries || !_mcFsChart) return;
+            try { _mcFsChart.removeSeries(_mcFsVwapSeries); } catch(err) {}
+            _mcFsVwapSeries  = null;
+            _mcFsVwapMode    = false;
+            _mcFsVwapAnchor  = null;
+            var vBtn  = document.getElementById('mc-fs-vwap-btn');
+            var vHint = document.getElementById('mc-fs-vwap-hint');
+            if (vBtn)  vBtn.classList.remove('active');
+            if (vHint) { vHint.style.display = 'none'; vHint.textContent = 'click chart to anchor'; }
+        };
+        document.addEventListener('keydown', _mcFsKeyHandler);
     }
 
     // Fullscreen window-level controls
@@ -3453,6 +3470,7 @@
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = null;
         _mcFsSym = null;
+        if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
     };
 
