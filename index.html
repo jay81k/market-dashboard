@@ -207,7 +207,7 @@
         }
         .mc-cell-hdr-sym  { font-size: 0.825em; font-weight: 700; color: #58a6ff; flex-shrink: 0; letter-spacing: 0.04em; }
         .mc-cell-hdr-rank { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-        .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 4px; }
+        .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; padding-left: 4px; }
         .mc-cell-flag {
             background: none; border: none; border-radius: 3px;
             color: #484f58; font-size: 0.92em; padding: 1px 3px;
@@ -2196,9 +2196,6 @@
         var acc = {};
         industriesData.industries.forEach(function(ind) { acc[ind.industry] = { sum: 0, count: 0 }; });
 
-        // Per-ticker live price cache — used to patch snapshot.by_industry rows
-        var tickerQuotes = {};
-
         // Batch into 50s
         var batches = [];
         for (var i = 0; i < allTickers.length; i += 50) batches.push(allTickers.slice(i, i + 50));
@@ -2217,18 +2214,16 @@
                         var pct = ((q.price - q.prevClose) / q.prevClose) * 100;
                         acc[indName].sum   += pct;
                         acc[indName].count += 1;
-                        // Capture per-ticker live price for market movers
-                        tickerQuotes[q.ticker] = { price: q.price, prevClose: q.prevClose, daily: pct };
                     });
                 }
             }).catch(function() {}).finally(function() {
                 pending--;
-                if (pending === 0) _applyLiveIndustryDay(acc, tickerQuotes);
+                if (pending === 0) _applyLiveIndustryDay(acc);
             });
         });
     }
 
-    function _applyLiveIndustryDay(acc, tickerQuotes) {
+    function _applyLiveIndustryDay(acc) {
         // Patch avg_daily in both industriesData and snapshot.industry_summary
         // (renderers read from snapshot.industry_summary, so that must be updated)
         industriesData.industries.forEach(function(ind) {
@@ -2241,24 +2236,6 @@
                 }
             }
         });
-        // Patch individual stock rows in snapshot.by_industry so that
-        // renderMarketMovers (and any other per-ticker reader) always sees
-        // live prices instead of stale snapshot values.
-        if (tickerQuotes && snapshot && snapshot.by_industry) {
-            Object.keys(snapshot.by_industry).forEach(function(indName) {
-                snapshot.by_industry[indName].forEach(function(row) {
-                    var q = row.ticker && tickerQuotes[row.ticker];
-                    if (!q) return;
-                    row.price = q.price;
-                    row.daily = q.daily;
-                });
-            });
-        }
-        // Re-render market movers if the user is on the market view
-        if (currentView === 'market') {
-            renderMarketMovers();
-            return;
-        }
         // Re-render only if user is on the industry view
         if (currentView !== 'industries' && currentView !== 'sector') return;
         if (indView === 'heatmap') renderHeatmap();
@@ -2906,10 +2883,10 @@
             if (indObj && indObj.rank != null) {
                 var pctile   = indObj.percentile != null ? indObj.percentile : null;
                 var rkColor  = pctile != null ? (pctile >= 75 ? '#3fb950' : pctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>'
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>'
                              + '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
             } else if (ind) {
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">' + esc(ind) + '</span>';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>';
             }
         }
 
@@ -2924,19 +2901,28 @@
             rsBadgeHtml += '<span class="chart-rs-badge ' + wCls + '" style="font-size:0.62em;padding:1px 5px;">' + wrs + '</span>';
         }
 
-        // Absolute price change
+        // Price change + chg% combined: "+0.97 (+2.17%)"
         var priceChgHtml = '';
-        if (live && live.price && live.prevClose) {
-            var absDelta = live.price - live.prevClose;
-            var absDeltaColor = absDelta > 0 ? '#3fb950' : absDelta < 0 ? '#f85149' : '#484f58';
-            priceChgHtml = '<span class="mc-cell-hdr-price-chg" style="color:' + absDeltaColor + ';">' + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2) + '</span>';
-        }
-
-        // Change %
         var chgHtml = '';
         if (dayPct != null) {
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
-            chgHtml = '<span class="mc-cell-hdr-chg" style="color:' + chgColor + ';">' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%</span>';
+            var chgStyle = 'color:' + chgColor + ';font-size:0.748em;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap;';
+            var absDelta = null;
+            if (live && live.price && live.prevClose) {
+                absDelta = live.price - live.prevClose;
+            } else if (sd && sd.price != null && dayPct != null) {
+                absDelta = sd.price / (1 + dayPct / 100) * (dayPct / 100);
+            }
+            if (absDelta != null) {
+                chgHtml = '<span class="mc-cell-hdr-chg" style="' + chgStyle + '">'
+                        + (absDelta >= 0 ? '+' : '') + absDelta.toFixed(2)
+                        + ' (' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%)'
+                        + '</span>';
+            } else {
+                chgHtml = '<span class="mc-cell-hdr-chg" style="' + chgStyle + '">'
+                        + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%'
+                        + '</span>';
+            }
         }
 
         var hdr = document.createElement('div');
@@ -2944,8 +2930,18 @@
         if (flagEl) hdr.appendChild(flagEl);
         var inner = document.createElement('div');
         inner.className = 'mc-cell-hdr-inner';
-        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + priceChgHtml + chgHtml;
+        inner.innerHTML = '<span class="mc-cell-hdr-sym">' + esc(sym) + '</span>' + indRankHtml + rsBadgeHtml + '<span style="flex:1;"></span>' + priceChgHtml + chgHtml;
         hdr.appendChild(inner);
+        hdr.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? sym : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        });
         return hdr;
     }
 
@@ -10674,6 +10670,11 @@
             price = alertPrices[ticker];
             prevClose = alertPrevClose[ticker] || null;
         }
+        // If we resolved a price from scan/wl but prevClose is still null,
+        // fall back to alertPrevClose so the popup chg matches the alerts table.
+        if (price && !prevClose && alertPrevClose[ticker]) {
+            prevClose = alertPrevClose[ticker];
+        }
         if (!price && row && row.price != null) { price = row.price; }
         if (!prevClose && row && row.price != null && row.daily != null) {
             prevClose = row.price / (1 + row.daily / 100);
@@ -10711,8 +10712,9 @@ var _mmPopup = (function () {
     var popupIndName = null;
     var popupIndSep  = null;
 
-    var hoverTimer  = null;
-    var hideTimer   = null;
+    var hoverTimer        = null;
+    var hideTimer         = null;
+    var liveRefreshTimer  = null;
     var lwChart     = null;
     var candleSeries = null;
     var activeCard  = null;
@@ -11036,6 +11038,18 @@ var _mmPopup = (function () {
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
         if (popupName) popupName.textContent = name || '';
+
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = setInterval(function() {
+            if (!activeCard) return;
+            var liveChgAbs = activeCard.getAttribute('data-tv-chgabs');
+            var liveChgPct = activeCard.getAttribute('data-tv-chgpct');
+            var liveDir    = activeCard.getAttribute('data-tv-dir');
+            if (liveChgAbs != null && liveChgPct != null) {
+                popupChg.textContent = liveChgAbs + ' ' + liveChgPct;
+                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+            }
+        }, 5000);
         if (popupIndName) { popupIndName.textContent = ''; }
         if (popupIndSep)  { popupIndSep.style.display = 'none'; }
         if (popupIndRank)   popupIndRank.style.display   = 'none';
@@ -11095,6 +11109,8 @@ var _mmPopup = (function () {
 
     function hidePopup() {
         if (!popup) return;
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = null;
         popup.classList.remove('visible');
         destroyChart();
         activeCard = null;
@@ -11156,6 +11172,22 @@ var _mmPopup = (function () {
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
         popupChg.textContent = chgAbsStr + chgPctStr;
         popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+
+        clearInterval(liveRefreshTimer);
+        liveRefreshTimer = setInterval(function() {
+            var ltd = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
+            var livePrice     = ltd.price != null ? ltd.price : null;
+            var livePrevClose = ltd.prevClose != null ? ltd.prevClose : null;
+            var liveChgAbs = (livePrice != null && livePrevClose != null) ? livePrice - livePrevClose : null;
+            var liveChgPct = (liveChgAbs != null && livePrevClose > 0) ? (liveChgAbs / livePrevClose) * 100 : null;
+            var liveDir    = liveChgPct == null ? 'flat' : liveChgPct > 0 ? 'up' : liveChgPct < 0 ? 'down' : 'flat';
+            var liveAbsStr = liveChgAbs != null ? (liveChgAbs >= 0 ? '+' : '') + liveChgAbs.toFixed(2) : '';
+            var livePctStr = liveChgPct != null ? ' (' + (liveChgPct >= 0 ? '+' : '') + liveChgPct.toFixed(2) + '%)' : '';
+            if (liveAbsStr || livePctStr) {
+                popupChg.textContent = liveAbsStr + livePctStr;
+                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+            }
+        }, 5000);
 
         // Industry rank
         if (popupIndRank) {
