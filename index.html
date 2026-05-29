@@ -3040,8 +3040,8 @@
             handleScroll: false, handleScale: false,
         });
         var candle = chart.addCandlestickSeries({
-            upColor: '#3fb950', downColor: '#f85149', borderVisible: false,
-            wickUpColor: '#3fb950', wickDownColor: '#f85149',
+            upColor: '#089981', downColor: '#b22833', borderVisible: false,
+            wickUpColor: '#089981', wickDownColor: '#b22833',
             priceLineVisible: false, lastValueVisible: true,
         });
         candle.setData(ohlcv);
@@ -3072,7 +3072,7 @@
         chart.subscribeCrosshairMove(function(p) {
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(candle); if (!d) { leg.innerHTML = ''; return; }
-            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(vol);
             leg.innerHTML = '<span style="color:#6e7681">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:#6e7681">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:#6e7681">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:#6e7681">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:#484f58">V</span><span style="color:#6e7681">'+fv(vd.value)+'</span>':'');
         });
@@ -3192,8 +3192,8 @@
         });
 
         _mcFsCandle = _mcFsChart.addCandlestickSeries({
-            upColor: '#3fb950', downColor: '#f85149', borderVisible: false,
-            wickUpColor: '#3fb950', wickDownColor: '#f85149',
+            upColor: '#089981', downColor: '#b22833', borderVisible: false,
+            wickUpColor: '#089981', wickDownColor: '#b22833',
             priceLineVisible: true, lastValueVisible: true,
         });
         _mcFsCandle.setData(_mcFsOhlcv);
@@ -3244,7 +3244,7 @@
         _mcFsChart.subscribeCrosshairMove(function(p) {
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
-            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
             var vwapD = _mcFsVwapSeries ? p.seriesData.get(_mcFsVwapSeries) : null;
             leg.innerHTML =
