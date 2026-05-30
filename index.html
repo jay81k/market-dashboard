@@ -2967,6 +2967,8 @@
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
     var _mcFsMaSeries    = {};
+    var _mcFsMaDataMap   = {};   // { key: Map(time => value) } for O(1) MA proximity lookup
+    var _mcFsLastCrosshairTime = null;
     var _mcFsVwapSeries  = [];   // array of { series, anchor, color }
     var _mcFsVwapMode    = false;
     var _mcFsVisibleBars = 65;
@@ -3097,6 +3099,11 @@
         var def = _MC_MA_DEFS[key];
         if (!def) return [];
         return def.ema ? _calcEMA(ohlcv, def.period) : _calcSMA(ohlcv, def.period);
+    }
+    function _maLabel(key) {
+        var def = _MC_MA_DEFS[key];
+        if (!def) return key;
+        return (def.ema ? 'EMA' : 'SMA') + ' ' + def.period;
     }
     function _barIdxByTime(ohlcv, time) {
         for (var i = 0; i < ohlcv.length; i++) { if (ohlcv[i].time >= time) return i; }
@@ -3249,26 +3256,46 @@
 
     // ── Fullscreen right-click alert context menu ──────────────────────────
     var _mcFsCtxPrice      = null;
+    var _mcFsCtxMa         = null; // MA key when right-clicking on an MA line
     var _mcFsCtxAttached   = false;
 
     function _mcFsDismissCtx() {
         document.getElementById('mc-fs-ctx-menu').style.display = 'none';
         _mcFsCtxPrice = null;
+        _mcFsCtxMa    = null;
     }
 
     window.mcFsCtxAlert = function(direction) {
-        var capturedPrice = _mcFsCtxPrice;
-        _mcFsDismissCtx();
-        if (!_mcFsSym || capturedPrice == null) return;
-        var price = parseFloat(capturedPrice.toFixed(2));
-        alShowForm(_mcFsSym);
-        setTimeout(function() {
-            document.getElementById('al-input-type').value = 'price';
-            if (typeof alFormTypeChange === 'function') alFormTypeChange();
-            document.getElementById('al-input-cond').value = direction;
-            document.getElementById('al-input-price').value = price.toFixed(2);
-            document.getElementById('al-input-price').focus();
-        }, 60);
+        if (_mcFsCtxMa) {
+            // MA alert — price crosses above/below a specific moving average
+            var maKey = _mcFsCtxMa;
+            _mcFsDismissCtx();
+            if (!_mcFsSym) return;
+            alShowForm(_mcFsSym);
+            setTimeout(function() {
+                document.getElementById('al-input-type').value = 'ma';
+                if (typeof alFormTypeChange === 'function') alFormTypeChange();
+                // price_above / price_below are the MA-vs-price condition values
+                document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
+                if (typeof alMACondChange === 'function') alMACondChange();
+                document.getElementById('al-input-ma').value = maKey;
+                document.getElementById('al-input-ma').focus();
+            }, 60);
+        } else {
+            // Price alert
+            var capturedPrice = _mcFsCtxPrice;
+            _mcFsDismissCtx();
+            if (!_mcFsSym || capturedPrice == null) return;
+            var price = parseFloat(capturedPrice.toFixed(2));
+            alShowForm(_mcFsSym);
+            setTimeout(function() {
+                document.getElementById('al-input-type').value = 'price';
+                if (typeof alFormTypeChange === 'function') alFormTypeChange();
+                document.getElementById('al-input-cond').value = direction;
+                document.getElementById('al-input-price').value = price.toFixed(2);
+                document.getElementById('al-input-price').focus();
+            }, 60);
+        }
     };
 
     function _mcFsAttachCtxMenu() {
@@ -3284,26 +3311,49 @@
             evt.preventDefault();
             evt.stopPropagation();
             if (!_mcFsChart || !_mcFsSym) return;
+            var chartRect = chartDiv.getBoundingClientRect();
+            var localY    = evt.clientY - chartRect.top;
             var price = _mcFsLastCrosshairPrice;
             if (price == null || isNaN(price)) {
                 // Fallback: crosshair is in empty space to the right of the last candle —
                 // LW Charts never fires crosshair data there, so derive the price
                 // directly from the click's Y coordinate via the candle series.
-                var rect = chartDiv.getBoundingClientRect();
-                var localY = evt.clientY - rect.top;
                 if (_mcFsCandle) {
                     var fallbackPrice = _mcFsCandle.coordinateToPrice(localY);
-                    if (fallbackPrice != null && !isNaN(fallbackPrice)) {
-                        price = fallbackPrice;
-                    }
+                    if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
                 }
             }
             if (price == null || isNaN(price)) return;
+
+            // MA proximity — find the closest active MA within the hit threshold
+            var nearestMa   = null;
+            var nearestDist = 10; // px
+            if (_mcFsLastCrosshairTime) {
+                Object.keys(_mcFsMaDataMap).forEach(function(key) {
+                    if (!_mcFsMaSeries[key]) return;
+                    var maVal = _mcFsMaDataMap[key].get(_mcFsLastCrosshairTime);
+                    if (maVal == null) return;
+                    var maCoord = _mcFsMaSeries[key].priceToCoordinate(maVal);
+                    if (maCoord == null) return;
+                    var dist = Math.abs(localY - maCoord);
+                    if (dist < nearestDist) { nearestDist = dist; nearestMa = key; }
+                });
+            }
+
             _mcFsCtxPrice = price;
-            var fmt   = '$' + price.toFixed(2);
-            document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + fmt;
-            document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above ' + fmt;
-            document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below ' + fmt;
+            _mcFsCtxMa    = nearestMa;
+
+            if (nearestMa) {
+                var maLabel = _maLabel(nearestMa);
+                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + maLabel;
+                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Price crosses above ' + maLabel;
+                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Price crosses below ' + maLabel;
+            } else {
+                var fmt = '$' + price.toFixed(2);
+                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + fmt;
+                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above ' + fmt;
+                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below ' + fmt;
+            }
             var menu  = document.getElementById('mc-fs-ctx-menu');
             menu.style.display = 'block';
             var mw = menu.offsetWidth  || 185;
@@ -3338,6 +3388,7 @@
         container.innerHTML = '';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
+        _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsDismissCtx();
 
         _mcFsOhlcv = ohlcv;
@@ -3379,8 +3430,10 @@
             if (!_mcFsActiveMas[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
             var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
-            s.setData(_calcMA(_mcFsOhlcv, key));
-            _mcFsMaSeries[key] = s;
+            var maData = _calcMA(_mcFsOhlcv, key);
+            s.setData(maData);
+            _mcFsMaSeries[key]  = s;
+            _mcFsMaDataMap[key] = new Map(maData.map(function(d) { return [d.time, d.value]; }));
         });
 
         // Visible range
@@ -3418,6 +3471,8 @@
             } else {
                 _mcFsLastCrosshairPrice = null;
             }
+            // Track bar time for MA proximity detection on right-click
+            _mcFsLastCrosshairTime = p.time || null;
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
@@ -3539,10 +3594,13 @@
             if (_mcFsMaSeries[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
             var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
-            s.setData(_calcMA(_mcFsOhlcv, key));
-            _mcFsMaSeries[key] = s;
+            var maData = _calcMA(_mcFsOhlcv, key);
+            s.setData(maData);
+            _mcFsMaSeries[key]  = s;
+            _mcFsMaDataMap[key] = new Map(maData.map(function(d) { return [d.time, d.value]; }));
         } else {
             if (_mcFsMaSeries[key]) { try { _mcFsChart.removeSeries(_mcFsMaSeries[key]); } catch(e) {} delete _mcFsMaSeries[key]; }
+            delete _mcFsMaDataMap[key];
         }
     };
 
@@ -3741,6 +3799,7 @@
         _mcFsDismissCtx();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
+        _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsSym = null;
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
