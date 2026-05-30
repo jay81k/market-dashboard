@@ -2959,9 +2959,10 @@
     var MC_FETCH_LIMIT  = 50;
 
     // Fullscreen state
-    var _mcFsOhlcv       = [];
-    var _mcFsSym         = null;
-    var _mcFsTf          = 'D';
+    var _mcFsOhlcv              = [];
+    var _mcFsSym               = null;
+    var _mcFsTf                = 'D';
+    var _mcFsLastCrosshairPrice = null;
     var _mcFsChart       = null;
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
@@ -3279,9 +3280,7 @@
             evt.preventDefault();
             evt.stopPropagation();
             if (!_mcFsChart || !_mcFsSym) return;
-            var rect  = container.getBoundingClientRect();
-            var relY  = evt.clientY - rect.top;
-            var price = _mcFsChart.priceScale('right').coordinateToPrice(relY);
+            var price = _mcFsLastCrosshairPrice;
             if (price == null || isNaN(price)) return;
             _mcFsCtxPrice = price;
             var fmt   = '$' + price.toFixed(2);
@@ -3327,6 +3326,7 @@
         _mcFsOhlcv = ohlcv;
         _mcFsSym   = sym;
         _mcFsTf    = tf;
+        _mcFsLastCrosshairPrice = null;
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
@@ -3393,6 +3393,7 @@
         _mcFsChart.subscribeCrosshairMove(function(p) {
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
+            _mcFsLastCrosshairPrice = d.close;
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
             // Price change from previous candle
