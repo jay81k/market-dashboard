@@ -3256,9 +3256,10 @@
     }
 
     window.mcFsCtxAlert = function(direction) {
+        var capturedPrice = _mcFsCtxPrice;
         _mcFsDismissCtx();
-        if (!_mcFsSym || _mcFsCtxPrice == null) return;
-        var price = parseFloat(_mcFsCtxPrice.toFixed(2));
+        if (!_mcFsSym || capturedPrice == null) return;
+        var price = parseFloat(capturedPrice.toFixed(2));
         alShowForm(_mcFsSym);
         setTimeout(function() {
             document.getElementById('al-input-type').value = 'price';
