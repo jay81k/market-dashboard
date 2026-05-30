@@ -2996,6 +2996,19 @@
                                 }
                             }
                         }
+                        // Strip incomplete current period (Yahoo includes it, TV doesn't)
+                        if (ohlcv.length > 0 && tf !== 'D') {
+                            var now      = new Date();
+                            var lastDate = new Date(ohlcv[ohlcv.length - 1].time * 1000);
+                            if (tf === 'M') {
+                                if (lastDate.getUTCMonth() === now.getUTCMonth() && lastDate.getUTCFullYear() === now.getUTCFullYear()) ohlcv.pop();
+                            } else if (tf === 'W') {
+                                var dow = now.getUTCDay();
+                                var daysSinceMon = (dow + 6) % 7;
+                                var lastMon = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMon));
+                                if (lastDate >= lastMon) ohlcv.pop();
+                            }
+                        }
                         _mcOhlcvCache[s + '_' + tf] = ohlcv;
                         var res = (q.resolvers[s] || []).splice(0);
                         delete q.resolvers[s];
@@ -3341,6 +3354,8 @@
         if (maChevron) maChevron.style.transform = '';
         // Default viewport per TF
         _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        // Clear cache for W/M so incomplete-bar filter always runs fresh
+        if (tf !== 'D') delete _mcOhlcvCache[_mcFsSym + '_' + tf];
         // Fetch + rebuild
         var sym = _mcFsSym;
         var container = document.getElementById('mc-fullscreen-chart');
