@@ -3285,9 +3285,11 @@
     // Draw an extended trendline through two bar-index/price anchors
     function _addFsTrendline(p1, p2) {
         if (!_mcFsChart || !_mcFsOhlcv.length) return;
-        var slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-        var data  = _mcFsOhlcv.map(function(b, i) {
-            return { time: b.time, value: p1.price + (i - p1.idx) * slope };
+        var slope  = (p2.price - p1.price) / (p2.idx - p1.idx);
+        var minIdx = Math.min(p1.idx, p2.idx);
+        var maxIdx = Math.max(p1.idx, p2.idx);
+        var data   = _mcFsOhlcv.slice(minIdx, maxIdx + 1).map(function(b, i) {
+            return { time: b.time, value: p1.price + (minIdx + i - p1.idx) * slope };
         });
         var s = _mcFsChart.addLineSeries({
             color: _TRENDLINE_COLOR, lineWidth: 1.5,
@@ -3324,7 +3326,7 @@
             _mcFsTrendlinePreview = _mcFsChart.addLineSeries({
                 color: _TRENDLINE_COLOR, lineWidth: 1.5,
                 priceLineVisible: false, lastValueVisible: false,
-                crosshairMarkerVisible: false, lineStyle: 1,
+                crosshairMarkerVisible: false,
                 autoscaleInfoProvider: function() { return null; },
             });
             _mcFsTrendlinePreview.setData([{ time: _mcFsOhlcv[tidx].time, value: price }]);
