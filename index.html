@@ -3408,9 +3408,18 @@
         function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
 
         _mcFsChart.subscribeCrosshairMove(function(p) {
+            // Always track the real cursor y-position as the alert price.
+            // d.close would stay stale at the last candle when the crosshair
+            // moves into empty space — p.point.y gives the exact horizontal
+            // line position regardless of whether a candle is under the cursor.
+            if (p.point && _mcFsCandle) {
+                var cursorPrice = _mcFsCandle.coordinateToPrice(p.point.y);
+                _mcFsLastCrosshairPrice = (cursorPrice != null && !isNaN(cursorPrice)) ? cursorPrice : null;
+            } else {
+                _mcFsLastCrosshairPrice = null;
+            }
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
-            _mcFsLastCrosshairPrice = d.close;
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
             // Price change from previous candle
