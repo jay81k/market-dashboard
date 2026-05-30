@@ -264,6 +264,30 @@
         .mc-fullscreen-close:hover { color: #c8d0dc; }
         .mc-fullscreen-body { flex: 1; min-height: 0; overflow: hidden; }
 
+        /* ── Fullscreen right-click context menu ── */
+        #mc-fs-ctx-menu {
+            display: none; position: fixed; z-index: 20000;
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 8px; padding: 4px; min-width: 185px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+        }
+        #mc-fs-ctx-menu .ctx-label {
+            padding: 5px 10px 6px; font-size: 0.72em; color: #484f58;
+            border-bottom: 1px solid #21262d; margin-bottom: 3px;
+            letter-spacing: 0.02em; user-select: none;
+        }
+        #mc-fs-ctx-menu .ctx-item {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; padding: 6px 10px; border: none;
+            background: transparent; color: #8b949e; font-size: 0.82em;
+            font-family: inherit; font-weight: 500; cursor: pointer;
+            border-radius: 5px; text-align: left;
+        }
+        #mc-fs-ctx-menu .ctx-item:hover { background: #21262d; color: #c8d0dc; }
+        #mc-fs-ctx-menu .ctx-item .ctx-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+
         /* ── Stocks view ── */
         .stocks-view { display: none; flex-direction: column; height: 100%; }
         .stocks-view.active { display: flex; }
@@ -2194,6 +2218,18 @@
     <div class="mc-fullscreen-body">
         <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
     </div>
+    <!-- Right-click context menu -->
+    <div id="mc-fs-ctx-menu">
+        <div class="ctx-label" id="mc-fs-ctx-label">Set alert</div>
+        <button class="ctx-item" id="mc-fs-ctx-above" onclick="mcFsCtxAlert('above')">
+            <span class="ctx-dot" style="background:#3fb950;"></span>
+            <span id="mc-fs-ctx-above-txt">Alert above …</span>
+        </button>
+        <button class="ctx-item" id="mc-fs-ctx-below" onclick="mcFsCtxAlert('below')">
+            <span class="ctx-dot" style="background:#f85149;"></span>
+            <span id="mc-fs-ctx-below-txt">Alert below …</span>
+        </button>
+    </div>
 </div>
 
 <div id="col-tooltip"></div>
@@ -3210,15 +3246,83 @@
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
 
+    // ── Fullscreen right-click alert context menu ──────────────────────────
+    var _mcFsCtxPrice = null;
+
+    function _mcFsDismissCtx() {
+        document.getElementById('mc-fs-ctx-menu').style.display = 'none';
+        _mcFsCtxPrice = null;
+    }
+
+    window.mcFsCtxAlert = function(direction) {
+        _mcFsDismissCtx();
+        if (!_mcFsSym || _mcFsCtxPrice == null) return;
+        var price = parseFloat(_mcFsCtxPrice.toFixed(2));
+        alShowForm(_mcFsSym);
+        setTimeout(function() {
+            document.getElementById('al-input-type').value = 'price';
+            if (typeof alFormTypeChange === 'function') alFormTypeChange();
+            document.getElementById('al-input-cond').value = direction;
+            document.getElementById('al-input-price').value = price.toFixed(2);
+            document.getElementById('al-input-price').focus();
+        }, 60);
+    };
+
+    function _mcFsAttachCtxMenu(container) {
+        container.addEventListener('contextmenu', function(evt) {
+            evt.preventDefault();
+            if (!_mcFsChart) return;
+            var rect  = container.getBoundingClientRect();
+            var relY  = evt.clientY - rect.top;
+            var price = _mcFsChart.priceScale('right').coordinateToPrice(relY);
+            if (price == null || isNaN(price)) return;
+            _mcFsCtxPrice = price;
+            var fmt   = '$' + price.toFixed(2);
+            var sym   = _mcFsSym || '';
+            document.getElementById('mc-fs-ctx-label').textContent    = sym + ' · ' + fmt;
+            document.getElementById('mc-fs-ctx-above-txt').textContent = 'Alert above ' + fmt;
+            document.getElementById('mc-fs-ctx-below-txt').textContent = 'Alert below ' + fmt;
+            var menu  = document.getElementById('mc-fs-ctx-menu');
+            menu.style.display = '';
+            var mw = menu.offsetWidth  || 185;
+            var mh = menu.offsetHeight || 90;
+            var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
+            var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
+            menu.style.left = x + 'px';
+            menu.style.top  = y + 'px';
+            setTimeout(function() {
+                function _dismiss(e) {
+                    if (!menu.contains(e.target)) {
+                        _mcFsDismissCtx();
+                        document.removeEventListener('mousedown', _dismiss, true);
+                        document.removeEventListener('keydown',   _kd,      true);
+                    }
+                }
+                function _kd(e) {
+                    if (e.key === 'Escape') {
+                        _mcFsDismissCtx();
+                        document.removeEventListener('mousedown', _dismiss, true);
+                        document.removeEventListener('keydown',   _kd,      true);
+                    }
+                }
+                document.addEventListener('mousedown', _dismiss, true);
+                document.addEventListener('keydown',   _kd,      true);
+            }, 0);
+        });
+    }
+
     function _buildFsChart(sym, ohlcv, tf) {
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
+        _mcFsDismissCtx();
 
         _mcFsOhlcv = ohlcv || [];
         _mcFsSym   = sym;
         _mcFsTf    = tf;
+
+        _mcFsAttachCtxMenu(container);
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
@@ -3231,7 +3335,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.15 } },
-            timeScale: { borderColor: '#21262d', timeVisible: true },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false },
             handleScroll: true, handleScale: true,
         });
 
@@ -3602,6 +3706,7 @@
 
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
+        _mcFsDismissCtx();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsSym = null;
