@@ -2214,13 +2214,13 @@
             </svg>
         </button>
         <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
-        <!-- Market info: price/change + day range bar + 52W range bar -->
+        <!-- Market info: day range bar + 52W range bar + price/change -->
         <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:10px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
-            <span id="mc-fs-mkt-price"></span>
-            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;vertical-align:middle;"></span>
             <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:5px;"></span>
             <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;vertical-align:middle;"></span>
             <span id="mc-fs-mkt-52w"  style="display:inline-flex;align-items:center;gap:5px;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;vertical-align:middle;"></span>
+            <span id="mc-fs-mkt-price"></span>
         </div>
     </div>
     <div class="mc-fullscreen-body">
@@ -3536,15 +3536,16 @@
 
             // Gradient range bar: red→yellow→green track, dark overlay masks unfilled right,
             // white dot with dark ring marks current price position
+            var barColor = chg >= 0 ? '#089981' : '#b22833';
+
             function mkBar(low, high, curr) {
                 var pos = (high > low)
                     ? Math.max(3, Math.min(97, (curr - low) / (high - low) * 100))
                     : 50;
                 var p = pos.toFixed(1);
                 return '<span style="position:relative;display:inline-block;width:70px;height:4px;' +
-                    'border-radius:2px;background:linear-gradient(to right,#da3633 0%,#e3b341 45%,#2ea043 100%);' +
-                    'vertical-align:middle;flex-shrink:0;overflow:visible;">' +
-                    '<span style="position:absolute;left:' + p + '%;right:0;top:0;bottom:0;background:#0d1117;border-radius:0 2px 2px 0;"></span>' +
+                    'border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">' +
+                    '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
                     '<span style="position:absolute;top:50%;left:' + p + '%;' +
                     'transform:translate(-50%,-50%);width:8px;height:8px;' +
                     'background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>' +
