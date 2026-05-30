@@ -3247,7 +3247,8 @@
     }
 
     // ── Fullscreen right-click alert context menu ──────────────────────────
-    var _mcFsCtxPrice = null;
+    var _mcFsCtxPrice      = null;
+    var _mcFsCtxAttached   = false;
 
     function _mcFsDismissCtx() {
         document.getElementById('mc-fs-ctx-menu').style.display = 'none';
@@ -3268,20 +3269,24 @@
         }, 60);
     };
 
-    function _mcFsAttachCtxMenu(container) {
+    function _mcFsAttachCtxMenu() {
+        if (_mcFsCtxAttached) return;
+        _mcFsCtxAttached = true;
+        var container = document.getElementById('mc-fullscreen-chart');
+        // capture:true fires before LightweightCharts' own canvas handlers
         container.addEventListener('contextmenu', function(evt) {
             evt.preventDefault();
-            if (!_mcFsChart) return;
+            evt.stopPropagation();
+            if (!_mcFsChart || !_mcFsSym) return;
             var rect  = container.getBoundingClientRect();
             var relY  = evt.clientY - rect.top;
             var price = _mcFsChart.priceScale('right').coordinateToPrice(relY);
             if (price == null || isNaN(price)) return;
             _mcFsCtxPrice = price;
             var fmt   = '$' + price.toFixed(2);
-            var sym   = _mcFsSym || '';
-            document.getElementById('mc-fs-ctx-label').textContent    = sym + ' · ' + fmt;
-            document.getElementById('mc-fs-ctx-above-txt').textContent = 'Alert above ' + fmt;
-            document.getElementById('mc-fs-ctx-below-txt').textContent = 'Alert below ' + fmt;
+            document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + fmt;
+            document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above ' + fmt;
+            document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below ' + fmt;
             var menu  = document.getElementById('mc-fs-ctx-menu');
             menu.style.display = '';
             var mw = menu.offsetWidth  || 185;
@@ -3308,7 +3313,7 @@
                 document.addEventListener('mousedown', _dismiss, true);
                 document.addEventListener('keydown',   _kd,      true);
             }, 0);
-        });
+        }, true); // <-- capture phase
     }
 
     function _buildFsChart(sym, ohlcv, tf) {
@@ -3317,12 +3322,6 @@
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsDismissCtx();
-
-        _mcFsOhlcv = ohlcv || [];
-        _mcFsSym   = sym;
-        _mcFsTf    = tf;
-
-        _mcFsAttachCtxMenu(container);
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
@@ -3338,6 +3337,7 @@
             timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false },
             handleScroll: true, handleScale: true,
         });
+        _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
 
         _mcFsCandle = _mcFsChart.addCandlestickSeries({
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
