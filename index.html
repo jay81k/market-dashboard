@@ -171,6 +171,21 @@
         .mc-tf-btn:hover  { background: #161b22; color: #c8d0dc; }
         .mc-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
 
+        /* MA dropdown rows */
+        .mc-ma-item {
+            display: flex; align-items: center; gap: 9px;
+            padding: 5px 8px; border-radius: 5px; border: none;
+            background: transparent; cursor: pointer; width: 100%;
+            font-family: inherit; font-size: 0.82em; font-weight: 500;
+            color: #484f58; transition: background 0.1s, color 0.1s;
+        }
+        .mc-ma-item:hover { background: #21262d; color: #8b949e; }
+        .mc-ma-item.active { color: #c8d0dc; }
+        .mc-ma-swatch { width: 18px; height: 2.5px; border-radius: 2px; flex-shrink: 0; opacity: 0.3; transition: opacity 0.1s; }
+        .mc-ma-item.active .mc-ma-swatch { opacity: 1; }
+        .mc-ma-check { margin-left: auto; font-size: 0.85em; color: #3fb950; opacity: 0; transition: opacity 0.1s; }
+        .mc-ma-item.active .mc-ma-check { opacity: 1; }
+
         .mc-col-btn {
             width: 26px; height: 22px; border-radius: 4px; border: 1px solid #21262d;
             background: transparent; color: #6e7681; font-size: 0.825em;
@@ -2155,15 +2170,13 @@
                 MA
                 <svg id="mc-fs-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
             </button>
-            <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 5px);left:0;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:7px;z-index:10000;min-width:130px;box-shadow:0 6px 20px rgba(0,0,0,0.55);">
-                <div style="display:flex;flex-direction:column;gap:3px;">
-                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')"   style="border-color:#673ab7;justify-content:flex-start;width:100%;text-align:left;">SMA 5</button>
-                    <button class="mc-tf-btn active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')"   style="border-color:#f48fb1;justify-content:flex-start;width:100%;text-align:left;">EMA 8</button>
-                    <button class="mc-tf-btn active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"  style="border-color:#1848cc;justify-content:flex-start;width:100%;text-align:left;">EMA 21</button>
-                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"  style="border-color:#f23645;justify-content:flex-start;width:100%;text-align:left;">SMA 50</button>
-                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')" style="border-color:#757575;justify-content:flex-start;width:100%;text-align:left;">SMA 150</button>
-                    <button class="mc-tf-btn active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')" style="border-color:#2e2e2e;justify-content:flex-start;width:100%;text-align:left;">SMA 200</button>
-                </div>
+            <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
+                <button class="mc-ma-item active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')">  <span class="mc-ma-swatch" style="background:#673ab7;"></span>SMA 5  <span class="mc-ma-check">✓</span></button>
+                <button class="mc-ma-item active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')">  <span class="mc-ma-swatch" style="background:#f48fb1;"></span>EMA 8  <span class="mc-ma-check">✓</span></button>
+                <button class="mc-ma-item active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"> <span class="mc-ma-swatch" style="background:#1848cc;"></span>EMA 21 <span class="mc-ma-check">✓</span></button>
+                <button class="mc-ma-item active" id="mc-fs-ma-SMA50"  onclick="mcFsToggleMa('SMA50')"> <span class="mc-ma-swatch" style="background:#f23645;"></span>SMA 50 <span class="mc-ma-check">✓</span></button>
+                <button class="mc-ma-item active" id="mc-fs-ma-SMA150" onclick="mcFsToggleMa('SMA150')"><span class="mc-ma-swatch" style="background:#757575;"></span>SMA 150<span class="mc-ma-check">✓</span></button>
+                <button class="mc-ma-item active" id="mc-fs-ma-SMA200" onclick="mcFsToggleMa('SMA200')"><span class="mc-ma-swatch" style="background:#888;"></span>SMA 200<span class="mc-ma-check">✓</span></button>
             </div>
         </div>
         <div class="mc-toolbar-sep"></div>
