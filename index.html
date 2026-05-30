@@ -3314,9 +3314,13 @@
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
         var time  = _mcFsLastCrosshairTime; // reliable snap-to-bar time from crosshair tracker
+        // LW Charts stops reporting crosshair time when the cursor is in the empty
+        // space to the right of the last candle — clamp to the last bar so clicks
+        // there still anchor correctly.
+        if (time == null && _mcFsOhlcv.length) time = _mcFsOhlcv[_mcFsOhlcv.length - 1].time;
         if (price == null || time == null) return;
         var tidx = _barIdxByTime(_mcFsOhlcv, time);
-        if (tidx < 0) return;
+        if (tidx < 0) tidx = _mcFsOhlcv.length - 1; // clamp — cursor past last bar
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (!_mcFsTrendDraw.active) {
             // ── First click: set start anchor ──────────────────────────
