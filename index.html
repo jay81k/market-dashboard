@@ -3543,7 +3543,7 @@
                     ? Math.max(3, Math.min(97, (curr - low) / (high - low) * 100))
                     : 50;
                 var p = pos.toFixed(1);
-                return '<span style="position:relative;display:inline-block;width:70px;height:4px;' +
+                return '<span style="position:relative;display:inline-block;width:90px;height:4px;' +
                     'border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">' +
                     '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
                     '<span style="position:absolute;top:50%;left:' + p + '%;' +
@@ -3553,21 +3553,21 @@
             }
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:12.5px;font-weight:700;">' + fp(close) + '</span>' +
-                '&nbsp;<span style="color:' + chgColor + ';font-size:11px;">' +
+                '<span style="color:#e6edf3;font-size:14px;font-weight:700;">' + fp(close) + '</span>' +
+                '&nbsp;<span style="color:' + chgColor + ';font-size:12.5px;">' +
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
             document.getElementById('mc-fs-mkt-day').innerHTML =
-                '<span style="color:#484f58;font-size:10px;font-weight:600;letter-spacing:.03em;">' + barLabel + '</span>' +
-                '<span style="color:#8b949e;font-size:10.5px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:#8b949e;font-size:11px;font-weight:600;letter-spacing:.03em;">' + barLabel + '</span>' +
+                '<span style="color:#8b949e;font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close) +
-                '<span style="color:#8b949e;font-size:10.5px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:#8b949e;font-size:12px;">' + fp(dayHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-52w').innerHTML =
-                '<span style="color:#484f58;font-size:10px;font-weight:600;letter-spacing:.03em;">52W</span>' +
-                '<span style="color:#8b949e;font-size:10.5px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:#8b949e;font-size:11px;font-weight:600;letter-spacing:.03em;">52W</span>' +
+                '<span style="color:#8b949e;font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close) +
-                '<span style="color:#8b949e;font-size:10.5px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:#8b949e;font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
         })();
