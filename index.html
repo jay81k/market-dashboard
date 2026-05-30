@@ -3155,7 +3155,7 @@
         }));
 
         var n = ohlcv.length;
-        chart.timeScale().setVisibleLogicalRange({ from: n - 65, to: n - 1 });
+        chart.timeScale().setVisibleLogicalRange({ from: n - 65, to: n });
 
         // OHLC legend
         var leg = document.createElement('div');
@@ -3446,7 +3446,7 @@
 
         // Visible range
         var n = _mcFsOhlcv.length;
-        _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n - 1 });
+        _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 7 });
 
         // AVWAP click handler — each click adds a new line
         _mcFsChart.subscribeClick(function(param) {
