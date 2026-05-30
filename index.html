@@ -3305,15 +3305,14 @@
 
     function _onTrendMouseDown(evt) {
         if (!_mcFsTrendlineMode || evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
+        evt.stopPropagation(); // prevent LW Charts from starting a chart-pan — MUST be before any early returns
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        var time  = _mcFsLastCrosshairTime; // reliable snap-to-bar time from crosshair tracker
         if (price == null || time == null) return;
         var tidx = _barIdxByTime(_mcFsOhlcv, time);
         if (tidx < 0) return;
-        evt.stopPropagation(); // prevent LW Charts from starting a chart-pan
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (!_mcFsTrendDraw.active) {
             // ── First click: set start anchor ──────────────────────────
@@ -3342,10 +3341,9 @@
     function _onTrendMouseMove(evt) {
         if (!_mcFsTrendDraw.active || !_mcFsTrendlinePreview || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        var time  = _mcFsLastCrosshairTime; // reliable snap-to-bar time from crosshair tracker
         if (price == null || time == null) return;
         var cidx = _barIdxByTime(_mcFsOhlcv, time);
         if (cidx < 0 || cidx === _mcFsTrendDraw.startIdx) return;
@@ -3527,7 +3525,7 @@
         _mcFsCandle = _mcFsChart.addCandlestickSeries({
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
             wickUpColor: '#089981', wickDownColor: '#b22833',
-            priceLineVisible: true, lastValueVisible: true,
+            priceLineVisible: false, lastValueVisible: true,
         });
         _mcFsCandle.setData(_mcFsOhlcv);
 
