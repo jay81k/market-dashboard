@@ -2214,6 +2214,14 @@
             </svg>
         </button>
         <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
+        <!-- Market info: price/change + day range bar + 52W range bar -->
+        <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:10px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
+            <span id="mc-fs-mkt-price"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;vertical-align:middle;"></span>
+            <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:5px;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;vertical-align:middle;"></span>
+            <span id="mc-fs-mkt-52w"  style="display:inline-flex;align-items:center;gap:5px;"></span>
+        </div>
     </div>
     <div class="mc-fullscreen-body">
         <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
@@ -3505,6 +3513,64 @@
                 vwapLegend;
         });
 
+        // ── Market info strip (price/change, day range, 52W range) ──────────────
+        (function() {
+            var n = _mcFsOhlcv.length;
+            if (!n) return;
+            var last   = _mcFsOhlcv[n - 1];
+            var prev   = n > 1 ? _mcFsOhlcv[n - 2] : null;
+            var close  = last.close;
+            var chg    = prev ? close - prev.close : 0;
+            var pct    = prev ? chg / prev.close * 100 : 0;
+            var dayLow = last.low, dayHigh = last.high;
+
+            // 52W range — lookback adjusted per timeframe
+            var yrBars = _mcFsTf === 'W' ? 52 : _mcFsTf === 'M' ? 12 : 252;
+            var slice  = _mcFsOhlcv.slice(-Math.min(yrBars, n));
+            var yrLow  = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
+            var yrHigh = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
+
+            var chgColor = chg >= 0 ? '#3fb950' : '#f85149';
+            var chgSign  = chg >= 0 ? '+' : '';
+            var barLabel = _mcFsTf === 'W' ? 'WK' : _mcFsTf === 'M' ? 'MO' : 'DAY';
+
+            // Gradient range bar: red→yellow→green track, dark overlay masks unfilled right,
+            // white dot with dark ring marks current price position
+            function mkBar(low, high, curr) {
+                var pos = (high > low)
+                    ? Math.max(3, Math.min(97, (curr - low) / (high - low) * 100))
+                    : 50;
+                var p = pos.toFixed(1);
+                return '<span style="position:relative;display:inline-block;width:70px;height:4px;' +
+                    'border-radius:2px;background:linear-gradient(to right,#da3633 0%,#e3b341 45%,#2ea043 100%);' +
+                    'vertical-align:middle;flex-shrink:0;overflow:visible;">' +
+                    '<span style="position:absolute;left:' + p + '%;right:0;top:0;bottom:0;background:#0d1117;border-radius:0 2px 2px 0;"></span>' +
+                    '<span style="position:absolute;top:50%;left:' + p + '%;' +
+                    'transform:translate(-50%,-50%);width:8px;height:8px;' +
+                    'background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>' +
+                    '</span>';
+            }
+
+            document.getElementById('mc-fs-mkt-price').innerHTML =
+                '<span style="color:#e6edf3;font-size:12.5px;font-weight:700;">' + fp(close) + '</span>' +
+                '&nbsp;<span style="color:' + chgColor + ';font-size:11px;">' +
+                chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
+
+            document.getElementById('mc-fs-mkt-day').innerHTML =
+                '<span style="color:#484f58;font-size:10px;font-weight:600;letter-spacing:.03em;">' + barLabel + '</span>' +
+                '<span style="color:#8b949e;font-size:10.5px;">' + fp(dayLow) + '</span>' +
+                mkBar(dayLow, dayHigh, close) +
+                '<span style="color:#8b949e;font-size:10.5px;">' + fp(dayHigh) + '</span>';
+
+            document.getElementById('mc-fs-mkt-52w').innerHTML =
+                '<span style="color:#484f58;font-size:10px;font-weight:600;letter-spacing:.03em;">52W</span>' +
+                '<span style="color:#8b949e;font-size:10.5px;">' + fp(yrLow) + '</span>' +
+                mkBar(yrLow, yrHigh, close) +
+                '<span style="color:#8b949e;font-size:10.5px;">' + fp(yrHigh) + '</span>';
+
+            document.getElementById('mc-fs-mkt-info').style.display = 'flex';
+        })();
+
         // Delete key removes the most recently added AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
         _mcFsKeyHandler = function(evt) {
@@ -3801,6 +3867,8 @@
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsSym = null;
+        var _mktEl = document.getElementById('mc-fs-mkt-info');
+        if (_mktEl) _mktEl.style.display = 'none';
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
         document.getElementById('mc-fullscreen-chart').innerHTML = '';
         // Close MA panel if open
