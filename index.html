@@ -3131,7 +3131,7 @@
             grid:    { vertLines: { color: '#171b22' }, horzLines: { color: '#171b22' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.06, bottom: 0.22 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false },
+            timeScale: { borderColor: '#21262d', timeVisible: false, rightOffset: 1 },
             handleScroll: false, handleScale: false,
         });
         var candle = chart.addCandlestickSeries({
@@ -3415,7 +3415,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.15 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 8 },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
