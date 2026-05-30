@@ -3274,13 +3274,30 @@
     function _mcFsAttachCtxMenu() {
         if (_mcFsCtxAttached) return;
         _mcFsCtxAttached = true;
-        var container = document.getElementById('mc-fullscreen-chart');
-        // capture:true fires before LightweightCharts' own canvas handlers
-        container.addEventListener('contextmenu', function(evt) {
+        var overlay  = document.getElementById('mc-fullscreen-overlay');
+        var chartDiv = document.getElementById('mc-fullscreen-chart');
+        // Attach to the overlay (fixed parent) so LW Charts' internal canvas
+        // handlers can never swallow the event before we see it.
+        // The .contains() guard ensures the header/settings bar don't trigger it.
+        overlay.addEventListener('contextmenu', function(evt) {
+            if (!chartDiv.contains(evt.target)) return; // header / settings bar click
             evt.preventDefault();
             evt.stopPropagation();
             if (!_mcFsChart || !_mcFsSym) return;
             var price = _mcFsLastCrosshairPrice;
+            if (price == null || isNaN(price)) {
+                // Fallback: crosshair is in empty space to the right of the last candle —
+                // LW Charts never fires crosshair data there, so derive the price
+                // directly from the click's Y coordinate via the candle series.
+                var rect = chartDiv.getBoundingClientRect();
+                var localY = evt.clientY - rect.top;
+                if (_mcFsCandle) {
+                    var fallbackPrice = _mcFsCandle.coordinateToPrice(localY);
+                    if (fallbackPrice != null && !isNaN(fallbackPrice)) {
+                        price = fallbackPrice;
+                    }
+                }
+            }
             if (price == null || isNaN(price)) return;
             _mcFsCtxPrice = price;
             var fmt   = '$' + price.toFixed(2);
@@ -3313,7 +3330,7 @@
                 document.addEventListener('mousedown', _dismiss, true);
                 document.addEventListener('keydown',   _kd,      true);
             }, 0);
-        }, true); // <-- capture phase
+        }, true); // capture phase — overlay-level intercept, nothing below can block it
     }
 
     function _buildFsChart(sym, ohlcv, tf) {
