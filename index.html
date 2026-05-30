@@ -3338,21 +3338,6 @@
         }
     }
 
-    function _onTrendMouseMove(evt) {
-        if (!_mcFsTrendDraw.active || !_mcFsTrendlinePreview || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
-        var rect  = _mcFsTrendContRef.getBoundingClientRect();
-        var ly    = evt.clientY - rect.top;
-        var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsLastCrosshairTime; // reliable snap-to-bar time from crosshair tracker
-        if (price == null || time == null) return;
-        var cidx = _barIdxByTime(_mcFsOhlcv, time);
-        if (cidx < 0 || cidx === _mcFsTrendDraw.startIdx) return;
-        var slope = (price - _mcFsTrendDraw.startPrice) / (cidx - _mcFsTrendDraw.startIdx);
-        _mcFsTrendlinePreview.setData(_mcFsOhlcv.map(function(b, i) {
-            return { time: b.time, value: _mcFsTrendDraw.startPrice + (i - _mcFsTrendDraw.startIdx) * slope };
-        }));
-    }
-
     // ── Fullscreen right-click alert context menu ──────────────────────────
     var _mcFsCtxPrice      = null;
     var _mcFsCtxMa         = null; // MA key when right-clicking on an MA line
@@ -3506,10 +3491,6 @@
         _mcFsTrendContRef = container;
         container.removeEventListener('mousedown', _onTrendMouseDown, true);
         container.addEventListener('mousedown', _onTrendMouseDown, true);
-        if (!_mcFsTrendMoveBound) {
-            document.addEventListener('mousemove', _onTrendMouseMove);
-            _mcFsTrendMoveBound = true;
-        }
 
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
@@ -3584,6 +3565,18 @@
             }
             // Track bar time for MA proximity detection on right-click
             _mcFsLastCrosshairTime = p.time || null;
+            // Update trendline preview — only fires when cursor is over the chart,
+            // so p.point.y and p.time are always valid chart-local values.
+            if (_mcFsTrendDraw.active && _mcFsTrendlinePreview && p.time && p.point && _mcFsCandle) {
+                var tpCidx  = _barIdxByTime(_mcFsOhlcv, p.time);
+                var tpPrice = _mcFsCandle.coordinateToPrice(p.point.y);
+                if (tpCidx >= 0 && tpCidx !== _mcFsTrendDraw.startIdx && tpPrice != null) {
+                    var tpSlope = (tpPrice - _mcFsTrendDraw.startPrice) / (tpCidx - _mcFsTrendDraw.startIdx);
+                    _mcFsTrendlinePreview.setData(_mcFsOhlcv.map(function(b, i) {
+                        return { time: b.time, value: _mcFsTrendDraw.startPrice + (i - _mcFsTrendDraw.startIdx) * tpSlope };
+                    }));
+                }
+            }
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
