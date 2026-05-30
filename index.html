@@ -3293,6 +3293,7 @@
             color: _TRENDLINE_COLOR, lineWidth: 1.5,
             priceLineVisible: false, lastValueVisible: false,
             crosshairMarkerVisible: false,
+            autoscaleInfoProvider: function() { return null; },
         });
         s.setData(data);
         _mcFsTrendlines.push({ series: s, p1: p1, p2: p2 });
@@ -3324,6 +3325,7 @@
                 color: _TRENDLINE_COLOR, lineWidth: 1.5,
                 priceLineVisible: false, lastValueVisible: false,
                 crosshairMarkerVisible: false, lineStyle: 1,
+                autoscaleInfoProvider: function() { return null; },
             });
             _mcFsTrendlinePreview.setData([{ time: _mcFsOhlcv[tidx].time, value: price }]);
             if (tHint) tHint.textContent = 'move to endpoint \u00b7 click to finish \u00b7 Esc cancels';
@@ -3571,10 +3573,12 @@
                 var tpCidx  = _barIdxByTime(_mcFsOhlcv, p.time);
                 var tpPrice = _mcFsCandle.coordinateToPrice(p.point.y);
                 if (tpCidx >= 0 && tpCidx !== _mcFsTrendDraw.startIdx && tpPrice != null) {
-                    var tpSlope = (tpPrice - _mcFsTrendDraw.startPrice) / (tpCidx - _mcFsTrendDraw.startIdx);
-                    _mcFsTrendlinePreview.setData(_mcFsOhlcv.map(function(b, i) {
-                        return { time: b.time, value: _mcFsTrendDraw.startPrice + (i - _mcFsTrendDraw.startIdx) * tpSlope };
-                    }));
+                    var startTime = _mcFsOhlcv[_mcFsTrendDraw.startIdx].time;
+                    var endTime   = _mcFsOhlcv[tpCidx].time;
+                    var pts = _mcFsTrendDraw.startIdx <= tpCidx
+                        ? [{ time: startTime, value: _mcFsTrendDraw.startPrice }, { time: endTime, value: tpPrice }]
+                        : [{ time: endTime, value: tpPrice }, { time: startTime, value: _mcFsTrendDraw.startPrice }];
+                    _mcFsTrendlinePreview.setData(pts);
                 }
             }
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
