@@ -3283,15 +3283,25 @@
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
 
-    // Draw an extended trendline through two bar-index/price anchors
-    function _addFsTrendline(p1, p2) {
+    // Draw an extended trendline through two bar-index/price anchors.
+    // futureCount: extra bars to project past the last candle (when user
+    // clicked in the empty right-side space beyond the data).
+    function _addFsTrendline(p1, p2, futureCount) {
         if (!_mcFsChart || !_mcFsOhlcv.length) return;
+        futureCount = futureCount || 0;
         var slope  = (p2.price - p1.price) / (p2.idx - p1.idx);
         var minIdx = Math.min(p1.idx, p2.idx);
         var maxIdx = Math.max(p1.idx, p2.idx);
         var data   = _mcFsOhlcv.slice(minIdx, maxIdx + 1).map(function(b, i) {
             return { time: b.time, value: p1.price + (minIdx + i - p1.idx) * slope };
         });
+        if (futureCount > 0 && maxIdx >= _mcFsOhlcv.length - 1 && _mcFsOhlcv.length >= 2) {
+            var lastIdx  = _mcFsOhlcv.length - 1;
+            var interval = _mcFsOhlcv[lastIdx].time - _mcFsOhlcv[lastIdx - 1].time;
+            for (var f = 1; f <= futureCount; f++) {
+                data.push({ time: _mcFsOhlcv[lastIdx].time + f * interval, value: p1.price + (maxIdx + f - p1.idx) * slope });
+            }
+        }
         var s = _mcFsChart.addLineSeries({
             color: _TRENDLINE_COLOR, lineWidth: 1.5,
             priceLineVisible: false, lastValueVisible: false,
@@ -3345,7 +3355,22 @@
             _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
             // Hide SVG preview
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-            if (tidx !== p1.idx) _addFsTrendline(p1, { idx: tidx, price: price });
+            // Measure how many bars past the last candle the click landed so the
+            // committed line can project forward to match the SVG preview.
+            var futureCount = 0;
+            var lastOhlcvIdx = _mcFsOhlcv.length - 1;
+            if (lastOhlcvIdx > 0 && tidx >= lastOhlcvIdx) {
+                var lx = evt.clientX - rect.left;
+                var lastBarX = _mcFsChart.timeScale().timeToCoordinate(_mcFsOhlcv[lastOhlcvIdx].time);
+                if (lastBarX != null && lx > lastBarX) {
+                    var prevBarX = _mcFsChart.timeScale().timeToCoordinate(_mcFsOhlcv[lastOhlcvIdx - 1].time);
+                    if (prevBarX != null) {
+                        var barPx = Math.max(lastBarX - prevBarX, 1);
+                        futureCount = Math.min(100, Math.max(1, Math.round((lx - lastBarX) / barPx)));
+                    }
+                }
+            }
+            if (tidx !== p1.idx) _addFsTrendline(p1, { idx: tidx, price: price }, futureCount);
             if (tHint) tHint.textContent = 'click to draw another \u00b7 Del removes last';
         }
     }
