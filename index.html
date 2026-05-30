@@ -3423,6 +3423,14 @@
             if (!chartDiv.contains(evt.target)) return; // header / settings bar click
             evt.preventDefault();
             evt.stopPropagation();
+            // Right-click while drawing a trendline: cancel draw, skip context menu
+            if (_mcFsTrendDraw.active) {
+                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+                var tHintRc = document.getElementById('mc-fs-trendline-hint');
+                if (tHintRc) tHintRc.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
+                return;
+            }
             if (!_mcFsChart || !_mcFsSym) return;
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
