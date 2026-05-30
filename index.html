@@ -2158,10 +2158,9 @@
     <!-- LW Fullscreen Settings Bar -->
     <div id="mc-fullscreen-settings" style="display:flex;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
         <div style="display:flex;gap:3px;">
-            <button class="mc-tf-btn mc-fs-range-btn" data-bars="21"  onclick="mcFsSetRange(21)">1M</button>
-            <button class="mc-tf-btn mc-fs-range-btn active" data-bars="65"  onclick="mcFsSetRange(65)">3M</button>
-            <button class="mc-tf-btn mc-fs-range-btn" data-bars="130" onclick="mcFsSetRange(130)">6M</button>
-            <button class="mc-tf-btn mc-fs-range-btn" data-bars="252" onclick="mcFsSetRange(252)">1Y</button>
+            <button class="mc-tf-btn mc-fs-tf-btn active" data-tf="D" onclick="mcFsSetTf('D')">D</button>
+            <button class="mc-tf-btn mc-fs-tf-btn"        data-tf="W" onclick="mcFsSetTf('W')">W</button>
+            <button class="mc-tf-btn mc-fs-tf-btn"        data-tf="M" onclick="mcFsSetTf('M')">M</button>
         </div>
         <div class="mc-toolbar-sep"></div>
         <!-- MA dropdown trigger -->
@@ -2952,7 +2951,7 @@
     };
 
     function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
-    function _mcRange(tf)    { return tf === 'W' ? '2y'  : tf === 'M' ? '5y'  : '1y'; }
+    function _mcRange(tf)    { return tf === 'W' ? '2y'  : tf === 'M' ? '5y'  : '5y'; }
 
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
     function fetchMcOhlcv(sym, tf) {
@@ -3324,14 +3323,32 @@
     }
 
     // Fullscreen window-level controls
-    window.mcFsSetRange = function(bars) {
-        _mcFsVisibleBars = bars;
-        document.querySelectorAll('.mc-fs-range-btn').forEach(function(b) {
-            b.classList.toggle('active', parseInt(b.getAttribute('data-bars')) === bars);
+    window.mcFsSetTf = function(tf) {
+        if (!_mcFsSym) return;
+        document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        if (_mcFsChart && _mcFsOhlcv.length) {
-            _mcFsChart.timeScale().setVisibleLogicalRange({ from: _mcFsOhlcv.length - bars, to: _mcFsOhlcv.length - 1 });
-        }
+        // Reset AVWAP
+        _mcFsVwapMode = false; _mcFsVwapSeries = [];
+        var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
+        var vwapHint = document.getElementById('mc-fs-vwap-hint');
+        if (vwapBtn)  vwapBtn.classList.remove('active');
+        if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
+        // Close MA panel
+        var maPanel   = document.getElementById('mc-fs-ma-panel');
+        var maChevron = document.getElementById('mc-fs-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
+        // Default viewport per TF
+        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        // Fetch + rebuild
+        var sym = _mcFsSym;
+        var container = document.getElementById('mc-fullscreen-chart');
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+            if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
+            _buildFsChart(sym, ohlcv, tf);
+        });
     };
 
     function _mcFsUpdateMaBadge() {
@@ -3539,6 +3556,12 @@
         var vwapHint = document.getElementById('mc-fs-vwap-hint');
         if (vwapBtn)  vwapBtn.classList.remove('active');
         if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
+
+        // Sync TF buttons + default viewport
+        document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
+        });
+        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
 
         // Sync MA badge with current state
         _mcFsUpdateMaBadge();
