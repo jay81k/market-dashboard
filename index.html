@@ -3323,6 +3323,10 @@
         _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsDismissCtx();
 
+        _mcFsOhlcv = ohlcv;
+        _mcFsSym   = sym;
+        _mcFsTf    = tf;
+
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
             return;
