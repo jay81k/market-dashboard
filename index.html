@@ -2253,7 +2253,7 @@
 <div id="col-tooltip"></div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 (function() {
     // ── State ──────────────────────────────────────────────────────────────
@@ -3156,7 +3156,7 @@
             timeScale: { borderColor: '#21262d', timeVisible: false, rightOffset: 1 },
             handleScroll: false, handleScale: false,
         });
-        var candle = chart.addCandlestickSeries({
+        var candle = chart.addSeries(LightweightCharts.CandlestickSeries, {
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
             wickUpColor: '#089981', wickDownColor: '#b22833',
             priceLineVisible: false, lastValueVisible: true,
@@ -3164,13 +3164,13 @@
         candle.setData(ohlcv);
 
         // SMA 50
-        var sma50s = chart.addLineSeries({ color: '#f23645', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        var sma50s = chart.addSeries(LightweightCharts.LineSeries, { color: '#f23645', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         sma50s.setData(_calcSMA(ohlcv, 50));
         // EMA 21
-        var ema21s = chart.addLineSeries({ color: '#1848cc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        var ema21s = chart.addSeries(LightweightCharts.LineSeries, { color: '#1848cc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         ema21s.setData(_calcEMA(ohlcv, 21));
         // Volume
-        var vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+        var vol = chart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
         vol.setData(ohlcv.map(function(d) {
             return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
@@ -3279,7 +3279,7 @@
         var color = _AVWAP_COLOR;
         var data  = _calcAVWAP(_mcFsOhlcv, anchorIdx);
         if (!data.length) return;
-        var s = _mcFsChart.addLineSeries({ color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
         s.setData(data);
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
@@ -3303,7 +3303,7 @@
                 data.push({ time: _mcFsOhlcv[lastIdx].time + f * interval, value: p1.price + (maxIdx + f - p1.idx) * slope });
             }
         }
-        var s = _mcFsChart.addLineSeries({
+        var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
             color: _TRENDLINE_COLOR, lineWidth: 1.5,
             priceLineVisible: false, lastValueVisible: false,
             crosshairMarkerVisible: false,
@@ -3597,14 +3597,14 @@
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
 
-        _mcFsCandle = _mcFsChart.addCandlestickSeries({
+        _mcFsCandle = _mcFsChart.addSeries(LightweightCharts.CandlestickSeries, {
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
             wickUpColor: '#089981', wickDownColor: '#b22833',
             priceLineVisible: false, lastValueVisible: true,
         });
         _mcFsCandle.setData(_mcFsOhlcv);
 
-        _mcFsVol = _mcFsChart.addHistogramSeries({
+        _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
             priceFormat: { type: 'volume' }, priceScaleId: 'fsvol',
             priceLineVisible: false, lastValueVisible: false,
         });
@@ -3622,7 +3622,7 @@
                 for (var j = i - (period - 1); j <= i; j++) sum += (_mcFsOhlcv[j].volume || 0);
                 volData.push({ time: _mcFsOhlcv[i].time, value: sum / period });
             }
-            _mcFsVolMa = _mcFsChart.addLineSeries({
+            _mcFsVolMa = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
                 color: '#1848cc', lineWidth: 1,
                 priceScaleId: 'fsvol',
                 priceLineVisible: false, lastValueVisible: false,
@@ -3635,7 +3635,7 @@
         Object.keys(_mcFsActiveMas).forEach(function(key) {
             if (!_mcFsActiveMas[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
-            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
+            var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
             var maData = _calcMA(_mcFsOhlcv, key);
             s.setData(maData);
             _mcFsMaSeries[key]  = s;
@@ -3882,7 +3882,7 @@
         if (_mcFsActiveMas[key]) {
             if (_mcFsMaSeries[key]) return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
-            var s = _mcFsChart.addLineSeries({ color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
+            var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
             var maData = _calcMA(_mcFsOhlcv, key);
             s.setData(maData);
             _mcFsMaSeries[key]  = s;
@@ -11625,7 +11625,7 @@ var _mmPopup = (function () {
             handleScale:  false,
         });
 
-        candleSeries = lwChart.addCandlestickSeries({
+        candleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
             upColor:          '#3fb950',
             downColor:        '#f85149',
             borderVisible:    false,
@@ -11638,7 +11638,7 @@ var _mmPopup = (function () {
         candleSeries.setData(ohlcv);
 
         // SMA 50
-        var sma50 = lwChart.addLineSeries({
+        var sma50 = lwChart.addSeries(LightweightCharts.LineSeries, {
             color:           '#f23645',
             lineWidth:       1,
             priceLineVisible: false,
@@ -11654,7 +11654,7 @@ var _mmPopup = (function () {
         sma50.setData(sma50data);
 
         // EMA 21
-        var ema21 = lwChart.addLineSeries({
+        var ema21 = lwChart.addSeries(LightweightCharts.LineSeries, {
             color:           '#2979c8',
             lineWidth:       1,
             priceLineVisible: false,
@@ -11671,7 +11671,7 @@ var _mmPopup = (function () {
         ema21.setData(ema21data);
 
         // Volume
-        var volSeries = lwChart.addHistogramSeries({
+        var volSeries = lwChart.addSeries(LightweightCharts.HistogramSeries, {
             priceFormat:  { type: 'volume' },
             priceScaleId: 'volume',
         });
