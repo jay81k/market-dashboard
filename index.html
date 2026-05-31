@@ -3599,8 +3599,6 @@
             }
         }
         if (price == null || time == null) return;
-        var tHint = document.getElementById('mc-fs-trendline-hint');
-
         if (!_mcFsTrendDraw.active) {
             // ── First click: set start anchor ──────────────────────────────
             _mcFsTrendDraw.active     = true;
@@ -3615,7 +3613,6 @@
                 }
                 _mcFsTrendSvgOverlay.style.display = '';
             }
-            if (tHint) tHint.textContent = 'move to endpoint \u00b7 click to finish \u00b7 Esc cancels';
         } else {
             // ── Second click: finalise ──────────────────────────────────────
             var p1 = { time: _mcFsTrendDraw.startTime, price: _mcFsTrendDraw.startPrice };
@@ -3726,8 +3723,6 @@
             if (_mcFsTrendDraw.active) {
                 _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                 if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-                var tHintRc = document.getElementById('mc-fs-trendline-hint');
-                if (tHintRc) tHintRc.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
                 return;
             }
             if (!_mcFsChart || !_mcFsSym) return;
@@ -3930,8 +3925,6 @@
             var idx = _barIdxByTime(_mcFsOhlcv, param.time);
             if (idx < 0) return;
             _addFsVwap(idx);
-            var hint = document.getElementById('mc-fs-vwap-hint');
-            if (hint) hint.textContent = 'click to add more \u00b7 Del removes last';
         });
 
         // OHLC legend
@@ -4056,8 +4049,6 @@
                 if (_mcFsTrendDraw.active) {
                     _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                     if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-                    var th = document.getElementById('mc-fs-trendline-hint');
-                    if (th) th.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
                 } else if (_mcFsSelectedTrendlineIdx !== -1) {
                     _deselectAllTrendlines();
                 }
@@ -4070,29 +4061,21 @@
                 _mcFsSelectedTrendlineIdx = -1;
                 var selTl = _mcFsTrendlines.splice(selIdx, 1)[0];
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
-                var tHintSel = document.getElementById('mc-fs-trendline-hint');
-                if (tHintSel) tHintSel.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
                 return;
             }
             // Trendline delete (last) when draw tool is active
             if (_mcFsTrendlineMode && _mcFsTrendlines.length) {
                 var tLast = _mcFsTrendlines.pop();
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tLast.primitive); } catch(e) {}
-                var tHint = document.getElementById('mc-fs-trendline-hint');
-                if (tHint) tHint.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
                 return;
             }
             if (!_mcFsVwapSeries.length || !_mcFsChart) return;
             var last = _mcFsVwapSeries.pop();
             try { _mcFsChart.removeSeries(last.series); } catch(err) {}
-            var vHint = document.getElementById('mc-fs-vwap-hint');
             if (_mcFsVwapSeries.length === 0) {
                 if (!_mcFsVwapMode) {
                     var vBtn = document.getElementById('mc-fs-vwap-btn');
                     if (vBtn) vBtn.classList.remove('active');
-                    if (vHint) { vHint.style.display = 'none'; vHint.textContent = 'click chart to anchor'; }
-                } else {
-                    if (vHint) vHint.textContent = 'click chart to anchor';
                 }
             }
         };
@@ -4108,17 +4091,13 @@
         // Reset AVWAP
         _mcFsVwapMode = false; _mcFsVwapSeries = [];
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
-        var vwapHint = document.getElementById('mc-fs-vwap-hint');
         if (vwapBtn)  vwapBtn.classList.remove('active');
-        if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
         // Reset trendlines (symbol stays same but data reloads)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsSelectedTrendlineIdx = -1;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
-        var tHint = document.getElementById('mc-fs-trendline-hint');
-        if (tHint) { tHint.style.display = _mcFsTrendlineMode ? '' : 'none'; tHint.textContent = 'click to set start'; }
         // Close MA panel
         var maPanel   = document.getElementById('mc-fs-ma-panel');
         var maChevron = document.getElementById('mc-fs-ma-chevron');
@@ -4188,54 +4167,18 @@
     window.mcFsToggleVwap = function() {
         _mcFsVwapMode = !_mcFsVwapMode;
         var btn  = document.getElementById('mc-fs-vwap-btn');
-        var hint = document.getElementById('mc-fs-vwap-hint');
         if (btn) btn.classList.toggle('active', _mcFsVwapMode);
-        if (_mcFsVwapMode) {
-            // Drawing mode on
-            if (hint) {
-                hint.style.display = '';
-                hint.textContent = _mcFsVwapSeries.length > 0 ? 'click to add more \u00b7 Del removes last' : 'click chart to anchor';
-            }
-        } else {
-            // Drawing mode off — lines stay on chart
-            if (hint) {
-                if (_mcFsVwapSeries.length > 0) {
-                    hint.style.display = '';
-                    hint.textContent = 'Del removes last';
-                } else {
-                    hint.style.display = 'none';
-                    hint.textContent = 'click chart to anchor';
-                }
-            }
-        }
     };
 
     window.mcFsToggleTrendline = function() {
         _mcFsTrendlineMode = !_mcFsTrendlineMode;
         var btn  = document.getElementById('mc-fs-trendline-btn');
-        var hint = document.getElementById('mc-fs-trendline-hint');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
         // Cancel any in-progress draw and deselect
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
-        if (_mcFsTrendlineMode) {
-            if (hint) {
-                hint.style.display = '';
-                hint.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
-            }
-        } else {
-            // Deactivate — leave finished lines on chart
-            if (hint) {
-                if (_mcFsTrendlines.length) {
-                    hint.style.display = '';
-                    hint.textContent = 'Del removes last';
-                } else {
-                    hint.style.display = 'none';
-                }
-            }
-        }
     };
     // ── END LW Multichart Infrastructure ─────────────────────────────────────
 
@@ -4371,15 +4314,11 @@
         // Reset VWAP state for new symbol
         _mcFsVwapMode = false; _mcFsVwapSeries = [];
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
-        var vwapHint = document.getElementById('mc-fs-vwap-hint');
         if (vwapBtn)  vwapBtn.classList.remove('active');
-        if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
         // Reset trendlines for new symbol (keep mode active if it was on)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
-        var tHint = document.getElementById('mc-fs-trendline-hint');
-        if (tHint) { tHint.style.display = _mcFsTrendlineMode ? '' : 'none'; tHint.textContent = 'click to set start'; }
 
         // Sync TF buttons + default viewport
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
@@ -4419,9 +4358,7 @@
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
-        var tHint = document.getElementById('mc-fs-trendline-hint');
         if (tBtn)  tBtn.classList.remove('active');
-        if (tHint) { tHint.style.display = 'none'; }
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsSym = null;
         var _mktEl = document.getElementById('mc-fs-mkt-info');
