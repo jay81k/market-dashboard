@@ -3559,10 +3559,24 @@
         evt.stopPropagation();
 
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsLastCrosshairTime;
-        if (time == null && _mcFsOhlcv.length) time = _mcFsOhlcv[_mcFsOhlcv.length - 1].time;
+        // Derive time from raw pixel X — don't use _mcFsLastCrosshairTime which
+        // freezes at the last bar once the cursor moves into future (empty) space
+        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        if (time == null && _mcFsOhlcv.length >= 2) {
+            // Extrapolate beyond the last bar using bar interval
+            var ohlcv   = _mcFsOhlcv;
+            var last    = ohlcv[ohlcv.length - 1];
+            var prev    = ohlcv[ohlcv.length - 2];
+            var barSec  = last.time - prev.time;
+            var lastX   = _mcFsChart.timeScale().timeToCoordinate(last.time);
+            var prevX   = _mcFsChart.timeScale().timeToCoordinate(prev.time);
+            var pxPerBar = lastX != null && prevX != null ? Math.abs(lastX - prevX) : 8;
+            var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
+            time = last.time + barsAhead * barSec;
+        }
         if (price == null || time == null) return;
         var tHint = document.getElementById('mc-fs-trendline-hint');
 
