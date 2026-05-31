@@ -2270,8 +2270,8 @@
             </svg>
         </button>
         <!-- Market info: day range bar + 52W range bar + price/change -->
-        <div id="mc-fs-mkt-info" style="display:none;flex:1;min-width:0;margin-left:12px;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;">
-            <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;flex:1;min-width:0;"></span>
+        <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
+            <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
             <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
             <span id="mc-fs-mkt-52w"  style="display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"></span>
             <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
@@ -4058,7 +4058,7 @@
                     : 50;
                 var p = pos.toFixed(1);
                 return '<span id="mc-fs-day-bar-track" style="position:relative;display:inline-flex;align-items:center;' +
-                    'flex:1;min-width:80px;height:18px;border-radius:4px;background:#161b22;overflow:hidden;flex-shrink:0;">' +
+                    'width:140px;height:18px;border-radius:4px;background:#161b22;overflow:hidden;flex-shrink:0;">' +
                     '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';opacity:0.28;border-radius:4px 0 0 4px;"></span>' +
                     '<span id="mc-fs-day-bar-dot" style="position:absolute;top:50%;left:' + p + '%;' +
                     'transform:translate(-50%,-50%);width:9px;height:9px;' +
@@ -4087,8 +4087,8 @@
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
             document.getElementById('mc-fs-mkt-day').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;flex-shrink:0;">' + barLabel + '</span>' +
-                '<span style="color:#8b949e;font-size:12px;flex-shrink:0;">' + fp(dayLow) + '</span>' +
+                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:#8b949e;font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkDayBar(dayLow, dayHigh, close) +
                 '<span style="color:#8b949e;font-size:12px;flex-shrink:0;">' + fp(dayHigh) + '</span>';
 
