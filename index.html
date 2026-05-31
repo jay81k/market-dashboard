@@ -3832,7 +3832,7 @@
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.15 } },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 8 },
             handleScroll: true, handleScale: true,
         });
@@ -3846,15 +3846,15 @@
         _mcFsCandle.setData(_mcFsOhlcv);
 
         _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
-            priceFormat: { type: 'volume' }, priceScaleId: 'fsvol',
+            priceFormat: { type: 'volume' },
             priceLineVisible: false, lastValueVisible: false,
+            pane: 1,
         });
-        _mcFsChart.priceScale('fsvol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
         _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
             return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
         }));
 
-        // 50 SMA on volume — plotted on the same fsvol scale
+        // 50 SMA on volume — plotted in the same volume pane (pane 1)
         (function() {
             var period = 50;
             var volData = [];
@@ -3865,7 +3865,7 @@
             }
             _mcFsVolMa = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
                 color: '#1848cc', lineWidth: 1,
-                priceScaleId: 'fsvol',
+                pane: 1,
                 priceLineVisible: false, lastValueVisible: false,
                 crosshairMarkerVisible: false,
             });
