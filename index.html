@@ -259,7 +259,14 @@
             padding: 7px 14px; background: #161b22;
             border-bottom: 1px solid #21262d; flex-shrink: 0;
         }
-        .mc-fullscreen-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
+        .mc-fullscreen-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; cursor: pointer; }
+        .mc-fullscreen-sym:hover { text-decoration: underline; text-decoration-style: dotted; }
+        #mc-fs-sym-input {
+            font-size: 0.99em; font-weight: 700; color: #58a6ff;
+            background: transparent; border: none; border-bottom: 1.5px solid #58a6ff;
+            outline: none; width: 7ch; padding: 0; caret-color: #58a6ff;
+            font-family: inherit; text-transform: uppercase; letter-spacing: inherit;
+        }
         .mc-fullscreen-close {
             background: transparent; border: none; color: #484f58;
             cursor: pointer; font-size: 1.32rem; padding: 0 4px;
@@ -2164,7 +2171,7 @@
 <!-- Multichart fullscreen overlay -->
 <div class="mc-fullscreen-overlay" id="mc-fullscreen-overlay">
     <div class="mc-fullscreen-header">
-        <span class="mc-fullscreen-sym" id="mc-fullscreen-sym"></span>
+        <span class="mc-fullscreen-sym" id="mc-fullscreen-sym" title="Click to change symbol" onclick="_mcFsSymClick()"></span>
         <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-rs-badge" style="display:none;"></span>
         <span class="chart-rs-badge" id="mc-fullscreen-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
@@ -4180,6 +4187,50 @@
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
     };
+    // ── Inline symbol switcher ───────────────────────────────────────────────
+    window._mcFsSymClick = function() {
+        var symEl = document.getElementById('mc-fullscreen-sym');
+        if (!symEl || document.getElementById('mc-fs-sym-input')) return; // already editing
+        var currentSym = symEl.textContent.trim();
+        symEl.style.display = 'none';
+
+        var inp = document.createElement('input');
+        inp.id        = 'mc-fs-sym-input';
+        inp.type      = 'text';
+        inp.value     = currentSym;
+        inp.maxLength = 10;
+        inp.spellcheck = false;
+        inp.autocomplete = 'off';
+        // Size input to content
+        inp.style.width = Math.max(currentSym.length, 3) + 'ch';
+        inp.addEventListener('input', function() {
+            inp.style.width = Math.max(inp.value.length || 1, 3) + 'ch';
+        });
+        symEl.parentNode.insertBefore(inp, symEl.nextSibling);
+        inp.focus();
+        inp.select();
+
+        function _confirm() {
+            var newSym = inp.value.trim().toUpperCase();
+            _restore();
+            if (newSym && newSym !== currentSym) {
+                openMcFullscreen(newSym, _mcFsTf);
+            }
+        }
+        function _restore() {
+            if (inp.parentNode) inp.parentNode.removeChild(inp);
+            symEl.style.display = '';
+        }
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter')  { e.preventDefault(); _confirm(); }
+            if (e.key === 'Escape') { e.preventDefault(); _restore(); }
+        });
+        inp.addEventListener('blur', function() {
+            // Small delay so a click on Enter doesn't race with blur
+            setTimeout(_confirm, 120);
+        });
+    };
+
     // ── END LW Multichart Infrastructure ─────────────────────────────────────
 
     function buildMcCellHeader(sym, flagEl) {
