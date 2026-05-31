@@ -3948,7 +3948,7 @@
             }
         })();
 
-        // Vol % vs 50-SMA label — right of last bar in volume pane
+        // Vol % vs 50-SMA label — tracks last volume bar on scroll/zoom
         (function() {
             if (!_mcFsVolData || !_mcFsVolData.length || !_mcFsOhlcv.length) return;
             var lastBar = _mcFsOhlcv[_mcFsOhlcv.length - 1];
@@ -3984,13 +3984,10 @@
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
 
-            // Position after LW Charts has finished its first render
+            // Resolve volume pane Y once after first render (pane height doesn't change on scroll)
             setTimeout(function() {
                 if (!_mcFsChart) return;
-                var lastX = _mcFsChart.timeScale().timeToCoordinate(lastBar.time);
-                if (lastX == null) return;
 
-                // Resolve volume pane position via DOM (v5 API) with math fallback
                 var volPaneTop = 0, volPaneH = 0;
                 try {
                     var panes = _mcFsChart.panes();
@@ -4005,14 +4002,28 @@
                 } catch(e) {}
 
                 if (!volPaneH) {
-                    // Fallback: derive from container height
                     var totalH = container.offsetHeight;
                     volPaneH   = Math.round(totalH * 0.22);
                     volPaneTop = totalH - volPaneH - 22; // ~22px time axis
                 }
 
-                lbl.style.left = (lastX + 10) + 'px';
-                lbl.style.top  = (volPaneTop + volPaneH / 2 - 7) + 'px';
+                var lblTop = (volPaneTop + volPaneH / 2 - 7) + 'px';
+
+                // Reposition on every scroll / zoom — dies automatically when lbl is detached
+                function positionVolLabel() {
+                    if (!lbl.isConnected || !_mcFsChart) return;
+                    var lastX = _mcFsChart.timeScale().timeToCoordinate(lastBar.time);
+                    if (lastX == null || lastX < 0) {
+                        lbl.style.display = 'none';
+                        return;
+                    }
+                    lbl.style.display = 'flex';
+                    lbl.style.left = (lastX + 10) + 'px';
+                    lbl.style.top  = lblTop;
+                }
+
+                positionVolLabel(); // initial paint
+                _mcFsChart.timeScale().subscribeVisibleTimeRangeChange(positionVolLabel);
             }, 60);
         })();
 
