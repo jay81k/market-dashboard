@@ -3316,12 +3316,12 @@
                     renderer: function() {
                         return {
                             draw: function(target) {
-                                var bL = ohlcv[leftP.idx], bR = ohlcv[rightP.idx];
+                                var bL = ohlcv[tlObj.leftP.idx], bR = ohlcv[tlObj.rightP.idx];
                                 if (!bL || !bR) return;
                                 var x1 = refChart.timeScale().timeToCoordinate(bL.time);
                                 var x2 = refChart.timeScale().timeToCoordinate(bR.time);
-                                var y1 = refSeries.priceToCoordinate(leftP.price);
-                                var y2 = refSeries.priceToCoordinate(rightP.price);
+                                var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
+                                var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
                                 if (x1 == null || x2 == null || y1 == null || y2 == null) return;
                                 target.useBitmapCoordinateSpace(function(scope) {
                                     var ctx = scope.context;
@@ -3460,14 +3460,30 @@
             _mcFsTrendDragState.anchorSide = _mcFsTrendDragState.anchorSide === 'left' ? 'right' : 'left';
         }
         tl.p1 = tl.leftP; tl.p2 = tl.rightP;
-        if (tl.requestUpdate) tl.requestUpdate();
+        // Drive the SVG preview instantly (no LW canvas re-render on every move)
+        if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _mcFsTrendDragState.fixedX != null) {
+            _mcFsTrendSvgLine.setAttribute('x2', lx);
+            _mcFsTrendSvgLine.setAttribute('y2', ly);
+        }
     }
 
     function _onTrendAnchorDragEnd() {
+        var state = _mcFsTrendDragState;
         _mcFsTrendDragState = null;
         document.removeEventListener('mousemove', _onTrendAnchorDragMove);
         document.removeEventListener('mouseup',   _onTrendAnchorDragEnd);
         if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = '';
+        // Commit final position to LW canvas, then hide SVG once it has rendered
+        if (state) {
+            var tl = _mcFsTrendlines[state.tlIdx];
+            if (tl && tl.requestUpdate) tl.requestUpdate();
+        }
+        // Hide SVG after two rAFs so LW canvas has time to paint the committed line
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+            });
+        });
     }
 
     // ── Trendline: click → free-move preview → click-to-finish ────────────
@@ -3478,12 +3494,45 @@
     function _onTrendMouseDown(evt) {
         if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
 
-        // ── Phase 1: anchor drag (only when a trendline is already selected)
-        if (_mcFsSelectedTrendlineIdx !== -1 && !_mcFsTrendDraw.active) {
-            var anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
-            if (anchorSide) {
+        // ── Phase 1: anchor drag — check selected line first, then all others
+        if (!_mcFsTrendDraw.active) {
+            var dragTlIdx = -1, anchorSide = null;
+            // Prefer the already-selected line so its anchors take priority
+            if (_mcFsSelectedTrendlineIdx !== -1) {
+                anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
+                if (anchorSide) dragTlIdx = _mcFsSelectedTrendlineIdx;
+            }
+            // Fall back to any other line's anchors
+            if (dragTlIdx === -1) {
+                for (var _di = 0; _di < _mcFsTrendlines.length; _di++) {
+                    var _as = _anchorHitTest(evt.clientX, evt.clientY, _di);
+                    if (_as) { dragTlIdx = _di; anchorSide = _as; break; }
+                }
+            }
+            if (dragTlIdx !== -1) {
                 evt.stopPropagation();
-                _mcFsTrendDragState = { tlIdx: _mcFsSelectedTrendlineIdx, anchorSide: anchorSide };
+                // Auto-select the line if it wasn't already selected
+                if (_mcFsSelectedTrendlineIdx !== dragTlIdx) {
+                    _deselectAllTrendlines();
+                    _mcFsSelectedTrendlineIdx = dragTlIdx;
+                    _mcFsTrendlines[dragTlIdx].selected = true;
+                    if (_mcFsTrendlines[dragTlIdx].requestUpdate) _mcFsTrendlines[dragTlIdx].requestUpdate();
+                }
+                var _dragTl   = _mcFsTrendlines[dragTlIdx];
+                var _fixedP   = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
+                var _fixedBar = _mcFsOhlcv[_fixedP.idx];
+                var _fixedX   = _fixedBar ? _mcFsChart.timeScale().timeToCoordinate(_fixedBar.time) : null;
+                var _fixedY   = _fixedBar ? _mcFsCandle.priceToCoordinate(_fixedP.price)             : null;
+                _mcFsTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
+                // Kick off SVG drag-preview immediately (same overlay used while drawing)
+                if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _fixedX != null && _fixedY != null) {
+                    var _dRect = _mcFsTrendContRef.getBoundingClientRect();
+                    var _curX  = evt.clientX - _dRect.left;
+                    var _curY  = evt.clientY - _dRect.top;
+                    _mcFsTrendSvgLine.setAttribute('x1', _fixedX); _mcFsTrendSvgLine.setAttribute('y1', _fixedY);
+                    _mcFsTrendSvgLine.setAttribute('x2', _curX);   _mcFsTrendSvgLine.setAttribute('y2', _curY);
+                    _mcFsTrendSvgOverlay.style.display = '';
+                }
                 document.addEventListener('mousemove', _onTrendAnchorDragMove);
                 document.addEventListener('mouseup',   _onTrendAnchorDragEnd);
                 return;
@@ -3571,6 +3620,8 @@
         }
         // Cursor feedback when not drawing
         if (_mcFsTrendlines.length && _mcFsTrendContRef && !_mcFsTrendlineMode) {
+            // Don't interfere while an anchor drag is in progress
+            if (_mcFsTrendDragState) return;
             // Grab cursor near anchors of the selected trendline
             if (_mcFsSelectedTrendlineIdx !== -1) {
                 var anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
