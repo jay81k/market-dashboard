@@ -12,6 +12,20 @@
         /* Hide TradingView attribution logo injected by LightweightCharts */
         #tv-attr-logo { display: none !important; }
 
+        /* Trendline action popup */
+        #mc-trend-popup {
+            display: none; position: fixed; z-index: 20001;
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 4px; min-width: 168px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.72);
+            font-size: 13px;
+        }
+        .ctx-item--soon { opacity: 0.45; cursor: not-allowed !important; }
+        .ctx-soon-tag {
+            margin-left: auto; font-size: 0.7em; color: #484f58;
+            background: #21262d; border-radius: 3px; padding: 1px 4px;
+        }
+
         /* ── Top nav ── */
         .topnav {
             display: flex; align-items: center; gap: 0;
@@ -2251,6 +2265,22 @@
             <span id="mc-fs-ctx-below-txt">Alert below …</span>
         </button>
     </div>
+    <!-- Trendline action popup -->
+    <div id="mc-trend-popup">
+        <div class="ctx-label">Trendline</div>
+        <button class="ctx-item" onclick="mcFsTrendlineDelete()">
+            <span class="ctx-dot" style="background:#f85149;"></span>
+            Delete line
+        </button>
+        <button class="ctx-item ctx-item--soon" onclick="mcFsTrendlineAlert()" disabled>
+            <span class="ctx-dot" style="background:#388bfd;opacity:0.4;"></span>
+            Add alert <span class="ctx-soon-tag">soon</span>
+        </button>
+        <button class="ctx-item ctx-item--soon" onclick="mcFsTrendlineEdit()" disabled>
+            <span class="ctx-dot" style="background:#3fb950;opacity:0.4;"></span>
+            Edit line <span class="ctx-soon-tag">soon</span>
+        </button>
+    </div>
 </div>
 
 <div id="col-tooltip"></div>
@@ -2999,15 +3029,17 @@
     var _mcFsKeyHandler  = null;
 
     // Trendline drawing state
-    var _mcFsTrendlineMode    = false;  // tool active?
-    var _mcFsTrendlines       = [];     // array of { primitive, p1:{idx,price}, p2:{idx,price} }
-    var _mcFsTrendlineFirst   = null;   // kept for compat (unused in new flow)
-    var _mcFsTrendSvgOverlay  = null;   // SVG element overlaid on chart for preview
-    var _mcFsTrendSvgLine     = null;   // <line> inside the SVG overlay
-    var _TRENDLINE_COLOR      = '#ffffff';
-    var _mcFsTrendDraw        = { active: false, startIdx: null, startPrice: null };
-    var _mcFsTrendContRef     = null;   // reference to chart container div
-    var _mcFsTrendMoveBound   = false;  // mousemove attached to document once
+    var _mcFsTrendlineMode          = false;   // tool active?
+    var _mcFsTrendlines             = [];      // array of { primitive, p1, p2, leftP, rightP, selected, requestUpdate }
+    var _mcFsTrendlineFirst         = null;    // kept for compat (unused in new flow)
+    var _mcFsTrendSvgOverlay        = null;    // SVG element overlaid on chart for preview
+    var _mcFsTrendSvgLine           = null;    // <line> inside the SVG overlay
+    var _TRENDLINE_COLOR            = '#ffffff';
+    var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
+    var _mcFsTrendDraw              = { active: false, startIdx: null, startPrice: null };
+    var _mcFsTrendContRef           = null;    // reference to chart container div
+    var _mcFsTrendMoveBound         = false;   // mousemove attached to document once
+    var _mcFsSelectedTrendlineIdx   = -1;      // index in _mcFsTrendlines of selected line, -1 = none
 
     // Render-token per multichart context (prevents stale renders)
     var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
@@ -3288,26 +3320,26 @@
     }
 
     // Draw a trendline through two bar-index/price anchors using a v5 canvas
-    // primitive.  The line starts at the earlier (left) anchor and extends to
-    // the right canvas edge — matching the original ray behaviour.
-    // attached() calls requestUpdate() so the chart repaints immediately.
+    // primitive.  The trendline object stores leftP/rightP for hit-testing and
+    // a `selected` flag that the renderer reads to draw the highlight state.
     function _addFsTrendline(p1, p2) {
         if (!_mcFsChart || !_mcFsCandle || !_mcFsOhlcv.length) return;
         var ohlcv     = _mcFsOhlcv;
         var refChart  = _mcFsChart;
         var refSeries = _mcFsCandle;
-        var color     = _TRENDLINE_COLOR;
 
         // Normalise so leftP is always the earlier anchor
         var leftP  = p1.idx <= p2.idx ? p1 : p2;
         var rightP = p1.idx <= p2.idx ? p2 : p1;
 
-        var primitive = {
-            // v5 calls attached() once when the primitive is added to a series.
-            // Calling requestUpdate() here triggers an immediate repaint so the
-            // line appears without any delay.
-            attached: function(param) { param.requestUpdate(); },
+        // Create the object first so the primitive closes over it
+        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
 
+        var primitive = {
+            attached: function(param) {
+                tlObj.requestUpdate = function() { try { param.requestUpdate(); } catch(e) {} };
+                param.requestUpdate();
+            },
             paneViews: function() {
                 return [{
                     renderer: function() {
@@ -3324,15 +3356,34 @@
                                     var ctx = scope.context;
                                     var rx  = scope.horizontalPixelRatio;
                                     var ry  = scope.verticalPixelRatio;
-                                    // Convert logical coords to bitmap pixel coords
                                     var bx1 = x1 * rx, by1 = y1 * ry;
                                     var bx2 = x2 * rx, by2 = y2 * ry;
                                     ctx.save();
+                                    if (tlObj.selected) {
+                                        // Soft glow behind line
+                                        ctx.beginPath();
+                                        ctx.moveTo(bx1, by1);
+                                        ctx.lineTo(bx2, by2);
+                                        ctx.strokeStyle = 'rgba(249,199,79,0.22)';
+                                        ctx.lineWidth   = 9 * rx;
+                                        ctx.stroke();
+                                        // Anchor dots
+                                        [[bx1, by1], [bx2, by2]].forEach(function(pt) {
+                                            ctx.beginPath();
+                                            ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
+                                            ctx.fillStyle   = _TRENDLINE_SELECTED_COLOR;
+                                            ctx.fill();
+                                            ctx.strokeStyle = '#0d1117';
+                                            ctx.lineWidth   = 1.5 * rx;
+                                            ctx.stroke();
+                                        });
+                                    }
+                                    // Main line
                                     ctx.beginPath();
-                                    ctx.moveTo(bx1, by1); // left anchor
-                                    ctx.lineTo(bx2, by2); // right anchor — no extension
-                                    ctx.strokeStyle = color;
-                                    ctx.lineWidth   = 1.5 * rx;
+                                    ctx.moveTo(bx1, by1);
+                                    ctx.lineTo(bx2, by2);
+                                    ctx.strokeStyle = tlObj.selected ? _TRENDLINE_SELECTED_COLOR : _TRENDLINE_COLOR;
+                                    ctx.lineWidth   = (tlObj.selected ? 2 : 1.5) * rx;
                                     ctx.stroke();
                                     ctx.restore();
                                 });
@@ -3343,8 +3394,77 @@
             }
         };
 
+        tlObj.primitive = primitive;
         refSeries.attachPrimitive(primitive);
-        _mcFsTrendlines.push({ primitive: primitive, p1: p1, p2: p2 });
+        _mcFsTrendlines.push(tlObj);
+    }
+
+    // ── Trendline hit-test: returns _mcFsTrendlines index within HIT_PX, or -1
+    function _trendlineHitTest(clientX, clientY) {
+        if (!_mcFsChart || !_mcFsCandle || !_mcFsTrendlines.length || !_mcFsTrendContRef) return -1;
+        var rect     = _mcFsTrendContRef.getBoundingClientRect();
+        var px       = clientX - rect.left;
+        var py       = clientY - rect.top;
+        var HIT_PX   = 7;
+        var bestIdx  = -1;
+        var bestDist = HIT_PX;
+        _mcFsTrendlines.forEach(function(tl, idx) {
+            var bL = _mcFsOhlcv[tl.leftP.idx];
+            var bR = _mcFsOhlcv[tl.rightP.idx];
+            if (!bL || !bR) return;
+            var x1 = _mcFsChart.timeScale().timeToCoordinate(bL.time);
+            var x2 = _mcFsChart.timeScale().timeToCoordinate(bR.time);
+            var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
+            var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
+            if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+            var dx = x2 - x1, dy = y2 - y1;
+            var lenSq = dx * dx + dy * dy;
+            var dist;
+            if (lenSq === 0) {
+                dist = Math.hypot(px - x1, py - y1);
+            } else {
+                var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+                dist  = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+            }
+            if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+        });
+        return bestIdx;
+    }
+
+    // ── Selection helpers ─────────────────────────────────────────────────────
+    function _deselectAllTrendlines() {
+        _mcFsTrendlines.forEach(function(tl) {
+            if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
+        });
+        _mcFsSelectedTrendlineIdx = -1;
+        _hideTrendlinePopup();
+    }
+
+    function _hideTrendlinePopup() {
+        var p = document.getElementById('mc-trend-popup');
+        if (p) p.style.display = 'none';
+    }
+
+    function _showTrendlinePopup(clientX, clientY) {
+        var popup = document.getElementById('mc-trend-popup');
+        if (!popup) return;
+        popup.style.display = 'block';
+        var pw = popup.offsetWidth  || 170;
+        var ph = popup.offsetHeight || 110;
+        var x  = Math.min(clientX + 4, window.innerWidth  - pw - 8);
+        var y  = Math.min(clientY + 4, window.innerHeight - ph - 8);
+        popup.style.left = x + 'px';
+        popup.style.top  = y + 'px';
+        setTimeout(function() {
+            function _dismiss(e) {
+                var p2 = document.getElementById('mc-trend-popup');
+                if (p2 && !p2.contains(e.target)) {
+                    _deselectAllTrendlines();
+                    document.removeEventListener('mousedown', _dismiss, true);
+                }
+            }
+            document.addEventListener('mousedown', _dismiss, true);
+        }, 0);
     }
 
     // ── Trendline: click → free-move preview → click-to-finish ────────────
@@ -3353,26 +3473,47 @@
     // in capture phase so LW Charts never sees the event and cannot start a pan.
 
     function _onTrendMouseDown(evt) {
-        if (!_mcFsTrendlineMode || evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
-        evt.stopPropagation(); // prevent LW Charts from starting a chart-pan — MUST be before any early returns
+        if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
+
+        // ── Phase 1: hit-test existing trendlines (always, even outside draw mode)
+        if (!_mcFsTrendDraw.active) {
+            var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
+            if (hitIdx !== -1) {
+                evt.stopPropagation();
+                // Deselect previous if different
+                if (_mcFsSelectedTrendlineIdx !== -1 && _mcFsSelectedTrendlineIdx !== hitIdx) {
+                    var prev = _mcFsTrendlines[_mcFsSelectedTrendlineIdx];
+                    if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
+                }
+                _mcFsSelectedTrendlineIdx = hitIdx;
+                _mcFsTrendlines[hitIdx].selected = true;
+                if (_mcFsTrendlines[hitIdx].requestUpdate) _mcFsTrendlines[hitIdx].requestUpdate();
+                _showTrendlinePopup(evt.clientX, evt.clientY);
+                return;
+            }
+            // No hit — deselect any selected line
+            if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
+        }
+
+        // ── Phase 2: drawing mode guard
+        if (!_mcFsTrendlineMode) return; // not in draw mode — let LW Charts pan/zoom
+        evt.stopPropagation();
+
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsLastCrosshairTime; // reliable snap-to-bar time from crosshair tracker
-        // LW Charts stops reporting crosshair time when the cursor is in the empty
-        // space to the right of the last candle — clamp to the last bar so clicks
-        // there still anchor correctly.
+        var time  = _mcFsLastCrosshairTime;
         if (time == null && _mcFsOhlcv.length) time = _mcFsOhlcv[_mcFsOhlcv.length - 1].time;
         if (price == null || time == null) return;
         var tidx = _barIdxByTime(_mcFsOhlcv, time);
-        if (tidx < 0) tidx = _mcFsOhlcv.length - 1; // clamp — cursor past last bar
+        if (tidx < 0) tidx = _mcFsOhlcv.length - 1;
         var tHint = document.getElementById('mc-fs-trendline-hint');
+
         if (!_mcFsTrendDraw.active) {
-            // ── First click: set start anchor ──────────────────────────
+            // ── First click: set start anchor ──────────────────────────────
             _mcFsTrendDraw.active     = true;
             _mcFsTrendDraw.startIdx   = tidx;
             _mcFsTrendDraw.startPrice = price;
-            // Show SVG overlay — position the anchor now so the line is ready
             if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _mcFsChart) {
                 var ax = _mcFsChart.timeScale().timeToCoordinate(_mcFsOhlcv[tidx].time);
                 var ay = _mcFsCandle.priceToCoordinate(price);
@@ -3384,13 +3525,11 @@
             }
             if (tHint) tHint.textContent = 'move to endpoint \u00b7 click to finish \u00b7 Esc cancels';
         } else {
-            // ── Second click: finalise ──────────────────────────────────
+            // ── Second click: finalise ──────────────────────────────────────
             var p1 = { idx: _mcFsTrendDraw.startIdx, price: _mcFsTrendDraw.startPrice };
             _mcFsTrendDraw.active = false;
             _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
-            // Hide SVG preview
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-            // Primitive extends to canvas edges automatically — no futureCount needed.
             if (tidx !== p1.idx) _addFsTrendline(p1, { idx: tidx, price: price });
             if (tHint) tHint.textContent = 'click to draw another \u00b7 Del removes last';
         }
@@ -3400,21 +3539,28 @@
     // Reads raw pixel coords and uses timeToCoordinate/priceToCoordinate to
     // place the anchor — zero LW Charts canvas re-render on every move.
     function _onTrendMouseMove(evt) {
-        if (!_mcFsTrendDraw.active || !_mcFsTrendSvgOverlay || !_mcFsTrendSvgLine) return;
-        if (!_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
-        var rect  = _mcFsTrendContRef.getBoundingClientRect();
-        var curX  = evt.clientX - rect.left;
-        var curY  = evt.clientY - rect.top;
-        // Anchor: convert stored bar index back to a pixel x via timeToCoordinate
-        var startTime = _mcFsOhlcv[_mcFsTrendDraw.startIdx] && _mcFsOhlcv[_mcFsTrendDraw.startIdx].time;
-        if (!startTime) return;
-        var x1 = _mcFsChart.timeScale().timeToCoordinate(startTime);
-        var y1 = _mcFsCandle.priceToCoordinate(_mcFsTrendDraw.startPrice);
-        if (x1 == null || y1 == null) return;
-        _mcFsTrendSvgLine.setAttribute('x1', x1);
-        _mcFsTrendSvgLine.setAttribute('y1', y1);
-        _mcFsTrendSvgLine.setAttribute('x2', curX);
-        _mcFsTrendSvgLine.setAttribute('y2', curY);
+        // SVG preview during active draw
+        if (_mcFsTrendDraw.active) {
+            if (!_mcFsTrendSvgOverlay || !_mcFsTrendSvgLine || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
+            var rect  = _mcFsTrendContRef.getBoundingClientRect();
+            var curX  = evt.clientX - rect.left;
+            var curY  = evt.clientY - rect.top;
+            var startTime = _mcFsOhlcv[_mcFsTrendDraw.startIdx] && _mcFsOhlcv[_mcFsTrendDraw.startIdx].time;
+            if (!startTime) return;
+            var x1 = _mcFsChart.timeScale().timeToCoordinate(startTime);
+            var y1 = _mcFsCandle.priceToCoordinate(_mcFsTrendDraw.startPrice);
+            if (x1 == null || y1 == null) return;
+            _mcFsTrendSvgLine.setAttribute('x1', x1);
+            _mcFsTrendSvgLine.setAttribute('y1', y1);
+            _mcFsTrendSvgLine.setAttribute('x2', curX);
+            _mcFsTrendSvgLine.setAttribute('y2', curY);
+            return;
+        }
+        // Cursor feedback: pointer when hovering over any trendline
+        if (_mcFsTrendlines.length && _mcFsTrendContRef && !_mcFsTrendlineMode) {
+            var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
+            _mcFsTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
+        }
     }
 
     // ── Fullscreen right-click alert context menu ──────────────────────────
@@ -3561,6 +3707,7 @@
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsDismissCtx();
 
@@ -3794,16 +3941,31 @@
         // Delete/Escape key handler — trendlines + AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
         _mcFsKeyHandler = function(evt) {
-            // Escape cancels an in-progress trendline draw
-            if (evt.key === 'Escape' && _mcFsTrendDraw.active) {
-                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
-                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-                var th = document.getElementById('mc-fs-trendline-hint');
-                if (th) th.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
+            // Escape: cancel in-progress draw OR deselect selected trendline
+            if (evt.key === 'Escape') {
+                if (_mcFsTrendDraw.active) {
+                    _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+                    if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+                    var th = document.getElementById('mc-fs-trendline-hint');
+                    if (th) th.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
+                } else if (_mcFsSelectedTrendlineIdx !== -1) {
+                    _deselectAllTrendlines();
+                }
                 return;
             }
             if (evt.key !== 'Delete') return;
-            // Trendline delete takes priority when tool is active and lines exist
+            // Delete selected trendline first (takes priority over "delete last")
+            if (_mcFsSelectedTrendlineIdx !== -1) {
+                var selIdx = _mcFsSelectedTrendlineIdx;
+                _hideTrendlinePopup();
+                _mcFsSelectedTrendlineIdx = -1;
+                var selTl = _mcFsTrendlines.splice(selIdx, 1)[0];
+                try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                var tHintSel = document.getElementById('mc-fs-trendline-hint');
+                if (tHintSel) tHintSel.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
+                return;
+            }
+            // Trendline delete (last) when draw tool is active
             if (_mcFsTrendlineMode && _mcFsTrendlines.length) {
                 var tLast = _mcFsTrendlines.pop();
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tLast.primitive); } catch(e) {}
@@ -3842,6 +4004,7 @@
         if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
         // Reset trendlines (symbol stays same but data reloads)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
+        _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
@@ -3943,10 +4106,11 @@
         var btn  = document.getElementById('mc-fs-trendline-btn');
         var hint = document.getElementById('mc-fs-trendline-hint');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
-        // Cancel any in-progress draw
+        // Cancel any in-progress draw and deselect
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+        if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
         if (_mcFsTrendlineMode) {
             if (hint) {
                 hint.style.display = '';
@@ -3965,6 +4129,30 @@
         }
     };
     // ── END LW Multichart Infrastructure ─────────────────────────────────────
+
+    // ── Trendline popup actions ───────────────────────────────────────────────
+    window.mcFsTrendlineDelete = function() {
+        if (_mcFsSelectedTrendlineIdx === -1) return;
+        var idx  = _mcFsSelectedTrendlineIdx;
+        var tl   = _mcFsTrendlines[idx];
+        _hideTrendlinePopup();
+        _mcFsSelectedTrendlineIdx = -1;
+        _mcFsTrendlines.splice(idx, 1);
+        try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tl.primitive); } catch(e) {}
+        var tHint = document.getElementById('mc-fs-trendline-hint');
+        if (tHint && (_mcFsTrendlineMode || _mcFsTrendlines.length))
+            tHint.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
+    };
+
+    window.mcFsTrendlineAlert = function() {
+        // Placeholder — trendline crossing alerts coming soon
+        _deselectAllTrendlines();
+    };
+
+    window.mcFsTrendlineEdit = function() {
+        // Placeholder — line editing coming soon
+        _deselectAllTrendlines();
+    };
 
     function buildMcCellHeader(sym, flagEl) {
         var sd   = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
@@ -4144,7 +4332,7 @@
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
-        _mcFsTrendlineMode = false;
+        _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (tBtn)  tBtn.classList.remove('active');
