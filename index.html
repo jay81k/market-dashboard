@@ -3030,6 +3030,7 @@
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
     var _mcFsVolMa       = null;   // 50 SMA on volume
+    var _mcFsVolData     = null;   // vol SMA dataset (exposed for vol % label)
     var _mcFsMaSeries    = {};
     var _mcFsMaDataMap   = {};   // { key: Map(time => value) } for O(1) MA proximity lookup
     var _mcFsLastCrosshairTime = null;
@@ -3846,7 +3847,7 @@
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
-        _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
+        _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsVolData = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsSelectedTrendlineIdx = -1;
@@ -3924,18 +3925,18 @@
         // 50 SMA on volume — plotted in the same volume pane (pane 1)
         (function() {
             var period = 50;
-            var volData = [];
+            _mcFsVolData = [];
             for (var i = period - 1; i < _mcFsOhlcv.length; i++) {
                 var sum = 0;
                 for (var j = i - (period - 1); j <= i; j++) sum += (_mcFsOhlcv[j].volume || 0);
-                volData.push({ time: _mcFsOhlcv[i].time, value: sum / period });
+                _mcFsVolData.push({ time: _mcFsOhlcv[i].time, value: sum / period });
             }
             _mcFsVolMa = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
                 color: '#1848cc', lineWidth: 1,
                 priceLineVisible: false, lastValueVisible: false,
                 crosshairMarkerVisible: false,
             }, 1);
-            _mcFsVolMa.setData(volData);
+            _mcFsVolMa.setData(_mcFsVolData);
         })();
 
         // Pin volume pane to ~22% of chart height so price pane fills the rest
@@ -3945,6 +3946,74 @@
                 var totalH = container ? container.offsetHeight : 700;
                 panes[1].setHeight(Math.round(totalH * 0.22));
             }
+        })();
+
+        // Vol % vs 50-SMA label — right of last bar in volume pane
+        (function() {
+            if (!_mcFsVolData || !_mcFsVolData.length || !_mcFsOhlcv.length) return;
+            var lastBar = _mcFsOhlcv[_mcFsOhlcv.length - 1];
+            var lastVol = lastBar.volume;
+            var sma50   = _mcFsVolData[_mcFsVolData.length - 1].value;
+            if (!sma50) return;
+
+            // DST-aware ET market window
+            function nthSunday(yr, mo, n) {
+                var d = new Date(Date.UTC(yr, mo, 1));
+                return new Date(Date.UTC(yr, mo, 1 + (7 - d.getUTCDay()) % 7 + (n - 1) * 7));
+            }
+            var now     = Date.now();
+            var barDate = new Date(lastBar.time * 1000);
+            var yr = barDate.getUTCFullYear(), mo = barDate.getUTCMonth(), dy = barDate.getUTCDate();
+            var isDST   = barDate >= nthSunday(yr, 2, 2) && barDate < nthSunday(yr, 10, 1);
+            var etDelta = isDST ? 4 : 5;                           // EDT = UTC-4 | EST = UTC-5
+            var mktOpen  = new Date(Date.UTC(yr, mo, dy,  9 + etDelta, 30)); // 09:30 ET
+            var mktClose = new Date(Date.UTC(yr, mo, dy, 16 + etDelta,  0)); // 16:00 ET
+            var totalMs  = mktClose - mktOpen;
+            var timeratio = 1.0;
+            if (now > mktOpen && now < mktClose) timeratio = totalMs / (now - mktOpen);
+            var projectedVol = lastVol * timeratio;
+            var volDiffPct   = (projectedVol / sma50 - 1) * 100;
+
+            var sign  = volDiffPct >= 0 ? '+' : '';
+            var color = volDiffPct >= 0 ? '#3fb950' : '#f85149';
+
+            var lbl = document.createElement('div');
+            lbl.id = 'mc-fs-vol-pct-label';
+            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
+            lbl.innerHTML = '<span style="color:#484f58;">›</span>'
+                          + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
+            container.appendChild(lbl);
+
+            // Position after LW Charts has finished its first render
+            setTimeout(function() {
+                if (!_mcFsChart) return;
+                var lastX = _mcFsChart.timeScale().timeToCoordinate(lastBar.time);
+                if (lastX == null) return;
+
+                // Resolve volume pane position via DOM (v5 API) with math fallback
+                var volPaneTop = 0, volPaneH = 0;
+                try {
+                    var panes = _mcFsChart.panes();
+                    var pe = (panes && panes[1] && typeof panes[1].getElement === 'function')
+                             ? panes[1].getElement() : null;
+                    if (pe) {
+                        var r = pe.getBoundingClientRect();
+                        var cr = container.getBoundingClientRect();
+                        volPaneTop = r.top  - cr.top;
+                        volPaneH   = r.height;
+                    }
+                } catch(e) {}
+
+                if (!volPaneH) {
+                    // Fallback: derive from container height
+                    var totalH = container.offsetHeight;
+                    volPaneH   = Math.round(totalH * 0.22);
+                    volPaneTop = totalH - volPaneH - 22; // ~22px time axis
+                }
+
+                lbl.style.left = (lastX + 10) + 'px';
+                lbl.style.top  = (volPaneTop + volPaneH / 2 - 7) + 'px';
+            }, 60);
         })();
 
         // Active MAs
