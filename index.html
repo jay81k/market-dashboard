@@ -3316,6 +3316,7 @@
                     renderer: function() {
                         return {
                             draw: function(target) {
+                                if (tlObj.dragging) return; // SVG owns the preview during drag
                                 var bL = ohlcv[tlObj.leftP.idx], bR = ohlcv[tlObj.rightP.idx];
                                 if (!bL || !bR) return;
                                 var x1 = refChart.timeScale().timeToCoordinate(bL.time);
@@ -3473,10 +3474,10 @@
         document.removeEventListener('mousemove', _onTrendAnchorDragMove);
         document.removeEventListener('mouseup',   _onTrendAnchorDragEnd);
         if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = '';
-        // Commit final position to LW canvas, then hide SVG once it has rendered
+        // Re-enable canvas draw and commit final position
         if (state) {
             var tl = _mcFsTrendlines[state.tlIdx];
-            if (tl && tl.requestUpdate) tl.requestUpdate();
+            if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
         }
         // Hide SVG after two rAFs so LW canvas has time to paint the committed line
         requestAnimationFrame(function() {
@@ -3524,6 +3525,9 @@
                 var _fixedX   = _fixedBar ? _mcFsChart.timeScale().timeToCoordinate(_fixedBar.time) : null;
                 var _fixedY   = _fixedBar ? _mcFsCandle.priceToCoordinate(_fixedP.price)             : null;
                 _mcFsTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
+                // Suppress the canvas line so only the SVG preview is visible during drag
+                _dragTl.dragging = true;
+                if (_dragTl.requestUpdate) _dragTl.requestUpdate();
                 // Kick off SVG drag-preview immediately (same overlay used while drawing)
                 if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _fixedX != null && _fixedY != null) {
                     var _dRect = _mcFsTrendContRef.getBoundingClientRect();
