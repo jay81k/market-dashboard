@@ -2214,7 +2214,6 @@
                 <circle cx="14" cy="2" r="1.8" fill="currentColor"/>
             </svg>
         </button>
-        <span id="mc-fs-trendline-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click to set start</span>
         <div class="mc-toolbar-sep"></div>
         <button class="mc-tf-btn" id="mc-fs-vwap-btn" onclick="mcFsToggleVwap()" title="AVWAP" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
@@ -2226,7 +2225,6 @@
                 <circle cx="13" cy="12" r="2" fill="#0d1117" stroke="currentColor" stroke-width="1.5"/>
             </svg>
         </button>
-        <span id="mc-fs-vwap-hint" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">click chart to anchor</span>
         <!-- Market info: day range bar + 52W range bar + price/change -->
         <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:10px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
             <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:5px;"></span>
@@ -3597,7 +3595,10 @@
             _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
             if (tidx !== p1.idx) _addFsTrendline(p1, { idx: tidx, price: price });
-            if (tHint) tHint.textContent = 'click to draw another \u00b7 Del removes last';
+            // Auto-deactivate: turn button off after trendline is drawn
+            _mcFsTrendlineMode = false;
+            var tDoneBtn = document.getElementById('mc-fs-trendline-btn');
+            if (tDoneBtn) tDoneBtn.classList.remove('active');
         }
     }
 
