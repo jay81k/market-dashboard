@@ -3284,30 +3284,38 @@
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
 
-    // Draw an extended trendline through two bar-index/price anchors.
-    // Uses a v5 canvas primitive attached to the candle series — no extra
-    // LineSeries, no data-point array, no futureCount hacks.  The primitive
-    // re-draws on every frame, extending the line to both canvas edges so it
-    // stays correct on any zoom/scroll without any extra work.
+    // Draw a trendline through two bar-index/price anchors using a v5 canvas
+    // primitive.  The line starts at the earlier (left) anchor and extends to
+    // the right canvas edge — matching the original ray behaviour.
+    // attached() calls requestUpdate() so the chart repaints immediately.
     function _addFsTrendline(p1, p2) {
         if (!_mcFsChart || !_mcFsCandle || !_mcFsOhlcv.length) return;
-        var ohlcv      = _mcFsOhlcv;   // snapshot — safe; primitives are cleared on every chart rebuild
-        var refChart   = _mcFsChart;
-        var refSeries  = _mcFsCandle;
-        var color      = _TRENDLINE_COLOR;
+        var ohlcv     = _mcFsOhlcv;
+        var refChart  = _mcFsChart;
+        var refSeries = _mcFsCandle;
+        var color     = _TRENDLINE_COLOR;
+
+        // Normalise so leftP is always the earlier anchor
+        var leftP  = p1.idx <= p2.idx ? p1 : p2;
+        var rightP = p1.idx <= p2.idx ? p2 : p1;
 
         var primitive = {
+            // v5 calls attached() once when the primitive is added to a series.
+            // Calling requestUpdate() here triggers an immediate repaint so the
+            // line appears without any delay.
+            attached: function(param) { param.requestUpdate(); },
+
             paneViews: function() {
                 return [{
                     renderer: function() {
                         return {
                             draw: function(target) {
-                                var b1 = ohlcv[p1.idx], b2 = ohlcv[p2.idx];
-                                if (!b1 || !b2) return;
-                                var x1 = refChart.timeScale().timeToCoordinate(b1.time);
-                                var x2 = refChart.timeScale().timeToCoordinate(b2.time);
-                                var y1 = refSeries.priceToCoordinate(p1.price);
-                                var y2 = refSeries.priceToCoordinate(p2.price);
+                                var bL = ohlcv[leftP.idx], bR = ohlcv[rightP.idx];
+                                if (!bL || !bR) return;
+                                var x1 = refChart.timeScale().timeToCoordinate(bL.time);
+                                var x2 = refChart.timeScale().timeToCoordinate(bR.time);
+                                var y1 = refSeries.priceToCoordinate(leftP.price);
+                                var y2 = refSeries.priceToCoordinate(rightP.price);
                                 if (x1 == null || x2 == null || y1 == null || y2 == null) return;
                                 target.useBitmapCoordinateSpace(function(scope) {
                                     var ctx = scope.context;
@@ -3318,20 +3326,18 @@
                                     var bx2 = x2 * rx, by2 = y2 * ry;
                                     var W   = scope.bitmapSize.width;
                                     var dx  = bx2 - bx1, dy = by2 - by1;
-                                    // Extend line to both canvas edges
-                                    var ex1, ey1, ex2, ey2;
+                                    // Ray: start at left anchor, extend to right canvas edge
+                                    var endX, endY;
                                     if (Math.abs(dx) < 0.001) {
-                                        // Vertical line — rare, but handle it
-                                        ex1 = bx1; ey1 = 0;
-                                        ex2 = bx1; ey2 = scope.bitmapSize.height;
+                                        endX = bx1; endY = scope.bitmapSize.height;
                                     } else {
-                                        ex1 = 0; ey1 = by1 + dy / dx * (0 - bx1);
-                                        ex2 = W; ey2 = by1 + dy / dx * (W - bx1);
+                                        endX = W;
+                                        endY = by1 + dy / dx * (W - bx1);
                                     }
                                     ctx.save();
                                     ctx.beginPath();
-                                    ctx.moveTo(ex1, ey1);
-                                    ctx.lineTo(ex2, ey2);
+                                    ctx.moveTo(bx1, by1);   // start at left anchor
+                                    ctx.lineTo(endX, endY); // extend to right edge
                                     ctx.strokeStyle = color;
                                     ctx.lineWidth   = 1.5 * rx;
                                     ctx.stroke();
