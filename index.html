@@ -2984,6 +2984,7 @@
     var _mcFsChart       = null;
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
+    var _mcFsVolMa       = null;   // 50 SMA on volume
     var _mcFsMaSeries    = {};
     var _mcFsMaDataMap   = {};   // { key: Map(time => value) } for O(1) MA proximity lookup
     var _mcFsLastCrosshairTime = null;
@@ -3537,7 +3538,7 @@
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
-        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
+        _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
@@ -3603,11 +3604,32 @@
         });
         _mcFsCandle.setData(_mcFsOhlcv);
 
-        _mcFsVol = _mcFsChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'fsvol' });
+        _mcFsVol = _mcFsChart.addHistogramSeries({
+            priceFormat: { type: 'volume' }, priceScaleId: 'fsvol',
+            priceLineVisible: false, lastValueVisible: false,
+        });
         _mcFsChart.priceScale('fsvol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
         _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
             return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
         }));
+
+        // 50 SMA on volume — plotted on the same fsvol scale
+        (function() {
+            var period = 50;
+            var volData = [];
+            for (var i = period - 1; i < _mcFsOhlcv.length; i++) {
+                var sum = 0;
+                for (var j = i - (period - 1); j <= i; j++) sum += (_mcFsOhlcv[j].volume || 0);
+                volData.push({ time: _mcFsOhlcv[i].time, value: sum / period });
+            }
+            _mcFsVolMa = _mcFsChart.addLineSeries({
+                color: '#1848cc', lineWidth: 1,
+                priceScaleId: 'fsvol',
+                priceLineVisible: false, lastValueVisible: false,
+                crosshairMarkerVisible: false,
+            });
+            _mcFsVolMa.setData(volData);
+        })();
 
         // Active MAs
         Object.keys(_mcFsActiveMas).forEach(function(key) {
@@ -4098,7 +4120,7 @@
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
         _mcFsDismissCtx();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
-        _mcFsCandle = null; _mcFsVol = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
+        _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
