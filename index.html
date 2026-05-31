@@ -3004,7 +3004,7 @@
     var _mcFsTrendSvgLine           = null;    // <line> inside the SVG overlay
     var _TRENDLINE_COLOR            = '#ffffff';
     var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
-    var _mcFsTrendDraw              = { active: false, startIdx: null, startPrice: null };
+    var _mcFsTrendDraw              = { active: false, startIdx: null, startTime: null, startPrice: null };
     var _mcFsTrendContRef           = null;    // reference to chart container div
     var _mcFsTrendMoveBound         = false;   // mousemove attached to document once
     var _mcFsSelectedTrendlineIdx   = -1;      // index in _mcFsTrendlines of selected line, -1 = none
@@ -3142,6 +3142,26 @@
     function _barIdxByTime(ohlcv, time) {
         for (var i = 0; i < ohlcv.length; i++) { if (ohlcv[i].time >= time) return i; }
         return -1;
+    }
+
+    // coordinateToTime extended past the last bar — extrapolates a future timestamp
+    // based on the spacing between the last two bars so anchors can live in the future.
+    function _mcFsCoordToTimeWithFuture(px) {
+        if (!_mcFsChart) return null;
+        var t = _mcFsChart.timeScale().coordinateToTime(px);
+        if (t != null) return t;
+        var n = _mcFsOhlcv.length;
+        if (n < 2) return null;
+        var lastBar = _mcFsOhlcv[n - 1];
+        var prevBar = _mcFsOhlcv[n - 2];
+        var barDt   = lastBar.time - prevBar.time;
+        if (barDt <= 0) return null;
+        var lastX   = _mcFsChart.timeScale().timeToCoordinate(lastBar.time);
+        var prevX   = _mcFsChart.timeScale().timeToCoordinate(prevBar.time);
+        if (lastX == null || prevX == null) return null;
+        var pxPerBar = lastX - prevX;
+        if (pxPerBar <= 0) return null;
+        return lastBar.time + Math.round((px - lastX) / pxPerBar) * barDt;
     }
 
     // ── Shared cell chart renderer ────────────────────────────────────────────
@@ -3297,9 +3317,15 @@
         var refChart  = _mcFsChart;
         var refSeries = _mcFsCandle;
 
-        // Normalise so leftP is always the earlier anchor
-        var leftP  = p1.idx <= p2.idx ? p1 : p2;
-        var rightP = p1.idx <= p2.idx ? p2 : p1;
+        // Ensure every anchor carries a time field (future anchors already have one;
+        // historical anchors derive theirs from the ohlcv bar they reference).
+        if (!p1.time) p1.time = ohlcv[p1.idx] ? ohlcv[p1.idx].time : 0;
+        if (!p2.time) p2.time = ohlcv[p2.idx] ? ohlcv[p2.idx].time : 0;
+
+        // Normalise so leftP is always the earlier anchor — compare by time so that
+        // two future anchors (same idx but different times) sort correctly.
+        var leftP  = p1.time <= p2.time ? p1 : p2;
+        var rightP = p1.time <= p2.time ? p2 : p1;
 
         // Create the object first so the primitive closes over it
         var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
@@ -3315,10 +3341,8 @@
                         return {
                             draw: function(target) {
                                 if (tlObj.dragging) return; // SVG owns the preview during drag
-                                var bL = ohlcv[tlObj.leftP.idx], bR = ohlcv[tlObj.rightP.idx];
-                                if (!bL || !bR) return;
-                                var x1 = refChart.timeScale().timeToCoordinate(bL.time);
-                                var x2 = refChart.timeScale().timeToCoordinate(bR.time);
+                                var x1 = refChart.timeScale().timeToCoordinate(tlObj.leftP.time);
+                                var x2 = refChart.timeScale().timeToCoordinate(tlObj.rightP.time);
                                 var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
                                 var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
                                 if (x1 == null || x2 == null || y1 == null || y2 == null) return;
@@ -3372,11 +3396,8 @@
         var bestIdx  = -1;
         var bestDist = HIT_PX;
         _mcFsTrendlines.forEach(function(tl, idx) {
-            var bL = _mcFsOhlcv[tl.leftP.idx];
-            var bR = _mcFsOhlcv[tl.rightP.idx];
-            if (!bL || !bR) return;
-            var x1 = _mcFsChart.timeScale().timeToCoordinate(bL.time);
-            var x2 = _mcFsChart.timeScale().timeToCoordinate(bR.time);
+            var x1 = _mcFsChart.timeScale().timeToCoordinate(tl.leftP.time);
+            var x2 = _mcFsChart.timeScale().timeToCoordinate(tl.rightP.time);
             var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
             var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
             if (x1 == null || x2 == null || y1 == null || y2 == null) return;
@@ -3410,18 +3431,12 @@
         var px   = clientX - rect.left;
         var py   = clientY - rect.top;
         var HIT  = 10;
-        var bL   = _mcFsOhlcv[tl.leftP.idx];
-        var bR   = _mcFsOhlcv[tl.rightP.idx];
-        if (bL) {
-            var x1 = _mcFsChart.timeScale().timeToCoordinate(bL.time);
-            var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
-            if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
-        }
-        if (bR) {
-            var x2 = _mcFsChart.timeScale().timeToCoordinate(bR.time);
-            var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
-            if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
-        }
+        var x1 = _mcFsChart.timeScale().timeToCoordinate(tl.leftP.time);
+        var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
+        if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
+        var x2 = _mcFsChart.timeScale().timeToCoordinate(tl.rightP.time);
+        var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
+        if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
         return null;
     }
 
@@ -3435,26 +3450,21 @@
         var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        var time  = _mcFsCoordToTimeWithFuture(lx);
         if (price == null || time == null) return;
         var tidx  = _barIdxByTime(_mcFsOhlcv, time);
-        if (tidx < 0) {
-            // Snap to nearest bar
-            tidx = 0;
-            var minDiff = Math.abs(_mcFsOhlcv[0].time - time);
-            for (var k = 1; k < _mcFsOhlcv.length; k++) {
-                var d = Math.abs(_mcFsOhlcv[k].time - time);
-                if (d < minDiff) { minDiff = d; tidx = k; }
-            }
-        }
-        var newAnchor = { idx: tidx, price: price };
+        // When time is past the last bar, pin idx to last bar but keep the exact
+        // future time so the anchor can extend beyond the visible data.
+        if (tidx < 0) tidx = _mcFsOhlcv.length - 1;
+        var newAnchor = { idx: tidx, time: time, price: price };
         if (_mcFsTrendDragState.anchorSide === 'left') {
             tl.leftP = newAnchor;
         } else {
             tl.rightP = newAnchor;
         }
-        // Re-normalise if anchors have crossed
-        if (tl.leftP.idx > tl.rightP.idx) {
+        // Re-normalise if anchors have crossed — compare by time so that two future
+        // anchors (which share the same idx) still sort correctly.
+        if ((tl.leftP.time || tl.leftP.idx) > (tl.rightP.time || tl.rightP.idx)) {
             var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
             _mcFsTrendDragState.anchorSide = _mcFsTrendDragState.anchorSide === 'left' ? 'right' : 'left';
         }
@@ -3564,12 +3574,15 @@
         evt.stopPropagation();
 
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
         var price = _mcFsCandle.coordinateToPrice(ly);
         var time  = _mcFsLastCrosshairTime;
-        if (time == null && _mcFsOhlcv.length) time = _mcFsOhlcv[_mcFsOhlcv.length - 1].time;
+        // Fall back to extrapolation so clicks in the future area also work
+        if (time == null) time = _mcFsCoordToTimeWithFuture(lx);
         if (price == null || time == null) return;
         var tidx = _barIdxByTime(_mcFsOhlcv, time);
+        // Future click: pin idx to last bar, keep exact time
         if (tidx < 0) tidx = _mcFsOhlcv.length - 1;
         var tHint = document.getElementById('mc-fs-trendline-hint');
 
@@ -3577,6 +3590,7 @@
             // ── First click: set start anchor ──────────────────────────────
             _mcFsTrendDraw.active     = true;
             _mcFsTrendDraw.startIdx   = tidx;
+            _mcFsTrendDraw.startTime  = time;
             _mcFsTrendDraw.startPrice = price;
             if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _mcFsChart) {
                 var ax = _mcFsChart.timeScale().timeToCoordinate(_mcFsOhlcv[tidx].time);
@@ -3590,11 +3604,11 @@
             if (tHint) tHint.textContent = 'move to endpoint \u00b7 click to finish \u00b7 Esc cancels';
         } else {
             // ── Second click: finalise ──────────────────────────────────────
-            var p1 = { idx: _mcFsTrendDraw.startIdx, price: _mcFsTrendDraw.startPrice };
+            var p1 = { idx: _mcFsTrendDraw.startIdx, time: _mcFsTrendDraw.startTime, price: _mcFsTrendDraw.startPrice };
             _mcFsTrendDraw.active = false;
-            _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+            _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-            if (tidx !== p1.idx) _addFsTrendline(p1, { idx: tidx, price: price });
+            if (tidx !== p1.idx || time !== p1.time) _addFsTrendline(p1, { idx: tidx, time: time, price: price });
             // Auto-deactivate: turn button off after trendline is drawn
             _mcFsTrendlineMode = false;
             var tDoneBtn = document.getElementById('mc-fs-trendline-btn');
@@ -3612,7 +3626,7 @@
             var rect  = _mcFsTrendContRef.getBoundingClientRect();
             var curX  = evt.clientX - rect.left;
             var curY  = evt.clientY - rect.top;
-            var startTime = _mcFsOhlcv[_mcFsTrendDraw.startIdx] && _mcFsOhlcv[_mcFsTrendDraw.startIdx].time;
+            var startTime = _mcFsTrendDraw.startTime;
             if (!startTime) return;
             var x1 = _mcFsChart.timeScale().timeToCoordinate(startTime);
             var y1 = _mcFsCandle.priceToCoordinate(_mcFsTrendDraw.startPrice);
@@ -3696,7 +3710,7 @@
             evt.stopPropagation();
             // Right-click while drawing a trendline: cancel draw, skip context menu
             if (_mcFsTrendDraw.active) {
-                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                 if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
                 var tHintRc = document.getElementById('mc-fs-trendline-hint');
                 if (tHintRc) tHintRc.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
@@ -3781,7 +3795,7 @@
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
-        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsSelectedTrendlineIdx = -1;
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsDismissCtx();
@@ -4026,7 +4040,7 @@
             // Escape: cancel in-progress draw OR deselect selected trendline
             if (evt.key === 'Escape') {
                 if (_mcFsTrendDraw.active) {
-                    _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+                    _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                     if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
                     var th = document.getElementById('mc-fs-trendline-hint');
                     if (th) th.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
@@ -4087,7 +4101,7 @@
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsSelectedTrendlineIdx = -1;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (tHint) { tHint.style.display = _mcFsTrendlineMode ? '' : 'none'; tHint.textContent = 'click to set start'; }
@@ -4188,7 +4202,7 @@
         var hint = document.getElementById('mc-fs-trendline-hint');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
         // Cancel any in-progress draw and deselect
-        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
@@ -4349,7 +4363,7 @@
         // Reset trendlines for new symbol (keep mode active if it was on)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (tHint) { tHint.style.display = _mcFsTrendlineMode ? '' : 'none'; tHint.textContent = 'click to set start'; }
 
@@ -4388,7 +4402,7 @@
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
-        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
+        _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         var tHint = document.getElementById('mc-fs-trendline-hint');
