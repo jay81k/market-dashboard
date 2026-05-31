@@ -4051,35 +4051,33 @@
             // white dot with dark ring marks current price position
             var barColor = chg >= 0 ? '#089981' : '#b22833';
 
-            // Tall stretchy bar for DAY — flex:1, 18px tall, ready for CR% injection
-            function mkDayBar(low, high, curr) {
+            // Shared bar builder — 4px tall, matches 52W style
+            function mkBar(low, high, curr, width, crLabel) {
                 var pos = (high > low)
                     ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100))
                     : 50;
                 var p = pos.toFixed(1);
-                return '<span id="mc-fs-day-bar-track" style="position:relative;display:inline-flex;align-items:center;' +
-                    'width:140px;height:18px;border-radius:4px;background:#161b22;overflow:hidden;flex-shrink:0;">' +
-                    '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';opacity:0.28;border-radius:4px 0 0 4px;"></span>' +
-                    '<span id="mc-fs-day-bar-dot" style="position:absolute;top:50%;left:' + p + '%;' +
-                    'transform:translate(-50%,-50%);width:9px;height:9px;' +
-                    'background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 2px #0d1117;flex-shrink:0;"></span>' +
-                    '</span>';
-            }
-
-            // Slim bar for 52W — fixed width, 4px tall
-            function mk52wBar(low, high, curr) {
-                var pos = (high > low)
-                    ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100))
-                    : 50;
-                var p = pos.toFixed(1);
-                return '<span style="position:relative;display:inline-block;width:120px;height:4px;' +
+                var crSpan = crLabel != null
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);' +
+                      'font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
+                      crLabel.text + '</span>'
+                    : '';
+                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;' +
                     'border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">' +
                     '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
                     '<span style="position:absolute;top:50%;left:' + p + '%;' +
                     'transform:translate(-50%,-50%);width:8px;height:8px;' +
                     'background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>' +
+                    crSpan +
                     '</span>';
             }
+
+            // CR% value computed live from day range
+            var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
+            var crLabel = crRaw != null ? {
+                text:  crRaw + '%',
+                color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149'
+            } : null;
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
                 '<span style="color:#e6edf3;font-size:15px;font-weight:700;">' + fp(close) + '</span>' +
@@ -4089,13 +4087,13 @@
             document.getElementById('mc-fs-mkt-day').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
                 '<span style="color:#8b949e;font-size:12px;">' + fp(dayLow) + '</span>' +
-                mkDayBar(dayLow, dayHigh, close) +
-                '<span style="color:#8b949e;font-size:12px;flex-shrink:0;">' + fp(dayHigh) + '</span>';
+                mkBar(dayLow, dayHigh, close, 130, crLabel) +
+                '<span style="color:#8b949e;font-size:12px;">' + fp(dayHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-52w').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
                 '<span style="color:#8b949e;font-size:12px;">' + fp(yrLow) + '</span>' +
-                mk52wBar(yrLow, yrHigh, close) +
+                mkBar(yrLow, yrHigh, close, 120, null) +
                 '<span style="color:#8b949e;font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
