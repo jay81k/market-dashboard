@@ -12,20 +12,6 @@
         /* Hide TradingView attribution logo injected by LightweightCharts */
         #tv-attr-logo { display: none !important; }
 
-        /* Trendline action popup */
-        #mc-trend-popup {
-            display: none; position: fixed; z-index: 20001;
-            background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-            padding: 4px; min-width: 168px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.72);
-            font-size: 13px;
-        }
-        .ctx-item--soon { opacity: 0.45; cursor: not-allowed !important; }
-        .ctx-soon-tag {
-            margin-left: auto; font-size: 0.7em; color: #484f58;
-            background: #21262d; border-radius: 3px; padding: 1px 4px;
-        }
-
         /* ── Top nav ── */
         .topnav {
             display: flex; align-items: center; gap: 0;
@@ -2265,22 +2251,6 @@
             <span id="mc-fs-ctx-below-txt">Alert below …</span>
         </button>
     </div>
-    <!-- Trendline action popup -->
-    <div id="mc-trend-popup">
-        <div class="ctx-label">Trendline</div>
-        <button class="ctx-item" onclick="mcFsTrendlineDelete()">
-            <span class="ctx-dot" style="background:#f85149;"></span>
-            Delete line
-        </button>
-        <button class="ctx-item ctx-item--soon" onclick="mcFsTrendlineAlert()" disabled>
-            <span class="ctx-dot" style="background:#388bfd;opacity:0.4;"></span>
-            Add alert <span class="ctx-soon-tag">soon</span>
-        </button>
-        <button class="ctx-item ctx-item--soon" onclick="mcFsTrendlineEdit()" disabled>
-            <span class="ctx-dot" style="background:#3fb950;opacity:0.4;"></span>
-            Edit line <span class="ctx-soon-tag">soon</span>
-        </button>
-    </div>
 </div>
 
 <div id="col-tooltip"></div>
@@ -3040,6 +3010,7 @@
     var _mcFsTrendContRef           = null;    // reference to chart container div
     var _mcFsTrendMoveBound         = false;   // mousemove attached to document once
     var _mcFsSelectedTrendlineIdx   = -1;      // index in _mcFsTrendlines of selected line, -1 = none
+    var _mcFsTrendDragState         = null;    // { tlIdx, anchorSide:'left'|'right' } during anchor drag
 
     // Render-token per multichart context (prevents stale renders)
     var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
@@ -3359,32 +3330,25 @@
                                     var bx1 = x1 * rx, by1 = y1 * ry;
                                     var bx2 = x2 * rx, by2 = y2 * ry;
                                     ctx.save();
+                                    // Main line — colour unchanged whether selected or not
+                                    ctx.beginPath();
+                                    ctx.moveTo(bx1, by1);
+                                    ctx.lineTo(bx2, by2);
+                                    ctx.strokeStyle = _TRENDLINE_COLOR;
+                                    ctx.lineWidth   = 1.5 * rx;
+                                    ctx.stroke();
+                                    // Anchor dots only when selected
                                     if (tlObj.selected) {
-                                        // Soft glow behind line
-                                        ctx.beginPath();
-                                        ctx.moveTo(bx1, by1);
-                                        ctx.lineTo(bx2, by2);
-                                        ctx.strokeStyle = 'rgba(249,199,79,0.22)';
-                                        ctx.lineWidth   = 9 * rx;
-                                        ctx.stroke();
-                                        // Anchor dots
                                         [[bx1, by1], [bx2, by2]].forEach(function(pt) {
                                             ctx.beginPath();
                                             ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
-                                            ctx.fillStyle   = _TRENDLINE_SELECTED_COLOR;
+                                            ctx.fillStyle   = _TRENDLINE_COLOR;
                                             ctx.fill();
                                             ctx.strokeStyle = '#0d1117';
                                             ctx.lineWidth   = 1.5 * rx;
                                             ctx.stroke();
                                         });
                                     }
-                                    // Main line
-                                    ctx.beginPath();
-                                    ctx.moveTo(bx1, by1);
-                                    ctx.lineTo(bx2, by2);
-                                    ctx.strokeStyle = tlObj.selected ? _TRENDLINE_SELECTED_COLOR : _TRENDLINE_COLOR;
-                                    ctx.lineWidth   = (tlObj.selected ? 2 : 1.5) * rx;
-                                    ctx.stroke();
                                     ctx.restore();
                                 });
                             }
@@ -3437,34 +3401,73 @@
             if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
         });
         _mcFsSelectedTrendlineIdx = -1;
-        _hideTrendlinePopup();
     }
 
-    function _hideTrendlinePopup() {
-        var p = document.getElementById('mc-trend-popup');
-        if (p) p.style.display = 'none';
+    // Returns 'left' or 'right' if clientX/Y is near an anchor of trendline[tlIdx], else null
+    function _anchorHitTest(clientX, clientY, tlIdx) {
+        if (tlIdx < 0 || !_mcFsTrendlines[tlIdx] || !_mcFsChart || !_mcFsCandle || !_mcFsTrendContRef) return null;
+        var tl   = _mcFsTrendlines[tlIdx];
+        var rect = _mcFsTrendContRef.getBoundingClientRect();
+        var px   = clientX - rect.left;
+        var py   = clientY - rect.top;
+        var HIT  = 10;
+        var bL   = _mcFsOhlcv[tl.leftP.idx];
+        var bR   = _mcFsOhlcv[tl.rightP.idx];
+        if (bL) {
+            var x1 = _mcFsChart.timeScale().timeToCoordinate(bL.time);
+            var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
+            if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
+        }
+        if (bR) {
+            var x2 = _mcFsChart.timeScale().timeToCoordinate(bR.time);
+            var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
+            if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
+        }
+        return null;
     }
 
-    function _showTrendlinePopup(clientX, clientY) {
-        var popup = document.getElementById('mc-trend-popup');
-        if (!popup) return;
-        popup.style.display = 'block';
-        var pw = popup.offsetWidth  || 170;
-        var ph = popup.offsetHeight || 110;
-        var x  = Math.min(clientX + 4, window.innerWidth  - pw - 8);
-        var y  = Math.min(clientY + 4, window.innerHeight - ph - 8);
-        popup.style.left = x + 'px';
-        popup.style.top  = y + 'px';
-        setTimeout(function() {
-            function _dismiss(e) {
-                var p2 = document.getElementById('mc-trend-popup');
-                if (p2 && !p2.contains(e.target)) {
-                    _deselectAllTrendlines();
-                    document.removeEventListener('mousedown', _dismiss, true);
-                }
+    // ── Anchor drag ───────────────────────────────────────────────────────────
+    function _onTrendAnchorDragMove(evt) {
+        if (!_mcFsTrendDragState || !_mcFsChart || !_mcFsCandle || !_mcFsTrendContRef) return;
+        var tl = _mcFsTrendlines[_mcFsTrendDragState.tlIdx];
+        if (!tl) return;
+        if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = 'grabbing';
+        var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        var lx    = evt.clientX - rect.left;
+        var ly    = evt.clientY - rect.top;
+        var price = _mcFsCandle.coordinateToPrice(ly);
+        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        if (price == null || time == null) return;
+        var tidx  = _barIdxByTime(_mcFsOhlcv, time);
+        if (tidx < 0) {
+            // Snap to nearest bar
+            tidx = 0;
+            var minDiff = Math.abs(_mcFsOhlcv[0].time - time);
+            for (var k = 1; k < _mcFsOhlcv.length; k++) {
+                var d = Math.abs(_mcFsOhlcv[k].time - time);
+                if (d < minDiff) { minDiff = d; tidx = k; }
             }
-            document.addEventListener('mousedown', _dismiss, true);
-        }, 0);
+        }
+        var newAnchor = { idx: tidx, price: price };
+        if (_mcFsTrendDragState.anchorSide === 'left') {
+            tl.leftP = newAnchor;
+        } else {
+            tl.rightP = newAnchor;
+        }
+        // Re-normalise if anchors have crossed
+        if (tl.leftP.idx > tl.rightP.idx) {
+            var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
+            _mcFsTrendDragState.anchorSide = _mcFsTrendDragState.anchorSide === 'left' ? 'right' : 'left';
+        }
+        tl.p1 = tl.leftP; tl.p2 = tl.rightP;
+        if (tl.requestUpdate) tl.requestUpdate();
+    }
+
+    function _onTrendAnchorDragEnd() {
+        _mcFsTrendDragState = null;
+        document.removeEventListener('mousemove', _onTrendAnchorDragMove);
+        document.removeEventListener('mouseup',   _onTrendAnchorDragEnd);
+        if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = '';
     }
 
     // ── Trendline: click → free-move preview → click-to-finish ────────────
@@ -3475,12 +3478,23 @@
     function _onTrendMouseDown(evt) {
         if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
 
-        // ── Phase 1: hit-test existing trendlines (always, even outside draw mode)
+        // ── Phase 1: anchor drag (only when a trendline is already selected)
+        if (_mcFsSelectedTrendlineIdx !== -1 && !_mcFsTrendDraw.active) {
+            var anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
+            if (anchorSide) {
+                evt.stopPropagation();
+                _mcFsTrendDragState = { tlIdx: _mcFsSelectedTrendlineIdx, anchorSide: anchorSide };
+                document.addEventListener('mousemove', _onTrendAnchorDragMove);
+                document.addEventListener('mouseup',   _onTrendAnchorDragEnd);
+                return;
+            }
+        }
+
+        // ── Phase 2: hit-test lines (select / deselect)
         if (!_mcFsTrendDraw.active) {
             var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
             if (hitIdx !== -1) {
                 evt.stopPropagation();
-                // Deselect previous if different
                 if (_mcFsSelectedTrendlineIdx !== -1 && _mcFsSelectedTrendlineIdx !== hitIdx) {
                     var prev = _mcFsTrendlines[_mcFsSelectedTrendlineIdx];
                     if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
@@ -3488,15 +3502,14 @@
                 _mcFsSelectedTrendlineIdx = hitIdx;
                 _mcFsTrendlines[hitIdx].selected = true;
                 if (_mcFsTrendlines[hitIdx].requestUpdate) _mcFsTrendlines[hitIdx].requestUpdate();
-                _showTrendlinePopup(evt.clientX, evt.clientY);
                 return;
             }
-            // No hit — deselect any selected line
+            // No hit — deselect
             if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
         }
 
-        // ── Phase 2: drawing mode guard
-        if (!_mcFsTrendlineMode) return; // not in draw mode — let LW Charts pan/zoom
+        // ── Phase 3: drawing mode guard
+        if (!_mcFsTrendlineMode) return;
         evt.stopPropagation();
 
         var rect  = _mcFsTrendContRef.getBoundingClientRect();
@@ -3556,8 +3569,14 @@
             _mcFsTrendSvgLine.setAttribute('y2', curY);
             return;
         }
-        // Cursor feedback: pointer when hovering over any trendline
+        // Cursor feedback when not drawing
         if (_mcFsTrendlines.length && _mcFsTrendContRef && !_mcFsTrendlineMode) {
+            // Grab cursor near anchors of the selected trendline
+            if (_mcFsSelectedTrendlineIdx !== -1) {
+                var anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
+                if (anchorSide) { _mcFsTrendContRef.style.cursor = 'grab'; return; }
+            }
+            // Pointer cursor on any line body
             var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
             _mcFsTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
         }
@@ -3707,7 +3726,7 @@
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
-        _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
+        _mcFsSelectedTrendlineIdx = -1;
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
         _mcFsDismissCtx();
 
@@ -3957,7 +3976,6 @@
             // Delete selected trendline first (takes priority over "delete last")
             if (_mcFsSelectedTrendlineIdx !== -1) {
                 var selIdx = _mcFsSelectedTrendlineIdx;
-                _hideTrendlinePopup();
                 _mcFsSelectedTrendlineIdx = -1;
                 var selTl = _mcFsTrendlines.splice(selIdx, 1)[0];
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
@@ -4004,7 +4022,7 @@
         if (vwapHint) { vwapHint.style.display = 'none'; vwapHint.textContent = 'click chart to anchor'; }
         // Reset trendlines (symbol stays same but data reloads)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
-        _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
+        _mcFsSelectedTrendlineIdx = -1;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
@@ -4129,30 +4147,6 @@
         }
     };
     // ── END LW Multichart Infrastructure ─────────────────────────────────────
-
-    // ── Trendline popup actions ───────────────────────────────────────────────
-    window.mcFsTrendlineDelete = function() {
-        if (_mcFsSelectedTrendlineIdx === -1) return;
-        var idx  = _mcFsSelectedTrendlineIdx;
-        var tl   = _mcFsTrendlines[idx];
-        _hideTrendlinePopup();
-        _mcFsSelectedTrendlineIdx = -1;
-        _mcFsTrendlines.splice(idx, 1);
-        try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tl.primitive); } catch(e) {}
-        var tHint = document.getElementById('mc-fs-trendline-hint');
-        if (tHint && (_mcFsTrendlineMode || _mcFsTrendlines.length))
-            tHint.textContent = _mcFsTrendlines.length ? 'click to draw another \u00b7 Del removes last' : 'click to set start';
-    };
-
-    window.mcFsTrendlineAlert = function() {
-        // Placeholder — trendline crossing alerts coming soon
-        _deselectAllTrendlines();
-    };
-
-    window.mcFsTrendlineEdit = function() {
-        // Placeholder — line editing coming soon
-        _deselectAllTrendlines();
-    };
 
     function buildMcCellHeader(sym, flagEl) {
         var sd   = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
@@ -4332,7 +4326,7 @@
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startIdx = null; _mcFsTrendDraw.startPrice = null;
-        _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1; _hideTrendlinePopup();
+        _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         var tHint = document.getElementById('mc-fs-trendline-hint');
         if (tBtn)  tBtn.classList.remove('active');
