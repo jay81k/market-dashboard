@@ -3288,6 +3288,21 @@
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
     }
 
+    // Converts a time to a pixel X coordinate, extrapolating linearly for
+    // future timestamps that have no entry in LWC's internal time scale.
+    function _mcFsTimeToX(chart, ohlcv, time) {
+        var x = chart.timeScale().timeToCoordinate(time);
+        if (x !== null) return x;
+        if (ohlcv.length < 2) return null;
+        var last  = ohlcv[ohlcv.length - 1];
+        var prev  = ohlcv[ohlcv.length - 2];
+        var lastX = chart.timeScale().timeToCoordinate(last.time);
+        var prevX = chart.timeScale().timeToCoordinate(prev.time);
+        if (lastX == null || prevX == null) return null;
+        var pxPerSec = (lastX - prevX) / (last.time - prev.time);
+        return lastX + pxPerSec * (time - last.time);
+    }
+
     // Draw a trendline through two bar-index/price anchors using a v5 canvas
     // primitive.  The trendline object stores leftP/rightP for hit-testing and
     // a `selected` flag that the renderer reads to draw the highlight state.
@@ -3295,6 +3310,7 @@
         if (!_mcFsChart || !_mcFsCandle || !_mcFsOhlcv.length) return;
         var refChart  = _mcFsChart;
         var refSeries = _mcFsCandle;
+        var ohlcv     = _mcFsOhlcv; // closed over for extrapolation in renderer
 
         // Normalise so leftP is always the earlier anchor (by time, supports future timestamps)
         var leftP  = p1.time <= p2.time ? p1 : p2;
@@ -3314,9 +3330,9 @@
                         return {
                             draw: function(target) {
                                 if (tlObj.dragging) return; // SVG owns the preview during drag
-                                // Use time directly — no bar lookup, supports future timestamps
-                                var x1 = refChart.timeScale().timeToCoordinate(tlObj.leftP.time);
-                                var x2 = refChart.timeScale().timeToCoordinate(tlObj.rightP.time);
+                                // Use helper that extrapolates for future timestamps
+                                var x1 = _mcFsTimeToX(refChart, ohlcv, tlObj.leftP.time);
+                                var x2 = _mcFsTimeToX(refChart, ohlcv, tlObj.rightP.time);
                                 var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
                                 var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
                                 if (x1 == null || x2 == null || y1 == null || y2 == null) return;
@@ -3370,8 +3386,8 @@
         var bestIdx  = -1;
         var bestDist = HIT_PX;
         _mcFsTrendlines.forEach(function(tl, idx) {
-            var x1 = _mcFsChart.timeScale().timeToCoordinate(tl.leftP.time);
-            var x2 = _mcFsChart.timeScale().timeToCoordinate(tl.rightP.time);
+            var x1 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.leftP.time);
+            var x2 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.rightP.time);
             var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
             var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
             if (x1 == null || x2 == null || y1 == null || y2 == null) return;
@@ -3405,10 +3421,10 @@
         var px   = clientX - rect.left;
         var py   = clientY - rect.top;
         var HIT  = 10;
-        var x1 = _mcFsChart.timeScale().timeToCoordinate(tl.leftP.time);
+        var x1 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.leftP.time);
         var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
         if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
-        var x2 = _mcFsChart.timeScale().timeToCoordinate(tl.rightP.time);
+        var x2 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.rightP.time);
         var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
         if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
         return null;
