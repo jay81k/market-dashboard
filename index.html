@@ -3530,9 +3530,9 @@
                 }
                 var _dragTl   = _mcFsTrendlines[dragTlIdx];
                 var _fixedP   = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
-                var _fixedBar = _mcFsOhlcv[_fixedP.idx];
-                var _fixedX   = _fixedBar ? _mcFsChart.timeScale().timeToCoordinate(_fixedBar.time) : null;
-                var _fixedY   = _fixedBar ? _mcFsCandle.priceToCoordinate(_fixedP.price)             : null;
+                // Use _mcFsTimeToX so future-anchored fixed points also resolve correctly
+                var _fixedX   = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, _fixedP.time);
+                var _fixedY   = _mcFsCandle.priceToCoordinate(_fixedP.price);
                 _mcFsTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
                 // Suppress the canvas line so only the SVG preview is visible during drag
                 _dragTl.dragging = true;
