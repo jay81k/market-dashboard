@@ -3848,8 +3848,7 @@
         _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
             priceFormat: { type: 'volume' },
             priceLineVisible: false, lastValueVisible: false,
-            pane: 1,
-        });
+        }, 1);
         _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
             return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
         }));
@@ -3865,10 +3864,9 @@
             }
             _mcFsVolMa = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
                 color: '#1848cc', lineWidth: 1,
-                pane: 1,
                 priceLineVisible: false, lastValueVisible: false,
                 crosshairMarkerVisible: false,
-            });
+            }, 1);
             _mcFsVolMa.setData(volData);
         })();
 
@@ -3877,7 +3875,7 @@
             var panes = _mcFsChart.panes();
             if (panes && panes.length >= 2) {
                 var totalH = container ? container.offsetHeight : 700;
-                panes[1].applyOptions({ height: Math.round(totalH * 0.22) });
+                panes[1].setHeight(Math.round(totalH * 0.22));
             }
         })();
 
