@@ -9,6 +9,9 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c8d0dc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
+        /* Hide TradingView attribution logo injected by LightweightCharts */
+        #tv-attr-logo { display: none !important; }
+
         /* ── Top nav ── */
         .topnav {
             display: flex; align-items: center; gap: 0;
@@ -3149,7 +3152,6 @@
         }
         var chart = LightweightCharts.createChart(container, {
             autoSize: true,
-            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:    { vertLines: { color: '#171b22' }, horzLines: { color: '#171b22' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
@@ -3606,7 +3608,6 @@
 
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
-            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
@@ -11635,7 +11636,6 @@ var _mmPopup = (function () {
         lwChart = LightweightCharts.createChart(popupChart, {
             width:  popupChart.clientWidth  || POPUP_W,
             height: popupChart.clientHeight || 220,
-            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
