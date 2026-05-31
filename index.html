@@ -3324,20 +3324,10 @@
                                     // Convert logical coords to bitmap pixel coords
                                     var bx1 = x1 * rx, by1 = y1 * ry;
                                     var bx2 = x2 * rx, by2 = y2 * ry;
-                                    var W   = scope.bitmapSize.width;
-                                    var dx  = bx2 - bx1, dy = by2 - by1;
-                                    // Ray: start at left anchor, extend to right canvas edge
-                                    var endX, endY;
-                                    if (Math.abs(dx) < 0.001) {
-                                        endX = bx1; endY = scope.bitmapSize.height;
-                                    } else {
-                                        endX = W;
-                                        endY = by1 + dy / dx * (W - bx1);
-                                    }
                                     ctx.save();
                                     ctx.beginPath();
-                                    ctx.moveTo(bx1, by1);   // start at left anchor
-                                    ctx.lineTo(endX, endY); // extend to right edge
+                                    ctx.moveTo(bx1, by1); // left anchor
+                                    ctx.lineTo(bx2, by2); // right anchor — no extension
                                     ctx.strokeStyle = color;
                                     ctx.lineWidth   = 1.5 * rx;
                                     ctx.stroke();
