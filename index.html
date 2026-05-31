@@ -3872,6 +3872,15 @@
             _mcFsVolMa.setData(volData);
         })();
 
+        // Pin volume pane to ~22% of chart height so price pane fills the rest
+        (function() {
+            var panes = _mcFsChart.panes();
+            if (panes && panes.length >= 2) {
+                var totalH = container ? container.offsetHeight : 700;
+                panes[1].applyOptions({ height: Math.round(totalH * 0.22) });
+            }
+        })();
+
         // Active MAs
         Object.keys(_mcFsActiveMas).forEach(function(key) {
             if (!_mcFsActiveMas[key]) return;
