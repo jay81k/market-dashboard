@@ -267,6 +267,43 @@
             outline: none; width: 7ch; padding: 0; caret-color: #58a6ff;
             font-family: inherit; text-transform: uppercase; letter-spacing: inherit;
         }
+        #mc-fs-sym-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 280px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 9999;
+            overflow: hidden;
+            font-family: inherit;
+        }
+        .mc-fs-dd-row {
+            display: flex; align-items: center;
+            padding: 7px 11px; gap: 10px;
+            cursor: pointer; transition: background 0.08s;
+        }
+        .mc-fs-dd-row:hover, .mc-fs-dd-row.active {
+            background: #21262d;
+        }
+        .mc-fs-dd-ticker {
+            font-size: 0.88em; font-weight: 700; color: #58a6ff;
+            min-width: 52px; letter-spacing: 0.02em;
+        }
+        .mc-fs-dd-name {
+            font-size: 0.78em; color: #c8d0dc;
+            flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mc-fs-dd-ind {
+            font-size: 0.72em; color: #484f58;
+            white-space: nowrap; flex-shrink: 0; max-width: 120px;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .mc-fs-dd-empty {
+            padding: 10px 12px; font-size: 0.8em; color: #484f58; text-align: center;
+        }
         .mc-fullscreen-close {
             background: transparent; border: none; color: #484f58;
             cursor: pointer; font-size: 1.32rem; padding: 0 4px;
@@ -4190,51 +4227,146 @@
     // ── Inline symbol switcher ───────────────────────────────────────────────
     window._mcFsSymClick = function() {
         var symEl = document.getElementById('mc-fullscreen-sym');
-        if (!symEl || document.getElementById('mc-fs-sym-input')) return; // already editing
+        if (!symEl || document.getElementById('mc-fs-sym-input')) return;
         var currentSym = symEl.textContent.trim();
         symEl.style.display = 'none';
 
-        var inp = document.createElement('input');
-        inp.id        = 'mc-fs-sym-input';
-        inp.type      = 'text';
-        inp.value     = currentSym;
-        inp.maxLength = 10;
-        inp.spellcheck = false;
-        inp.autocomplete = 'off';
-        // Size input to content
-        inp.style.width = Math.max(currentSym.length, 3) + 'ch';
-        inp.addEventListener('input', function() {
-            inp.style.width = Math.max(inp.value.length || 1, 3) + 'ch';
-        });
-        symEl.parentNode.insertBefore(inp, symEl.nextSibling);
-        inp.focus();
-        inp.select();
+        // ── Wrapper so dropdown can be positioned relative to input ──────────
+        var wrap = document.createElement('span');
+        wrap.style.cssText = 'position:relative;display:inline-block;';
 
-        var _done = false;
-        function _confirm() {
-            if (_done) return; // prevent double-fire (keydown + blur both call this)
-            _done = true;
-            var newSym = inp.value.trim().toUpperCase();
-            _restore();
-            if (newSym && newSym !== currentSym) {
-                openMcFullscreen(newSym, _mcFsTf);
+        var inp = document.createElement('input');
+        inp.id           = 'mc-fs-sym-input';
+        inp.type         = 'text';
+        inp.value        = '';
+        inp.placeholder  = currentSym;
+        inp.maxLength    = 10;
+        inp.spellcheck   = false;
+        inp.autocomplete = 'off';
+        inp.style.width  = Math.max(currentSym.length, 4) + 'ch';
+
+        var dd = document.createElement('div');
+        dd.id = 'mc-fs-sym-dropdown';
+        dd.style.display = 'none';
+
+        wrap.appendChild(inp);
+        wrap.appendChild(dd);
+        symEl.parentNode.insertBefore(wrap, symEl.nextSibling);
+        inp.focus();
+
+        // ── Suggestion engine ─────────────────────────────────────────────────
+        var _activeIdx = -1;
+        var _results   = [];
+
+        function _getSuggestions(q) {
+            if (!q) return [];
+            var uq = q.toUpperCase();
+            var keys = tickerMap ? Object.keys(tickerMap) : [];
+            var prefix = [], substr = [];
+            for (var i = 0; i < keys.length; i++) {
+                var t = keys[i];
+                if (t === uq) { prefix.unshift(t); continue; } // exact first
+                if (t.indexOf(uq) === 0) prefix.push(t);
+                else if (t.indexOf(uq) > 0) substr.push(t);
             }
+            prefix.sort(); substr.sort();
+            return prefix.concat(substr).slice(0, 8);
         }
+
+        function _renderDropdown(q) {
+            _results = _getSuggestions(q);
+            _activeIdx = _results.length ? 0 : -1;
+            dd.innerHTML = '';
+            if (!q) { dd.style.display = 'none'; return; }
+            if (!_results.length) {
+                dd.innerHTML = '<div class="mc-fs-dd-empty">No matches in watchlist</div>';
+                dd.style.display = '';
+                return;
+            }
+            _results.forEach(function(t, i) {
+                var row = tickerMap[t] || {};
+                var nameStr = row.name     ? _escHtml(row.name)     : '';
+                var indStr  = row.industry ? _escHtml(row.industry)  : (row.sector ? _escHtml(row.sector) : '');
+                var el = document.createElement('div');
+                el.className = 'mc-fs-dd-row' + (i === 0 ? ' active' : '');
+                el.innerHTML =
+                    '<span class="mc-fs-dd-ticker">' + _escHtml(t) + '</span>' +
+                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:#484f58;font-style:italic;">—</span>') +
+                    (indStr  ? '<span class="mc-fs-dd-ind">'   + indStr  + '</span>' : '');
+                el.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); // prevent blur firing before click
+                    _selectSym(t);
+                });
+                dd.appendChild(el);
+            });
+            dd.style.display = '';
+        }
+
+        function _escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function _highlightRow(idx) {
+            var rows = dd.querySelectorAll('.mc-fs-dd-row');
+            rows.forEach(function(r, i) { r.classList.toggle('active', i === idx); });
+        }
+
+        function _selectSym(sym) {
+            _done = true;
+            _restore();
+            if (sym && sym !== currentSym) openMcFullscreen(sym, _mcFsTf);
+        }
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────
+        var _done = false;
+
+        function _confirm() {
+            if (_done) return;
+            // If a dropdown row is highlighted, use it; else fall back to typed value
+            var chosen = (_activeIdx >= 0 && _results[_activeIdx]) ? _results[_activeIdx] : inp.value.trim().toUpperCase();
+            _selectSym(chosen || null);
+        }
+
         function _cancel() {
             _done = true;
             _restore();
         }
+
         function _restore() {
-            if (inp.parentNode) inp.parentNode.removeChild(inp);
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
             symEl.style.display = '';
         }
-        inp.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter')  { e.preventDefault(); _confirm(); }
-            if (e.key === 'Escape') { e.preventDefault(); _cancel(); }
+
+        inp.addEventListener('input', function() {
+            var q = inp.value.trim();
+            inp.style.width = Math.max(q.length || currentSym.length, 4) + 'ch';
+            _renderDropdown(q);
         });
+
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (_results.length) {
+                    _activeIdx = (_activeIdx + 1) % _results.length;
+                    _highlightRow(_activeIdx);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (_results.length) {
+                    _activeIdx = (_activeIdx - 1 + _results.length) % _results.length;
+                    _highlightRow(_activeIdx);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                _confirm();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                _cancel();
+            }
+        });
+
         inp.addEventListener('blur', function() {
-            // Fires after Enter too (removing element triggers blur) — _done guards against double-run
-            setTimeout(_confirm, 120);
+            setTimeout(function() { if (!_done) _confirm(); }, 150);
         });
     };
 
