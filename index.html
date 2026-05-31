@@ -4210,12 +4210,19 @@
         inp.focus();
         inp.select();
 
+        var _done = false;
         function _confirm() {
+            if (_done) return; // prevent double-fire (keydown + blur both call this)
+            _done = true;
             var newSym = inp.value.trim().toUpperCase();
             _restore();
             if (newSym && newSym !== currentSym) {
                 openMcFullscreen(newSym, _mcFsTf);
             }
+        }
+        function _cancel() {
+            _done = true;
+            _restore();
         }
         function _restore() {
             if (inp.parentNode) inp.parentNode.removeChild(inp);
@@ -4223,10 +4230,10 @@
         }
         inp.addEventListener('keydown', function(e) {
             if (e.key === 'Enter')  { e.preventDefault(); _confirm(); }
-            if (e.key === 'Escape') { e.preventDefault(); _restore(); }
+            if (e.key === 'Escape') { e.preventDefault(); _cancel(); }
         });
         inp.addEventListener('blur', function() {
-            // Small delay so a click on Enter doesn't race with blur
+            // Fires after Enter too (removing element triggers blur) — _done guards against double-run
             setTimeout(_confirm, 120);
         });
     };
