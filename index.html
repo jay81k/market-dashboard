@@ -3149,6 +3149,7 @@
         }
         var chart = LightweightCharts.createChart(container, {
             autoSize: true,
+            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:    { vertLines: { color: '#171b22' }, horzLines: { color: '#171b22' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
@@ -3605,6 +3606,7 @@
 
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
+            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
@@ -11633,6 +11635,7 @@ var _mmPopup = (function () {
         lwChart = LightweightCharts.createChart(popupChart, {
             width:  popupChart.clientWidth  || POPUP_W,
             height: popupChart.clientHeight || 220,
+            watermark: { visible: false },
             layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
             grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
