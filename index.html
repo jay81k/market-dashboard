@@ -3770,6 +3770,13 @@
                 if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
                 return;
             }
+            // Right-click while AVWAP mode is active: turn it off, skip context menu
+            if (_mcFsVwapMode) {
+                _mcFsVwapMode = false;
+                var vBtn = document.getElementById('mc-fs-vwap-btn');
+                if (vBtn) vBtn.classList.remove('active');
+                return;
+            }
             if (!_mcFsChart || !_mcFsSym) return;
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
