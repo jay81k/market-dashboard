@@ -3927,14 +3927,13 @@
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 8 },
-            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
             handleScale:  { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
 
-        // TV-style: plain scroll = pan, Ctrl+scroll = zoom anchored at cursor position
+        // TV-style: scroll = zoom anchored at cursor (no Ctrl needed), drag = pan
         _mcFsWheelZoom = function(e) {
-            if (!e.ctrlKey && !e.metaKey) return;
             e.preventDefault(); e.stopPropagation();
             var ts = _mcFsChart.timeScale();
             var range = ts.getVisibleLogicalRange();
