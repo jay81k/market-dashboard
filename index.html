@@ -3040,6 +3040,7 @@
     var _AVWAP_COLOR     = '#4caf50';
     var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
     var _mcFsKeyHandler  = null;
+    var _mcFsWheelZoom   = null;   // Ctrl+scroll zoom handler (TV-style)
 
     // Trendline drawing state
     var _mcFsTrendlineMode          = false;   // tool active?
@@ -3874,6 +3875,7 @@
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsSelectedTrendlineIdx = -1;
         _mcFsSelectedVwapIdx = -1;
+        if (_mcFsWheelZoom) { container.removeEventListener('wheel', _mcFsWheelZoom, true); _mcFsWheelZoom = null; }
         _mcFsDismissCtx();
 
         _mcFsOhlcv = ohlcv;
@@ -3925,9 +3927,29 @@
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 8 },
-            handleScroll: true, handleScale: true,
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScale:  { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
+
+        // TV-style: plain scroll = pan, Ctrl+scroll = zoom anchored at cursor position
+        _mcFsWheelZoom = function(e) {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault(); e.stopPropagation();
+            var ts = _mcFsChart.timeScale();
+            var range = ts.getVisibleLogicalRange();
+            if (!range) return;
+            var rect = container.getBoundingClientRect();
+            var x = e.clientX - rect.left;
+            var rangeLen = range.to - range.from;
+            var pin = (typeof ts.coordinateToLogical === 'function') ? ts.coordinateToLogical(x) : null;
+            if (pin === null || pin === undefined) pin = range.from + (x / rect.width) * rangeLen;
+            var factor = e.deltaY > 0 ? 1.15 : (1 / 1.15);
+            var newLen = rangeLen * factor;
+            var ratio  = (pin - range.from) / rangeLen;
+            ts.setVisibleLogicalRange({ from: pin - ratio * newLen, to: pin + (1 - ratio) * newLen });
+        };
+        container.addEventListener('wheel', _mcFsWheelZoom, { passive: false, capture: true });
 
         _mcFsCandle = _mcFsChart.addSeries(LightweightCharts.CandlestickSeries, {
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
