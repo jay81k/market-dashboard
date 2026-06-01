@@ -3070,7 +3070,7 @@
     };
 
     function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
-    function _mcRange(tf)    { return tf === 'W' ? '2y'  : tf === 'M' ? '5y'  : '5y'; }
+    function _mcRange(tf)    { return tf === 'W' ? 'max' : tf === 'M' ? 'max' : '10y'; }
 
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
     function fetchMcOhlcv(sym, tf) {
