@@ -4296,8 +4296,8 @@
         if (maChevron) maChevron.style.transform = '';
         // Default viewport per TF
         _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
-        // Clear cache for W/M so incomplete-bar filter always runs fresh
-        if (tf !== 'D') delete _mcOhlcvCache[_mcFsSym + '_' + tf];
+        // Clear cache so every open fetches fresh data (including Daily)
+        delete _mcOhlcvCache[_mcFsSym + '_' + tf];
         // Fetch + rebuild
         var sym = _mcFsSym;
         var container = document.getElementById('mc-fullscreen-chart');
@@ -4678,6 +4678,7 @@
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
         var openSym = sym;
+        delete _mcOhlcvCache[sym + '_' + tf];
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (_mcFsSym === openSym && _mcFsTf === tf && _mcFsChart) return; // already rendered
