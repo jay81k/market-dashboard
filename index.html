@@ -3053,6 +3053,7 @@
     var _mcFsTrendContRef           = null;    // reference to chart container div
     var _mcFsTrendMoveBound         = false;   // mousemove attached to document once
     var _mcFsSelectedTrendlineIdx   = -1;      // index in _mcFsTrendlines of selected line, -1 = none
+    var _mcFsSelectedVwapIdx        = -1;      // index in _mcFsVwapSeries of selected AVWAP, -1 = none
     var _mcFsTrendDragState         = null;    // { tlIdx, anchorSide:'left'|'right' } during anchor drag
 
     // Render-token per multichart context (prevents stale renders)
@@ -3330,7 +3331,8 @@
         if (!data.length) return;
         var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
         s.setData(data);
-        _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color });
+        var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
+        _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color, dataMap: dataMap });
     }
 
     // Converts a time to a pixel X coordinate, extrapolating linearly for
@@ -3456,6 +3458,19 @@
             if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
         });
         _mcFsSelectedTrendlineIdx = -1;
+    }
+
+    function _selectVwap(idx) {
+        _mcFsVwapSeries.forEach(function(entry, i) {
+            entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
+        });
+        _mcFsSelectedVwapIdx = idx;
+    }
+    function _deselectAllVwaps() {
+        _mcFsVwapSeries.forEach(function(entry) {
+            entry.series.applyOptions({ lineWidth: 1.5 });
+        });
+        _mcFsSelectedVwapIdx = -1;
     }
 
     // Returns 'left' or 'right' if clientX/Y is near an anchor of trendline[tlIdx], else null
@@ -3858,7 +3873,7 @@
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsSelectedTrendlineIdx = -1;
-        _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
+        _mcFsSelectedVwapIdx = -1;
         _mcFsDismissCtx();
 
         _mcFsOhlcv = ohlcv;
@@ -4049,13 +4064,42 @@
         var n = _mcFsOhlcv.length;
         _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 7 });
 
-        // Click handler — AVWAP anchor
+        // Click handler — AVWAP anchor + AVWAP line selection
         _mcFsChart.subscribeClick(function(param) {
             // ── AVWAP anchor ───────────────────────────────────────────────
-            if (!_mcFsVwapMode || !param.time) return;
-            var idx = _barIdxByTime(_mcFsOhlcv, param.time);
-            if (idx < 0) return;
-            _addFsVwap(idx);
+            if (_mcFsVwapMode) {
+                if (!param.time) return;
+                var idx = _barIdxByTime(_mcFsOhlcv, param.time);
+                if (idx < 0) return;
+                _addFsVwap(idx);
+                return;
+            }
+            // Don't interfere with trendline tool
+            if (_mcFsTrendlineMode) return;
+            // ── AVWAP line selection ───────────────────────────────────────
+            if (!_mcFsVwapSeries.length || !param.time || !param.point) {
+                if (_mcFsSelectedVwapIdx !== -1) _deselectAllVwaps();
+                return;
+            }
+            var HIT_PX = 8;
+            var hitIdx = -1;
+            _mcFsVwapSeries.forEach(function(entry, i) {
+                if (!entry.dataMap) return;
+                var avwapVal = entry.dataMap.get(param.time);
+                if (avwapVal == null) return;
+                var yCoord = entry.series.priceToCoordinate(avwapVal);
+                if (yCoord == null) return;
+                if (Math.abs(param.point.y - yCoord) <= HIT_PX) hitIdx = i;
+            });
+            if (hitIdx !== -1) {
+                if (_mcFsSelectedVwapIdx === hitIdx) {
+                    _deselectAllVwaps();
+                } else {
+                    _selectVwap(hitIdx);
+                }
+            } else {
+                if (_mcFsSelectedVwapIdx !== -1) _deselectAllVwaps();
+            }
         });
 
         // OHLC legend
@@ -4196,6 +4240,8 @@
                     if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
                 } else if (_mcFsSelectedTrendlineIdx !== -1) {
                     _deselectAllTrendlines();
+                } else if (_mcFsSelectedVwapIdx !== -1) {
+                    _deselectAllVwaps();
                 }
                 return;
             }
@@ -4208,20 +4254,20 @@
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
                 return;
             }
+            // Delete selected AVWAP
+            if (_mcFsSelectedVwapIdx !== -1) {
+                var selVwapIdx = _mcFsSelectedVwapIdx;
+                _mcFsSelectedVwapIdx = -1;
+                var removed = _mcFsVwapSeries.splice(selVwapIdx, 1)[0];
+                try { _mcFsChart.removeSeries(removed.series); } catch(e) {}
+                _mcFsVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                return;
+            }
             // Trendline delete (last) when draw tool is active
             if (_mcFsTrendlineMode && _mcFsTrendlines.length) {
                 var tLast = _mcFsTrendlines.pop();
                 try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tLast.primitive); } catch(e) {}
                 return;
-            }
-            if (!_mcFsVwapSeries.length || !_mcFsChart) return;
-            var last = _mcFsVwapSeries.pop();
-            try { _mcFsChart.removeSeries(last.series); } catch(err) {}
-            if (_mcFsVwapSeries.length === 0) {
-                if (!_mcFsVwapMode) {
-                    var vBtn = document.getElementById('mc-fs-vwap-btn');
-                    if (vBtn) vBtn.classList.remove('active');
-                }
             }
         };
         document.addEventListener('keydown', _mcFsKeyHandler);
@@ -4234,7 +4280,7 @@
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
         // Reset AVWAP
-        _mcFsVwapMode = false; _mcFsVwapSeries = [];
+        _mcFsVwapMode = false; _mcFsVwapSeries = []; _mcFsSelectedVwapIdx = -1;
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
         if (vwapBtn)  vwapBtn.classList.remove('active');
         // Reset trendlines (symbol stays same but data reloads)
@@ -4603,7 +4649,7 @@
         }
 
         // Reset VWAP state for new symbol
-        _mcFsVwapMode = false; _mcFsVwapSeries = [];
+        _mcFsVwapMode = false; _mcFsVwapSeries = []; _mcFsSelectedVwapIdx = -1;
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
         if (vwapBtn)  vwapBtn.classList.remove('active');
         // Reset trendlines for new symbol (keep mode active if it was on)
@@ -4647,7 +4693,7 @@
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
-        _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1;
+        _mcFsTrendlineMode = false; _mcFsSelectedTrendlineIdx = -1; _mcFsSelectedVwapIdx = -1;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         if (tBtn)  tBtn.classList.remove('active');
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
