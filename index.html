@@ -4194,19 +4194,13 @@
                         + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
                         + '</span>';
             }
-            var vwapLegend = '';
-            _mcFsVwapSeries.forEach(function(entry, i) {
-                var avd = p.seriesData.get(entry.series);
-                if (avd) vwapLegend += '&nbsp;&nbsp;<span style="color:' + entry.color + '">AV' + (i + 1) + '</span> <span style="color:' + entry.color + '">' + fp(avd.value) + '</span>';
-            });
             leg.innerHTML =
                 '<span style="color:#8b949e">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
                 '<span style="color:#8b949e">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
                 '<span style="color:#8b949e">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
                 '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
-                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">V</span> <span style="color:#8b949e">'+fv(vd.value)+'</span>' : '') +
-                vwapLegend;
+                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">V</span> <span style="color:#8b949e">'+fv(vd.value)+'</span>' : '');
         });
 
         // ── Market info strip (price/change, day range, 52W range) ──────────────
