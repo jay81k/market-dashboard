@@ -3243,7 +3243,34 @@
             var vd = p.seriesData.get(vol);
             leg.innerHTML = '<span style="color:#6e7681">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:#6e7681">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:#6e7681">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:#6e7681">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:#484f58">V</span><span style="color:#6e7681">'+fv(vd.value)+'</span>':'');
         });
-        return { chart: chart };
+        return { chart: chart, candle: candle, vol: vol, ohlcv: ohlcv };
+    }
+
+    // ── Push live intraday price into a rendered multichart cell ──────────────
+    function _updateMcLiveCandle(ticker, price, dayHigh, dayLow, widgetsObj) {
+        var inst = widgetsObj && widgetsObj[ticker];
+        if (!inst || !inst.candle || !inst.ohlcv || !inst.ohlcv.length) return;
+        var d = new Date();
+        var todayTs = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
+        var last = inst.ohlcv[inst.ohlcv.length - 1];
+        var open, high, low, volume;
+        if (last.time === todayTs) {
+            open   = last.open;
+            high   = dayHigh != null ? Math.max(last.high, dayHigh, price) : Math.max(last.high, price);
+            low    = dayLow  != null ? Math.min(last.low,  dayLow,  price) : Math.min(last.low,  price);
+            volume = last.volume;
+            last.high  = high;
+            last.low   = low;
+            last.close = price;
+        } else {
+            open = high = low = price;
+            volume = 0;
+            inst.ohlcv.push({ time: todayTs, open: open, high: high, low: low, close: price, volume: volume });
+        }
+        try { inst.candle.update({ time: todayTs, open: open, high: high, low: low, close: price, volume: volume }); } catch(e) {}
+        if (inst.vol) {
+            try { inst.vol.update({ time: todayTs, value: volume, color: price >= open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' }); } catch(e) {}
+        }
     }
 
     function _destroyMcWidgets(widgets) {
@@ -3924,7 +3951,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 8 },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 12 },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
@@ -4841,6 +4868,8 @@
                     }
                 }
             }
+            // ── Live multichart candle update ─────────────────────────────
+            _updateMcLiveCandle(ticker, price, live.dayHigh, live.dayLow, mcWidgets);
         });
     }
 
@@ -7635,6 +7664,8 @@
                     tr.setAttribute('data-dist_ma', liveDist);
                 }
             }
+            // ── Live multichart candle update ─────────────────────────────
+            _updateMcLiveCandle(ticker, price, live.dayHigh, live.dayLow, scansMcWidgets);
         });
     }
 
