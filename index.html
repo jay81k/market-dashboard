@@ -817,7 +817,7 @@
         }
         .wl-chart-tf-btn:hover  { background: #161b22; color: #c8d0dc; }
         .wl-chart-tf-btn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
-        .wl-chart-body { flex: 1; min-height: 0; }
+        .wl-chart-body { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
         .wl-chart-empty {
             flex: 1; display: flex; align-items: center; justify-content: center;
             color: #484f58; font-size: 0.902em;
@@ -1904,9 +1904,60 @@
                     </button>
                 </div>
             </div>
+            <!-- WL LW Chart Settings Bar — hidden until a ticker is selected -->
+            <div id="wl-chart-settings" style="display:none;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
+                <div style="display:flex;gap:3px;">
+                    <button class="mc-tf-btn wl-chart-fs-tf-btn active" data-tf="D" onclick="wlChartSetTf('D')">D</button>
+                    <button class="mc-tf-btn wl-chart-fs-tf-btn"        data-tf="W" onclick="wlChartSetTf('W')">W</button>
+                    <button class="mc-tf-btn wl-chart-fs-tf-btn"        data-tf="M" onclick="wlChartSetTf('M')">M</button>
+                </div>
+                <div class="mc-toolbar-sep"></div>
+                <div id="wl-chart-ma-wrap" style="position:relative;">
+                    <button class="mc-tf-btn" id="wl-chart-ma-toggle-btn" onclick="wlChartToggleMaPanel(event)" title="Moving Averages" style="display:flex;align-items:center;gap:4px;">
+                        MA
+                        <svg id="wl-chart-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
+                    </button>
+                    <div id="wl-chart-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
+                        <button class="mc-ma-item active" id="wl-chart-ma-SMA5"   onclick="wlChartToggleMa('SMA5')">  <span class="mc-ma-swatch" style="background:#673ab7;"></span>SMA 5  <span class="mc-ma-check">✓</span></button>
+                        <button class="mc-ma-item active" id="wl-chart-ma-EMA8"   onclick="wlChartToggleMa('EMA8')">  <span class="mc-ma-swatch" style="background:#f48fb1;"></span>EMA 8  <span class="mc-ma-check">✓</span></button>
+                        <button class="mc-ma-item active" id="wl-chart-ma-EMA21"  onclick="wlChartToggleMa('EMA21')"> <span class="mc-ma-swatch" style="background:#1848cc;"></span>EMA 21 <span class="mc-ma-check">✓</span></button>
+                        <button class="mc-ma-item active" id="wl-chart-ma-SMA50"  onclick="wlChartToggleMa('SMA50')"> <span class="mc-ma-swatch" style="background:#f23645;"></span>SMA 50 <span class="mc-ma-check">✓</span></button>
+                        <button class="mc-ma-item active" id="wl-chart-ma-SMA150" onclick="wlChartToggleMa('SMA150')"><span class="mc-ma-swatch" style="background:#757575;"></span>SMA 150<span class="mc-ma-check">✓</span></button>
+                        <button class="mc-ma-item active" id="wl-chart-ma-SMA200" onclick="wlChartToggleMa('SMA200')"><span class="mc-ma-swatch" style="background:#888;"></span>SMA 200<span class="mc-ma-check">✓</span></button>
+                    </div>
+                </div>
+                <div class="mc-toolbar-sep"></div>
+                <button class="mc-tf-btn" id="wl-chart-trendline-btn" onclick="wlChartToggleTrendline()" title="Trendline" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                        <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        <circle cx="2" cy="14" r="1.8" fill="currentColor"/>
+                        <circle cx="14" cy="2" r="1.8" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="mc-toolbar-sep"></div>
+                <button class="mc-tf-btn" id="wl-chart-vwap-btn" onclick="wlChartToggleVwap()" title="AVWAP" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                        <line x1="3"  y1="2" x2="3"  y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="8"  y1="2" x2="8"  y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="13" y1="2" x2="13" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="3"  cy="10" r="2" fill="#0d1117" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="8"  cy="5"  r="2" fill="#0d1117" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="13" cy="12" r="2" fill="#0d1117" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </button>
+                <div id="wl-chart-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
+                    <span id="wl-chart-mkt-mcap" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span id="wl-chart-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span id="wl-chart-mkt-52w"  style="display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span id="wl-chart-mkt-price" style="flex-shrink:0;"></span>
+                </div>
+            </div>
             <div class="wl-chart-body" id="wl-chart-body">
                 <div class="wl-chart-empty" id="wl-chart-empty">Select a ticker from a watchlist to chart it</div>
-                <div id="wl-chart-widget" style="width:100%;height:100%;display:none;"></div>
+                <div id="wl-chart-widget" style="width:100%;height:100%;display:none;position:relative;"></div>
                 <!-- Watchlist multichart view -->
                 <div id="wl-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;height:100%;">
                     <div class="multichart-toolbar" id="wl-multichart-toolbar">
@@ -2293,6 +2344,18 @@
         <button class="ctx-item" id="mc-fs-ctx-below" onclick="mcFsCtxAlert('below')">
             <span class="ctx-dot" style="background:#f85149;"></span>
             <span id="mc-fs-ctx-below-txt">Alert below …</span>
+        </button>
+    </div>
+    <!-- Right-click context menu for WL LW chart -->
+    <div id="wl-chart-ctx-menu">
+        <div class="ctx-label" id="wl-chart-ctx-label">Set alert</div>
+        <button class="ctx-item" id="wl-chart-ctx-above" onclick="wlCtxAlert('above')">
+            <span class="ctx-dot" style="background:#3fb950;"></span>
+            <span id="wl-chart-ctx-above-txt">Alert above …</span>
+        </button>
+        <button class="ctx-item" id="wl-chart-ctx-below" onclick="wlCtxAlert('below')">
+            <span class="ctx-dot" style="background:#f85149;"></span>
+            <span id="wl-chart-ctx-below-txt">Alert below …</span>
         </button>
     </div>
 </div>
@@ -3057,6 +3120,39 @@
     var _mcFsSelectedTrendlineIdx   = -1;      // index in _mcFsTrendlines of selected line, -1 = none
     var _mcFsSelectedVwapIdx        = -1;      // index in _mcFsVwapSeries of selected AVWAP, -1 = none
     var _mcFsTrendDragState         = null;    // { tlIdx, anchorSide:'left'|'right' } during anchor drag
+
+    // ── Watchlist LW chart state (mirrors _mcFs* for the side-panel chart) ───
+    var _wlOhlcv              = [];
+    var _wlSym                = null;
+    var _wlTf                 = 'D';
+    var _wlLastCrosshairPrice = null;
+    var _wlChart              = null;
+    var _wlCandle             = null;
+    var _wlVol                = null;
+    var _wlVolMa              = null;
+    var _wlVolData            = null;
+    var _wlMaSeries           = {};
+    var _wlMaDataMap          = {};
+    var _wlLastCrosshairTime  = null;
+    var _wlVwapSeries         = [];
+    var _wlVwapMode           = false;
+    var _wlVisibleBars        = 252;
+    var _wlActiveMas          = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
+    var _wlKeyHandler         = null;
+    var _wlTrendlineMode      = false;
+    var _wlTrendlines         = [];
+    var _wlTrendlineFirst     = null;
+    var _wlTrendSvgOverlay    = null;
+    var _wlTrendSvgLine       = null;
+    var _wlTrendDraw          = { active: false, startTime: null, startPrice: null };
+    var _wlTrendContRef       = null;
+    var _wlTrendMoveBound     = false;
+    var _wlSelectedTrendlineIdx = -1;
+    var _wlSelectedVwapIdx      = -1;
+    var _wlTrendDragState       = null;
+    var _wlCtxPrice             = null;
+    var _wlCtxMa                = null;
+    var _wlCtxAttached          = false;
 
     // Render-token per multichart context (prevents stale renders)
     var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
@@ -4771,6 +4867,916 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
     };
+
+    // ══════════════════════════════════════════════════════════════════════
+    // WATCHLIST LW CHART — full parallel to the mc-fullscreen chart system
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Trendline primitive ───────────────────────────────────────────────
+    function _addWlTrendline(p1, p2) {
+        if (!_wlChart || !_wlCandle || !_wlOhlcv.length) return;
+        var refChart  = _wlChart;
+        var refSeries = _wlCandle;
+        var ohlcv     = _wlOhlcv;
+        var leftP  = p1.time <= p2.time ? p1 : p2;
+        var rightP = p1.time <= p2.time ? p2 : p1;
+        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
+        var primitive = {
+            attached: function(param) {
+                tlObj.requestUpdate = function() { try { param.requestUpdate(); } catch(e) {} };
+                param.requestUpdate();
+            },
+            paneViews: function() {
+                return [{
+                    renderer: function() {
+                        return {
+                            draw: function(target) {
+                                if (tlObj.dragging) return;
+                                var x1 = _mcFsTimeToX(refChart, ohlcv, tlObj.leftP.time);
+                                var x2 = _mcFsTimeToX(refChart, ohlcv, tlObj.rightP.time);
+                                var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
+                                var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
+                                if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+                                target.useBitmapCoordinateSpace(function(scope) {
+                                    var ctx = scope.context;
+                                    var rx  = scope.horizontalPixelRatio;
+                                    var ry  = scope.verticalPixelRatio;
+                                    var bx1 = x1 * rx, by1 = y1 * ry;
+                                    var bx2 = x2 * rx, by2 = y2 * ry;
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.moveTo(bx1, by1);
+                                    ctx.lineTo(bx2, by2);
+                                    ctx.strokeStyle = _TRENDLINE_COLOR;
+                                    ctx.lineWidth   = 1.5 * rx;
+                                    ctx.stroke();
+                                    if (tlObj.selected) {
+                                        [[bx1, by1], [bx2, by2]].forEach(function(pt) {
+                                            ctx.beginPath();
+                                            ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
+                                            ctx.fillStyle   = _TRENDLINE_COLOR;
+                                            ctx.fill();
+                                            ctx.strokeStyle = '#0d1117';
+                                            ctx.lineWidth   = 1.5 * rx;
+                                            ctx.stroke();
+                                        });
+                                    }
+                                    ctx.restore();
+                                });
+                            }
+                        };
+                    }
+                }];
+            }
+        };
+        tlObj.primitive = primitive;
+        refSeries.attachPrimitive(primitive);
+        _wlTrendlines.push(tlObj);
+    }
+
+    // ── Hit-test helpers ─────────────────────────────────────────────────
+    function _wlTrendlineHitTest(clientX, clientY) {
+        if (!_wlChart || !_wlCandle || !_wlTrendlines.length || !_wlTrendContRef) return -1;
+        var rect     = _wlTrendContRef.getBoundingClientRect();
+        var px       = clientX - rect.left;
+        var py       = clientY - rect.top;
+        var HIT_PX   = 7;
+        var bestIdx  = -1;
+        var bestDist = HIT_PX;
+        _wlTrendlines.forEach(function(tl, idx) {
+            var x1 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.leftP.time);
+            var x2 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.rightP.time);
+            var y1 = _wlCandle.priceToCoordinate(tl.leftP.price);
+            var y2 = _wlCandle.priceToCoordinate(tl.rightP.price);
+            if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+            var dx = x2 - x1, dy = y2 - y1;
+            var lenSq = dx * dx + dy * dy;
+            var dist;
+            if (lenSq === 0) {
+                dist = Math.hypot(px - x1, py - y1);
+            } else {
+                var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+                dist  = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+            }
+            if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+        });
+        return bestIdx;
+    }
+
+    function _wlDeselectAllTrendlines() {
+        _wlTrendlines.forEach(function(tl) {
+            if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
+        });
+        _wlSelectedTrendlineIdx = -1;
+    }
+
+    function _wlSelectVwap(idx) {
+        _wlVwapSeries.forEach(function(entry, i) {
+            entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
+        });
+        _wlSelectedVwapIdx = idx;
+    }
+    function _wlDeselectAllVwaps() {
+        _wlVwapSeries.forEach(function(entry) {
+            entry.series.applyOptions({ lineWidth: 1.5 });
+        });
+        _wlSelectedVwapIdx = -1;
+    }
+
+    function _wlAnchorHitTest(clientX, clientY, tlIdx) {
+        if (tlIdx < 0 || !_wlTrendlines[tlIdx] || !_wlChart || !_wlCandle || !_wlTrendContRef) return null;
+        var tl   = _wlTrendlines[tlIdx];
+        var rect = _wlTrendContRef.getBoundingClientRect();
+        var px   = clientX - rect.left;
+        var py   = clientY - rect.top;
+        var HIT  = 10;
+        var x1 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.leftP.time);
+        var y1 = _wlCandle.priceToCoordinate(tl.leftP.price);
+        if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
+        var x2 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.rightP.time);
+        var y2 = _wlCandle.priceToCoordinate(tl.rightP.price);
+        if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
+        return null;
+    }
+
+    // ── Anchor drag ───────────────────────────────────────────────────────
+    function _onWlTrendAnchorDragMove(evt) {
+        if (!_wlTrendDragState || !_wlChart || !_wlCandle || !_wlTrendContRef) return;
+        var tl = _wlTrendlines[_wlTrendDragState.tlIdx];
+        if (!tl) return;
+        if (_wlTrendContRef) _wlTrendContRef.style.cursor = 'grabbing';
+        var rect  = _wlTrendContRef.getBoundingClientRect();
+        var lx    = evt.clientX - rect.left;
+        var ly    = evt.clientY - rect.top;
+        var price = _wlCandle.coordinateToPrice(ly);
+        var time  = _wlChart.timeScale().coordinateToTime(lx);
+        if (price == null) return;
+        if (time == null) {
+            var ohlcv  = _wlOhlcv;
+            var last   = ohlcv[ohlcv.length - 1];
+            var prev   = ohlcv[ohlcv.length - 2] || last;
+            var barSec = ohlcv.length >= 2 ? (last.time - prev.time) : 86400;
+            var lastX  = _wlChart.timeScale().timeToCoordinate(last.time);
+            if (lastX == null) return;
+            var prevX    = _wlChart.timeScale().timeToCoordinate(prev.time);
+            var pxPerBar = prevX != null ? Math.abs(lastX - prevX) : 8;
+            var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
+            time = last.time + barsAhead * barSec;
+        }
+        var newAnchor = { time: time, price: price };
+        if (_wlTrendDragState.anchorSide === 'left') {
+            tl.leftP = newAnchor;
+        } else {
+            tl.rightP = newAnchor;
+        }
+        if (tl.leftP.time > tl.rightP.time) {
+            var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
+            _wlTrendDragState.anchorSide = _wlTrendDragState.anchorSide === 'left' ? 'right' : 'left';
+        }
+        tl.p1 = tl.leftP; tl.p2 = tl.rightP;
+        if (_wlTrendSvgOverlay && _wlTrendSvgLine && _wlTrendDragState.fixedX != null) {
+            _wlTrendSvgLine.setAttribute('x2', lx);
+            _wlTrendSvgLine.setAttribute('y2', ly);
+        }
+    }
+
+    function _onWlTrendAnchorDragEnd() {
+        var state = _wlTrendDragState;
+        _wlTrendDragState = null;
+        document.removeEventListener('mousemove', _onWlTrendAnchorDragMove);
+        document.removeEventListener('mouseup',   _onWlTrendAnchorDragEnd);
+        if (_wlTrendContRef) _wlTrendContRef.style.cursor = '';
+        if (state) {
+            var tl = _wlTrendlines[state.tlIdx];
+            if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
+        }
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+            });
+        });
+    }
+
+    // ── Trendline mousedown (capture phase, blocks LW canvas pan) ─────────
+    function _onWlTrendMouseDown(evt) {
+        if (evt.button !== 0 || !_wlCandle || !_wlChart || !_wlTrendContRef) return;
+
+        if (!_wlTrendDraw.active) {
+            var dragTlIdx = -1, anchorSide = null;
+            if (_wlSelectedTrendlineIdx !== -1) {
+                anchorSide = _wlAnchorHitTest(evt.clientX, evt.clientY, _wlSelectedTrendlineIdx);
+                if (anchorSide) dragTlIdx = _wlSelectedTrendlineIdx;
+            }
+            if (dragTlIdx === -1) {
+                for (var _di = 0; _di < _wlTrendlines.length; _di++) {
+                    var _as = _wlAnchorHitTest(evt.clientX, evt.clientY, _di);
+                    if (_as) { dragTlIdx = _di; anchorSide = _as; break; }
+                }
+            }
+            if (dragTlIdx !== -1) {
+                evt.stopPropagation();
+                if (_wlSelectedTrendlineIdx !== dragTlIdx) {
+                    _wlDeselectAllTrendlines();
+                    _wlSelectedTrendlineIdx = dragTlIdx;
+                    _wlTrendlines[dragTlIdx].selected = true;
+                    if (_wlTrendlines[dragTlIdx].requestUpdate) _wlTrendlines[dragTlIdx].requestUpdate();
+                }
+                var _dragTl = _wlTrendlines[dragTlIdx];
+                var _fixedP = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
+                var _fixedX = _mcFsTimeToX(_wlChart, _wlOhlcv, _fixedP.time);
+                var _fixedY = _wlCandle.priceToCoordinate(_fixedP.price);
+                _wlTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
+                _dragTl.dragging = true;
+                if (_dragTl.requestUpdate) _dragTl.requestUpdate();
+                if (_wlTrendSvgOverlay && _wlTrendSvgLine && _fixedX != null && _fixedY != null) {
+                    var _dRect = _wlTrendContRef.getBoundingClientRect();
+                    var _curX  = evt.clientX - _dRect.left;
+                    var _curY  = evt.clientY - _dRect.top;
+                    _wlTrendSvgLine.setAttribute('x1', _fixedX); _wlTrendSvgLine.setAttribute('y1', _fixedY);
+                    _wlTrendSvgLine.setAttribute('x2', _curX);   _wlTrendSvgLine.setAttribute('y2', _curY);
+                    _wlTrendSvgOverlay.style.display = '';
+                }
+                document.addEventListener('mousemove', _onWlTrendAnchorDragMove);
+                document.addEventListener('mouseup',   _onWlTrendAnchorDragEnd);
+                return;
+            }
+        }
+
+        if (!_wlTrendDraw.active) {
+            var hitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
+            if (hitIdx !== -1) {
+                evt.stopPropagation();
+                if (_wlSelectedTrendlineIdx !== -1 && _wlSelectedTrendlineIdx !== hitIdx) {
+                    var prev = _wlTrendlines[_wlSelectedTrendlineIdx];
+                    if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
+                }
+                _wlSelectedTrendlineIdx = hitIdx;
+                _wlTrendlines[hitIdx].selected = true;
+                if (_wlTrendlines[hitIdx].requestUpdate) _wlTrendlines[hitIdx].requestUpdate();
+                return;
+            }
+            if (_wlSelectedTrendlineIdx !== -1) _wlDeselectAllTrendlines();
+        }
+
+        if (!_wlTrendlineMode) return;
+        evt.stopPropagation();
+
+        var rect  = _wlTrendContRef.getBoundingClientRect();
+        var lx    = evt.clientX - rect.left;
+        var ly    = evt.clientY - rect.top;
+        var price = _wlCandle.coordinateToPrice(ly);
+        var time  = null;
+        if (_wlOhlcv.length >= 2) {
+            var _ohlcv   = _wlOhlcv;
+            var _last    = _ohlcv[_ohlcv.length - 1];
+            var _prev    = _ohlcv[_ohlcv.length - 2];
+            var _lastX   = _wlChart.timeScale().timeToCoordinate(_last.time);
+            var _prevX   = _wlChart.timeScale().timeToCoordinate(_prev.time);
+            var _pxPerBar = (_lastX != null && _prevX != null) ? Math.abs(_lastX - _prevX) : 8;
+            if (_lastX != null && lx > _lastX + _pxPerBar * 0.5) {
+                var _barSec   = _last.time - _prev.time;
+                var _barsAhead = Math.max(1, Math.round((lx - _lastX) / _pxPerBar));
+                time = _last.time + _barsAhead * _barSec;
+            } else {
+                time = _wlLastCrosshairTime || _last.time;
+            }
+        }
+        if (price == null || time == null) return;
+        if (!_wlTrendDraw.active) {
+            _wlTrendDraw.active     = true;
+            _wlTrendDraw.startTime  = time;
+            _wlTrendDraw.startPrice = price;
+            if (_wlTrendSvgOverlay && _wlTrendSvgLine && _wlChart) {
+                var ax = _wlChart.timeScale().timeToCoordinate(time);
+                var ay = _wlCandle.priceToCoordinate(price);
+                if (ax != null && ay != null) {
+                    _wlTrendSvgLine.setAttribute('x1', ax); _wlTrendSvgLine.setAttribute('y1', ay);
+                    _wlTrendSvgLine.setAttribute('x2', ax); _wlTrendSvgLine.setAttribute('y2', ay);
+                }
+                _wlTrendSvgOverlay.style.display = '';
+            }
+        } else {
+            var p1 = { time: _wlTrendDraw.startTime, price: _wlTrendDraw.startPrice };
+            _wlTrendDraw.active = false;
+            _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+            if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+            if (time !== p1.time) _addWlTrendline(p1, { time: time, price: price });
+            _wlTrendlineMode = false;
+            var tDoneBtn = document.getElementById('wl-chart-trendline-btn');
+            if (tDoneBtn) tDoneBtn.classList.remove('active');
+        }
+    }
+
+    // ── Trendline SVG mousemove preview ───────────────────────────────────
+    function _onWlTrendMouseMove(evt) {
+        if (_wlTrendDraw.active) {
+            if (!_wlTrendSvgOverlay || !_wlTrendSvgLine || !_wlCandle || !_wlChart || !_wlTrendContRef) return;
+            var rect  = _wlTrendContRef.getBoundingClientRect();
+            var curX  = evt.clientX - rect.left;
+            var curY  = evt.clientY - rect.top;
+            var startTime = _wlTrendDraw.startTime;
+            if (!startTime) return;
+            var x1 = _wlChart.timeScale().timeToCoordinate(startTime);
+            var y1 = _wlCandle.priceToCoordinate(_wlTrendDraw.startPrice);
+            if (x1 == null || y1 == null) return;
+            _wlTrendSvgLine.setAttribute('x1', x1);
+            _wlTrendSvgLine.setAttribute('y1', y1);
+            _wlTrendSvgLine.setAttribute('x2', curX);
+            _wlTrendSvgLine.setAttribute('y2', curY);
+            return;
+        }
+        if (_wlTrendlines.length && _wlTrendContRef && !_wlTrendlineMode) {
+            if (_wlTrendDragState) return;
+            if (_wlSelectedTrendlineIdx !== -1) {
+                var anchorSide = _wlAnchorHitTest(evt.clientX, evt.clientY, _wlSelectedTrendlineIdx);
+                if (anchorSide) { _wlTrendContRef.style.cursor = 'grab'; return; }
+            }
+            var hitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
+            _wlTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
+        }
+    }
+
+    // ── Right-click context menu ──────────────────────────────────────────
+    function _wlDismissCtx() {
+        document.getElementById('wl-chart-ctx-menu').style.display = 'none';
+        _wlCtxPrice = null;
+        _wlCtxMa    = null;
+    }
+
+    window.wlCtxAlert = function(direction) {
+        if (_wlCtxMa) {
+            var maKey = _wlCtxMa;
+            _wlDismissCtx();
+            if (!_wlSym) return;
+            alShowForm(_wlSym);
+            setTimeout(function() {
+                document.getElementById('al-input-type').value = 'ma';
+                if (typeof alFormTypeChange === 'function') alFormTypeChange();
+                document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
+                if (typeof alMACondChange === 'function') alMACondChange();
+                document.getElementById('al-input-ma').value = maKey;
+                document.getElementById('al-input-ma').focus();
+            }, 60);
+        } else {
+            var price = _wlCtxPrice;
+            _wlDismissCtx();
+            if (!_wlSym || price == null) return;
+            alShowForm(_wlSym);
+            setTimeout(function() {
+                document.getElementById('al-input-type').value = 'price';
+                if (typeof alFormTypeChange === 'function') alFormTypeChange();
+                document.getElementById('al-input-cond').value = direction === 'above' ? 'above' : 'below';
+                document.getElementById('al-input-price').value = price.toFixed(2);
+                document.getElementById('al-input-price').focus();
+            }, 60);
+        }
+    };
+
+    function _wlAttachCtxMenu() {
+        if (_wlCtxAttached) return;
+        _wlCtxAttached = true;
+        var chartDiv = document.getElementById('wl-chart-widget');
+        chartDiv.addEventListener('contextmenu', function(evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (_wlTrendDraw.active) {
+                _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+                return;
+            }
+            if (_wlVwapMode) {
+                _wlVwapMode = false;
+                var vBtn = document.getElementById('wl-chart-vwap-btn');
+                if (vBtn) vBtn.classList.remove('active');
+                return;
+            }
+            if (!_wlChart || !_wlSym) return;
+            var chartRect = chartDiv.getBoundingClientRect();
+            var localY    = evt.clientY - chartRect.top;
+            var price = _wlCtxPrice;
+            if (price == null || isNaN(price)) {
+                if (_wlCandle) {
+                    var fallbackPrice = _wlCandle.coordinateToPrice(localY);
+                    if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
+                }
+            }
+            if (price == null || isNaN(price)) return;
+            var nearestMa   = null;
+            var nearestDist = 10;
+            if (_wlLastCrosshairTime) {
+                Object.keys(_wlMaDataMap).forEach(function(key) {
+                    if (!_wlMaSeries[key]) return;
+                    var maVal = _wlMaDataMap[key].get(_wlLastCrosshairTime);
+                    if (maVal == null) return;
+                    var maCoord = _wlMaSeries[key].priceToCoordinate(maVal);
+                    if (maCoord == null) return;
+                    var dist = Math.abs(localY - maCoord);
+                    if (dist < nearestDist) { nearestDist = dist; nearestMa = key; }
+                });
+            }
+            _wlCtxPrice = price;
+            _wlCtxMa    = nearestMa;
+            if (nearestMa) {
+                var maLabel = _maLabel(nearestMa);
+                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · ' + maLabel;
+                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Price crosses above ' + maLabel;
+                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Price crosses below ' + maLabel;
+            } else {
+                var fmt = '$' + price.toFixed(2);
+                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · ' + fmt;
+                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above ' + fmt;
+                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below ' + fmt;
+            }
+            var menu  = document.getElementById('wl-chart-ctx-menu');
+            menu.style.display = 'block';
+            var mw = menu.offsetWidth  || 185;
+            var mh = menu.offsetHeight || 90;
+            var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
+            var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
+            menu.style.left = x + 'px';
+            menu.style.top  = y + 'px';
+            setTimeout(function() {
+                function _dismiss(e) {
+                    if (!menu.contains(e.target)) {
+                        _wlDismissCtx();
+                        document.removeEventListener('mousedown', _dismiss, true);
+                        document.removeEventListener('keydown',   _kd,      true);
+                    }
+                }
+                function _kd(e) {
+                    if (e.key === 'Escape') {
+                        _wlDismissCtx();
+                        document.removeEventListener('mousedown', _dismiss, true);
+                        document.removeEventListener('keydown',   _kd,      true);
+                    }
+                }
+                document.addEventListener('mousedown', _dismiss, true);
+                document.addEventListener('keydown',   _kd,      true);
+            }, 0);
+        }, true);
+    }
+
+    // ── Core chart builder ────────────────────────────────────────────────
+    function _destroyWlChart() {
+        if (_wlChart) { try { _wlChart.remove(); } catch(e) {} _wlChart = null; }
+        _wlCandle = null; _wlVol = null; _wlVolMa = null; _wlVolData = null; _wlMaSeries = {}; _wlVwapSeries = [];
+        _wlTrendlines = []; _wlTrendlineFirst = null;
+        _wlTrendSvgOverlay = null; _wlTrendSvgLine = null;
+        _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+        _wlTrendlineMode = false; _wlSelectedTrendlineIdx = -1; _wlSelectedVwapIdx = -1;
+        _wlMaDataMap = {}; _wlLastCrosshairTime = null; _wlSym = null;
+        if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); _wlKeyHandler = null; }
+        var mktEl = document.getElementById('wl-chart-mkt-info');
+        if (mktEl) mktEl.style.display = 'none';
+        var tBtn  = document.getElementById('wl-chart-trendline-btn');
+        if (tBtn)  tBtn.classList.remove('active');
+        var vBtn  = document.getElementById('wl-chart-vwap-btn');
+        if (vBtn)  vBtn.classList.remove('active');
+        var maPanel   = document.getElementById('wl-chart-ma-panel');
+        var maChevron = document.getElementById('wl-chart-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
+    }
+
+    function _buildWlChart(sym, ohlcv, tf) {
+        var container = document.getElementById('wl-chart-widget');
+        container.innerHTML = '';
+        _destroyWlChart();
+
+        _wlOhlcv = ohlcv;
+        _wlSym   = sym;
+        _wlTf    = tf;
+        _wlLastCrosshairPrice = null;
+
+        if (!window.LightweightCharts || !_wlOhlcv.length) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
+            return;
+        }
+
+        // SVG trendline overlay
+        _wlTrendContRef = container;
+        container.removeEventListener('mousedown', _onWlTrendMouseDown, true);
+        container.addEventListener('mousedown', _onWlTrendMouseDown, true);
+
+        var _existingSvg = container.querySelector('.wl-trend-svg-overlay');
+        if (_existingSvg) {
+            _wlTrendSvgOverlay = _existingSvg;
+            _wlTrendSvgLine    = _existingSvg.querySelector('line');
+        } else {
+            _wlTrendSvgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            _wlTrendSvgOverlay.setAttribute('class', 'wl-trend-svg-overlay');
+            _wlTrendSvgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
+            _wlTrendSvgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            _wlTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR);
+            _wlTrendSvgLine.setAttribute('stroke-width', '1.5');
+            _wlTrendSvgLine.setAttribute('x1', '0'); _wlTrendSvgLine.setAttribute('y1', '0');
+            _wlTrendSvgLine.setAttribute('x2', '0'); _wlTrendSvgLine.setAttribute('y2', '0');
+            _wlTrendSvgOverlay.appendChild(_wlTrendSvgLine);
+            container.style.position = 'relative';
+            container.appendChild(_wlTrendSvgOverlay);
+        }
+        _wlTrendSvgOverlay.style.display = 'none';
+
+        container.removeEventListener('mousemove', _onWlTrendMouseMove);
+        container.addEventListener('mousemove', _onWlTrendMouseMove);
+
+        // Create LW chart — identical options to fullscreen
+        _wlChart = LightweightCharts.createChart(container, {
+            autoSize: true,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681', panes: { separatorColor: '#161b22', separatorHoverColor: 'rgba(33,38,45,0.5)' } },
+            grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 12 },
+            handleScroll: true, handleScale: true,
+        });
+        _wlAttachCtxMenu();
+
+        // Candle series
+        _wlCandle = _wlChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: '#089981', downColor: '#b22833', borderVisible: false,
+            wickUpColor: '#089981', wickDownColor: '#b22833',
+            priceLineVisible: false, lastValueVisible: true,
+        });
+        _wlCandle.setData(_wlOhlcv);
+
+        // Volume pane
+        _wlVol = _wlChart.addSeries(LightweightCharts.HistogramSeries, {
+            color: '#63a0f8', priceFormat: { type: 'volume' },
+            priceLineVisible: false, lastValueVisible: true,
+        }, 1);
+        _wlVol.setData(_wlOhlcv.map(function(d) {
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+        }));
+        _wlVol.priceScale().applyOptions({ visible: true, borderColor: '#21262d', textColor: '#6e7681', minimumWidth: 60 });
+
+        // 50 SMA on volume
+        (function() {
+            var period = 50;
+            _wlVolData = [];
+            for (var i = period - 1; i < _wlOhlcv.length; i++) {
+                var sum = 0;
+                for (var j = i - (period - 1); j <= i; j++) sum += (_wlOhlcv[j].volume || 0);
+                _wlVolData.push({ time: _wlOhlcv[i].time, value: sum / period });
+            }
+            _wlVolMa = _wlChart.addSeries(LightweightCharts.LineSeries, {
+                color: '#1848cc', lineWidth: 1,
+                priceLineVisible: false, lastValueVisible: true,
+                crosshairMarkerVisible: false,
+            }, 1);
+            _wlVolMa.setData(_wlVolData);
+        })();
+
+        // Pin volume pane to ~22% height
+        (function() {
+            var panes = _wlChart.panes();
+            if (panes && panes.length >= 2) {
+                var totalH = container ? container.offsetHeight : 700;
+                panes[1].setHeight(Math.round(totalH * 0.22));
+            }
+        })();
+
+        // Vol % vs 50-SMA label
+        (function() {
+            if (!_wlVolData || !_wlVolData.length || !_wlOhlcv.length) return;
+            var lastBar = _wlOhlcv[_wlOhlcv.length - 1];
+            var lastVol = lastBar.volume;
+            var sma50   = _wlVolData[_wlVolData.length - 1].value;
+            if (!sma50) return;
+            function nthSunday(yr, mo, n) {
+                var d = new Date(Date.UTC(yr, mo, 1));
+                return new Date(Date.UTC(yr, mo, 1 + (7 - d.getUTCDay()) % 7 + (n - 1) * 7));
+            }
+            var now     = Date.now();
+            var barDate = new Date(lastBar.time * 1000);
+            var yr = barDate.getUTCFullYear(), mo = barDate.getUTCMonth(), dy = barDate.getUTCDate();
+            var isDST   = barDate >= nthSunday(yr, 2, 2) && barDate < nthSunday(yr, 10, 1);
+            var etDelta = isDST ? 4 : 5;
+            var mktOpen  = new Date(Date.UTC(yr, mo, dy,  9 + etDelta, 30));
+            var mktClose = new Date(Date.UTC(yr, mo, dy, 16 + etDelta,  0));
+            var totalMs  = mktClose - mktOpen;
+            var timeratio = 1.0;
+            if (now > mktOpen && now < mktClose) timeratio = totalMs / (now - mktOpen);
+            var projectedVol = lastVol * timeratio;
+            var volDiffPct   = (projectedVol / sma50 - 1) * 100;
+            var sign  = volDiffPct >= 0 ? '+' : '';
+            var color = volDiffPct >= 0 ? '#3fb950' : '#f85149';
+            var lbl = document.createElement('div');
+            lbl.id = 'wl-chart-vol-pct-label';
+            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
+            lbl.innerHTML = '<span style="color:#484f58;">›</span>'
+                          + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
+            container.appendChild(lbl);
+            setTimeout(function() {
+                if (!_wlChart) return;
+                var volPaneTop = 0, volPaneH = 0;
+                try {
+                    var panes = _wlChart.panes();
+                    var pe = (panes && panes[1] && typeof panes[1].getElement === 'function') ? panes[1].getElement() : null;
+                    if (pe) {
+                        var r = pe.getBoundingClientRect();
+                        var cr = container.getBoundingClientRect();
+                        volPaneTop = r.top  - cr.top;
+                        volPaneH   = r.height;
+                    }
+                } catch(e) {}
+                if (!volPaneH) {
+                    var totalH = container.offsetHeight;
+                    volPaneH   = Math.round(totalH * 0.22);
+                    volPaneTop = totalH - volPaneH - 22;
+                }
+                var lblTop = (volPaneTop + volPaneH - 28) + 'px';
+                function positionVolLabel() {
+                    if (!lbl.isConnected || !_wlChart) return;
+                    var lastX = _wlChart.timeScale().timeToCoordinate(lastBar.time);
+                    if (lastX == null || lastX < 0) { lbl.style.display = 'none'; return; }
+                    lbl.style.display = 'flex';
+                    lbl.style.left = (lastX + 10) + 'px';
+                    lbl.style.top  = lblTop;
+                }
+                positionVolLabel();
+                _wlChart.timeScale().subscribeVisibleTimeRangeChange(positionVolLabel);
+            }, 60);
+        })();
+
+        // Active MAs
+        Object.keys(_wlActiveMas).forEach(function(key) {
+            if (!_wlActiveMas[key]) return;
+            var def = _MC_MA_DEFS[key]; if (!def) return;
+            var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
+            var maData = _calcMA(_wlOhlcv, key);
+            s.setData(maData);
+            _wlMaSeries[key]  = s;
+            _wlMaDataMap[key] = new Map(maData.map(function(d) { return [d.time, d.value]; }));
+        });
+
+        // Visible range
+        var n = _wlOhlcv.length;
+        _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+
+        // Click: AVWAP + selection
+        _wlChart.subscribeClick(function(param) {
+            if (_wlVwapMode) {
+                if (!param.time) return;
+                var idx = _barIdxByTime(_wlOhlcv, param.time);
+                if (idx < 0) return;
+                var AVWAP_COLORS = ['#f9c74f','#43aa8b','#f94144','#577590','#f3722c','#90be6d'];
+                var color = AVWAP_COLORS[_wlVwapSeries.length % AVWAP_COLORS.length];
+                var data  = _calcAVWAP(_wlOhlcv, idx);
+                var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
+                var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+                s.setData(data);
+                _wlVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
+                return;
+            }
+            if (_wlTrendlineMode) return;
+            if (!_wlVwapSeries.length || !param.time || !param.point) {
+                if (_wlSelectedVwapIdx !== -1) _wlDeselectAllVwaps();
+                return;
+            }
+            var HIT_PX = 8;
+            var hitIdx = -1;
+            _wlVwapSeries.forEach(function(entry, i) {
+                if (!entry.dataMap) return;
+                var avwapVal = entry.dataMap.get(param.time);
+                if (avwapVal == null) return;
+                var yCoord = entry.series.priceToCoordinate(avwapVal);
+                if (yCoord == null) return;
+                if (Math.abs(param.point.y - yCoord) <= HIT_PX) hitIdx = i;
+            });
+            if (hitIdx !== -1) {
+                if (_wlSelectedVwapIdx === hitIdx) { _wlDeselectAllVwaps(); }
+                else { _wlSelectVwap(hitIdx); }
+            } else {
+                if (_wlSelectedVwapIdx !== -1) _wlDeselectAllVwaps();
+            }
+        });
+
+        // OHLC legend
+        var leg = document.createElement('div');
+        leg.id = 'wl-chart-legend';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        container.style.position = 'relative';
+        container.appendChild(leg);
+
+        function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+        function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
+
+        _wlChart.subscribeCrosshairMove(function(p) {
+            if (p.point && _wlCandle) {
+                var cursorPrice = _wlCandle.coordinateToPrice(p.point.y);
+                _wlLastCrosshairPrice = (cursorPrice != null && !isNaN(cursorPrice)) ? cursorPrice : null;
+            } else {
+                _wlLastCrosshairPrice = null;
+            }
+            _wlLastCrosshairTime = p.time || null;
+            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
+            var d = p.seriesData.get(_wlCandle); if (!d) { leg.innerHTML = ''; return; }
+            var cl = d.close >= d.open ? '#089981' : '#b22833';
+            var vd = p.seriesData.get(_wlVol);
+            var chgHtml = '';
+            var barIdx = _barIdxByTime(_wlOhlcv, p.time);
+            if (barIdx > 0) {
+                var prevClose = _wlOhlcv[barIdx - 1].close;
+                var delta = d.close - prevClose;
+                var pct = (delta / prevClose) * 100;
+                var chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+                chgHtml = '&nbsp;&nbsp;<span style="color:' + chgClr + '">'
+                        + (delta >= 0 ? '+' : '') + delta.toFixed(2)
+                        + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
+                        + '</span>';
+            }
+            leg.innerHTML =
+                '<span style="color:#8b949e">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
+                '<span style="color:#8b949e">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
+                '<span style="color:#8b949e">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
+                '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                chgHtml +
+                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">Vol</span> <span style="color:#8b949e">' + fv(vd.value) + '</span>' : '');
+        });
+
+        // Market info bar
+        (function() {
+            if (!_wlOhlcv.length) return;
+            var last    = _wlOhlcv[_wlOhlcv.length - 1];
+            var close   = last.close;
+            var dayHigh = last.high;
+            var dayLow  = last.low;
+            var prevBar = _wlOhlcv.length >= 2 ? _wlOhlcv[_wlOhlcv.length - 2] : null;
+            var chg     = prevBar ? close - prevBar.close : 0;
+            var pct     = prevBar && prevBar.close ? (chg / prevBar.close) * 100 : 0;
+            var sliceLen = tf === 'W' ? 52 : tf === 'M' ? 12 : 252;
+            var slice   = _wlOhlcv.slice(Math.max(0, _wlOhlcv.length - sliceLen));
+            var yrLow   = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
+            var yrHigh  = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
+            var chgColor = chg >= 0 ? '#3fb950' : '#f85149';
+            var chgSign  = chg >= 0 ? '+' : '';
+            var barLabel = tf === 'W' ? 'WK' : tf === 'M' ? 'MO' : 'DAY';
+            var barColor = chg >= 0 ? '#089981' : '#b22833';
+            function mkBar(low, high, curr, width, crLabel) {
+                var pos = (high > low) ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100)) : 50;
+                var p = pos.toFixed(1);
+                var crSpan = crLabel != null
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
+                    : '';
+                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">'
+                    + '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>'
+                    + '<span style="position:absolute;top:50%;left:' + p + '%;transform:translate(-50%,-50%);width:8px;height:8px;background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>'
+                    + crSpan + '</span>';
+            }
+            var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
+            var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149' } : null;
+            var mcapEl = document.getElementById('wl-chart-mkt-mcap');
+            if (mcapEl) {
+                var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
+                var mcapRaw = sd ? sd.MarketCap : null;
+                if (mcapRaw != null) {
+                    var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T' : mcapRaw >= 1e9 ? (mcapRaw/1e9).toFixed(2)+'B' : mcapRaw >= 1e6 ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
+                    mcapEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span><span style="color:#c9d1d9;font-size:12px;">' + mc + '</span>';
+                    mcapEl.style.display = 'inline-flex';
+                } else { mcapEl.style.display = 'none'; }
+            }
+            document.getElementById('wl-chart-mkt-price').innerHTML =
+                '<span style="color:#e6edf3;font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
+                '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' + chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
+            document.getElementById('wl-chart-mkt-day').innerHTML =
+                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
+                mkBar(dayLow, dayHigh, close, 130, crLabel) +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
+            document.getElementById('wl-chart-mkt-52w').innerHTML =
+                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
+                mkBar(yrLow, yrHigh, close, 120, null) +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
+            document.getElementById('wl-chart-mkt-info').style.display = 'flex';
+        })();
+
+        // Keyboard: Delete/Escape for trendlines + AVWAP
+        if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); }
+        _wlKeyHandler = function(evt) {
+            if (evt.key === 'Escape') {
+                if (_wlTrendDraw.active) {
+                    _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+                    if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+                } else if (_wlSelectedTrendlineIdx !== -1) {
+                    _wlDeselectAllTrendlines();
+                } else if (_wlSelectedVwapIdx !== -1) {
+                    _wlDeselectAllVwaps();
+                }
+                return;
+            }
+            if (evt.key !== 'Delete') return;
+            if (_wlSelectedTrendlineIdx !== -1) {
+                var selIdx = _wlSelectedTrendlineIdx;
+                _wlSelectedTrendlineIdx = -1;
+                var selTl = _wlTrendlines.splice(selIdx, 1)[0];
+                try { if (_wlCandle) _wlCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                return;
+            }
+            if (_wlSelectedVwapIdx !== -1) {
+                var selVwapIdx = _wlSelectedVwapIdx;
+                _wlSelectedVwapIdx = -1;
+                var removed = _wlVwapSeries.splice(selVwapIdx, 1)[0];
+                try { _wlChart.removeSeries(removed.series); } catch(e) {}
+                _wlVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                return;
+            }
+            if (_wlTrendlineMode && _wlTrendlines.length) {
+                var tLast = _wlTrendlines.pop();
+                try { if (_wlCandle) _wlCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+            }
+        };
+        document.addEventListener('keydown', _wlKeyHandler);
+    }
+
+    // ── WL chart controls (exposed to HTML onclick) ───────────────────────
+    window.wlChartSetTf = function(tf) {
+        if (!_wlSym) return;
+        _wlTf = tf;
+        document.querySelectorAll('.wl-chart-fs-tf-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-tf') === tf);
+        });
+        _wlVwapMode = false; _wlVwapSeries = []; _wlSelectedVwapIdx = -1;
+        var vwapBtn = document.getElementById('wl-chart-vwap-btn');
+        if (vwapBtn) vwapBtn.classList.remove('active');
+        _wlTrendlines = []; _wlTrendlineFirst = null; _wlSelectedTrendlineIdx = -1;
+        if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+        _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+        var maPanel   = document.getElementById('wl-chart-ma-panel');
+        var maChevron = document.getElementById('wl-chart-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
+        _wlVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        delete _mcOhlcvCache[_wlSym + '_' + tf];
+        var sym = _wlSym;
+        var container = document.getElementById('wl-chart-widget');
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+            if (_wlSym !== sym) return;
+            _buildWlChart(sym, ohlcv, tf);
+        });
+    };
+
+    window.wlChartToggleMaPanel = function(e) {
+        e.stopPropagation();
+        var panel   = document.getElementById('wl-chart-ma-panel');
+        var chevron = document.getElementById('wl-chart-ma-chevron');
+        if (!panel) return;
+        var opening = panel.style.display === 'none';
+        panel.style.display = opening ? '' : 'none';
+        if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+        if (opening) {
+            setTimeout(function() {
+                function _outsideClick(ev) {
+                    var wrap = document.getElementById('wl-chart-ma-wrap');
+                    if (wrap && !wrap.contains(ev.target)) {
+                        panel.style.display = 'none';
+                        if (chevron) chevron.style.transform = '';
+                        document.removeEventListener('click', _outsideClick, true);
+                    }
+                }
+                document.addEventListener('click', _outsideClick, true);
+            }, 0);
+        }
+    };
+
+    window.wlChartToggleMa = function(key) {
+        _wlActiveMas[key] = !_wlActiveMas[key];
+        var btn = document.getElementById('wl-chart-ma-' + key);
+        if (btn) btn.classList.toggle('active', _wlActiveMas[key]);
+        if (!_wlChart || !_wlOhlcv.length) return;
+        if (_wlActiveMas[key]) {
+            if (_wlMaSeries[key]) return;
+            var def = _MC_MA_DEFS[key]; if (!def) return;
+            var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
+            var maData = _calcMA(_wlOhlcv, key);
+            s.setData(maData);
+            _wlMaSeries[key]  = s;
+            _wlMaDataMap[key] = new Map(maData.map(function(d) { return [d.time, d.value]; }));
+        } else {
+            if (_wlMaSeries[key]) { try { _wlChart.removeSeries(_wlMaSeries[key]); } catch(e) {} delete _wlMaSeries[key]; }
+            delete _wlMaDataMap[key];
+        }
+    };
+
+    window.wlChartToggleVwap = function() {
+        _wlVwapMode = !_wlVwapMode;
+        var btn = document.getElementById('wl-chart-vwap-btn');
+        if (btn) btn.classList.toggle('active', _wlVwapMode);
+    };
+
+    window.wlChartToggleTrendline = function() {
+        _wlTrendlineMode = !_wlTrendlineMode;
+        var btn = document.getElementById('wl-chart-trendline-btn');
+        if (btn) btn.classList.toggle('active', _wlTrendlineMode);
+        _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+        _wlTrendlineFirst = null;
+        if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+        if (_wlSelectedTrendlineIdx !== -1) _wlDeselectAllTrendlines();
+    };
+
+    // ══════════════════════════════════════════════════════════════════════
 
     window.filterStocksTable = function(q) {
         q = (q || '').toLowerCase();
@@ -7938,11 +8944,19 @@
         btn.style.background  = wlMcActive ? '#1f3a5c' : '';
         btn.style.borderColor = wlMcActive ? '#388bfd' : '';
         btn.style.color       = wlMcActive ? '#58a6ff' : '';
-        document.getElementById('wl-chart-empty').style.display  = wlMcActive ? 'none' : '';
-        document.getElementById('wl-chart-widget').style.display = 'none';
+        var settingsBar = document.getElementById('wl-chart-settings');
+        document.getElementById('wl-chart-empty').style.display  = wlMcActive ? 'none' : (wlChartTicker ? 'none' : '');
+        document.getElementById('wl-chart-widget').style.display = wlMcActive ? 'none' : (wlChartTicker ? 'block' : 'none');
+        if (settingsBar) settingsBar.style.display = (!wlMcActive && wlChartTicker) ? 'flex' : 'none';
         document.getElementById('wl-multichart-view').style.display = wlMcActive ? 'flex' : 'none';
         document.querySelector('.wl-chart-panel-header').style.display = wlMcActive ? 'none' : '';
-        if (wlMcActive) renderWlMc();
+        if (wlMcActive) {
+            _destroyWlChart();
+            renderWlMc();
+        } else if (wlChartTicker) {
+            // Re-render the LW chart when coming back from multichart mode
+            wlSelectTicker(wlChartTicker);
+        }
     };
 
     window.setWlMcTf = function(tf) {
@@ -8702,98 +9716,38 @@
         var wlFundStatsEl = document.getElementById('wl-chart-fund-stats');
         if (wlFundStatsEl) wlFundStatsEl.innerHTML = fundStatsHtml(wlFundRow);
 
-        // Show chart widget
+        // Show LW chart — destroy any previous instance first
         document.getElementById('wl-chart-empty').style.display = 'none';
         var widgetDiv = document.getElementById('wl-chart-widget');
         widgetDiv.style.display = 'block';
-        wlChartWidget = null;
-        var mappedSym = TV_MAP[ticker] || ticker;
-        setTimeout(function() {
-            try {
-                widgetDiv.innerHTML = '';
-                wlChartWidget = new TradingView.widget({
-                    symbol: mappedSym, interval: wlChartTf, locale: 'en', style: '1',
-                    theme: 'dark', timezone: 'America/Toronto',
-                    toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                    gridColor: 'rgba(255,255,255,0.04)',
-                    hide_side_toolbar: false, hide_top_toolbar: false,
-                    hide_legend: false, hide_volume: true,
-                    details: true, hotlist: false, calendar: false,
-                    withdateranges: true, allow_symbol_change: true,
-                    save_image: false, enable_publishing: false,
-                    studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                    right_bar_margin: 1,
-                    autosize: true,
-                    container_id: 'wl-chart-widget',
-                });
-            // Listen for symbol changes in watchlist panel via postMessage
-            var _wlLastSym = ticker;
-            var _wlReady = false;
-            setTimeout(function() { _wlReady = true; }, 2000);
-            var _wlChartIframe = null;
-            setTimeout(function() {
-                var container = document.getElementById('wl-chart-widget');
-                if (container) _wlChartIframe = container.querySelector('iframe');
-            }, 500);
-            if (window._wlChartMsgHandler) { window.removeEventListener('message', window._wlChartMsgHandler); }
-            window._wlChartMsgHandler = function(e) {
-                if (!_wlReady) return;
-                try {
-                    // Only handle messages from this specific chart iframe
-                    if (_wlChartIframe && e.source !== _wlChartIframe.contentWindow) return;
-                    var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                    var sym = null;
-                    if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                        sym = data.data.original_name;
-                    }
-                    if (sym) {
-                        var bare = sym.indexOf(':') !== -1 ? sym.split(':')[1] : sym;
-                        if (bare && bare !== _wlLastSym) {
-                            _wlLastSym = bare;
-                            document.getElementById('wl-chart-sym').textContent = bare;
-                            var industry = '', msgPct = null, msgFundRow = null;
-                            if (snapshot && snapshot.by_industry) {
-                                outer2: for (var ind2 in snapshot.by_industry) {
-                                    var rows2 = snapshot.by_industry[ind2];
-                                    for (var j = 0; j < rows2.length; j++) {
-                                        if (rows2[j].ticker === bare) {
-                                            industry   = rows2[j].industry||'';
-                                            msgPct     = rows2[j].Percentile != null ? rows2[j].Percentile : null;
-                                            msgFundRow = rows2[j];
-                                            break outer2;
-                                        }
-                                    }
-                                }
-                            }
-                            var metaEl2 = document.getElementById('wl-chart-meta');
-                            if (metaEl2) {
-                                var indRankHtml2 = '';
-                                if (industry && industriesData && industriesData.industries) {
-                                    var indData2 = industriesData.industries.find(function(x){ return x.industry === industry; });
-                                    var total2   = industriesData.industries.length;
-                                    if (indData2 && indData2.rank != null) {
-                                        var pct2 = indData2.percentile != null ? indData2.percentile : null;
-                                        var rankColor2 = pct2 != null ? (pct2 >= 75 ? '#3fb950' : pct2 >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                                        indRankHtml2 = '<span style="margin:0 5px;color:#30363d;">·</span>' +
-                                            '<span style="color:' + rankColor2 + '">(' + indData2.rank + '/' + total2 + ')</span>';
-                                    }
-                                }
-                                metaEl2.innerHTML = industry ? industryLinkHtml(industry, null) + indRankHtml2 : '';
-                            }
-                            applyRsBadge(document.getElementById('wl-chart-rs-badge'), msgPct, msgFundRow ? msgFundRow.weighted_rs_pct : null, document.getElementById('wl-chart-3mrs-badge'));
-                            var wlMsgFundStatsEl = document.getElementById('wl-chart-fund-stats');
-                            if (wlMsgFundStatsEl) wlMsgFundStatsEl.innerHTML = fundStatsHtml(msgFundRow);
-                            var t2 = bare.replace(/[^A-Z0-9]/gi,'');
-                            var fb = document.getElementById('wl-chart-details-btn');
-                            if (fb) fb.href = 'https://finviz.com/quote.ashx?t=' + t2;
-                        }
-                    }
-                } catch(err) {}
-            };
-            window.addEventListener('message', window._wlChartMsgHandler);
-        } catch(e) {}
-        }, 50);
 
+        // Show settings bar and sync TF buttons to current wlChartTf
+        var settingsBar = document.getElementById('wl-chart-settings');
+        if (settingsBar) settingsBar.style.display = 'flex';
+        document.querySelectorAll('.wl-chart-fs-tf-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-tf') === wlChartTf);
+        });
+
+        // Reset per-symbol tool state
+        _wlVwapMode = false; _wlVwapSeries = []; _wlSelectedVwapIdx = -1;
+        var vwapBtn = document.getElementById('wl-chart-vwap-btn');
+        if (vwapBtn) vwapBtn.classList.remove('active');
+        _wlTrendlines = []; _wlTrendlineFirst = null; _wlSelectedTrendlineIdx = -1;
+        if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+        _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+        var maPanel   = document.getElementById('wl-chart-ma-panel');
+        var maChevron = document.getElementById('wl-chart-ma-chevron');
+        if (maPanel)   maPanel.style.display = 'none';
+        if (maChevron) maChevron.style.transform = '';
+
+        _wlVisibleBars = wlChartTf === 'D' ? 252 : wlChartTf === 'W' ? 104 : 60;
+        widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
+        var loadTicker = ticker;
+        fetchMcOhlcv(ticker, wlChartTf).then(function(ohlcv) {
+            // Guard: a newer ticker was already selected
+            if (wlChartTicker !== loadTicker) return;
+            _buildWlChart(loadTicker, ohlcv, wlChartTf);
+        });
         // Update active row highlight
         document.querySelectorAll('.wl-ticker-row').forEach(function(r){
             r.classList.toggle('active', r.getAttribute('data-wl-ticker') === ticker);
