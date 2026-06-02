@@ -3981,12 +3981,18 @@
         _mcFsCandle.setData(_mcFsOhlcv);
 
         _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
-            priceFormat: { type: 'volume' },
-            priceLineVisible: false, lastValueVisible: false,
+            color: '#2d6ae0', priceFormat: { type: 'volume' },
+            priceLineVisible: false, lastValueVisible: true,
         }, 1);
         _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
             return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
         }));
+        _mcFsVol.priceScale().applyOptions({
+            visible: true,
+            borderColor: '#21262d',
+            textColor: '#6e7681',
+            minimumWidth: 60,
+        });
 
         // 50 SMA on volume — plotted in the same volume pane (pane 1)
         (function() {
@@ -3999,7 +4005,7 @@
             }
             _mcFsVolMa = _mcFsChart.addSeries(LightweightCharts.LineSeries, {
                 color: '#1848cc', lineWidth: 1,
-                priceLineVisible: false, lastValueVisible: false,
+                priceLineVisible: false, lastValueVisible: true,
                 crosshairMarkerVisible: false,
             }, 1);
             _mcFsVolMa.setData(_mcFsVolData);
