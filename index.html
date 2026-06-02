@@ -4271,7 +4271,7 @@
                            : mcapRaw >= 1e9  ? (mcapRaw/1e9).toFixed(2)+'B'
                            : mcapRaw >= 1e6  ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
                     mcapEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
-                                     + '<span style="color:#8b949e;font-size:12px;">' + mc + '</span>';
+                                     + '<span style="color:#c9d1d9;font-size:12px;">' + mc + '</span>';
                     mcapEl.style.display = 'inline-flex';
                 } else {
                     mcapEl.style.display = 'none';
@@ -4279,21 +4279,21 @@
             }
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:15px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:#e6edf3;font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
             document.getElementById('mc-fs-mkt-day').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:#8b949e;font-size:12px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:#8b949e;font-size:12px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-52w').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:#8b949e;font-size:12px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close, 120, null) +
-                '<span style="color:#8b949e;font-size:12px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
         })();
