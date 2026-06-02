@@ -4817,7 +4817,7 @@
             var distCell = tr.querySelector('.dist-ma-cell');
             if (distCell) {
                 var snapRow     = tickerMap && tickerMap[ticker];
-                var snapPrice   = snapRow ? snapRow.price    : null;
+                var snapPrice   = snapRow ? (snapRow._snapPrice != null ? snapRow._snapPrice : snapRow.price) : null;
                 var snapDistAll = snapRow ? snapRow.dist_ma  : null;
                 var dmaKey      = activeMAType + activeMALength;
                 if (snapPrice && snapDistAll) {
@@ -7361,7 +7361,7 @@
         // ── Live Dist/MA inline ──────────────────────────────────────────
         var _dmaKey      = activeMAType + activeMALength;
         var _snapForDist = tickerMap && tickerMap[row.ticker];
-        var _snapPriceD  = _snapForDist ? _snapForDist.price  : null;
+        var _snapPriceD  = _snapForDist ? (_snapForDist._snapPrice != null ? _snapForDist._snapPrice : _snapForDist.price) : null;
         var _snapDistVal = (row.dist_ma && row.dist_ma[_dmaKey] != null) ? row.dist_ma[_dmaKey] : null;
         var _distDisplay;
         if (_usePrice && _snapPriceD && _snapDistVal != null) {
@@ -7623,7 +7623,7 @@
             var distCell = tr.querySelector('.dist-ma-cell');
             if (distCell) {
                 var snapRow     = tickerMap && tickerMap[ticker];
-                var snapPrice   = snapRow ? snapRow.price   : null;
+                var snapPrice   = snapRow ? (snapRow._snapPrice != null ? snapRow._snapPrice : snapRow.price) : null;
                 var snapDistAll = snapRow ? snapRow.dist_ma : null;
                 var dmaKey      = activeMAType + activeMALength;
                 var snapDist    = snapDistAll ? snapDistAll[dmaKey] : null;
@@ -9873,7 +9873,7 @@
         if (snapshot && snapshot.by_industry) {
             Object.keys(snapshot.by_industry).forEach(function(ind) {
                 snapshot.by_industry[ind].forEach(function(row) {
-                    if (row.ticker) tickerMap[row.ticker] = row;
+                    if (row.ticker) { tickerMap[row.ticker] = row; row._snapPrice = row.price; }
                 });
             });
         }
