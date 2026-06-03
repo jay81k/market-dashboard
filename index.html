@@ -2351,18 +2351,19 @@
             <span id="mc-fs-ctx-below-txt">Alert below …</span>
         </button>
     </div>
-    <!-- Right-click context menu for WL LW chart -->
-    <div id="wl-chart-ctx-menu">
-        <div class="ctx-label" id="wl-chart-ctx-label">Set alert</div>
-        <button class="ctx-item" id="wl-chart-ctx-above" onclick="wlCtxAlert('above')">
-            <span class="ctx-dot" style="background:#3fb950;"></span>
-            <span id="wl-chart-ctx-above-txt">Alert above …</span>
-        </button>
-        <button class="ctx-item" id="wl-chart-ctx-below" onclick="wlCtxAlert('below')">
-            <span class="ctx-dot" style="background:#f85149;"></span>
-            <span id="wl-chart-ctx-below-txt">Alert below …</span>
-        </button>
-    </div>
+</div>
+
+<!-- Right-click context menu for WL LW chart (must be outside mc-fullscreen-overlay which is display:none when closed) -->
+<div id="wl-chart-ctx-menu">
+    <div class="ctx-label" id="wl-chart-ctx-label">Set alert</div>
+    <button class="ctx-item" id="wl-chart-ctx-above" onclick="wlCtxAlert('above')">
+        <span class="ctx-dot" style="background:#3fb950;"></span>
+        <span id="wl-chart-ctx-above-txt">Alert above …</span>
+    </button>
+    <button class="ctx-item" id="wl-chart-ctx-below" onclick="wlCtxAlert('below')">
+        <span class="ctx-dot" style="background:#f85149;"></span>
+        <span id="wl-chart-ctx-below-txt">Alert below …</span>
+    </button>
 </div>
 
 <div id="col-tooltip"></div>
