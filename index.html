@@ -4369,9 +4369,9 @@
             } : null;
 
             var adrEl = document.getElementById('mc-fs-mkt-adr');
+            var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
             if (adrEl) {
-                var adrSd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
-                var adrRaw = adrSd ? adrSd.adr_pct : null;
+                var adrRaw = sd ? sd.adr_pct : null;
                 if (adrRaw != null) {
                     adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
                                     + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
