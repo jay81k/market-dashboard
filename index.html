@@ -3025,7 +3025,6 @@
 
         // Reset multichart state
         multichartActive = false;
-        mcTickers = rows ? rows.map(function(r){ return r.ticker; }) : [];
         mcWidgets = {};
         document.getElementById('stocks-table-view').style.display      = 'flex';
         document.getElementById('stocks-multichart-view').style.display = 'none';
@@ -3045,6 +3044,7 @@
                 return bv - av;
             });
         }
+        mcTickers = rows ? rows.map(function(r){ return r.ticker; }) : [];
 
         if (!rows || rows.length === 0) {
             document.getElementById('stocks-thead').innerHTML = '';
