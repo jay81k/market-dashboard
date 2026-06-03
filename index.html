@@ -312,26 +312,31 @@
         .mc-fullscreen-body { flex: 1; min-height: 0; overflow: hidden; }
 
         /* ── Fullscreen right-click context menu ── */
-        #mc-fs-ctx-menu {
+        #mc-fs-ctx-menu,
+        #wl-chart-ctx-menu {
             display: none; position: fixed; z-index: 20000;
             background: #161b22; border: 1px solid #30363d;
             border-radius: 8px; padding: 4px; min-width: 185px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.7);
         }
-        #mc-fs-ctx-menu .ctx-label {
+        #mc-fs-ctx-menu .ctx-label,
+        #wl-chart-ctx-menu .ctx-label {
             padding: 5px 10px 6px; font-size: 0.72em; color: #484f58;
             border-bottom: 1px solid #21262d; margin-bottom: 3px;
             letter-spacing: 0.02em; user-select: none;
         }
-        #mc-fs-ctx-menu .ctx-item {
+        #mc-fs-ctx-menu .ctx-item,
+        #wl-chart-ctx-menu .ctx-item {
             display: flex; align-items: center; gap: 8px;
             width: 100%; padding: 6px 10px; border: none;
             background: transparent; color: #8b949e; font-size: 0.82em;
             font-family: inherit; font-weight: 500; cursor: pointer;
             border-radius: 5px; text-align: left;
         }
-        #mc-fs-ctx-menu .ctx-item:hover { background: #21262d; color: #c8d0dc; }
-        #mc-fs-ctx-menu .ctx-item .ctx-dot {
+        #mc-fs-ctx-menu .ctx-item:hover,
+        #wl-chart-ctx-menu .ctx-item:hover { background: #21262d; color: #c8d0dc; }
+        #mc-fs-ctx-menu .ctx-item .ctx-dot,
+        #wl-chart-ctx-menu .ctx-item .ctx-dot {
             width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
         }
 
@@ -5253,8 +5258,11 @@
             if (!_wlChart || !_wlSym) return;
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
-            var price = _wlCtxPrice;
+            var price = _wlLastCrosshairPrice;
             if (price == null || isNaN(price)) {
+                // Fallback: crosshair is in empty space to the right of the last candle —
+                // LW Charts never fires crosshair data there, so derive the price
+                // directly from the click's Y coordinate via the candle series.
                 if (_wlCandle) {
                     var fallbackPrice = _wlCandle.coordinateToPrice(localY);
                     if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
