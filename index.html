@@ -3317,9 +3317,10 @@
         });
         candle.setData(ohlcv);
 
-        // Active MAs — mirrors fullscreen MA toggle state
+        // Active MAs — mirrors fullscreen MA toggle state (EMA8 + SMA150 excluded: too noisy in multichart)
         Object.keys(_mcFsActiveMas).forEach(function(key) {
             if (!_mcFsActiveMas[key]) return;
+            if (key === 'EMA8' || key === 'SMA150') return;
             var def = _MC_MA_DEFS[key]; if (!def) return;
             var s = chart.addSeries(LightweightCharts.LineSeries, { color: def.color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             s.setData(_calcMA(ohlcv, key));
@@ -4523,12 +4524,26 @@
         _mcFsVwapMode = !_mcFsVwapMode;
         var btn  = document.getElementById('mc-fs-vwap-btn');
         if (btn) btn.classList.toggle('active', _mcFsVwapMode);
+        // Deactivate trendline tool if AVWAP is being turned on
+        if (_mcFsVwapMode && _mcFsTrendlineMode) {
+            _mcFsTrendlineMode = false;
+            var tBtn = document.getElementById('mc-fs-trendline-btn');
+            if (tBtn) tBtn.classList.remove('active');
+            _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
+            if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+        }
     };
 
     window.mcFsToggleTrendline = function() {
         _mcFsTrendlineMode = !_mcFsTrendlineMode;
         var btn  = document.getElementById('mc-fs-trendline-btn');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
+        // Deactivate AVWAP tool if trendline is being turned on
+        if (_mcFsTrendlineMode && _mcFsVwapMode) {
+            _mcFsVwapMode = false;
+            var vBtn = document.getElementById('mc-fs-vwap-btn');
+            if (vBtn) vBtn.classList.remove('active');
+        }
         // Cancel any in-progress draw and deselect
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineFirst = null;
@@ -5535,8 +5550,7 @@
                 if (!param.time) return;
                 var idx = _barIdxByTime(_wlOhlcv, param.time);
                 if (idx < 0) return;
-                var AVWAP_COLORS = ['#f9c74f','#43aa8b','#f94144','#577590','#f3722c','#90be6d'];
-                var color = AVWAP_COLORS[_wlVwapSeries.length % AVWAP_COLORS.length];
+                var color = _AVWAP_COLOR;
                 var data  = _calcAVWAP(_wlOhlcv, idx);
                 var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
                 var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
@@ -5779,12 +5793,26 @@
         _wlVwapMode = !_wlVwapMode;
         var btn = document.getElementById('wl-chart-vwap-btn');
         if (btn) btn.classList.toggle('active', _wlVwapMode);
+        // Deactivate trendline tool if AVWAP is being turned on
+        if (_wlVwapMode && _wlTrendlineMode) {
+            _wlTrendlineMode = false;
+            var tBtn = document.getElementById('wl-chart-trendline-btn');
+            if (tBtn) tBtn.classList.remove('active');
+            _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+            if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+        }
     };
 
     window.wlChartToggleTrendline = function() {
         _wlTrendlineMode = !_wlTrendlineMode;
         var btn = document.getElementById('wl-chart-trendline-btn');
         if (btn) btn.classList.toggle('active', _wlTrendlineMode);
+        // Deactivate AVWAP tool if trendline is being turned on
+        if (_wlTrendlineMode && _wlVwapMode) {
+            _wlVwapMode = false;
+            var vBtn = document.getElementById('wl-chart-vwap-btn');
+            if (vBtn) vBtn.classList.remove('active');
+        }
         _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
         _wlTrendlineFirst = null;
         if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
@@ -6635,6 +6663,8 @@
                 var ticker = r.getAttribute('data-wl-ticker');
                 if (ticker) openChartModal(ticker);
             } else if (e.key === 'Delete' && currentWlIndex >= 0) {
+                // Don't delete ticker if the WL chart has an AVWAP/trendline selected or trendline mode is consuming the key
+                if (_wlSelectedVwapIdx !== -1 || _wlSelectedTrendlineIdx !== -1 || (_wlTrendlineMode && _wlTrendlines.length)) return;
                 e.preventDefault();
                 var r = wlRows[currentWlIndex];
                 var ticker   = r.getAttribute('data-wl-ticker');
