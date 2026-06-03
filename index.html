@@ -5240,8 +5240,14 @@
     function _wlAttachCtxMenu() {
         if (_wlCtxAttached) return;
         _wlCtxAttached = true;
-        var chartDiv = document.getElementById('wl-chart-widget');
-        chartDiv.addEventListener('contextmenu', function(evt) {
+        var chartBody = document.getElementById('wl-chart-body');
+        var chartDiv  = document.getElementById('wl-chart-widget');
+        // Attach to the parent (wl-chart-body) so LW Charts' internal canvas
+        // handlers registered on wl-chart-widget can never swallow the event
+        // before we see it — same pattern as mc-fullscreen-overlay.
+        // The .contains() guard keeps header/empty-state clicks from triggering it.
+        chartBody.addEventListener('contextmenu', function(evt) {
+            if (!chartDiv.contains(evt.target)) return;
             evt.preventDefault();
             evt.stopPropagation();
             if (_wlTrendDraw.active) {
