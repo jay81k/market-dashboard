@@ -1951,6 +1951,8 @@
                     </svg>
                 </button>
                 <div id="wl-chart-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
+                    <span id="wl-chart-mkt-adr" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-mcap" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
                     <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
@@ -2327,6 +2329,8 @@
         </button>
         <!-- Market info: day range bar + 52W range bar + price/change -->
         <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
+            <span id="mc-fs-mkt-adr" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
             <span id="mc-fs-mkt-mcap" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
             <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
             <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
@@ -4364,9 +4368,21 @@
                 color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149'
             } : null;
 
+            var adrEl = document.getElementById('mc-fs-mkt-adr');
+            if (adrEl) {
+                var adrSd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
+                var adrRaw = adrSd ? adrSd.adr_pct : null;
+                if (adrRaw != null) {
+                    adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.style.display = 'inline-flex';
+                } else {
+                    adrEl.style.display = 'none';
+                }
+            }
+
             var mcapEl = document.getElementById('mc-fs-mkt-mcap');
             if (mcapEl) {
-                var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
                 var mcapRaw = sd ? sd.MarketCap : null;
                 if (mcapRaw != null) {
                     var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T'
@@ -5660,6 +5676,18 @@
             }
             var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
             var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149' } : null;
+            var adrEl = document.getElementById('wl-chart-mkt-adr');
+            if (adrEl) {
+                var adrSd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
+                var adrRaw = adrSd ? adrSd.adr_pct : null;
+                if (adrRaw != null) {
+                    adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.style.display = 'inline-flex';
+                } else {
+                    adrEl.style.display = 'none';
+                }
+            }
             var mcapEl = document.getElementById('wl-chart-mkt-mcap');
             if (mcapEl) {
                 var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
