@@ -3203,7 +3203,7 @@
                 continue;
             }
             q.active++;
-            (function(s) {
+            (function doFetch(s, retriesLeft) {
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf);
                 fetch(url).then(function(r) { return r.json(); })
                     .then(function(data) {
@@ -3236,18 +3236,23 @@
                         var res = (q.resolvers[s] || []).splice(0);
                         delete q.resolvers[s];
                         res.forEach(function(r) { r(ohlcv); });
-                    })
-                    .catch(function() {
-                        _mcOhlcvCache[s + '_' + tf] = [];
-                        var res = (q.resolvers[s] || []).splice(0);
-                        delete q.resolvers[s];
-                        res.forEach(function(r) { r([]); });
-                    })
-                    .then(function() {
                         q.active = Math.max(0, q.active - 1);
                         _drainMcQueue(tf);
+                    })
+                    .catch(function() {
+                        if (retriesLeft > 0) {
+                            // One automatic retry after 1.5s — keeps q.active held so the slot isn't reused
+                            setTimeout(function() { doFetch(s, retriesLeft - 1); }, 1500);
+                        } else {
+                            _mcOhlcvCache[s + '_' + tf] = [];
+                            var res = (q.resolvers[s] || []).splice(0);
+                            delete q.resolvers[s];
+                            res.forEach(function(r) { r([]); });
+                            q.active = Math.max(0, q.active - 1);
+                            _drainMcQueue(tf);
+                        }
                     });
-            })(sym);
+            })(sym, 1);
         }
     }
 
