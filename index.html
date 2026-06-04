@@ -3408,11 +3408,8 @@
         var d = new Date();
         var todayTs = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
         var last = inst.ohlcv[inst.ohlcv.length - 1];
-        // Normalise last.time to midnight UTC before comparing — Yahoo daily bars
-        // carry the session-open timestamp (e.g. 09:30 ET), not midnight UTC.
-        var lastDayTs = Math.floor(last.time / 86400) * 86400;
         var open, high, low, volume;
-        if (lastDayTs === todayTs) {
+        if (last.time === todayTs) {
             open   = last.open;
             high   = dayHigh != null ? Math.max(last.high, dayHigh, price) : Math.max(last.high, price);
             low    = dayLow  != null ? Math.min(last.low,  dayLow,  price) : Math.min(last.low,  price);
@@ -3421,9 +3418,6 @@
             last.low   = low;
             last.close = price;
         } else {
-            // Only create a new bar during market hours — prevents a phantom candle
-            // appearing after close when W/M strips the current period bar.
-            if (!wlIsMarketOpen()) return;
             open = high = low = price;
             volume = 0;
             inst.ohlcv.push({ time: todayTs, open: open, high: high, low: low, close: price, volume: volume });
