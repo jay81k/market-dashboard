@@ -2268,19 +2268,7 @@
             <div id="tradingview-chart" style="height:100%;width:100%;"></div>
         </div>
     </div>
-    <!-- SCAN NAV PANEL (removable block) -->
-    <div id="scan-nav-panel">
-        <div class="snp-header">
-            <span class="snp-col-ticker" id="snp-title">Results</span>
-            <span class="snp-count" id="snp-count"></span>
-        </div>
-        <div class="snp-sym-hdr">
-            <span style="width:14px;flex-shrink:0;"></span>
-            <span class="snp-col-ticker">Symbol</span>
-        </div>
-        <div class="snp-list" id="snp-list"></div>
-        </div>
-    <!-- END SCAN NAV PANEL -->
+
 </div>
 
 <!-- Multichart fullscreen overlay -->
@@ -2360,8 +2348,21 @@
             <span id="mc-fs-mkt-price" style="flex-shrink:0;"></span>
         </div>
     </div>
-    <div class="mc-fullscreen-body">
-        <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
+    <div class="mc-fullscreen-body" style="display:flex;flex-direction:row;">
+        <div id="mc-fullscreen-chart" style="flex:1;height:100%;min-width:0;"></div>
+        <!-- SCAN NAV PANEL -->
+        <div id="scan-nav-panel">
+            <div class="snp-header">
+                <span class="snp-col-ticker" id="snp-title">Results</span>
+                <span class="snp-count" id="snp-count"></span>
+            </div>
+            <div class="snp-sym-hdr">
+                <span style="width:14px;flex-shrink:0;"></span>
+                <span class="snp-col-ticker">Symbol</span>
+            </div>
+            <div class="snp-list" id="snp-list"></div>
+        </div>
+        <!-- END SCAN NAV PANEL -->
     </div>
     <!-- Right-click context menu -->
     <div id="mc-fs-ctx-menu">
@@ -2712,19 +2713,17 @@
 
     // ── Nav tab routing — captures scans state BEFORE modal closes ────────
     window.navTo = function(view) {
-        var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var _modalOpen = document.getElementById('mc-fullscreen-overlay').classList.contains('open');
         var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
         var _wasScans  = (currentView === 'scans');
         var _wasIndStocks = (currentView === 'industry-stocks');
         if (_modalOpen) { closeChartModal(); }
-        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
         // If modal was open while browsing an industry's stock table, just close
         // the modal and stay — don't navigate back to the full industry list.
         if (_modalOpen && _wasIndStocks && view === 'industries') return;
         // Set AFTER close calls so the closeChartModal wrapper doesn't wipe it
-        // _snpOpen captured before close; chart-modal-sym text persists in DOM after close
         if (_wasScans && view !== 'scans' && (_modalOpen || _snpOpen)) {
-            var _sym = _modalOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
+            var _sym = _modalOpen ? (document.getElementById('mc-fullscreen-sym').textContent.trim() || null) : null;
             var _sec = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].sector   || '') : '';
             var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
             _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _snpOpen };
@@ -3408,8 +3407,11 @@
         var d = new Date();
         var todayTs = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
         var last = inst.ohlcv[inst.ohlcv.length - 1];
+        // Normalise last.time to midnight UTC before comparing — Yahoo daily bars
+        // carry the session-open timestamp (e.g. 09:30 ET), not midnight UTC.
+        var lastDayTs = Math.floor(last.time / 86400) * 86400;
         var open, high, low, volume;
-        if (last.time === todayTs) {
+        if (lastDayTs === todayTs) {
             open   = last.open;
             high   = dayHigh != null ? Math.max(last.high, dayHigh, price) : Math.max(last.high, price);
             low    = dayLow  != null ? Math.min(last.low,  dayLow,  price) : Math.min(last.low,  price);
@@ -3418,6 +3420,9 @@
             last.low   = low;
             last.close = price;
         } else {
+            // Only create a new bar during market hours — prevents a phantom candle
+            // appearing after close when W/M strips the current period bar.
+            if (!wlIsMarketOpen()) return;
             open = high = low = price;
             volume = 0;
             inst.ohlcv.push({ time: todayTs, open: open, high: high, low: low, close: price, volume: volume });
@@ -6747,9 +6752,6 @@
         // Always handle Escape first
         if (e.key === 'Escape') {
             if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) {
-                closeMcFullscreen(); return;
-            }
-            if (document.getElementById('chart-modal-overlay').classList.contains('open')) {
                 closeChartModal(); return;
             }
             if (currentView === 'industry-stocks') { backToIndustries(); return; }
@@ -6759,7 +6761,7 @@
         // Don't hijack input fields
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
-        var modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var modalOpen = document.getElementById('mc-fullscreen-overlay').classList.contains('open');
 
         // ── Industries view ───────────────────────────────────────────────
         if (currentView === 'industries' || currentView === 'sector') {
@@ -11460,31 +11462,20 @@
         openChartModal(d.ticker, '', '');
     }
 
-    // Wrap openChartModal to show/sync panel
-    var _origOpenChartModal = openChartModal;
-    openChartModal = function(symbol, sector, industry) {
-        _origOpenChartModal(symbol, sector, industry);
+    // Wrap openChartModal to use LW fullscreen chart + side panel (replaces TradingView modal)
+    openChartModal = window.openChartModal = function(symbol, sector, industry) {
+        openMcFullscreen(symbol, _mcFsTf || 'D');
         if (!_snpData.length) {
             snpBuild();
         }
         var idx = _snpData.findIndex(function(d) { return d.ticker === symbol; });
         if (idx !== -1) snpSetActive(idx);
-        // Sync spacer height to actual chart modal header height
-        requestAnimationFrame(function() {
-            var modalHdr = document.querySelector('.chart-modal-header');
-            var snpHdr   = document.getElementById('scan-nav-panel').querySelector('.snp-header');
-            if (modalHdr && snpHdr) {
-                snpHdr.style.height = modalHdr.getBoundingClientRect().height + 'px';
-                snpHdr.style.minHeight = '';
-            }
-        });
     };
 
-    // Wrap closeChartModal to hide panel
-    var _origCloseChartModal = window.closeChartModal;
+    // Wrap closeChartModal to close LW fullscreen + hide panel
     var _alGoToTickerClosing = false;
     window.closeChartModal = function() {
-        _origCloseChartModal();
+        closeMcFullscreen();
         snpHide();
         if (!_alGoToTickerClosing) { _alReturnState = null; _scanReturnState = null; }
         // Restore industry stocks table scroll position after modal closes
@@ -11497,10 +11488,10 @@
         }
     };
 
-    // Arrow key nav when modal is open — capture phase so it takes priority
+    // Arrow key nav when LW fullscreen is open — capture phase so it takes priority
     document.addEventListener('keydown', function(e) {
         if (!_snpData.length) return;
-        var modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var modalOpen = document.getElementById('mc-fullscreen-overlay').classList.contains('open');
         if (!modalOpen) return;
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); snpNavigateTo(_snpIndex + 1); }
@@ -11661,9 +11652,9 @@
     window.alGoToTicker = function(ticker) {
         _alActiveTicker = ticker;
         // Capture state BEFORE closing anything so it can be restored when returning
-        var _modalOpen = document.getElementById('chart-modal-overlay').classList.contains('open');
+        var _modalOpen = document.getElementById('mc-fullscreen-overlay').classList.contains('open');
         var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
-        var _openSym   = _modalOpen ? (document.getElementById('chart-modal-sym').textContent.trim() || null) : null;
+        var _openSym   = _modalOpen ? (document.getElementById('mc-fullscreen-sym').textContent.trim() || null) : null;
         var _openSec   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].sector   || '') : '';
         var _openInd   = (_openSym && tickerMap && tickerMap[_openSym]) ? (tickerMap[_openSym].industry || '') : '';
         if (_modalOpen || _snpOpen) {
@@ -11671,7 +11662,6 @@
             _alReturnState = { view: currentView, ticker: _openSym, sector: _openSec, industry: _openInd, snpOpen: _snpOpen };
         }
         if (_modalOpen) { _alGoToTickerClosing = true; closeChartModal(); _alGoToTickerClosing = false; }
-        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) { closeMcFullscreen(); }
         snpHide();
         showView('alerts');
         setTimeout(function() {
