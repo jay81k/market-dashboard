@@ -3218,9 +3218,13 @@
                             var qt = result.indicators && result.indicators.quote && result.indicators.quote[0];
                             if (qt) {
                                 for (var i = 0; i < ts.length; i++) {
-                                    if (qt.open[i] == null || qt.close[i] == null) continue;
+                                    if (!ts[i] || qt.open[i] == null || qt.close[i] == null) continue;
                                     ohlcv.push({ time: ts[i], open: qt.open[i], high: qt.high[i], low: qt.low[i], close: qt.close[i], volume: qt.volume[i] || 0 });
                                 }
+                                // LWC requires strictly monotonic timestamps — dedupe and sort defensively
+                                var _tsSeen = {};
+                                ohlcv = ohlcv.filter(function(d) { if (_tsSeen[d.time]) return false; _tsSeen[d.time] = true; return true; });
+                                ohlcv.sort(function(a, b) { return a.time - b.time; });
                             }
                         }
                         // Strip incomplete current period (Yahoo includes it, TV doesn't)
@@ -3465,9 +3469,15 @@
                 obs.disconnect();
                 fetchMcOhlcv(sym, tf).then(function(ohlcv) {
                     if (_mcRenderTokens[contextKey] !== token) return;
-                    rendered = true;
-                    var inst = renderLwMcCellChart(chartDiv, ohlcv);
-                    if (inst) widgetsObj[sym] = inst;
+                    try {
+                        var inst = renderLwMcCellChart(chartDiv, ohlcv);
+                        rendered = true;
+                        if (inst) widgetsObj[sym] = inst;
+                    } catch(e) {
+                        chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
+                    }
+                }).catch(function() {
+                    chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
                 });
             }, { threshold: 0.05 });
             obs.observe(cell);
