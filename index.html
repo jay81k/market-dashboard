@@ -811,7 +811,27 @@
             padding: 7px 14px; background: #161b22; border-bottom: 1px solid #21262d;
             flex-shrink: 0;
         }
-        .wl-chart-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; min-width: 60px; }
+        .wl-chart-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; min-width: 60px; cursor: pointer; }
+        .wl-chart-sym:hover { text-decoration: underline; text-decoration-style: dotted; }
+        #wl-chart-sym-input {
+            font-size: 0.99em; font-weight: 700; color: #58a6ff;
+            background: transparent; border: none; border-bottom: 1.5px solid #58a6ff;
+            outline: none; width: 7ch; padding: 0; caret-color: #58a6ff;
+            font-family: inherit; text-transform: uppercase; letter-spacing: inherit;
+        }
+        #wl-chart-sym-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 280px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 9999;
+            overflow: hidden;
+            font-family: inherit;
+        }
         .wl-chart-meta { font-size: 0.825em; color: #6e7681; margin-left: 10px; white-space: nowrap; }
         .wl-chart-mc-group { display: flex; gap: 3px; }
         .wl-chart-tf-btn {
@@ -1892,7 +1912,7 @@
         <!-- Chart panel -->
         <div class="wl-chart-panel">
             <div class="wl-chart-panel-header">
-                <span class="wl-chart-sym" id="wl-chart-sym">—</span>
+                <span class="wl-chart-sym" id="wl-chart-sym" title="Click to change symbol" onclick="_wlChartSymClick()">—</span>
                 <span class="wl-chart-meta" id="wl-chart-meta"></span>
                 <span class="chart-rs-badge" id="wl-chart-rs-badge" style="display:none;"></span>
                 <span class="chart-rs-badge" id="wl-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
@@ -4686,6 +4706,148 @@
         function _confirm() {
             if (_done) return;
             // If a dropdown row is highlighted, use it; else fall back to typed value
+            var chosen = (_activeIdx >= 0 && _results[_activeIdx]) ? _results[_activeIdx] : inp.value.trim().toUpperCase();
+            _selectSym(chosen || null);
+        }
+
+        function _cancel() {
+            _done = true;
+            _restore();
+        }
+
+        function _restore() {
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            symEl.style.display = '';
+        }
+
+        inp.addEventListener('input', function() {
+            var q = inp.value.trim();
+            inp.style.width = Math.max(q.length || currentSym.length, 4) + 'ch';
+            _renderDropdown(q);
+        });
+
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (_results.length) {
+                    _activeIdx = (_activeIdx + 1) % _results.length;
+                    _highlightRow(_activeIdx);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (_results.length) {
+                    _activeIdx = (_activeIdx - 1 + _results.length) % _results.length;
+                    _highlightRow(_activeIdx);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                _confirm();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                _cancel();
+            }
+        });
+
+    };
+
+    // ── Watchlist chart symbol click — same behaviour as _mcFsSymClick ────────
+    window._wlChartSymClick = function() {
+        if (!wlChartTicker) return; // nothing loaded yet
+        var symEl = document.getElementById('wl-chart-sym');
+        if (!symEl || document.getElementById('wl-chart-sym-input')) return;
+        var currentSym = symEl.textContent.trim();
+        symEl.style.display = 'none';
+
+        // ── Wrapper so dropdown can be positioned relative to input ──────────
+        var wrap = document.createElement('span');
+        wrap.style.cssText = 'position:relative;display:inline-block;';
+
+        var inp = document.createElement('input');
+        inp.id           = 'wl-chart-sym-input';
+        inp.type         = 'text';
+        inp.value        = '';
+        inp.placeholder  = currentSym;
+        inp.maxLength    = 10;
+        inp.spellcheck   = false;
+        inp.autocomplete = 'off';
+        inp.style.width  = Math.max(currentSym.length, 4) + 'ch';
+
+        var dd = document.createElement('div');
+        dd.id = 'wl-chart-sym-dropdown';
+        dd.style.display = 'none';
+
+        wrap.appendChild(inp);
+        wrap.appendChild(dd);
+        symEl.parentNode.insertBefore(wrap, symEl.nextSibling);
+        inp.focus();
+
+        // ── Suggestion engine ─────────────────────────────────────────────────
+        var _activeIdx = -1;
+        var _results   = [];
+
+        function _getSuggestions(q) {
+            if (!q) return [];
+            var uq = q.toUpperCase();
+            var keys = tickerMap ? Object.keys(tickerMap) : [];
+            var prefix = [], substr = [];
+            for (var i = 0; i < keys.length; i++) {
+                var t = keys[i];
+                if (t === uq) { prefix.unshift(t); continue; }
+                if (t.indexOf(uq) === 0) prefix.push(t);
+                else if (t.indexOf(uq) > 0) substr.push(t);
+            }
+            prefix.sort(); substr.sort();
+            return prefix.concat(substr).slice(0, 8);
+        }
+
+        function _renderDropdown(q) {
+            _results = _getSuggestions(q);
+            _activeIdx = _results.length ? 0 : -1;
+            dd.innerHTML = '';
+            if (!q) { dd.style.display = 'none'; return; }
+            if (!_results.length) {
+                dd.innerHTML = '<div class="mc-fs-dd-empty">No matches in watchlist</div>';
+                dd.style.display = '';
+                return;
+            }
+            _results.forEach(function(t, i) {
+                var row = tickerMap[t] || {};
+                var nameStr = row.name     ? _escHtml(row.name)     : '';
+                var indStr  = row.industry ? _escHtml(row.industry)  : (row.sector ? _escHtml(row.sector) : '');
+                var el = document.createElement('div');
+                el.className = 'mc-fs-dd-row' + (i === 0 ? ' active' : '');
+                el.innerHTML =
+                    '<span class="mc-fs-dd-ticker">' + _escHtml(t) + '</span>' +
+                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:#484f58;font-style:italic;">—</span>') +
+                    (indStr  ? '<span class="mc-fs-dd-ind">'   + indStr  + '</span>' : '');
+                el.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    _selectSym(t);
+                });
+                dd.appendChild(el);
+            });
+            dd.style.display = '';
+        }
+
+        function _escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function _highlightRow(idx) {
+            var rows = dd.querySelectorAll('.mc-fs-dd-row');
+            rows.forEach(function(r, i) { r.classList.toggle('active', i === idx); });
+        }
+
+        function _selectSym(sym) {
+            _done = true;
+            _restore();
+            if (sym && sym !== currentSym) wlSelectTicker(sym);
+        }
+
+        var _done = false;
+
+        function _confirm() {
+            if (_done) return;
             var chosen = (_activeIdx >= 0 && _results[_activeIdx]) ? _results[_activeIdx] : inp.value.trim().toUpperCase();
             _selectSym(chosen || null);
         }
