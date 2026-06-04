@@ -502,12 +502,6 @@
         #col-tooltip.visible { opacity: 1; }
 
         /* Chart modal */
-        .chart-modal-overlay {
-            position: fixed; inset: 91px 0 0 0; background: rgba(0,0,0,0.8);
-            z-index: 9990; display: none; align-items: stretch; justify-content: center;
-        }
-        .chart-modal-overlay.open { display: flex; }
-
         /* ── SCAN NAV PANEL (removable block) ── */
         #scan-nav-panel {
             display: none;
@@ -547,18 +541,6 @@
         .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 4px; }
         .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: #c8d0dc; overflow: hidden; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
         /* ── END SCAN NAV PANEL ── */
-        .chart-modal {
-            width: calc(98vw - 70px); height: calc(100vh - 111px); background: #0d1117;
-            align-self: flex-start;
-            border-radius: 8px; border: 1px solid #30363d;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
-            display: flex; flex-direction: column; overflow: hidden;
-        }
-        .chart-modal-header {
-            display: flex; align-items: center; gap: 10px;
-            padding: 7px 14px; background: #161b22;
-            border-bottom: 1px solid #21262d; flex-shrink: 0;
-        }
         .chart-modal-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
         .chart-modal-meta { font-size: 0.825em; color: #6e7681; margin-left: 10px; white-space: nowrap; }
         .chart-modal-meta .meta-sep { margin: 0 5px; color: #30363d; }
@@ -592,7 +574,6 @@
         .chart-modal-ext-btn svg { opacity: 0.7; flex-shrink: 0; }
         .chart-modal-close { background: transparent; border: none; color: #484f58; cursor: pointer; font-size: 1.32rem; padding: 0 4px; }
         .chart-modal-close:hover { color: #c8d0dc; }
-        .chart-modal-body { flex: 1; min-height: 0; }
         .queue-add-btn {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 3px 8px; border-radius: 5px; border: 1px solid #30363d;
@@ -2243,33 +2224,6 @@
         </div>
     </div>
 </div>
-<div class="chart-modal-overlay" id="chart-modal-overlay" onclick="if(event.target===this)closeChartModal()">
-    <div class="chart-modal">
-        <div class="chart-modal-header">
-            <span class="chart-modal-sym" id="chart-modal-sym"></span>
-            <span class="chart-modal-meta" id="chart-modal-meta"></span>
-            <span class="chart-rs-badge" id="chart-modal-rs-badge" style="display:none;"></span>
-            <span class="chart-rs-badge" id="chart-modal-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
-                <span id="chart-modal-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
-                <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
-                <a id="chart-modal-details-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg>
-                    Stock Details
-                </a>
-                <button class="queue-add-btn" id="chart-modal-queue-btn" title="Copy symbol to clipboard" onclick="toggleTickerQueue(document.getElementById('chart-modal-sym').textContent, 'chart-modal-queue-btn')">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M5 0h6l3 3v10a1 1 0 01-1 1H3a1 1 0 01-1-1V1a1 1 0 011-1zm1 1v3H3v9h10V4h-2V1H6zm0 6h4v1H6V7zm0 2h4v1H6V9z"/></svg>
-                    +
-                </button>
-                <button class="chart-modal-close" onclick="closeChartModal()">×</button>
-            </div>
-        </div>
-        <div class="chart-modal-body">
-            <div id="tradingview-chart" style="height:100%;width:100%;"></div>
-        </div>
-    </div>
-
-</div>
 
 <!-- Multichart fullscreen overlay -->
 <div class="mc-fullscreen-overlay" id="mc-fullscreen-overlay">
@@ -2410,7 +2364,6 @@
     var activeSort    = 'rank';
     var indSort       = { col: null, dir: -1 }; // dir: -1 = desc, 1 = asc
     var searchQuery   = '';
-    var chartWidget   = null;
     var currentStockSort = { by: null, dir: 1, count: 0 };
     var activeMAType   = localStorage.getItem('distMAType')   || 'SMA';
     var activeMALength = parseInt(localStorage.getItem('distMALength') || '50');
@@ -2496,7 +2449,7 @@
     // ── Ticker Queue (copy list) ───────────────────────────────────────────
     var tickerQueue = [];
 
-    var QUEUE_BTN_IDS = ['wl-chart-queue-btn', 'chart-modal-queue-btn', 'mc-fullscreen-queue-btn'];
+    var QUEUE_BTN_IDS = ['wl-chart-queue-btn', 'mc-fullscreen-queue-btn'];
 
     window.toggleTickerQueue = function(ticker) {
         ticker = (ticker || '').trim();
@@ -6582,47 +6535,6 @@
         return html;
     }
 
-    function updateChartModalHeader(symbol, sector, industry, percentile) {
-        sector     = sector     || '';
-        industry   = industry   || '';
-        percentile = (percentile != null) ? percentile : null;
-        var fundRow = null;
-        // O(1) lookup using pre-built tickerMap
-        if (tickerMap[symbol]) {
-            var r = tickerMap[symbol];
-            if (!sector)           sector     = r.sector     || '';
-            if (!industry)         industry   = r.industry   || '';
-            if (percentile == null) percentile = r.Percentile != null ? r.Percentile : null;
-            fundRow = r;
-        }
-        document.getElementById('chart-modal-sym').textContent = symbol;
-        var fundStatsEl = document.getElementById('chart-modal-fund-stats');
-        if (fundStatsEl) fundStatsEl.innerHTML = fundStatsHtml(fundRow);
-        var metaEl = document.getElementById('chart-modal-meta');
-        if (metaEl) {
-            var indRankHtml = '';
-            if (industry && industriesData && industriesData.industries) {
-                var indData = industriesData.industries.find(function(x){ return x.industry === industry; });
-                var total   = industriesData.industries.length;
-                if (indData && indData.rank != null) {
-                    var pct = indData.percentile != null ? indData.percentile : null;
-                    var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                    indRankHtml = '<span class="meta-sep">·</span>' +
-                        '<span class="meta-ind-rank" style="color:' + rankColor + '">' +
-                        '(' + indData.rank + '/' + total + ')' +
-                        '</span>';
-                }
-            }
-            metaEl.innerHTML = industry
-                ? industryLinkHtml(industry, 'closeChartModal') + indRankHtml
-                : '';
-        }
-        applyRsBadge(document.getElementById('chart-modal-rs-badge'), percentile, fundRow ? fundRow.weighted_rs_pct : null, document.getElementById('chart-modal-3mrs-badge'));
-        var ticker = symbol.replace(/[^A-Z0-9]/gi, '');
-        var fBtn = document.getElementById('chart-modal-details-btn');
-        if (fBtn) fBtn.href = 'https://finviz.com/quote.ashx?t=' + ticker;
-    }
-
     // ── Chart modal symbol right-click → watchlist / alert picker ───────────
     (function() {
         function attachSymRightClick(elId) {
@@ -6646,108 +6558,11 @@
                 wlPickerJustOpened = false;
             });
         }
-        attachSymRightClick('chart-modal-sym');
         attachSymRightClick('wl-chart-sym');
         attachSymRightClick('al-chart-sym');
         attachSymRightClick('mc-fullscreen-sym');
     })();
 
-    function openChartModal(symbol, sector, industry) {
-        var sym = TV_MAP[symbol] || symbol;
-
-        // Save scroll position of the industry stocks table before modal opens
-        if (currentView === 'industry-stocks') {
-            var _stWrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
-            if (_stWrap) _indStocksScrollBeforeModal = _stWrap.scrollTop;
-        }
-
-        // Resolve sector/industry from args, row attrs, or snapshot for initial header
-        if (!sector || !industry) {
-            var clickedRow = document.querySelector('.stock-row[data-symbol="' + symbol + '"]');
-            if (clickedRow) {
-                sector   = sector   || clickedRow.getAttribute('data-sector')   || '';
-                industry = industry || clickedRow.getAttribute('data-industry') || '';
-            }
-        }
-        // Pass resolved sector/industry directly; snapshot lookup only as fallback
-        updateChartModalHeader(symbol, sector, industry, null);
-
-        document.getElementById('chart-modal-overlay').classList.add('open');
-        var _sw = document.getElementById('search-input') && document.getElementById('search-input').closest('.search-wrap');
-        if (_sw) _sw.style.visibility = 'hidden';
-        updateQueueButtons();
-        if (chartWidget) {
-            try {
-                chartWidget.setSymbol(sym, null, function(){});
-                startChartModalPoll(symbol);
-                return;
-            } catch(e) {}
-        }
-        setTimeout(function() {
-            chartWidget = new TradingView.widget({
-                symbol: sym, interval: 'D', locale: 'en', style: '1',
-                theme: 'dark', timezone: 'America/Toronto',
-                toolbar_bg: '#161b22', backgroundColor: '#0d1117',
-                gridColor: 'rgba(255,255,255,0.06)',
-                hide_side_toolbar: false, hide_top_toolbar: false,
-                hide_legend: false, hide_volume: true,
-                details: true, hotlist: false, calendar: false,
-                withdateranges: true, allow_symbol_change: true,
-                studies: ['STD;MA%Ribbon', 'Volume@tv-basicstudies'],
-                save_image: false, enable_publishing: false,
-                autosize: true, container_id: 'tradingview-chart',
-            });
-            startChartModalPoll(symbol);
-        }, 50);
-    }
-
-    var _chartModalPoll = null;
-    var _chartModalObserver = null;
-    var _chartModalMsgHandler = null;
-
-    function startChartModalPoll(initialSym) {
-        if (_chartModalPoll) { clearInterval(_chartModalPoll); _chartModalPoll = null; }
-        if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
-        if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
-
-        var _chartModalLastSym = initialSym;
-        var _chartModalReady = false;
-        setTimeout(function() { _chartModalReady = true; }, 2000);
-        var _chartModalIframe = null;
-        setTimeout(function() {
-            var container = document.getElementById('tradingview-chart');
-            if (container) _chartModalIframe = container.querySelector('iframe');
-        }, 500);
-        _chartModalMsgHandler = function(e) {
-            if (!_chartModalReady) return;
-            if (_chartModalIframe && e.source !== _chartModalIframe.contentWindow) return;
-            try {
-                var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                var newSym = null;
-                if (data && data.name === 'quoteUpdate' && data.data && data.data.original_name) {
-                    newSym = data.data.original_name;
-                }
-                if (newSym) {
-                    var bare = newSym.indexOf(':') !== -1 ? newSym.split(':')[1] : newSym;
-                    if (bare && bare !== _chartModalLastSym) {
-                        _chartModalLastSym = bare;
-                        var sd = tickerMap && tickerMap[bare];
-                        updateChartModalHeader(bare, (sd && sd.sector) || '', (sd && sd.industry) || '', null);
-                        updateQueueButtons();
-                    }
-                }
-            } catch(err) {}
-        };
-        window.addEventListener('message', _chartModalMsgHandler);
-    }
-    window.openChartModal  = openChartModal;
-    window.closeChartModal = function() {
-        document.getElementById('chart-modal-overlay').classList.remove('open');
-        var _sw = document.getElementById('search-input') && document.getElementById('search-input').closest('.search-wrap');
-        if (_sw) _sw.style.visibility = '';
-        if (_chartModalObserver) { _chartModalObserver.disconnect(); _chartModalObserver = null; }
-        if (_chartModalMsgHandler) { window.removeEventListener('message', _chartModalMsgHandler); _chartModalMsgHandler = null; }
-    };
     document.addEventListener('keydown', function(e) {
         // Always handle Escape first
         if (e.key === 'Escape') {
