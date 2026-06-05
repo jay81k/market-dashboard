@@ -4423,6 +4423,8 @@
                 return;
             }
             if (evt.key !== 'Delete') return;
+            // Don't steal Delete from the symbol input
+            if (document.getElementById('mc-fs-sym-input')) return;
             // Delete selected trendline first (takes priority over "delete last")
             if (_mcFsSelectedTrendlineIdx !== -1) {
                 var selIdx = _mcFsSelectedTrendlineIdx;
@@ -4581,7 +4583,7 @@
         inp.maxLength    = 10;
         inp.spellcheck   = false;
         inp.autocomplete = 'off';
-        inp.style.width  = Math.max(currentSym.length, 4) + 'ch';
+        inp.style.width  = Math.max(currentSym.length + 2, 6) + 'ch';
 
         var dd = document.createElement('div');
         dd.id = 'mc-fs-sym-dropdown';
@@ -4677,7 +4679,7 @@
 
         inp.addEventListener('input', function() {
             var q = inp.value.trim();
-            inp.style.width = Math.max(q.length || currentSym.length, 4) + 'ch';
+            inp.style.width = Math.max(q.length + 2 || currentSym.length + 2, 6) + 'ch';
             _renderDropdown(q);
         });
 
@@ -4703,6 +4705,10 @@
             }
         });
 
+        inp.addEventListener('blur', function() {
+            setTimeout(function() { if (!_done) _confirm(); }, 150);
+        });
+
     };
 
     // ── Watchlist chart symbol click — same behaviour as _mcFsSymClick ────────
@@ -4725,7 +4731,7 @@
         inp.maxLength    = 10;
         inp.spellcheck   = false;
         inp.autocomplete = 'off';
-        inp.style.width  = Math.max(currentSym.length, 4) + 'ch';
+        inp.style.width  = Math.max(currentSym.length + 2, 6) + 'ch';
 
         var dd = document.createElement('div');
         dd.id = 'wl-chart-sym-dropdown';
@@ -4819,7 +4825,7 @@
 
         inp.addEventListener('input', function() {
             var q = inp.value.trim();
-            inp.style.width = Math.max(q.length || currentSym.length, 4) + 'ch';
+            inp.style.width = Math.max(q.length + 2 || currentSym.length + 2, 6) + 'ch';
             _renderDropdown(q);
         });
 
