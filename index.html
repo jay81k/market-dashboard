@@ -251,9 +251,10 @@
         /* Fullscreen chart overlay */
         .mc-fullscreen-overlay {
             display: none; position: fixed; inset: 88px 0 0 0; z-index: 9990;
-            background: #0d1117; flex-direction: column;
+            background: #0d1117; flex-direction: row;
         }
         .mc-fullscreen-overlay.open { display: flex; }
+        .mc-fs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .mc-fullscreen-header {
             display: flex; align-items: center; gap: 10px;
             padding: 7px 14px; background: #161b22;
@@ -2227,6 +2228,7 @@
 
 <!-- Multichart fullscreen overlay -->
 <div class="mc-fullscreen-overlay" id="mc-fullscreen-overlay">
+    <div class="mc-fs-main">
     <div class="mc-fullscreen-header">
         <span class="mc-fullscreen-sym" id="mc-fullscreen-sym" title="Click to change symbol" onclick="_mcFsSymClick()"></span>
         <span class="chart-modal-meta" id="mc-fullscreen-meta" style="display:none;"></span>
@@ -2302,22 +2304,23 @@
             <span id="mc-fs-mkt-price" style="flex-shrink:0;"></span>
         </div>
     </div>
-    <div class="mc-fullscreen-body" style="display:flex;flex-direction:row;">
-        <div id="mc-fullscreen-chart" style="flex:1;height:100%;min-width:0;"></div>
-        <!-- SCAN NAV PANEL -->
-        <div id="scan-nav-panel">
-            <div class="snp-header">
-                <span class="snp-col-ticker" id="snp-title">Results</span>
-                <span class="snp-count" id="snp-count"></span>
-            </div>
-            <div class="snp-sym-hdr">
-                <span style="width:14px;flex-shrink:0;"></span>
-                <span class="snp-col-ticker">Symbol</span>
-            </div>
-            <div class="snp-list" id="snp-list"></div>
-        </div>
-        <!-- END SCAN NAV PANEL -->
+    <div class="mc-fullscreen-body">
+        <div id="mc-fullscreen-chart" style="width:100%;height:100%;"></div>
     </div>
+    </div><!-- end mc-fs-main -->
+    <!-- SCAN NAV PANEL -->
+    <div id="scan-nav-panel">
+        <div class="snp-header">
+            <span class="snp-col-ticker" id="snp-title">Results</span>
+            <span class="snp-count" id="snp-count"></span>
+        </div>
+        <div class="snp-sym-hdr">
+            <span style="width:14px;flex-shrink:0;"></span>
+            <span class="snp-col-ticker">Symbol</span>
+        </div>
+        <div class="snp-list" id="snp-list"></div>
+    </div>
+    <!-- END SCAN NAV PANEL -->
     <!-- Right-click context menu -->
     <div id="mc-fs-ctx-menu">
         <div class="ctx-label" id="mc-fs-ctx-label">Set alert</div>
