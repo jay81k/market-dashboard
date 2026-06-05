@@ -4014,6 +4014,82 @@
         }, true); // capture phase — overlay-level intercept, nothing below can block it
     }
 
+    // ── Live bar injection — fullscreen + WL charts ───────────────────────────
+    // Yahoo's 10y/1d historical feed sometimes omits today's partial bar or
+    // carries a stale snapshot of it.  This helper mirrors _updateMcLiveCandle
+    // but targets a specific candle/vol/ohlcvArr triple rather than a widgets map.
+    // Price is resolved from in-memory live caches (indLivePrices → wlLivePrices
+    // → snapshot); if none is found a lightweight 2-day proxy fetch is issued as
+    // a fallback.  Only runs for the Daily timeframe (W/M bars are always closed).
+    function _injectChartLiveBar(sym, tf, candle, vol, ohlcvArr, isStale) {
+        if (tf !== 'D' || !candle || !ohlcvArr || !ohlcvArr.length) return;
+
+        var price = null, dayHigh = null, dayLow = null;
+
+        // 1. indLivePrices — richest: has dayHigh + dayLow
+        if (typeof indLivePrices !== 'undefined' && indLivePrices[sym]) {
+            var _lp = indLivePrices[sym];
+            price   = _lp.price   || null;
+            dayHigh = _lp.dayHigh || null;
+            dayLow  = _lp.dayLow  || null;
+        }
+        // 2. wlLivePrices — price only
+        if (!price && wlLivePrices && wlLivePrices[sym]) {
+            price = wlLivePrices[sym].price || null;
+        }
+        // 3. snapshot row — price only
+        if (!price && snapshot && snapshot.by_industry) {
+            outerILB: for (var _ii in snapshot.by_industry) {
+                var _rr = snapshot.by_industry[_ii];
+                for (var _jj = 0; _jj < _rr.length; _jj++) {
+                    if (_rr[_jj].ticker === sym) { price = _rr[_jj].price || null; break outerILB; }
+                }
+            }
+        }
+
+        function _applyLiveBar(p, dh, dl) {
+            if (!p || !candle || !ohlcvArr.length) return;
+            var now = new Date();
+            var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000);
+            var last = ohlcvArr[ohlcvArr.length - 1];
+            var lastDayTs = Math.floor(last.time / 86400) * 86400;
+            var open, high, low, volume;
+            if (lastDayTs === todayTs) {
+                open   = last.open;
+                high   = dh != null ? Math.max(last.high, dh, p) : Math.max(last.high, p);
+                low    = dl != null ? Math.min(last.low,  dl, p) : Math.min(last.low,  p);
+                volume = last.volume;
+                last.high  = high;
+                last.low   = low;
+                last.close = p;
+            } else {
+                if (!wlIsMarketOpen()) return;
+                open = high = low = p; volume = 0;
+                ohlcvArr.push({ time: todayTs, open: open, high: high, low: low, close: p, volume: volume });
+            }
+            try { candle.update({ time: todayTs, open: open, high: high, low: low, close: p, volume: volume }); } catch(e) {}
+            if (vol) {
+                try { vol.update({ time: todayTs, value: volume, color: p >= open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' }); } catch(e) {}
+            }
+        }
+
+        if (price) {
+            _applyLiveBar(price, dayHigh, dayLow);
+        } else {
+            // Fallback: fresh 2-day proxy quote — guards against a stale close
+            fetch(WL_PROXY + '?symbol=' + encodeURIComponent(sym) + '&interval=1d&range=2d')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (isStale && isStale()) return; // chart was replaced
+                    var result = data && data.chart && data.chart.result && data.chart.result[0];
+                    if (!result) return;
+                    var meta = result.meta || {};
+                    var lp   = meta.regularMarketPrice;
+                    if (lp) _applyLiveBar(lp, meta.regularMarketDayHigh || null, meta.regularMarketDayLow || null);
+                }).catch(function() {});
+        }
+    }
+
     function _buildFsChart(sym, ohlcv, tf) {
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
@@ -4450,6 +4526,12 @@
             }
         };
         document.addEventListener('keydown', _mcFsKeyHandler);
+
+        // Inject today's live bar into the fullscreen chart so the latest
+        // intraday OHLC is always reflected, even if Yahoo's historical feed
+        // returned a stale or missing current-day bar.
+        _injectChartLiveBar(sym, tf, _mcFsCandle, _mcFsVol, _mcFsOhlcv,
+            function() { return _mcFsSym !== sym || !_mcFsCandle; });
     }
 
     // Fullscreen window-level controls
@@ -5889,6 +5971,11 @@
             }
         };
         document.addEventListener('keydown', _wlKeyHandler);
+
+        // Inject today's live bar so the WL chart always shows the latest
+        // intraday OHLC — mirrors the fullscreen chart fix above.
+        _injectChartLiveBar(sym, tf, _wlCandle, _wlVol, _wlOhlcv,
+            function() { return _wlSym !== sym || !_wlCandle; });
     }
 
     // ── WL chart controls (exposed to HTML onclick) ───────────────────────
