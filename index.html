@@ -314,20 +314,23 @@
 
         /* ── Fullscreen right-click context menu ── */
         #mc-fs-ctx-menu,
-        #wl-chart-ctx-menu {
+        #wl-chart-ctx-menu,
+        #al-chart-ctx-menu {
             display: none; position: fixed; z-index: 20000;
             background: #161b22; border: 1px solid #30363d;
             border-radius: 8px; padding: 4px; min-width: 185px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.7);
         }
         #mc-fs-ctx-menu .ctx-label,
-        #wl-chart-ctx-menu .ctx-label {
+        #wl-chart-ctx-menu .ctx-label,
+        #al-chart-ctx-menu .ctx-label {
             padding: 5px 10px 6px; font-size: 0.72em; color: #484f58;
             border-bottom: 1px solid #21262d; margin-bottom: 3px;
             letter-spacing: 0.02em; user-select: none;
         }
         #mc-fs-ctx-menu .ctx-item,
-        #wl-chart-ctx-menu .ctx-item {
+        #wl-chart-ctx-menu .ctx-item,
+        #al-chart-ctx-menu .ctx-item {
             display: flex; align-items: center; gap: 8px;
             width: 100%; padding: 6px 10px; border: none;
             background: transparent; color: #8b949e; font-size: 0.82em;
@@ -335,9 +338,11 @@
             border-radius: 5px; text-align: left;
         }
         #mc-fs-ctx-menu .ctx-item:hover,
-        #wl-chart-ctx-menu .ctx-item:hover { background: #21262d; color: #c8d0dc; }
+        #wl-chart-ctx-menu .ctx-item:hover,
+        #al-chart-ctx-menu .ctx-item:hover { background: #21262d; color: #c8d0dc; }
         #mc-fs-ctx-menu .ctx-item .ctx-dot,
-        #wl-chart-ctx-menu .ctx-item .ctx-dot {
+        #wl-chart-ctx-menu .ctx-item .ctx-dot,
+        #al-chart-ctx-menu .ctx-item .ctx-dot {
             width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
         }
 
