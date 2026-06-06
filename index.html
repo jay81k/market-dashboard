@@ -5098,13 +5098,20 @@
         _buildLwMcGrid(grid, mcTickers, mcTimeframe, mcCols, mcWidgets, 'ind');
     }
 
-    window.openMcFullscreen = function(sym, tf) {
+    window.openMcFullscreen = function(sym, tf, displayName) {
         tf = tf || mcTimeframe || 'D';
         var overlay = document.getElementById('mc-fullscreen-overlay');
-        document.getElementById('mc-fullscreen-sym').textContent = sym;
-        var mcTicker = sym.replace(/[^A-Z0-9]/gi, '');
+        document.getElementById('mc-fullscreen-sym').textContent = displayName || sym;
         var mcFBtn = document.getElementById('mc-fullscreen-details-btn');
-        if (mcFBtn) mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
+        if (mcFBtn) {
+            if (displayName) {
+                mcFBtn.style.display = 'none';
+            } else {
+                mcFBtn.style.display = '';
+                var mcTicker = sym.replace(/[^A-Z0-9]/gi, '');
+                mcFBtn.href = 'https://finviz.com/quote.ashx?t=' + mcTicker;
+            }
+        }
 
         // RS badge + industry meta
         var mcPct = null, mcIndustry = '', mcFundRow = null;
@@ -14159,6 +14166,7 @@ var _mmPopup = (function () {
     var lwChart     = null;
     var candleSeries = null;
     var activeCard  = null;
+    var activeYfSym = null;   // YF symbol for macro cards (e.g. 'CL=F'); null for regular tickers
     var POPUP_W     = 420;
     var POPUP_H     = 310;
     var ready       = false;
@@ -14190,10 +14198,14 @@ var _mmPopup = (function () {
         popup.addEventListener('click', function(e) {
             var ticker = popupSym ? popupSym.textContent.trim() : '';
             if (!ticker || ticker === '—') return;
-            var _td = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
-            var industry = (_td && _td.industry) ? _td.industry : '';
             hidePopup();
-            if (typeof openMcFullscreen === 'function') openMcFullscreen(ticker);
+            if (typeof openMcFullscreen === 'function') {
+                if (activeYfSym) {
+                    openMcFullscreen(activeYfSym, undefined, ticker);
+                } else {
+                    openMcFullscreen(ticker);
+                }
+            }
         });
 
         // Right-click anywhere in popup → watchlist / alert picker
@@ -14475,6 +14487,7 @@ var _mmPopup = (function () {
 
         if (!yfSym) return;
 
+        activeYfSym = yfSym;
         popupSym.textContent  = label;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
         popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
@@ -14603,6 +14616,7 @@ var _mmPopup = (function () {
         var dir    = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
         popupSym.textContent = ticker;
+        activeYfSym = null;
         if (popupName) popupName.textContent = name || '';
 
         // Industry name in header
