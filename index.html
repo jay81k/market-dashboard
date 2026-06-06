@@ -3498,7 +3498,8 @@
             overlay.className = 'mc-cell-overlay';
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
-                openMcFullscreen(sym, tf);
+                _mcFsTf = tf;
+                openChartModal(sym);
             });
             overlay.addEventListener('contextmenu', function(e) {
                 e.preventDefault(); e.stopPropagation();
@@ -5205,6 +5206,8 @@
         var maChevron = document.getElementById('mc-fs-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
+        // Always clear the scan-nav-panel state so stale preset data never persists
+        if (typeof snpHide === 'function') snpHide();
     };
 
     // ══════════════════════════════════════════════════════════════════════
