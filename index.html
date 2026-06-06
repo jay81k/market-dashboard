@@ -2421,7 +2421,6 @@
 
 <div id="col-tooltip"></div>
 
-<script src="https://s3.tradingview.com/tv.js"></script>
 <script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 (function() {
@@ -10484,20 +10483,6 @@
         { id: 'HYPE', symbol: 'HYPE32196-USD', label: 'HYPE',   name: 'Hyperliquid' },
         { id: 'BTC',  symbol: 'BTC-USD', label: 'BTC',    name: 'Bitcoin' },
     ];
-
-    var MACRO_TV_MAP = {
-        'OIL':  'TVC:USOIL',
-        'GLD':  'TVC:GOLD',
-        'SLV':  'TVC:SILVER',
-        'CPR':  'TVC:COPPER',
-        'VIX':  'TVC:VIX',
-        'TNX':  'TVC:US10Y',
-        'ETH':  'BINANCE:ETHUSDT',
-        'XRP':  'BINANCE:XRPUSDT',
-        'SOL':  'BINANCE:SOLUSDT',
-        'HYPE': 'BINANCE:HYPEUSDT',
-        'BTC':  'BINANCE:BTCUSDT',
-    };
 
     function marketFetchMacro() {
         // Macro cards always use daily interval — 1D locks to range=2d,
