@@ -2679,7 +2679,7 @@
             if (_scanReturnState) {
                 var _sr = _scanReturnState;
                 _scanReturnState = null;
-                if (_sr.ticker) openChartModal(_sr.ticker, _sr.sector, _sr.industry);
+                if (_sr.ticker) openChartModal(_sr.ticker);
                 else if (_sr.snpOpen) snpBuild();
             }
             renderScans();
@@ -2730,7 +2730,7 @@
             var _rs = _alReturnState;
             _alReturnState = null;
             setTimeout(function() {
-                if (_rs.ticker) openChartModal(_rs.ticker, _rs.sector, _rs.industry);
+                if (_rs.ticker) openChartModal(_rs.ticker);
                 if (_rs.snpOpen) snpBuild();
             }, 50);
         }
@@ -6501,7 +6501,7 @@
         tbody.ondblclick = function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
-            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
+            openChartModal(row.getAttribute('data-symbol'));
         };
         tbody.oncontextmenu = function(e) {
             var row = e.target.closest('.stock-row');
@@ -6807,7 +6807,7 @@
                             var visRows   = Array.from(tbody.querySelectorAll('.stock-row'));
                             var localIdx  = currentStockIndex - topRows;
                             if (visRows[localIdx]) visRows[localIdx].classList.add('active');
-                            if (modalOpen) openChartModal(rowData.ticker, rowData.sector||'', rowData.industry||'');
+                            if (modalOpen) openChartModal(rowData.ticker);
                         }, 0);
                     }
                 } else {
@@ -6815,16 +6815,16 @@
                     allStockRows.forEach(function(x){ x.classList.remove('active'); });
                     r.classList.add('active');
                     r.scrollIntoView({ block: 'nearest' });
-                    if (modalOpen) openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                    if (modalOpen) openChartModal(r.getAttribute('data-symbol'));
                 }
             } else if (e.key === 'Enter' && currentStockIndex >= 0) {
                 e.preventDefault();
                 if (currentView === 'scans') {
                     var rowData = _vsData[currentStockIndex];
-                    if (rowData) openChartModal(rowData.ticker, rowData.sector||'', rowData.industry||'');
+                    if (rowData) openChartModal(rowData.ticker);
                 } else {
                     var r = allStockRows[currentStockIndex];
-                    openChartModal(r.getAttribute('data-symbol'), r.getAttribute('data-sector')||'', r.getAttribute('data-industry')||'');
+                    openChartModal(r.getAttribute('data-symbol'));
                 }
             }
             return;
@@ -11288,12 +11288,12 @@
             if (!row) return;
             var ticker   = row.getAttribute('data-ticker');
             var industry = row.getAttribute('data-industry') || '';
-            if (ticker) openChartModal(ticker, '', industry);
+            if (ticker) openChartModal(ticker);
         });
         document.getElementById('scans-table-view').addEventListener('dblclick', function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
-            openChartModal(row.getAttribute('data-symbol'), row.getAttribute('data-sector')||'', row.getAttribute('data-industry')||'');
+            openChartModal(row.getAttribute('data-symbol'));
         });
     });
     // ── SCAN NAV PANEL (removable block) ─────────────────────────────────
@@ -11432,11 +11432,11 @@
             if (rows[idx]) rows[idx].scrollIntoView({ block: 'nearest' });
         }
 
-        openChartModal(d.ticker, '', '');
+        openChartModal(d.ticker);
     }
 
     // Wrap openChartModal to use LW fullscreen chart + side panel (replaces TradingView modal)
-    openChartModal = window.openChartModal = function(symbol, sector, industry) {
+    openChartModal = window.openChartModal = function(symbol) {
         openMcFullscreen(symbol, _mcFsTf || 'D');
         if (!_snpData.length) {
             snpBuild();
@@ -12797,7 +12797,7 @@
 
     window.alOpenChart = function(ticker) {
         var sd = tickerMap && tickerMap[ticker];
-        openChartModal(ticker, (sd && sd.sector) || '', (sd && sd.industry) || '');
+        openChartModal(ticker);
     };
 
     // ── Alerts inline chart panel (LW Charts) ────────────────────────────
