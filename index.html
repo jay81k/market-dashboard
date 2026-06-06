@@ -2446,7 +2446,6 @@
     var allIndustryRows = [];
     var currentIndustryIndex = -1;
     var currentWlIndex = -1;
-    var TV_MAP = { '^VIX': 'TVC:VIX', 'CL=F': 'NYMEX:CL1!', '^TNX': 'TVC:TNX', 'NOV': 'NYSE:NOV', 'WDS': 'NYSE:WDS', 'ASX': 'NYSE:ASX', 'TLX': 'NASDAQ:TLX', 'CSL': 'NYSE:CSL', 'SB': 'NYSE:SB', 'ZIP': 'NYSE:ZIP', 'WLAC': 'NASDAQ:BRUN', 'WTI': 'NYSE:WTI', 'MDA': 'NYSE:MDA' };
     var WL_PROXY = 'https://yahoo-proxy.jay69k.workers.dev';
 
     // ── Live intraday Day% for industry list + heatmap ────────────────────
@@ -13668,6 +13667,7 @@
             }
             if (evt.key !== 'Delete') return;
             if (_alSelectedTrendlineIdx !== -1) {
+                evt.stopPropagation();
                 var selIdx = _alSelectedTrendlineIdx;
                 _alSelectedTrendlineIdx = -1;
                 var selTl = _alTrendlines.splice(selIdx, 1)[0];
@@ -13675,6 +13675,7 @@
                 return;
             }
             if (_alSelectedVwapIdx !== -1) {
+                evt.stopPropagation();
                 var selVwapIdx = _alSelectedVwapIdx;
                 _alSelectedVwapIdx = -1;
                 var removed = _alVwapSeries.splice(selVwapIdx, 1)[0];
@@ -13683,6 +13684,7 @@
                 return;
             }
             if (_alTrendlineMode && _alTrendlines.length) {
+                evt.stopPropagation();
                 var tLast = _alTrendlines.pop();
                 try { if (_alCandle) _alCandle.detachPrimitive(tLast.primitive); } catch(e) {}
             }
