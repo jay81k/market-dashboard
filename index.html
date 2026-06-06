@@ -4483,7 +4483,7 @@
                     : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
-                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);' +
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-140%);' +
                       'font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
                       crLabel.text + '</span>'
                     : '';
@@ -5964,7 +5964,7 @@
                 var pos = (high > low) ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100)) : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
-                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-140%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
                     : '';
                 return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">'
                     + '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>'
@@ -13598,7 +13598,7 @@
                 var pos = (high > low) ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100)) : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
-                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-140%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
                     : '';
                 return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">'
                     + '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>'
