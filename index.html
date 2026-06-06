@@ -11470,6 +11470,37 @@
         if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); snpNavigateTo(_snpIndex + 1); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); snpNavigateTo(_snpIndex - 1); }
     }, true);
+
+    // Alt+R — reset active LW chart to its original opening zoom/position
+    document.addEventListener('keydown', function(e) {
+        if (!e.altKey || e.key !== 'r') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        // Fullscreen takes priority
+        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) {
+            if (_mcFsChart && _mcFsOhlcv.length) {
+                var n = _mcFsOhlcv.length;
+                _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 12 });
+            }
+            return;
+        }
+        // WL side panel
+        if (document.getElementById('wl-chart-panel').classList.contains('open')) {
+            if (_wlChart && _wlOhlcv.length) {
+                var n = _wlOhlcv.length;
+                _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+            }
+            return;
+        }
+        // AL side panel
+        if (document.getElementById('al-chart-panel').classList.contains('open')) {
+            if (_alChart && _alOhlcv.length) {
+                var n = _alOhlcv.length;
+                _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+            }
+            return;
+        }
+    });
     // ── END SCAN NAV PANEL ───────────────────────────────────────────────
 
     // ── Floating tooltip for data-rs-tip elements ────────────────────────
