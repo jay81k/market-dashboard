@@ -1947,6 +1947,16 @@
                     </svg>
                 </button>
                 <div class="mc-toolbar-sep"></div>
+                <!-- Measure tool -->
+                <button class="mc-tf-btn" id="wl-chart-measure-btn" onclick="wlChartToggleMeasure()" title="Measure (or hold Shift + drag)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                        <rect x="1" y="5.5" width="14" height="5" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                        <line x1="4"  y1="5.5" x2="4"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        <line x1="8"  y1="5.5" x2="8"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        <line x1="12" y1="5.5" x2="12" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="mc-toolbar-sep"></div>
                 <button class="mc-tf-btn" id="wl-chart-vwap-btn" onclick="wlChartToggleVwap()" title="AVWAP" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
                         <line x1="3"  y1="2" x2="3"  y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -2235,6 +2245,16 @@
                     </svg>
                 </button>
                 <div class="mc-toolbar-sep"></div>
+                <!-- Measure tool -->
+                <button class="mc-tf-btn" id="al-chart-measure-btn" onclick="alChartToggleMeasure()" title="Measure (or hold Shift + drag)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                        <rect x="1" y="5.5" width="14" height="5" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                        <line x1="4"  y1="5.5" x2="4"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        <line x1="8"  y1="5.5" x2="8"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        <line x1="12" y1="5.5" x2="12" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="mc-toolbar-sep"></div>
                 <button class="mc-tf-btn" id="al-chart-vwap-btn" onclick="alChartToggleVwap()" title="AVWAP" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
                         <line x1="3"  y1="2" x2="3"  y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -2336,6 +2356,16 @@
                 <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                 <circle cx="2" cy="14" r="1.8" fill="currentColor"/>
                 <circle cx="14" cy="2" r="1.8" fill="currentColor"/>
+            </svg>
+        </button>
+        <div class="mc-toolbar-sep"></div>
+        <!-- Measure tool -->
+        <button class="mc-tf-btn" id="mc-fs-measure-btn" onclick="mcFsToggleMeasure()" title="Measure (or hold Shift + drag)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                <rect x="1" y="5.5" width="14" height="5" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                <line x1="4"  y1="5.5" x2="4"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="8"  y1="5.5" x2="8"  y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="12" y1="5.5" x2="12" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
         </button>
         <div class="mc-toolbar-sep"></div>
@@ -3175,6 +3205,16 @@
     var _mcFsSelectedVwapIdx        = -1;      // index in _mcFsVwapSeries of selected AVWAP, -1 = none
     var _mcFsTrendDragState         = null;    // { tlIdx, anchorSide:'left'|'right' } during anchor drag
 
+    // Measure tool state (mc-fs)
+    var _mcFsMeasureMode       = false;
+    var _mcFsMeasureActive     = false;
+    var _mcFsMeasureStart      = null;   // { time, price, barIdx }
+    var _mcFsMeasureResult     = null;   // persisted after drag ends
+    var _mcFsMeasureSvgOverlay = null;
+    var _mcFsMeasureSvgRect    = null;
+    var _mcFsMeasureHLine      = null;
+    var _mcFsMeasureInfoDiv    = null;
+
     // ── Watchlist LW chart state (mirrors _mcFs* for the side-panel chart) ───
     var _wlOhlcv              = [];
     var _wlSym                = null;
@@ -3207,6 +3247,16 @@
     var _wlCtxPrice             = null;
     var _wlCtxMa                = null;
     var _wlCtxAttached          = false;
+
+    // Measure tool state (wl)
+    var _wlMeasureMode       = false;
+    var _wlMeasureActive     = false;
+    var _wlMeasureStart      = null;
+    var _wlMeasureResult     = null;
+    var _wlMeasureSvgOverlay = null;
+    var _wlMeasureSvgRect    = null;
+    var _wlMeasureHLine      = null;
+    var _wlMeasureInfoDiv    = null;
 
     // Render-token per multichart context (prevents stale renders)
     var _mcRenderTokens = { ind: 0, wl: 0, scans: 0, al: 0 };
@@ -3350,6 +3400,129 @@
         for (var i = 0; i < ohlcv.length; i++) { if (ohlcv[i].time >= time) return i; }
         return -1;
     }
+
+    // ── Shared measure tool helpers ───────────────────────────────────────────
+    function _ensureMeasureOverlay(container, svgClass, infoClass) {
+        var svg = container.querySelector('.' + svgClass);
+        var rect, hLine;
+        if (!svg) {
+            svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', svgClass);
+            svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:6;display:none;';
+            rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            svg.appendChild(rect);
+            hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            svg.appendChild(hLine);
+            container.appendChild(svg);
+        } else {
+            rect  = svg.querySelector('rect');
+            hLine = svg.querySelector('line');
+        }
+        var info = container.querySelector('.' + infoClass);
+        if (!info) {
+            info = document.createElement('div');
+            info.setAttribute('class', infoClass);
+            info.style.cssText = 'position:absolute;display:none;z-index:7;pointer-events:none;color:#fff;font-size:11.5px;font-weight:600;font-family:inherit;font-variant-numeric:tabular-nums;line-height:1.55;padding:5px 9px;border-radius:3px;white-space:nowrap;';
+            container.appendChild(info);
+        }
+        return { svg: svg, rect: rect, hLine: hLine, info: info };
+    }
+
+    function _renderMeasureOverlay(chart, candle, contRef, svgEl, rectEl, hLineEl, infoEl, result) {
+        if (!result || !chart || !candle || !contRef) return;
+        var x1 = chart.timeScale().timeToCoordinate(result.startTime);
+        var x2 = chart.timeScale().timeToCoordinate(result.endTime);
+        var y1 = candle.priceToCoordinate(result.startPrice);
+        var y2 = candle.priceToCoordinate(result.endPrice);
+        if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+
+        var left   = Math.min(x1, x2);
+        var right  = Math.max(x1, x2);
+        var top    = Math.min(y1, y2);
+        var bottom = Math.max(y1, y2);
+        var w = right - left;
+        var h = bottom - top;
+        var isUp = result.endPrice >= result.startPrice;
+
+        var fillClr   = isUp ? 'rgba(8,153,129,0.15)'  : 'rgba(178,40,51,0.18)';
+        var strokeClr = isUp ? 'rgba(8,153,129,0.55)'  : 'rgba(178,40,51,0.6)';
+        var infoBg    = isUp ? 'rgba(8,153,129,0.88)'  : 'rgba(178,40,51,0.88)';
+
+        rectEl.setAttribute('x', left);
+        rectEl.setAttribute('y', top);
+        rectEl.setAttribute('width',  Math.max(w, 1));
+        rectEl.setAttribute('height', Math.max(h, 1));
+        rectEl.setAttribute('fill',   fillClr);
+        rectEl.setAttribute('stroke', strokeClr);
+        rectEl.setAttribute('stroke-width', '1');
+
+        var midY = (y1 + y2) / 2;
+        hLineEl.setAttribute('x1', left);  hLineEl.setAttribute('y1', midY);
+        hLineEl.setAttribute('x2', right); hLineEl.setAttribute('y2', midY);
+        hLineEl.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+        hLineEl.setAttribute('stroke-width', '0.5');
+        hLineEl.setAttribute('stroke-dasharray', '3,3');
+
+        var dStr = (result.priceDelta >= 0 ? '+' : '') + result.priceDelta.toFixed(2);
+        var pStr = (result.pctDelta   >= 0 ? '+' : '') + result.pctDelta.toFixed(2)   + '%';
+        infoEl.innerHTML = '<div>' + dStr + ' (' + pStr + ')</div><div>' + result.barCount + ' bars, ' + result.dayCount + 'd</div>';
+        infoEl.style.background = infoBg;
+        infoEl.style.display    = '';
+
+        var cRect = contRef.getBoundingClientRect();
+        var cw = cRect.width, ch = cRect.height;
+        var iw = infoEl.offsetWidth  || 115;
+        var ih = infoEl.offsetHeight ||  40;
+        var gap = 5;
+        var iLeft = right  + gap;
+        var iTop  = bottom + gap;
+        if (iLeft + iw > cw) iLeft = left - iw - gap;
+        if (iTop  + ih > ch) iTop  = top  - ih - gap;
+        if (iLeft < 0) iLeft = gap;
+        if (iTop  < 0) iTop  = gap;
+        infoEl.style.left = iLeft + 'px';
+        infoEl.style.top  = iTop  + 'px';
+
+        svgEl.style.display = '';
+    }
+
+    function _hideMeasureOverlay(svgEl, infoEl) {
+        if (svgEl)  svgEl.style.display  = 'none';
+        if (infoEl) infoEl.style.display = 'none';
+    }
+
+    function _computeMeasureResult(ohlcv, startTime, startPrice, endTime, endPrice) {
+        // bar count = |endIdx - startIdx| (TV-style: intervals between bars)
+        var si = _barIdxByTime(ohlcv, startTime);
+        var ei = _barIdxByTime(ohlcv, endTime);
+        if (si === -1) si = ohlcv.length - 1;
+        if (ei === -1) ei = ohlcv.length - 1;
+        var barCount = Math.abs(ei - si);
+        // calendar days from unix second timestamps
+        var dayCount = Math.round(Math.abs(endTime - startTime) / 86400);
+        if (dayCount === 0 && barCount > 0) dayCount = barCount; // fallback
+        var priceDelta = endPrice - startPrice;
+        var pctDelta   = (priceDelta / Math.abs(startPrice)) * 100;
+        return { startTime: startTime, startPrice: startPrice,
+                 endTime: endTime, endPrice: endPrice,
+                 barCount: barCount, dayCount: dayCount,
+                 priceDelta: priceDelta, pctDelta: pctDelta };
+    }
+
+    function _measureGetTimeAtX(chart, ohlcv, lx) {
+        var t = chart.timeScale().coordinateToTime(lx);
+        if (t != null) return t;
+        // Past last bar — extrapolate
+        var last = ohlcv[ohlcv.length - 1];
+        var prev = ohlcv.length > 1 ? ohlcv[ohlcv.length - 2] : last;
+        var lastX = chart.timeScale().timeToCoordinate(last.time);
+        var prevX = chart.timeScale().timeToCoordinate(prev.time);
+        var pxPer = (lastX != null && prevX != null) ? Math.abs(lastX - prevX) : 8;
+        var barSec = last.time - prev.time;
+        var ahead  = Math.max(1, Math.round((lx - lastX) / pxPer));
+        return last.time + ahead * barSec;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── Shared cell chart renderer ────────────────────────────────────────────
     function renderLwMcCellChart(container, ohlcv) {
@@ -3775,6 +3948,27 @@
         });
     }
 
+    // ── mc-fs Measure drag handlers ──────────────────────────────────────────
+    function _onMcFsMeasureDragMove(evt) {
+        if (!_mcFsMeasureActive || !_mcFsTrendContRef || !_mcFsChart || !_mcFsCandle) return;
+        var r    = _mcFsTrendContRef.getBoundingClientRect();
+        var lx   = evt.clientX - r.left;
+        var ly   = evt.clientY - r.top;
+        var eP   = _mcFsCandle.coordinateToPrice(ly);
+        var eT   = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
+        if (eP == null || eT == null) return;
+        _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
+        _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
+            _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
+            _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+    }
+    function _onMcFsMeasureDragEnd() {
+        document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
+        document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+        _mcFsMeasureActive = false;
+        // Result stays visible; cleared on next non-measure click or Escape
+    }
+
     // ── Trendline: click → free-move preview → click-to-finish ────────────
     // First click sets the start anchor; mouse movement (no button held) shows a
     // live extended-line preview; second click finalises.  Uses raw DOM mousedown
@@ -3782,6 +3976,36 @@
 
     function _onTrendMouseDown(evt) {
         if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
+
+        // ── Measure tool intercept (Shift+drag or measure mode active) ───────
+        if ((evt.shiftKey || _mcFsMeasureMode) && !_mcFsTrendDragState) {
+            evt.stopPropagation();
+            // Cancel any in-progress trendline draw
+            if (_mcFsTrendDraw.active) {
+                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
+                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+            }
+            var _mRect = _mcFsTrendContRef.getBoundingClientRect();
+            var _mlx   = evt.clientX - _mRect.left;
+            var _mly   = evt.clientY - _mRect.top;
+            var _mP    = _mcFsCandle.coordinateToPrice(_mly);
+            var _mT    = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, _mlx);
+            if (_mP == null || _mT == null) return;
+            var _mSi   = _barIdxByTime(_mcFsOhlcv, _mT);
+            _mcFsMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
+            _mcFsMeasureResult = null;
+            _mcFsMeasureActive = true;
+            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+            document.addEventListener('mousemove', _onMcFsMeasureDragMove);
+            document.addEventListener('mouseup',   _onMcFsMeasureDragEnd);
+            return;
+        }
+
+        // On any click without measure tool — clear a displayed measurement
+        if (_mcFsMeasureResult && !_mcFsMeasureMode) {
+            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+            _mcFsMeasureResult = null;
+        }
 
         // ── Phase 1: anchor drag — check selected line first, then all others
         if (!_mcFsTrendDraw.active) {
@@ -4209,6 +4433,15 @@
         }
         _mcFsTrendSvgOverlay.style.display = 'none'; // always start hidden on (re)load
 
+        // ── Measure tool overlay ───────────────────────────────────────────
+        var _mOver = _ensureMeasureOverlay(container, 'mc-fs-measure-svg', 'mc-fs-measure-info');
+        _mcFsMeasureSvgOverlay = _mOver.svg;
+        _mcFsMeasureSvgRect    = _mOver.rect;
+        _mcFsMeasureHLine      = _mOver.hLine;
+        _mcFsMeasureInfoDiv    = _mOver.info;
+        _mcFsMeasureResult     = null; // clear stale result on chart rebuild
+        _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+
         // mousemove on the container drives SVG line updates — no chart re-render
         container.removeEventListener('mousemove', _onTrendMouseMove);
         container.addEventListener('mousemove', _onTrendMouseMove);
@@ -4349,6 +4582,15 @@
                 _mcFsChart.timeScale().subscribeVisibleTimeRangeChange(positionVolLabel);
             }, 60);
         })();
+
+        // Re-render measure overlay on pan/zoom so the rect tracks correctly
+        _mcFsChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+            if (_mcFsMeasureResult) {
+                _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
+                    _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
+                    _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+            }
+        });
 
         // Active MAs
         Object.keys(_mcFsActiveMas).forEach(function(key) {
@@ -4556,8 +4798,17 @@
         // Delete/Escape key handler — trendlines + AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
         _mcFsKeyHandler = function(evt) {
-            // Escape: cancel in-progress draw OR deselect selected trendline
+            // Escape: cancel in-progress draw OR deselect selected trendline OR clear measure
             if (evt.key === 'Escape') {
+                if (_mcFsMeasureActive) {
+                    _mcFsMeasureActive = false;
+                    document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
+                    document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+                }
+                if (_mcFsMeasureResult) {
+                    _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+                    _mcFsMeasureResult = null;
+                }
                 if (_mcFsTrendDraw.active) {
                     _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                     if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
@@ -4620,6 +4871,12 @@
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
+        // Reset measure tool
+        _mcFsMeasureMode = false; _mcFsMeasureActive = false; _mcFsMeasureResult = null;
+        var mBtn = document.getElementById('mc-fs-measure-btn');
+        if (mBtn) mBtn.classList.remove('active');
+        document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
+        document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
         // Close MA panel
         var maPanel   = document.getElementById('mc-fs-ma-panel');
         var maChevron = document.getElementById('mc-fs-ma-chevron');
@@ -4698,6 +4955,11 @@
             _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         }
+        if (_mcFsVwapMode && _mcFsMeasureMode) {
+            _mcFsMeasureMode = false;
+            var mBtn = document.getElementById('mc-fs-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
     };
 
     window.mcFsToggleTrendline = function() {
@@ -4710,11 +4972,46 @@
             var vBtn = document.getElementById('mc-fs-vwap-btn');
             if (vBtn) vBtn.classList.remove('active');
         }
+        if (_mcFsTrendlineMode && _mcFsMeasureMode) {
+            _mcFsMeasureMode = false;
+            var mBtn = document.getElementById('mc-fs-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
         // Cancel any in-progress draw and deselect
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
+    };
+
+    window.mcFsToggleMeasure = function() {
+        _mcFsMeasureMode = !_mcFsMeasureMode;
+        var btn = document.getElementById('mc-fs-measure-btn');
+        if (btn) btn.classList.toggle('active', _mcFsMeasureMode);
+        if (_mcFsMeasureMode) {
+            // Deactivate trendline and AVWAP when measure is turned on
+            if (_mcFsTrendlineMode) {
+                _mcFsTrendlineMode = false;
+                var tBtn = document.getElementById('mc-fs-trendline-btn');
+                if (tBtn) tBtn.classList.remove('active');
+                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
+                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+            }
+            if (_mcFsVwapMode) {
+                _mcFsVwapMode = false;
+                var vBtn = document.getElementById('mc-fs-vwap-btn');
+                if (vBtn) vBtn.classList.remove('active');
+            }
+        } else {
+            // Toggled off — clear any live measure
+            if (_mcFsMeasureActive) {
+                _mcFsMeasureActive = false;
+                document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
+                document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+            }
+            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+            _mcFsMeasureResult = null;
+        }
     };
     // ── Inline symbol switcher ───────────────────────────────────────────────
     window._mcFsSymClick = function() {
@@ -5399,9 +5696,58 @@
         });
     }
 
+    // ── WL Measure drag handlers ─────────────────────────────────────────────
+    function _onWlMeasureDragMove(evt) {
+        if (!_wlMeasureActive || !_wlTrendContRef || !_wlChart || !_wlCandle) return;
+        var r  = _wlTrendContRef.getBoundingClientRect();
+        var lx = evt.clientX - r.left;
+        var ly = evt.clientY - r.top;
+        var eP = _wlCandle.coordinateToPrice(ly);
+        var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
+        if (eP == null || eT == null) return;
+        _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
+        _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
+            _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
+            _wlMeasureInfoDiv, _wlMeasureResult);
+    }
+    function _onWlMeasureDragEnd() {
+        document.removeEventListener('mousemove', _onWlMeasureDragMove);
+        document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+        _wlMeasureActive = false;
+    }
+
     // ── Trendline mousedown (capture phase, blocks LW canvas pan) ─────────
     function _onWlTrendMouseDown(evt) {
         if (evt.button !== 0 || !_wlCandle || !_wlChart || !_wlTrendContRef) return;
+
+        // ── Measure tool intercept ────────────────────────────────────────────
+        if ((evt.shiftKey || _wlMeasureMode) && !_wlTrendDragState) {
+            evt.stopPropagation();
+            if (_wlTrendDraw.active) {
+                _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+            }
+            var _mRect = _wlTrendContRef.getBoundingClientRect();
+            var _mlx   = evt.clientX - _mRect.left;
+            var _mly   = evt.clientY - _mRect.top;
+            var _mP    = _wlCandle.coordinateToPrice(_mly);
+            var _mT    = _measureGetTimeAtX(_wlChart, _wlOhlcv, _mlx);
+            if (_mP == null || _mT == null) return;
+            var _mSi   = _barIdxByTime(_wlOhlcv, _mT);
+            _wlMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
+            _wlMeasureResult = null;
+            _wlMeasureActive = true;
+            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+            document.addEventListener('mousemove', _onWlMeasureDragMove);
+            document.addEventListener('mouseup',   _onWlMeasureDragEnd);
+            return;
+        }
+
+        // Clear displayed measurement on non-measure click
+        if (_wlMeasureResult && !_wlMeasureMode) {
+            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+            _wlMeasureResult = null;
+        }
 
         if (!_wlTrendDraw.active) {
             var dragTlIdx = -1, anchorSide = null;
@@ -5728,6 +6074,15 @@
         }
         _wlTrendSvgOverlay.style.display = 'none';
 
+        // ── Measure tool overlay ───────────────────────────────────────────
+        var _wlmOver = _ensureMeasureOverlay(container, 'wl-measure-svg', 'wl-measure-info');
+        _wlMeasureSvgOverlay = _wlmOver.svg;
+        _wlMeasureSvgRect    = _wlmOver.rect;
+        _wlMeasureHLine      = _wlmOver.hLine;
+        _wlMeasureInfoDiv    = _wlmOver.info;
+        _wlMeasureResult     = null;
+        _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+
         container.removeEventListener('mousemove', _onWlTrendMouseMove);
         container.addEventListener('mousemove', _onWlTrendMouseMove);
 
@@ -5864,6 +6219,15 @@
         // Visible range
         var n = _wlOhlcv.length;
         _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+
+        // Re-render measure overlay on pan/zoom
+        _wlChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+            if (_wlMeasureResult) {
+                _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
+                    _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
+                    _wlMeasureInfoDiv, _wlMeasureResult);
+            }
+        });
 
         // Click: AVWAP + selection
         _wlChart.subscribeClick(function(param) {
@@ -6018,6 +6382,15 @@
         if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); }
         _wlKeyHandler = function(evt) {
             if (evt.key === 'Escape') {
+                if (_wlMeasureActive) {
+                    _wlMeasureActive = false;
+                    document.removeEventListener('mousemove', _onWlMeasureDragMove);
+                    document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+                }
+                if (_wlMeasureResult) {
+                    _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+                    _wlMeasureResult = null;
+                }
                 if (_wlTrendDraw.active) {
                     _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
                     if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
@@ -6070,6 +6443,11 @@
         _wlTrendlines = []; _wlTrendlineFirst = null; _wlSelectedTrendlineIdx = -1;
         if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
         _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+        _wlMeasureMode = false; _wlMeasureActive = false; _wlMeasureResult = null;
+        var wlMBtn = document.getElementById('wl-chart-measure-btn');
+        if (wlMBtn) wlMBtn.classList.remove('active');
+        document.removeEventListener('mousemove', _onWlMeasureDragMove);
+        document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
         var maPanel   = document.getElementById('wl-chart-ma-panel');
         var maChevron = document.getElementById('wl-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -6131,7 +6509,6 @@
         _wlVwapMode = !_wlVwapMode;
         var btn = document.getElementById('wl-chart-vwap-btn');
         if (btn) btn.classList.toggle('active', _wlVwapMode);
-        // Deactivate trendline tool if AVWAP is being turned on
         if (_wlVwapMode && _wlTrendlineMode) {
             _wlTrendlineMode = false;
             var tBtn = document.getElementById('wl-chart-trendline-btn');
@@ -6139,22 +6516,59 @@
             _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
             if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
         }
+        if (_wlVwapMode && _wlMeasureMode) {
+            _wlMeasureMode = false;
+            var mBtn = document.getElementById('wl-chart-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
     };
 
     window.wlChartToggleTrendline = function() {
         _wlTrendlineMode = !_wlTrendlineMode;
         var btn = document.getElementById('wl-chart-trendline-btn');
         if (btn) btn.classList.toggle('active', _wlTrendlineMode);
-        // Deactivate AVWAP tool if trendline is being turned on
         if (_wlTrendlineMode && _wlVwapMode) {
             _wlVwapMode = false;
             var vBtn = document.getElementById('wl-chart-vwap-btn');
             if (vBtn) vBtn.classList.remove('active');
         }
+        if (_wlTrendlineMode && _wlMeasureMode) {
+            _wlMeasureMode = false;
+            var mBtn = document.getElementById('wl-chart-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
         _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
         _wlTrendlineFirst = null;
         if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
         if (_wlSelectedTrendlineIdx !== -1) _wlDeselectAllTrendlines();
+    };
+
+    window.wlChartToggleMeasure = function() {
+        _wlMeasureMode = !_wlMeasureMode;
+        var btn = document.getElementById('wl-chart-measure-btn');
+        if (btn) btn.classList.toggle('active', _wlMeasureMode);
+        if (_wlMeasureMode) {
+            if (_wlTrendlineMode) {
+                _wlTrendlineMode = false;
+                var tBtn = document.getElementById('wl-chart-trendline-btn');
+                if (tBtn) tBtn.classList.remove('active');
+                _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+            }
+            if (_wlVwapMode) {
+                _wlVwapMode = false;
+                var vBtn = document.getElementById('wl-chart-vwap-btn');
+                if (vBtn) vBtn.classList.remove('active');
+            }
+        } else {
+            if (_wlMeasureActive) {
+                _wlMeasureActive = false;
+                document.removeEventListener('mousemove', _onWlMeasureDragMove);
+                document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+            }
+            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+            _wlMeasureResult = null;
+        }
     };
 
     // ══════════════════════════════════════════════════════════════════════
@@ -12867,6 +13281,17 @@
     var _alCtxPrice             = null;
     var _alCtxMa                = null;
     var _alCtxAttached          = false;
+
+    // Measure tool state (al)
+    var _alMeasureMode       = false;
+    var _alMeasureActive     = false;
+    var _alMeasureStart      = null;
+    var _alMeasureResult     = null;
+    var _alMeasureSvgOverlay = null;
+    var _alMeasureSvgRect    = null;
+    var _alMeasureHLine      = null;
+    var _alMeasureInfoDiv    = null;
+
     var _alClickTimer   = null;
     var _alClickTicker  = null;
 
@@ -13072,8 +13497,57 @@
         });
     }
 
+    // ── AL Measure drag handlers ─────────────────────────────────────────────
+    function _onAlMeasureDragMove(evt) {
+        if (!_alMeasureActive || !_alTrendContRef || !_alChart || !_alCandle) return;
+        var r  = _alTrendContRef.getBoundingClientRect();
+        var lx = evt.clientX - r.left;
+        var ly = evt.clientY - r.top;
+        var eP = _alCandle.coordinateToPrice(ly);
+        var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
+        if (eP == null || eT == null) return;
+        _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
+        _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
+            _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
+            _alMeasureInfoDiv, _alMeasureResult);
+    }
+    function _onAlMeasureDragEnd() {
+        document.removeEventListener('mousemove', _onAlMeasureDragMove);
+        document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+        _alMeasureActive = false;
+    }
+
     function _onAlTrendMouseDown(evt) {
         if (evt.button !== 0 || !_alCandle || !_alChart || !_alTrendContRef) return;
+
+        // ── Measure tool intercept ────────────────────────────────────────────
+        if ((evt.shiftKey || _alMeasureMode) && !_alTrendDragState) {
+            evt.stopPropagation();
+            if (_alTrendDraw.active) {
+                _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
+                if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
+            }
+            var _mRect = _alTrendContRef.getBoundingClientRect();
+            var _mlx   = evt.clientX - _mRect.left;
+            var _mly   = evt.clientY - _mRect.top;
+            var _mP    = _alCandle.coordinateToPrice(_mly);
+            var _mT    = _measureGetTimeAtX(_alChart, _alOhlcv, _mlx);
+            if (_mP == null || _mT == null) return;
+            var _mSi   = _barIdxByTime(_alOhlcv, _mT);
+            _alMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
+            _alMeasureResult = null;
+            _alMeasureActive = true;
+            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+            document.addEventListener('mousemove', _onAlMeasureDragMove);
+            document.addEventListener('mouseup',   _onAlMeasureDragEnd);
+            return;
+        }
+
+        // Clear displayed measurement on non-measure click
+        if (_alMeasureResult && !_alMeasureMode) {
+            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+            _alMeasureResult = null;
+        }
 
         if (!_alTrendDraw.active) {
             var dragTlIdx = -1, anchorSide = null;
@@ -13393,6 +13867,15 @@
         }
         _alTrendSvgOverlay.style.display = 'none';
 
+        // ── Measure tool overlay ───────────────────────────────────────────
+        var _almOver = _ensureMeasureOverlay(container, 'al-measure-svg', 'al-measure-info');
+        _alMeasureSvgOverlay = _almOver.svg;
+        _alMeasureSvgRect    = _almOver.rect;
+        _alMeasureHLine      = _almOver.hLine;
+        _alMeasureInfoDiv    = _almOver.info;
+        _alMeasureResult     = null;
+        _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+
         container.removeEventListener('mousemove', _onAlTrendMouseMove);
         container.addEventListener('mousemove', _onAlTrendMouseMove);
 
@@ -13529,6 +14012,15 @@
         // Visible range
         var n = _alOhlcv.length;
         _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+
+        // Re-render measure overlay on pan/zoom
+        _alChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+            if (_alMeasureResult) {
+                _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
+                    _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
+                    _alMeasureInfoDiv, _alMeasureResult);
+            }
+        });
 
         // Click: AVWAP + selection
         _alChart.subscribeClick(function(param) {
@@ -13681,6 +14173,15 @@
         if (_alKeyHandler) { document.removeEventListener('keydown', _alKeyHandler); }
         _alKeyHandler = function(evt) {
             if (evt.key === 'Escape') {
+                if (_alMeasureActive) {
+                    _alMeasureActive = false;
+                    document.removeEventListener('mousemove', _onAlMeasureDragMove);
+                    document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+                }
+                if (_alMeasureResult) {
+                    _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+                    _alMeasureResult = null;
+                }
                 if (_alTrendDraw.active) {
                     _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
                     if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
@@ -13813,6 +14314,11 @@
         _alTrendlines = []; _alTrendlineFirst = null; _alSelectedTrendlineIdx = -1;
         if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
+        _alMeasureMode = false; _alMeasureActive = false; _alMeasureResult = null;
+        var alMBtn = document.getElementById('al-chart-measure-btn');
+        if (alMBtn) alMBtn.classList.remove('active');
+        document.removeEventListener('mousemove', _onAlMeasureDragMove);
+        document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
         var maPanel   = document.getElementById('al-chart-ma-panel');
         var maChevron = document.getElementById('al-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -13881,6 +14387,11 @@
             _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
             if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         }
+        if (_alVwapMode && _alMeasureMode) {
+            _alMeasureMode = false;
+            var mBtn = document.getElementById('al-chart-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
     };
 
     window.alChartToggleTrendline = function() {
@@ -13892,10 +14403,43 @@
             var vBtn = document.getElementById('al-chart-vwap-btn');
             if (vBtn) vBtn.classList.remove('active');
         }
+        if (_alTrendlineMode && _alMeasureMode) {
+            _alMeasureMode = false;
+            var mBtn = document.getElementById('al-chart-measure-btn');
+            if (mBtn) mBtn.classList.remove('active');
+        }
         _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
         _alTrendlineFirst = null;
         if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         if (_alSelectedTrendlineIdx !== -1) _alDeselectAllTrendlines();
+    };
+
+    window.alChartToggleMeasure = function() {
+        _alMeasureMode = !_alMeasureMode;
+        var btn = document.getElementById('al-chart-measure-btn');
+        if (btn) btn.classList.toggle('active', _alMeasureMode);
+        if (_alMeasureMode) {
+            if (_alTrendlineMode) {
+                _alTrendlineMode = false;
+                var tBtn = document.getElementById('al-chart-trendline-btn');
+                if (tBtn) tBtn.classList.remove('active');
+                _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
+                if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
+            }
+            if (_alVwapMode) {
+                _alVwapMode = false;
+                var vBtn = document.getElementById('al-chart-vwap-btn');
+                if (vBtn) vBtn.classList.remove('active');
+            }
+        } else {
+            if (_alMeasureActive) {
+                _alMeasureActive = false;
+                document.removeEventListener('mousemove', _onAlMeasureDragMove);
+                document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+            }
+            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+            _alMeasureResult = null;
+        }
     };
     // ── END Alerts inline chart panel ─────────────────────────────────────
 
