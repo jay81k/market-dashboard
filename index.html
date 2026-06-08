@@ -4051,8 +4051,15 @@
             return;
         }
 
-        // On any click without measure tool — clear a displayed measurement
-        if (_mcFsMeasureResult && !_mcFsMeasureMode) {
+        // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
+        if (_mcFsMeasurePhase === 1) {
+            _mcFsMeasureActive = false;
+            _mcFsMeasurePhase  = 0;
+            if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
+            document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
+            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+            _mcFsMeasureResult = null;
+        } else if (_mcFsMeasureResult && !_mcFsMeasureMode) {
             _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
             _mcFsMeasureResult = null;
         }
@@ -4272,6 +4279,21 @@
             if (!chartDiv.contains(evt.target)) return; // header / settings bar click
             evt.preventDefault();
             evt.stopPropagation();
+            // Right-click: cancel active measurement first (no context menu shown)
+            if (_mcFsMeasurePhase === 1) {
+                _mcFsMeasureActive = false;
+                _mcFsMeasurePhase  = 0;
+                if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
+                _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+                _mcFsMeasureResult = null;
+                return;
+            }
+            if (_mcFsMeasureResult) {
+                _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
+                _mcFsMeasureResult = null;
+                return;
+            }
             // Right-click while drawing a trendline: cancel draw, skip context menu
             if (_mcFsTrendDraw.active) {
                 _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
@@ -5841,8 +5863,15 @@
             return;
         }
 
-        // Clear displayed measurement on non-measure click
-        if (_wlMeasureResult && !_wlMeasureMode) {
+        // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
+        if (_wlMeasurePhase === 1) {
+            _wlMeasureActive = false;
+            _wlMeasurePhase  = 0;
+            if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
+            document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
+            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+            _wlMeasureResult = null;
+        } else if (_wlMeasureResult && !_wlMeasureMode) {
             _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
             _wlMeasureResult = null;
         }
@@ -6031,6 +6060,21 @@
             if (!chartDiv.contains(evt.target)) return;
             evt.preventDefault();
             evt.stopPropagation();
+            // Right-click: cancel active measurement first (no context menu shown)
+            if (_wlMeasurePhase === 1) {
+                _wlMeasureActive = false;
+                _wlMeasurePhase  = 0;
+                if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
+                _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+                _wlMeasureResult = null;
+                return;
+            }
+            if (_wlMeasureResult) {
+                _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
+                _wlMeasureResult = null;
+                return;
+            }
             if (_wlTrendDraw.active) {
                 _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
                 if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
@@ -13691,8 +13735,15 @@
             return;
         }
 
-        // Clear displayed measurement on non-measure click
-        if (_alMeasureResult && !_alMeasureMode) {
+        // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
+        if (_alMeasurePhase === 1) {
+            _alMeasureActive = false;
+            _alMeasurePhase  = 0;
+            if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
+            document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
+            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+            _alMeasureResult = null;
+        } else if (_alMeasureResult && !_alMeasureMode) {
             _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
             _alMeasureResult = null;
         }
@@ -13876,6 +13927,21 @@
             if (!chartDiv.contains(evt.target)) return;
             evt.preventDefault();
             evt.stopPropagation();
+            // Right-click: cancel active measurement first (no context menu shown)
+            if (_alMeasurePhase === 1) {
+                _alMeasureActive = false;
+                _alMeasurePhase  = 0;
+                if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
+                _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+                _alMeasureResult = null;
+                return;
+            }
+            if (_alMeasureResult) {
+                _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+                _alMeasureResult = null;
+                return;
+            }
             if (_alTrendDraw.active) {
                 _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
                 if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
