@@ -3208,6 +3208,8 @@
     // Measure tool state (mc-fs)
     var _mcFsMeasureMode       = false;
     var _mcFsMeasureActive     = false;
+    var _mcFsMeasurePhase      = 0;      // 0=idle, 1=anchor set (two-click mode preview)
+    var _mcFsMeasureRafId      = null;   // rAF throttle handle
     var _mcFsMeasureStart      = null;   // { time, price, barIdx }
     var _mcFsMeasureResult     = null;   // persisted after drag ends
     var _mcFsMeasureSvgOverlay = null;
@@ -3251,6 +3253,8 @@
     // Measure tool state (wl)
     var _wlMeasureMode       = false;
     var _wlMeasureActive     = false;
+    var _wlMeasurePhase      = 0;
+    var _wlMeasureRafId      = null;
     var _wlMeasureStart      = null;
     var _wlMeasureResult     = null;
     var _wlMeasureSvgOverlay = null;
@@ -3430,11 +3434,11 @@
 
     function _renderMeasureOverlay(chart, candle, contRef, svgEl, rectEl, hLineEl, infoEl, result) {
         if (!result || !chart || !candle || !contRef) return;
-        var x1 = chart.timeScale().timeToCoordinate(result.startTime);
-        var x2 = chart.timeScale().timeToCoordinate(result.endTime);
+        var x1 = chart.timeScale().logicalToCoordinate(result.startBarIdx);
+        var x2 = chart.timeScale().logicalToCoordinate(result.endBarIdx);
         var y1 = candle.priceToCoordinate(result.startPrice);
         var y2 = candle.priceToCoordinate(result.endPrice);
-        if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+        if (x1 == null || y1 == null || y2 == null) return;
 
         var left   = Math.min(x1, x2);
         var right  = Math.max(x1, x2);
@@ -3471,8 +3475,11 @@
 
         var cRect = contRef.getBoundingClientRect();
         var cw = cRect.width, ch = cRect.height;
-        var iw = infoEl.offsetWidth  || 115;
-        var ih = infoEl.offsetHeight ||  40;
+        // Cache info-box dimensions after first paint to avoid repeated reflow
+        if (!infoEl._cachedW) { infoEl._cachedW = infoEl.offsetWidth  || 115; }
+        if (!infoEl._cachedH) { infoEl._cachedH = infoEl.offsetHeight ||  40; }
+        var iw = infoEl._cachedW;
+        var ih = infoEl._cachedH;
         var gap = 5;
         var iLeft = right  + gap;
         var iTop  = bottom + gap;
@@ -3505,6 +3512,7 @@
         var pctDelta   = (priceDelta / Math.abs(startPrice)) * 100;
         return { startTime: startTime, startPrice: startPrice,
                  endTime: endTime, endPrice: endPrice,
+                 startBarIdx: si, endBarIdx: ei,
                  barCount: barCount, dayCount: dayCount,
                  priceDelta: priceDelta, pctDelta: pctDelta };
     }
@@ -3951,22 +3959,48 @@
     // ── mc-fs Measure drag handlers ──────────────────────────────────────────
     function _onMcFsMeasureDragMove(evt) {
         if (!_mcFsMeasureActive || !_mcFsTrendContRef || !_mcFsChart || !_mcFsCandle) return;
-        var r    = _mcFsTrendContRef.getBoundingClientRect();
-        var lx   = evt.clientX - r.left;
-        var ly   = evt.clientY - r.top;
-        var eP   = _mcFsCandle.coordinateToPrice(ly);
-        var eT   = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
-        if (eP == null || eT == null) return;
-        _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
-        _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
-            _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
-            _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+        if (_mcFsMeasureRafId) return; // already a frame queued — skip raw event
+        var cx = evt.clientX, cy = evt.clientY;
+        _mcFsMeasureRafId = requestAnimationFrame(function() {
+            _mcFsMeasureRafId = null;
+            if (!_mcFsMeasureActive) return;
+            var r  = _mcFsTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _mcFsCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
+                _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
+                _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+        });
     }
     function _onMcFsMeasureDragEnd() {
         document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
         document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
         _mcFsMeasureActive = false;
         // Result stays visible; cleared on next non-measure click or Escape
+    }
+    // Two-click preview: fires on free mousemove after first Shift+click (no button held)
+    function _onMcFsMeasurePreviewMove(evt) {
+        if (!_mcFsMeasureActive || _mcFsMeasurePhase !== 1 || !_mcFsTrendContRef || !_mcFsChart || !_mcFsCandle) return;
+        if (_mcFsMeasureRafId) return;
+        var cx = evt.clientX, cy = evt.clientY;
+        _mcFsMeasureRafId = requestAnimationFrame(function() {
+            _mcFsMeasureRafId = null;
+            if (!_mcFsMeasureActive || _mcFsMeasurePhase !== 1) return;
+            var r  = _mcFsTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _mcFsCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
+                _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
+                _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+        });
     }
 
     // ── Trendline: click → free-move preview → click-to-finish ────────────
@@ -3977,10 +4011,10 @@
     function _onTrendMouseDown(evt) {
         if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
 
-        // ── Measure tool intercept (Shift+drag or measure mode active) ───────
+        // ── Measure tool intercept ───────────────────────────────────────────
         if ((evt.shiftKey || _mcFsMeasureMode) && !_mcFsTrendDragState) {
             evt.stopPropagation();
-            // Cancel any in-progress trendline draw
+            evt.preventDefault();
             if (_mcFsTrendDraw.active) {
                 _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
                 if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
@@ -3992,12 +4026,28 @@
             var _mT    = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, _mlx);
             if (_mP == null || _mT == null) return;
             var _mSi   = _barIdxByTime(_mcFsOhlcv, _mT);
+
+            if (_mcFsMeasurePhase === 1) {
+                // Second click — finalise at current cursor position
+                _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, _mT, _mP);
+                _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
+                    _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
+                    _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+                _mcFsMeasureActive = false;
+                _mcFsMeasurePhase  = 0;
+                if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
+                return;
+            }
+
+            // First click — set anchor, enter free-move preview phase
             _mcFsMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
             _mcFsMeasureResult = null;
             _mcFsMeasureActive = true;
+            _mcFsMeasurePhase  = 1;
             _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-            document.addEventListener('mousemove', _onMcFsMeasureDragMove);
-            document.addEventListener('mouseup',   _onMcFsMeasureDragEnd);
+            document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove); // clear stale
+            document.addEventListener('mousemove', _onMcFsMeasurePreviewMove);
             return;
         }
 
@@ -4800,10 +4850,13 @@
         _mcFsKeyHandler = function(evt) {
             // Escape: cancel in-progress draw OR deselect selected trendline OR clear measure
             if (evt.key === 'Escape') {
-                if (_mcFsMeasureActive) {
+                if (_mcFsMeasureActive || _mcFsMeasurePhase === 1) {
                     _mcFsMeasureActive = false;
+                    _mcFsMeasurePhase  = 0;
+                    if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
                     document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
                     document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+                    document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
                 }
                 if (_mcFsMeasureResult) {
                     _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
@@ -4872,11 +4925,13 @@
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         // Reset measure tool
-        _mcFsMeasureMode = false; _mcFsMeasureActive = false; _mcFsMeasureResult = null;
+        _mcFsMeasureMode = false; _mcFsMeasureActive = false; _mcFsMeasurePhase = 0; _mcFsMeasureResult = null;
+        if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
         var mBtn = document.getElementById('mc-fs-measure-btn');
         if (mBtn) mBtn.classList.remove('active');
         document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
         document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+        document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
         // Close MA panel
         var maPanel   = document.getElementById('mc-fs-ma-panel');
         var maChevron = document.getElementById('mc-fs-ma-chevron');
@@ -5004,10 +5059,13 @@
             }
         } else {
             // Toggled off — clear any live measure
-            if (_mcFsMeasureActive) {
+            if (_mcFsMeasureActive || _mcFsMeasurePhase === 1) {
                 _mcFsMeasureActive = false;
+                _mcFsMeasurePhase  = 0;
+                if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
                 document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
                 document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
+                document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
             }
             _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
             _mcFsMeasureResult = null;
@@ -5699,21 +5757,46 @@
     // ── WL Measure drag handlers ─────────────────────────────────────────────
     function _onWlMeasureDragMove(evt) {
         if (!_wlMeasureActive || !_wlTrendContRef || !_wlChart || !_wlCandle) return;
-        var r  = _wlTrendContRef.getBoundingClientRect();
-        var lx = evt.clientX - r.left;
-        var ly = evt.clientY - r.top;
-        var eP = _wlCandle.coordinateToPrice(ly);
-        var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
-        if (eP == null || eT == null) return;
-        _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
-        _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
-            _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
-            _wlMeasureInfoDiv, _wlMeasureResult);
+        if (_wlMeasureRafId) return;
+        var cx = evt.clientX, cy = evt.clientY;
+        _wlMeasureRafId = requestAnimationFrame(function() {
+            _wlMeasureRafId = null;
+            if (!_wlMeasureActive) return;
+            var r  = _wlTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _wlCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
+                _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
+                _wlMeasureInfoDiv, _wlMeasureResult);
+        });
     }
     function _onWlMeasureDragEnd() {
         document.removeEventListener('mousemove', _onWlMeasureDragMove);
         document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
         _wlMeasureActive = false;
+    }
+    function _onWlMeasurePreviewMove(evt) {
+        if (!_wlMeasureActive || _wlMeasurePhase !== 1 || !_wlTrendContRef || !_wlChart || !_wlCandle) return;
+        if (_wlMeasureRafId) return;
+        var cx = evt.clientX, cy = evt.clientY;
+        _wlMeasureRafId = requestAnimationFrame(function() {
+            _wlMeasureRafId = null;
+            if (!_wlMeasureActive || _wlMeasurePhase !== 1) return;
+            var r  = _wlTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _wlCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
+                _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
+                _wlMeasureInfoDiv, _wlMeasureResult);
+        });
     }
 
     // ── Trendline mousedown (capture phase, blocks LW canvas pan) ─────────
@@ -5723,6 +5806,7 @@
         // ── Measure tool intercept ────────────────────────────────────────────
         if ((evt.shiftKey || _wlMeasureMode) && !_wlTrendDragState) {
             evt.stopPropagation();
+            evt.preventDefault();
             if (_wlTrendDraw.active) {
                 _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
                 if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
@@ -5734,12 +5818,26 @@
             var _mT    = _measureGetTimeAtX(_wlChart, _wlOhlcv, _mlx);
             if (_mP == null || _mT == null) return;
             var _mSi   = _barIdxByTime(_wlOhlcv, _mT);
+
+            if (_wlMeasurePhase === 1) {
+                _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, _mT, _mP);
+                _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
+                    _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
+                    _wlMeasureInfoDiv, _wlMeasureResult);
+                _wlMeasureActive = false;
+                _wlMeasurePhase  = 0;
+                if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
+                return;
+            }
+
             _wlMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
             _wlMeasureResult = null;
             _wlMeasureActive = true;
+            _wlMeasurePhase  = 1;
             _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-            document.addEventListener('mousemove', _onWlMeasureDragMove);
-            document.addEventListener('mouseup',   _onWlMeasureDragEnd);
+            document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
+            document.addEventListener('mousemove', _onWlMeasurePreviewMove);
             return;
         }
 
@@ -6382,10 +6480,13 @@
         if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); }
         _wlKeyHandler = function(evt) {
             if (evt.key === 'Escape') {
-                if (_wlMeasureActive) {
+                if (_wlMeasureActive || _wlMeasurePhase === 1) {
                     _wlMeasureActive = false;
+                    _wlMeasurePhase  = 0;
+                    if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
                     document.removeEventListener('mousemove', _onWlMeasureDragMove);
                     document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+                    document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
                 }
                 if (_wlMeasureResult) {
                     _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
@@ -6443,11 +6544,13 @@
         _wlTrendlines = []; _wlTrendlineFirst = null; _wlSelectedTrendlineIdx = -1;
         if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
         _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
-        _wlMeasureMode = false; _wlMeasureActive = false; _wlMeasureResult = null;
+        _wlMeasureMode = false; _wlMeasureActive = false; _wlMeasurePhase = 0; _wlMeasureResult = null;
+        if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
         var wlMBtn = document.getElementById('wl-chart-measure-btn');
         if (wlMBtn) wlMBtn.classList.remove('active');
         document.removeEventListener('mousemove', _onWlMeasureDragMove);
         document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+        document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
         var maPanel   = document.getElementById('wl-chart-ma-panel');
         var maChevron = document.getElementById('wl-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -6561,10 +6664,13 @@
                 if (vBtn) vBtn.classList.remove('active');
             }
         } else {
-            if (_wlMeasureActive) {
+            if (_wlMeasureActive || _wlMeasurePhase === 1) {
                 _wlMeasureActive = false;
+                _wlMeasurePhase  = 0;
+                if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
                 document.removeEventListener('mousemove', _onWlMeasureDragMove);
                 document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
+                document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
             }
             _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
             _wlMeasureResult = null;
@@ -13285,6 +13391,8 @@
     // Measure tool state (al)
     var _alMeasureMode       = false;
     var _alMeasureActive     = false;
+    var _alMeasurePhase      = 0;
+    var _alMeasureRafId      = null;
     var _alMeasureStart      = null;
     var _alMeasureResult     = null;
     var _alMeasureSvgOverlay = null;
@@ -13500,21 +13608,46 @@
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
         if (!_alMeasureActive || !_alTrendContRef || !_alChart || !_alCandle) return;
-        var r  = _alTrendContRef.getBoundingClientRect();
-        var lx = evt.clientX - r.left;
-        var ly = evt.clientY - r.top;
-        var eP = _alCandle.coordinateToPrice(ly);
-        var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
-        if (eP == null || eT == null) return;
-        _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
-        _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
-            _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
-            _alMeasureInfoDiv, _alMeasureResult);
+        if (_alMeasureRafId) return;
+        var cx = evt.clientX, cy = evt.clientY;
+        _alMeasureRafId = requestAnimationFrame(function() {
+            _alMeasureRafId = null;
+            if (!_alMeasureActive) return;
+            var r  = _alTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _alCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
+                _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
+                _alMeasureInfoDiv, _alMeasureResult);
+        });
     }
     function _onAlMeasureDragEnd() {
         document.removeEventListener('mousemove', _onAlMeasureDragMove);
         document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
         _alMeasureActive = false;
+    }
+    function _onAlMeasurePreviewMove(evt) {
+        if (!_alMeasureActive || _alMeasurePhase !== 1 || !_alTrendContRef || !_alChart || !_alCandle) return;
+        if (_alMeasureRafId) return;
+        var cx = evt.clientX, cy = evt.clientY;
+        _alMeasureRafId = requestAnimationFrame(function() {
+            _alMeasureRafId = null;
+            if (!_alMeasureActive || _alMeasurePhase !== 1) return;
+            var r  = _alTrendContRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = _alCandle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
+            if (eP == null || eT == null) return;
+            _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
+            _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
+                _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
+                _alMeasureInfoDiv, _alMeasureResult);
+        });
     }
 
     function _onAlTrendMouseDown(evt) {
@@ -13523,6 +13656,7 @@
         // ── Measure tool intercept ────────────────────────────────────────────
         if ((evt.shiftKey || _alMeasureMode) && !_alTrendDragState) {
             evt.stopPropagation();
+            evt.preventDefault();
             if (_alTrendDraw.active) {
                 _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
                 if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
@@ -13534,12 +13668,26 @@
             var _mT    = _measureGetTimeAtX(_alChart, _alOhlcv, _mlx);
             if (_mP == null || _mT == null) return;
             var _mSi   = _barIdxByTime(_alOhlcv, _mT);
+
+            if (_alMeasurePhase === 1) {
+                _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, _mT, _mP);
+                _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
+                    _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
+                    _alMeasureInfoDiv, _alMeasureResult);
+                _alMeasureActive = false;
+                _alMeasurePhase  = 0;
+                if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
+                document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
+                return;
+            }
+
             _alMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
             _alMeasureResult = null;
             _alMeasureActive = true;
+            _alMeasurePhase  = 1;
             _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-            document.addEventListener('mousemove', _onAlMeasureDragMove);
-            document.addEventListener('mouseup',   _onAlMeasureDragEnd);
+            document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
+            document.addEventListener('mousemove', _onAlMeasurePreviewMove);
             return;
         }
 
@@ -14173,10 +14321,13 @@
         if (_alKeyHandler) { document.removeEventListener('keydown', _alKeyHandler); }
         _alKeyHandler = function(evt) {
             if (evt.key === 'Escape') {
-                if (_alMeasureActive) {
+                if (_alMeasureActive || _alMeasurePhase === 1) {
                     _alMeasureActive = false;
+                    _alMeasurePhase  = 0;
+                    if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
                     document.removeEventListener('mousemove', _onAlMeasureDragMove);
                     document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+                    document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
                 }
                 if (_alMeasureResult) {
                     _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
@@ -14314,11 +14465,13 @@
         _alTrendlines = []; _alTrendlineFirst = null; _alSelectedTrendlineIdx = -1;
         if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
-        _alMeasureMode = false; _alMeasureActive = false; _alMeasureResult = null;
+        _alMeasureMode = false; _alMeasureActive = false; _alMeasurePhase = 0; _alMeasureResult = null;
+        if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
         var alMBtn = document.getElementById('al-chart-measure-btn');
         if (alMBtn) alMBtn.classList.remove('active');
         document.removeEventListener('mousemove', _onAlMeasureDragMove);
         document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+        document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
         var maPanel   = document.getElementById('al-chart-ma-panel');
         var maChevron = document.getElementById('al-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -14432,10 +14585,13 @@
                 if (vBtn) vBtn.classList.remove('active');
             }
         } else {
-            if (_alMeasureActive) {
+            if (_alMeasureActive || _alMeasurePhase === 1) {
                 _alMeasureActive = false;
+                _alMeasurePhase  = 0;
+                if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
                 document.removeEventListener('mousemove', _onAlMeasureDragMove);
                 document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
+                document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
             }
             _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
             _alMeasureResult = null;
