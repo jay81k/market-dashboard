@@ -113,6 +113,7 @@
     var _wlTrendDragState       = null;
     var _wlCtxPrice             = null;
     var _wlCtxMa                = null;
+    var _wlCtxTrendline         = null; // {p1, p2} when right-clicking on a trendline
     var _wlCtxAttached          = false;
 
     // Measure tool state (wl)
@@ -1091,15 +1092,24 @@
     // ── Fullscreen right-click alert context menu ──────────────────────────
     var _mcFsCtxPrice      = null;
     var _mcFsCtxMa         = null; // MA key when right-clicking on an MA line
+    var _mcFsCtxTrendline  = null; // {p1, p2} when right-clicking on a trendline
     var _mcFsCtxAttached   = false;
 
     function _mcFsDismissCtx() {
         document.getElementById('mc-fs-ctx-menu').style.display = 'none';
-        _mcFsCtxPrice = null;
-        _mcFsCtxMa    = null;
+        _mcFsCtxPrice     = null;
+        _mcFsCtxMa        = null;
+        _mcFsCtxTrendline = null;
     }
 
     window.mcFsCtxAlert = function(direction) {
+        if (_mcFsCtxTrendline) {
+            var tl = _mcFsCtxTrendline;
+            _mcFsDismissCtx();
+            if (!_mcFsSym) return;
+            window.alAddTrendlineAlert(_mcFsSym, tl.p1, tl.p2, direction);
+            return;
+        }
         if (_mcFsCtxMa) {
             // MA alert — price crosses above/below a specific moving average
             var maKey = _mcFsCtxMa;
@@ -1173,6 +1183,44 @@
                 return;
             }
             if (!_mcFsChart || !_mcFsSym) return;
+            // ── Trendline right-click: check hit before price/MA ──────────────
+            var _mcFsTlHitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
+            if (_mcFsTlHitIdx !== -1) {
+                var _mcFsTlHit = _mcFsTrendlines[_mcFsTlHitIdx];
+                _mcFsCtxTrendline = { p1: _mcFsTlHit.leftP, p2: _mcFsTlHit.rightP };
+                _mcFsCtxPrice = null;
+                _mcFsCtxMa    = null;
+                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · Trendline';
+                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above trendline';
+                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below trendline';
+                var _mcFsTlMenu = document.getElementById('mc-fs-ctx-menu');
+                _mcFsTlMenu.style.display = 'block';
+                var mw = _mcFsTlMenu.offsetWidth  || 185;
+                var mh = _mcFsTlMenu.offsetHeight || 90;
+                var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
+                var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
+                _mcFsTlMenu.style.left = x + 'px';
+                _mcFsTlMenu.style.top  = y + 'px';
+                setTimeout(function() {
+                    function _mcFsTlDismiss(e) {
+                        if (!_mcFsTlMenu.contains(e.target)) {
+                            _mcFsDismissCtx();
+                            document.removeEventListener('mousedown', _mcFsTlDismiss, true);
+                            document.removeEventListener('keydown',   _mcFsTlKd,      true);
+                        }
+                    }
+                    function _mcFsTlKd(e) {
+                        if (e.key === 'Escape') {
+                            _mcFsDismissCtx();
+                            document.removeEventListener('mousedown', _mcFsTlDismiss, true);
+                            document.removeEventListener('keydown',   _mcFsTlKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _mcFsTlDismiss, true);
+                    document.addEventListener('keydown',   _mcFsTlKd,      true);
+                }, 0);
+                return;
+            }
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
             var price = _mcFsLastCrosshairPrice;
@@ -2879,11 +2927,19 @@
     // ── Right-click context menu ──────────────────────────────────────────
     function _wlDismissCtx() {
         document.getElementById('wl-chart-ctx-menu').style.display = 'none';
-        _wlCtxPrice = null;
-        _wlCtxMa    = null;
+        _wlCtxPrice     = null;
+        _wlCtxMa        = null;
+        _wlCtxTrendline = null;
     }
 
     window.wlCtxAlert = function(direction) {
+        if (_wlCtxTrendline) {
+            var tl = _wlCtxTrendline;
+            _wlDismissCtx();
+            if (!_wlSym) return;
+            window.alAddTrendlineAlert(_wlSym, tl.p1, tl.p2, direction);
+            return;
+        }
         if (_wlCtxMa) {
             var maKey = _wlCtxMa;
             _wlDismissCtx();
@@ -2952,6 +3008,44 @@
                 return;
             }
             if (!_wlChart || !_wlSym) return;
+            // ── Trendline right-click: check hit before price/MA ──────────────
+            var _wlTlHitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
+            if (_wlTlHitIdx !== -1) {
+                var _wlTlHit = _wlTrendlines[_wlTlHitIdx];
+                _wlCtxTrendline = { p1: _wlTlHit.leftP, p2: _wlTlHit.rightP };
+                _wlCtxPrice = null;
+                _wlCtxMa    = null;
+                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · Trendline';
+                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above trendline';
+                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below trendline';
+                var _wlTlMenu = document.getElementById('wl-chart-ctx-menu');
+                _wlTlMenu.style.display = 'block';
+                var mw = _wlTlMenu.offsetWidth  || 185;
+                var mh = _wlTlMenu.offsetHeight || 90;
+                var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
+                var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
+                _wlTlMenu.style.left = x + 'px';
+                _wlTlMenu.style.top  = y + 'px';
+                setTimeout(function() {
+                    function _wlTlDismiss(e) {
+                        if (!_wlTlMenu.contains(e.target)) {
+                            _wlDismissCtx();
+                            document.removeEventListener('mousedown', _wlTlDismiss, true);
+                            document.removeEventListener('keydown',   _wlTlKd,      true);
+                        }
+                    }
+                    function _wlTlKd(e) {
+                        if (e.key === 'Escape') {
+                            _wlDismissCtx();
+                            document.removeEventListener('mousedown', _wlTlDismiss, true);
+                            document.removeEventListener('keydown',   _wlTlKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _wlTlDismiss, true);
+                    document.addEventListener('keydown',   _wlTlKd,      true);
+                }, 0);
+                return;
+            }
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
             var price = _wlLastCrosshairPrice;
