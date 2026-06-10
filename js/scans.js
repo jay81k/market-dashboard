@@ -9,6 +9,8 @@
     var _indRankMap         = {};
     var scanLivePrices      = {};   // { ticker: { price, prevClose } }
     var scanPriceTimer      = null;
+    var _scanLiveRefilterScheduled = false;
+    var _scanPreserveScroll        = false;
 
     function getAllStocks() {
         if (!snapshot || !snapshot.by_industry) return [];
@@ -1495,7 +1497,15 @@
                     if (!isNaN(udvThresh) && udv <= udvThresh) return false;
                 } else if (f.type === 'cr') {
                     var crField = (f.crTf === 'w') ? 'cr_w' : (f.crTf === 'm') ? 'cr_m' : 'cr';
-                    var cr = r[crField];
+                    var cr;
+                    if (!f.crTf || f.crTf === 'd') {
+                        var _liveCrF = scanLivePrices[r.ticker];
+                        cr = (_liveCrF && _liveCrF.price && _liveCrF.dayHigh != null && _liveCrF.dayLow != null && _liveCrF.dayHigh > _liveCrF.dayLow)
+                            ? ((_liveCrF.price - _liveCrF.dayLow) / (_liveCrF.dayHigh - _liveCrF.dayLow)) * 100
+                            : r[crField];
+                    } else {
+                        cr = r[crField];
+                    }
                     if (cr == null) return false;
                     var cv = parseFloat(f.val);
                     if (!isNaN(cv)) {
@@ -1538,7 +1548,15 @@
                 } else if (f.type === 'perf') {
                     var perfTf = f.perfTf || '1d';
                     var perfField = perfTf === '1d' ? 'daily' : perfTf === '1w' ? '1w' : perfTf === '1m' ? '1m' : '3m';
-                    var pv = r[perfField];
+                    var pv;
+                    if (perfTf === '1d') {
+                        var _livePerf = scanLivePrices[r.ticker];
+                        pv = (_livePerf && _livePerf.price && _livePerf.prevClose)
+                            ? ((_livePerf.price - _livePerf.prevClose) / _livePerf.prevClose) * 100
+                            : r[perfField];
+                    } else {
+                        pv = r[perfField];
+                    }
                     if (pv == null) return false;
                     var pthresh = parseFloat(f.val);
                     if (isNaN(pthresh)) pthresh = 0;
@@ -1896,8 +1914,11 @@
         }
 
         var wrap = document.querySelector('#scans-table-view .stocks-table-wrap');
-        if (wrap) wrap.scrollTop = 0;
-        _vsRenderWindow(0);
+        var _keepScroll = _scanPreserveScroll;
+        _scanPreserveScroll = false;
+        var _scrollTop = _keepScroll && wrap ? wrap.scrollTop : 0;
+        if (!_keepScroll && wrap) wrap.scrollTop = 0;
+        _vsRenderWindow(_scrollTop);
 
         var firstRow = document.querySelector('#scans-tbody .stock-row');
         if (firstRow && firstRow.offsetHeight > 0) _vsRowHeight = firstRow.offsetHeight;
@@ -1963,6 +1984,20 @@
                     }
                 });
                 scanUpdatePriceRows();
+                // Re-apply intraday-sensitive filters now that live data is available.
+                // Stocks that were filtered out using snapshot values get a second pass.
+                var _intradayActive = sfRows.some(function(f) {
+                    return (f.type === 'perf' && (f.perfTf || '1d') === '1d') ||
+                           (f.type === 'cr'   && (!f.crTf || f.crTf === 'd'));
+                });
+                if (_intradayActive && !_scanLiveRefilterScheduled) {
+                    _scanLiveRefilterScheduled = true;
+                    setTimeout(function() {
+                        _scanLiveRefilterScheduled = false;
+                        _scanPreserveScroll = true;
+                        renderScans();
+                    }, 200);
+                }
             }).catch(function() {});
         });
     }
