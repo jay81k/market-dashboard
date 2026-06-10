@@ -183,7 +183,12 @@
                             if (qt) {
                                 for (var i = 0; i < ts.length; i++) {
                                     if (!ts[i] || qt.open[i] == null || qt.close[i] == null) continue;
-                                    ohlcv.push({ time: ts[i], open: qt.open[i], high: qt.high[i], low: qt.low[i], close: qt.close[i], volume: qt.volume[i] || 0 });
+                                    // Normalize to noon UTC (12:00 UTC) so LWC renders the correct
+                                    // calendar date in any local timezone. Yahoo historical bars use
+                                    // midnight UTC; noon UTC is safely within the correct day for
+                                    // all US/EU/Asia markets and avoids the -1 day shift for UTC-N zones.
+                                    var _noonTs = Math.floor(ts[i] / 86400) * 86400 + 43200;
+                                    ohlcv.push({ time: _noonTs, open: qt.open[i], high: qt.high[i], low: qt.low[i], close: qt.close[i], volume: qt.volume[i] || 0 });
                                 }
                                 // LWC requires strictly monotonic timestamps — dedupe and sort defensively
                                 var _tsSeen = {};
@@ -477,11 +482,11 @@
         var inst = widgetsObj && widgetsObj[ticker];
         if (!inst || !inst.candle || !inst.ohlcv || !inst.ohlcv.length) return;
         var d = new Date();
-        var todayTs = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
+        // Use noon UTC (midnight UTC + 43200s) so todayTs matches the noon-UTC stamps
+        // written by fetchMcOhlcv and stays within the correct calendar day for UTC-N zones.
+        var todayTs = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000) + 43200;
         var last = inst.ohlcv[inst.ohlcv.length - 1];
-        // Normalise last.time to midnight UTC before comparing — Yahoo daily bars
-        // carry the session-open timestamp (e.g. 09:30 ET), not midnight UTC.
-        var lastDayTs = Math.floor(last.time / 86400) * 86400;
+        var lastDayTs = Math.floor(last.time / 86400) * 86400 + 43200;
         var open, high, low, volume;
         if (lastDayTs === todayTs) {
             open   = last.open;
@@ -1329,9 +1334,10 @@
         function _applyLiveBar(p, dh, dl) {
             if (!p || !candle || !ohlcvArr.length) return;
             var now = new Date();
-            var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000);
+            // Use noon UTC (midnight UTC + 43200s) to match the noon-UTC stamps from fetchMcOhlcv.
+            var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
             var last = ohlcvArr[ohlcvArr.length - 1];
-            var lastDayTs = Math.floor(last.time / 86400) * 86400;
+            var lastDayTs = Math.floor(last.time / 86400) * 86400 + 43200;
             var open, high, low, volume;
             if (lastDayTs === todayTs) {
                 open   = last.open;
