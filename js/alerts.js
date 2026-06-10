@@ -281,6 +281,8 @@
                 key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
             else if (a.alertType === 'pattern')
                 key = window.alPatternAlertKey(a);
+            else if (a.alertType === 'trendline')
+                key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
             else
                 key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
@@ -343,6 +345,14 @@
                 var triggeredPats = pKeys.filter(function(pk) { return !!stockData[pk + ptfSuffix]; });
                 hit = triggeredPats.length > 0;
                 hitVal = stockData.price || 0;
+            } else if (a.alertType === 'trendline') {
+                var tlLivePrice = alertPrices[a.ticker];
+                if (tlLivePrice == null || !a.p1 || !a.p2) return;
+                var tlNowUnix   = Math.floor(Date.now() / 1000);
+                var tlLinePrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNowUnix);
+                hitVal = tlLivePrice;
+                hit = (a.condition === 'above' && tlLivePrice >= tlLinePrice) ||
+                      (a.condition === 'below' && tlLivePrice <= tlLinePrice);
             } else {
                 var price = alertPrices[a.ticker];
                 if (price == null) return;
@@ -354,12 +364,13 @@
             _alertFiredSess[key] = true;
             alertFiredList.unshift({
                 ticker: a.ticker, condition: a.condition,
-                alertPrice: a.price, hitPrice: hitVal,
+                alertPrice: a.alertType === 'trendline' ? null : a.price, hitPrice: hitVal,
                 alertType: a.alertType || 'price',
                 maKey: a.maKey || null,
                 ma1Key: a.ma1Key || null, ma2Key: a.ma2Key || null,
                 patternKeys: window.alGetPatternKeys(a), patternTf: a.patternTf || null,
                 triggeredPatternKeys: (a.alertType === 'pattern' ? triggeredPats : null),
+                p1: a.p1 || null, p2: a.p2 || null,
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
@@ -377,8 +388,9 @@
                 } else if (a.alertType === 'pattern') {
                     var pLabels = triggeredPats.map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' + ');
                     body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
+                } else if (a.alertType === 'trendline') {
+                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline · now $' + hitVal.toFixed(2);
                 } else {
-                    body = (a.condition === 'above' ? '▲' : '▼') + ' $' + a.price.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                 }
                 new Notification(a.ticker + ' alert triggered', { body: body });
             }
@@ -391,6 +403,7 @@
                 if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
                 else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
                 else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
+                else if (a.alertType === 'trendline') k = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
                 else k = a.ticker + '_' + a.price + '_' + a.condition;
                 return !removeSet[k];
             });
@@ -476,6 +489,12 @@
             displayList.sort(function(x, y) {
                 function awayVal(a) {
                     if (a.alertType === 'rsi14' || a.alertType === 'pattern') return Infinity;
+                    if (a.alertType === 'trendline') {
+                        var tlCurr = alertPrices[a.ticker];
+                        if (tlCurr == null || !a.p1 || !a.p2) return Infinity;
+                        var tlSortPrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, Math.floor(Date.now() / 1000));
+                        return tlSortPrice > 0 ? Math.abs((tlCurr - tlSortPrice) / tlSortPrice * 100) : Infinity;
+                    }
                     if (a.alertType === 'macross') {
                         var sd = null;
                         if (snapshot && snapshot.by_industry) {
@@ -532,6 +551,7 @@
             if (a.alertType === 'macross') key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
             else if (a.alertType === 'ma') key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
             else if (a.alertType === 'pattern') key = window.alPatternAlertKey(a);
+            else if (a.alertType === 'trendline') key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
             else key = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
@@ -542,7 +562,11 @@
                     : '<span style="color:#f85149;">▼ MA below</span>')
                 : a.alertType === 'pattern'
                     ? '<span style="color:#8b949e;">⬡ Pattern</span>'
-                    : a.isPrevDay === 'high'
+                    : a.alertType === 'trendline'
+                        ? (a.condition === 'above'
+                            ? '<span style="color:#3fb950;">▲ trendline</span>'
+                            : '<span style="color:#f85149;">▼ trendline</span>')
+                        : a.isPrevDay === 'high'
                         ? '<span style="color:#3fb950;">▲ PDH</span>'
                         : a.isPrevDay === 'low'
                             ? '<span style="color:#f85149;">▼ PDL</span>'
@@ -615,6 +639,16 @@
                 }
             } else if (a.alertType === 'pattern') {
                 awayHtml = '<div class="al-col-away">—</div>';
+            } else if (a.alertType === 'trendline') {
+                if (fired || curr == null || !a.p1 || !a.p2) {
+                    awayHtml = '<div class="al-col-away">—</div>';
+                } else {
+                    var tlNow   = Math.floor(Date.now() / 1000);
+                    var tlPriceNow = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNow);
+                    var tlPct   = tlPriceNow > 0 ? Math.abs((curr - tlPriceNow) / tlPriceNow * 100) : 0;
+                    var tlCls   = tlPct < 1 ? ' imminent' : tlPct < 5 ? ' close' : '';
+                    awayHtml    = '<div class="al-col-away' + tlCls + '">' + tlPct.toFixed(1) + '%</div>';
+                }
             } else if (fired || curr == null) {
                 awayHtml = '<div class="al-col-away">—</div>';
             } else {
@@ -640,14 +674,16 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : a.alertType === 'trendline' ? (function(){ if (!a.p1 || !a.p2) return '~/~'; var tlT = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, Math.floor(Date.now()/1000)); return '~$' + tlT.toFixed(2); })() : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
-                '<div class="al-col-edit" onclick="alEditOpen(' + idx + ')" title="Edit">✎</div>' +
+                (a.alertType === 'trendline'
+                    ? '<div class="al-col-edit" style="visibility:hidden;pointer-events:none;">✎</div>'
+                    : '<div class="al-col-edit" onclick="alEditOpen(' + idx + ')" title="Edit">✎</div>') +
                 '<div class="al-col-del" onclick="alDeleteConfirm(' + idx + ',\'' + esc(a.ticker) + '\')" title="Remove">×</div>' +
             '</div>';
         }).join('');
@@ -742,6 +778,8 @@
                   (f.ma2Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'ma'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
+                : f.alertType === 'trendline'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline</span>'
                 : f.alertType === 'pattern'
                 ? (function() {
                     var pKeys = (f.triggeredPatternKeys && f.triggeredPatternKeys.length)
@@ -1554,6 +1592,49 @@
         });
     }
 
+    // ── Trendline Alert creation API ──────────────────────────────────────
+    window.alAddTrendlineAlert = function(ticker, p1, p2, condition) {
+        // Convert LW time to unix seconds (handles number, 'YYYY-MM-DD' string, or {year,month,day})
+        function toUnix(t) {
+            if (typeof t === 'number') return t;
+            if (typeof t === 'string') return Math.floor(new Date(t).getTime() / 1000);
+            if (t && t.year != null) return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
+            return 0;
+        }
+        var u1 = toUnix(p1.time), u2 = toUnix(p2.time);
+        // Normalise so np1.unix <= np2.unix (chronological order)
+        var np1, np2;
+        if (u1 <= u2) {
+            np1 = { time: p1.time, price: p1.price, unix: u1 };
+            np2 = { time: p2.time, price: p2.price, unix: u2 };
+        } else {
+            np1 = { time: p2.time, price: p2.price, unix: u2 };
+            np2 = { time: p1.time, price: p1.price, unix: u1 };
+        }
+        // Dedup: same ticker + same two anchor times + same condition
+        var exists = alertsList.some(function(a) {
+            return a.alertType === 'trendline' && a.ticker === ticker &&
+                   a.condition === condition && a.p1 && a.p2 &&
+                   a.p1.unix === np1.unix && a.p2.unix === np2.unix;
+        });
+        if (exists) return;
+        var name = (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '';
+        alertsList.push({
+            ticker:    ticker,
+            alertType: 'trendline',
+            condition: condition,
+            p1:        np1,
+            p2:        np2,
+            name:      name,
+            addedAt:   new Date().toISOString()
+        });
+        _alLoaded = true;
+        alSave();
+        alStartBackgroundPolling();
+        if (currentView === 'alerts') renderAlerts();
+        alStampBadges();
+    };
+
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
         if (!_alMeasureActive || !_alTrendContRef || !_alChart || !_alCandle) return;
@@ -1788,13 +1869,29 @@
     }
 
     // ── Right-click context menu ──────────────────────────────────────────
+    var _alCtxTrendline = null; // {p1, p2} when right-click lands on a trendline
+
+    // Linear interpolation/extrapolation of trendline price at a given unix timestamp
+    function _alTrendlinePriceAt(p1unix, p1price, p2unix, p2price, nowUnix) {
+        if (p1unix === p2unix) return p1price;
+        return p1price + (p2price - p1price) * (nowUnix - p1unix) / (p2unix - p1unix);
+    }
+
     function _alDismissCtx() {
         document.getElementById('al-chart-ctx-menu').style.display = 'none';
-        _alCtxPrice = null;
-        _alCtxMa    = null;
+        _alCtxPrice     = null;
+        _alCtxMa        = null;
+        _alCtxTrendline = null;
     }
 
     window.alChartCtxAlert = function(direction) {
+        if (_alCtxTrendline) {
+            var tl = _alCtxTrendline;
+            _alDismissCtx();
+            if (!_alSym) return;
+            window.alAddTrendlineAlert(_alSym, tl.p1, tl.p2, direction);
+            return;
+        }
         if (_alCtxMa) {
             var maKey = _alCtxMa;
             _alDismissCtx();
@@ -1859,6 +1956,44 @@
                 return;
             }
             if (!_alChart || !_alSym) return;
+            // ── Trendline right-click: check hit before price/MA ──────────────
+            var _tlHitIdx = _alTrendlineHitTest(evt.clientX, evt.clientY);
+            if (_tlHitIdx !== -1) {
+                var _tlHit = _alTrendlines[_tlHitIdx];
+                _alCtxTrendline = { p1: _tlHit.p1, p2: _tlHit.p2 };
+                _alCtxPrice = null;
+                _alCtxMa    = null;
+                document.getElementById('al-chart-ctx-label').textContent     = _alSym + ' · Trendline';
+                document.getElementById('al-chart-ctx-above-txt').textContent = 'Alert above trendline';
+                document.getElementById('al-chart-ctx-below-txt').textContent = 'Alert below trendline';
+                var menu  = document.getElementById('al-chart-ctx-menu');
+                menu.style.display = 'block';
+                var mw = menu.offsetWidth  || 185;
+                var mh = menu.offsetHeight || 90;
+                var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
+                var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
+                menu.style.left = x + 'px';
+                menu.style.top  = y + 'px';
+                setTimeout(function() {
+                    function _tlDismiss(e) {
+                        if (!menu.contains(e.target)) {
+                            _alDismissCtx();
+                            document.removeEventListener('mousedown', _tlDismiss, true);
+                            document.removeEventListener('keydown',   _tlKd,      true);
+                        }
+                    }
+                    function _tlKd(e) {
+                        if (e.key === 'Escape') {
+                            _alDismissCtx();
+                            document.removeEventListener('mousedown', _tlDismiss, true);
+                            document.removeEventListener('keydown',   _tlKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _tlDismiss, true);
+                    document.addEventListener('keydown',   _tlKd,      true);
+                }, 0);
+                return;
+            }
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
             var price = _alLastCrosshairPrice;
