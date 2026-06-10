@@ -1962,6 +1962,12 @@
     }
 
     // ── Scans live prices ─────────────────────────────────────────────────
+    window.sfRefreshScan = function() {
+        var btn = document.getElementById('scans-refresh-btn');
+        if (btn) btn.classList.add('spinning');
+        renderScans();
+    };
+
     function scanFetchPrices() {
         var tickers = _vsData.map(function(r) { return r.ticker; });
         if (!tickers.length) return;
@@ -1998,6 +2004,9 @@
                         renderScans();
                     }, 200);
                 }
+                // Stop refresh button spin once prices are in
+                var _refreshBtn = document.getElementById('scans-refresh-btn');
+                if (_refreshBtn) _refreshBtn.classList.remove('spinning');
             }).catch(function() {});
         });
     }
