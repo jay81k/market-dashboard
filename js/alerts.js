@@ -348,7 +348,7 @@
             } else if (a.alertType === 'trendline') {
                 var tlLivePrice = alertPrices[a.ticker];
                 if (tlLivePrice == null || !a.p1 || !a.p2) return;
-                var tlNowUnix   = Math.floor(Date.now() / 1000);
+                var tlNowUnix   = _alTlEvalUnix(a.p1.unix, a.p2.unix);
                 var tlLinePrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNowUnix);
                 hitVal = tlLivePrice;
                 hit = (a.condition === 'above' && tlLivePrice >= tlLinePrice) ||
@@ -492,7 +492,7 @@
                     if (a.alertType === 'trendline') {
                         var tlCurr = alertPrices[a.ticker];
                         if (tlCurr == null || !a.p1 || !a.p2) return Infinity;
-                        var tlSortPrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, Math.floor(Date.now() / 1000));
+                        var tlSortPrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, _alTlEvalUnix(a.p1.unix, a.p2.unix));
                         return tlSortPrice > 0 ? Math.abs((tlCurr - tlSortPrice) / tlSortPrice * 100) : Infinity;
                     }
                     if (a.alertType === 'macross') {
@@ -643,7 +643,7 @@
                 if (fired || curr == null || !a.p1 || !a.p2) {
                     awayHtml = '<div class="al-col-away">—</div>';
                 } else {
-                    var tlNow   = Math.floor(Date.now() / 1000);
+                    var tlNow   = _alTlEvalUnix(a.p1.unix, a.p2.unix);
                     var tlPriceNow = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNow);
                     var tlPct   = tlPriceNow > 0 ? Math.abs((curr - tlPriceNow) / tlPriceNow * 100) : 0;
                     var tlCls   = tlPct < 1 ? ' imminent' : tlPct < 5 ? ' close' : '';
@@ -1870,6 +1870,20 @@
 
     // ── Right-click context menu ──────────────────────────────────────────
     var _alCtxTrendline = null; // {p1, p2} when right-click lands on a trendline
+
+    // Returns the unix timestamp to use when evaluating a trendline.
+    // Daily/weekly/monthly bars have midnight-UTC anchors (divisible by 86400).
+    // Using Date.now() directly shifts the evaluated trendline by up to 20 hours
+    // relative to what the chart visually shows at today's bar, causing premature
+    // triggers. Snap to today's midnight UTC so the evaluated price matches the
+    // visual trendline at the current bar. Intraday anchors are not midnight-aligned
+    // so they fall through to real wall-clock time, which is correct for them.
+    function _alTlEvalUnix(p1unix, p2unix) {
+        if (p1unix % 86400 === 0 && p2unix % 86400 === 0) {
+            return Math.floor(Date.now() / 86400000) * 86400;
+        }
+        return Math.floor(Date.now() / 1000);
+    }
 
     // Linear interpolation/extrapolation of trendline price at a given unix timestamp
     function _alTrendlinePriceAt(p1unix, p1price, p2unix, p2price, nowUnix) {
