@@ -11,6 +11,7 @@
     var scanPriceTimer      = null;
     var _scanLiveRefilterScheduled = false;
     var _scanPreserveScroll        = false;
+    var _scanLiveRefilterRender    = false;
 
     function getAllStocks() {
         if (!snapshot || !snapshot.by_industry) return [];
@@ -1955,9 +1956,14 @@
             wlOpenPicker(fakeBtn, e, false);
         };
 
-        if (scansMultichartActive) renderScansMc();
+        // On a live-refilter render, skip chart rebuild and price fetch to break
+        // the feedback loop: scanFetchPrices → renderScans → scanFetchPrices → …
+        // Chart prices are already kept current by _updateMcLiveCandle in scanUpdatePriceRows.
+        var _isLiveRefilter = _scanLiveRefilterRender;
+        _scanLiveRefilterRender = false;
+        if (scansMultichartActive && !_isLiveRefilter) renderScansMc();
         // Refresh live prices for the newly rendered set
-        if (currentView === 'scans') scanFetchPrices();
+        if (currentView === 'scans' && !_isLiveRefilter) scanFetchPrices();
         if (typeof alStampBadges === 'function') alStampBadges();
     }
 
@@ -2001,6 +2007,7 @@
                     setTimeout(function() {
                         _scanLiveRefilterScheduled = false;
                         _scanPreserveScroll = true;
+                        _scanLiveRefilterRender = true;
                         renderScans();
                     }, 200);
                 }
