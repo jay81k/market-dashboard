@@ -1847,6 +1847,13 @@
         // returned a stale or missing current-day bar.
         _injectChartLiveBar(sym, tf, _mcFsCandle, _mcFsVol, _mcFsOhlcv,
             function() { return _mcFsSym !== sym || !_mcFsCandle; });
+
+        // Restore trendlines from alert store so they're visible when reviewing the chart
+        if (window.alGetTrendlineAlerts) {
+            window.alGetTrendlineAlerts(sym).forEach(function(a) {
+                _addFsTrendline(a.p1, a.p2);
+            });
+        }
     }
 
     // Fullscreen window-level controls
@@ -3538,6 +3545,13 @@
         // intraday OHLC — mirrors the fullscreen chart fix above.
         _injectChartLiveBar(sym, tf, _wlCandle, _wlVol, _wlOhlcv,
             function() { return _wlSym !== sym || !_wlCandle; });
+
+        // Restore trendlines from alert store so they're visible when reviewing the chart
+        if (window.alGetTrendlineAlerts) {
+            window.alGetTrendlineAlerts(sym).forEach(function(a) {
+                _addWlTrendline(a.p1, a.p2);
+            });
+        }
     }
 
     // ── WL chart controls (exposed to HTML onclick) ───────────────────────
