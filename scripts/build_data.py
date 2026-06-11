@@ -1114,7 +1114,7 @@ def main():
     }
 
     # 9. Build industries list with self-computed rank/percentile
-    # Blend score: 45% 3m / 25% 6m / 20% 12m / 10% 1m vs SPX
+    # Blend score: 40% 3m / 20% 6m / 20% 12m / 20% 1m vs SPX
     def blend_score(s):
         v3  = s.get("avg_vs_spy_3m")
         v1  = s.get("avg_vs_spy")
@@ -1123,9 +1123,9 @@ def main():
         if v3 is None and v1 is None and v6 is None and v12 is None:
             return None
         return round(
-            (v3  or 0) * 0.45 +
-            (v1  or 0) * 0.10 +
-            (v6  or 0) * 0.25 +
+            (v3  or 0) * 0.40 +
+            (v1  or 0) * 0.20 +
+            (v6  or 0) * 0.20 +
             (v12 or 0) * 0.20,
             4
         )
