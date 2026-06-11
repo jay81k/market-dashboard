@@ -51,7 +51,7 @@
 
         return {
             price:      meta.regularMarketPrice                      || null,
-            prevClose:  meta.chartPreviousClose || meta.previousClose || null,
+            prevClose:  meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.previousClose || null,
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
@@ -323,7 +323,7 @@
 
                 var meta      = result.meta || {};
                 var price     = meta.regularMarketPrice;
-                var prevClose = meta.previousClose || meta.chartPreviousClose;
+                var prevClose = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
                 var dayHigh   = meta.regularMarketDayHigh;
                 var dayLow    = meta.regularMarketDayLow;
                 var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
