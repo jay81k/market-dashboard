@@ -1635,6 +1635,13 @@
         alStampBadges();
     };
 
+    // Accessor for other chart contexts (fullscreen, watchlist) to read trendline alerts
+    window.alGetTrendlineAlerts = function(ticker) {
+        return alertsList.filter(function(a) {
+            return a.alertType === 'trendline' && a.ticker === ticker && a.p1 && a.p2;
+        });
+    };
+
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
         if (!_alMeasureActive || !_alTrendContRef || !_alChart || !_alCandle) return;
@@ -2492,6 +2499,12 @@
         // Inject live bar
         _injectChartLiveBar(sym, tf, _alCandle, _alVol, _alOhlcv,
             function() { return _alSym !== sym || !_alCandle; });
+
+        // Restore trendlines from alert store so they're visible when reviewing the chart
+        alertsList.forEach(function(a) {
+            if (a.alertType !== 'trendline' || a.ticker !== sym || !a.p1 || !a.p2) return;
+            _addAlTrendline(a.p1, a.p2);
+        });
     }
 
     // ── alSelectChart: open panel + fetch + build ─────────────────────────
