@@ -1777,7 +1777,7 @@
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
 
-            var w52HiPct   = (yrHigh > 0 && yrHigh >= close) ? (yrHigh - close) / close * 100 : 0;
+            var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
                 text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
                 color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
@@ -3489,7 +3489,7 @@
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
-            var w52HiPct   = (yrHigh > 0 && yrHigh >= close) ? (yrHigh - close) / close * 100 : 0;
+            var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
                 text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
                 color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
