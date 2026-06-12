@@ -17,7 +17,8 @@
     var LS_AL_KEY       = 'price_alerts_local';
     var LS_AL_FIRED_KEY = 'alerts_fired_local';
 
-    var _alLoaded = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
+    var _alLoaded      = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
+    var _alFiredLoaded = false; // guard: once fired-history has been mutated, ignore any late alLoad responses
 
     function alLoad() {
         // Alert search bar
@@ -42,31 +43,51 @@
             kvGet('price_alerts'),
             kvGet('alerts_fired')
         ]).then(function(r) {
-            // If the user already added/deleted an alert before KV responded, don't overwrite their changes
-            if (_alLoaded) return;
-            _alLoaded = true;
-            // KV first, localStorage fallback
-            var rawAlerts = r[0] || localStorage.getItem(LS_AL_KEY);
-            var rawFired  = r[1] || localStorage.getItem(LS_AL_FIRED_KEY);
-            try { alertsList     = rawAlerts ? JSON.parse(rawAlerts) : []; } catch(e) { alertsList = []; }
-            try { alertFiredList = rawFired  ? JSON.parse(rawFired)  : []; } catch(e) { alertFiredList = []; }
-            // Mirror KV data to localStorage so fallback stays fresh
-            if (r[0]) { try { localStorage.setItem(LS_AL_KEY,       r[0]); } catch(e) {} }
-            if (r[1]) { try { localStorage.setItem(LS_AL_FIRED_KEY, r[1]); } catch(e) {} }
-            alertFiredList.forEach(function(f) {
-                _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
-            });
+            // Guard each list independently — alSave() marks _alLoaded, alSaveFired() marks _alFiredLoaded,
+            // so a user mutation to active alerts no longer blocks fired history from being restored from KV.
+            var didChange = false;
+            if (!_alLoaded) {
+                _alLoaded = true;
+                var rawAlerts = r[0] || localStorage.getItem(LS_AL_KEY);
+                try { alertsList = rawAlerts ? JSON.parse(rawAlerts) : []; } catch(e) { alertsList = []; }
+                // Mirror KV data to localStorage so fallback stays fresh
+                if (r[0]) { try { localStorage.setItem(LS_AL_KEY, r[0]); } catch(e) {} }
+                didChange = true;
+            }
+            if (!_alFiredLoaded) {
+                _alFiredLoaded = true;
+                var rawFired = r[1] || localStorage.getItem(LS_AL_FIRED_KEY);
+                try { alertFiredList = rawFired ? JSON.parse(rawFired) : []; } catch(e) { alertFiredList = []; }
+                // Mirror KV data to localStorage so fallback stays fresh
+                if (r[1]) { try { localStorage.setItem(LS_AL_FIRED_KEY, r[1]); } catch(e) {} }
+                alertFiredList.forEach(function(f) {
+                    _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
+                });
+                didChange = true;
+            }
+            if (!didChange) return;
             alUpdateBadge();
             alStartBackgroundPolling();
             renderHistory();
             if (currentView === 'alerts') renderAlerts();
             alStampBadges();
         }).catch(function() {
-            if (_alLoaded) return;
-            _alLoaded = true;
-            // KV totally unavailable — load from localStorage
-            try { alertsList     = JSON.parse(localStorage.getItem(LS_AL_KEY)       || '[]'); } catch(e) { alertsList = []; }
-            try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
+            // KV totally unavailable — load from localStorage, same independent guards
+            var didChange = false;
+            if (!_alLoaded) {
+                _alLoaded = true;
+                try { alertsList = JSON.parse(localStorage.getItem(LS_AL_KEY) || '[]'); } catch(e) { alertsList = []; }
+                didChange = true;
+            }
+            if (!_alFiredLoaded) {
+                _alFiredLoaded = true;
+                try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
+                alertFiredList.forEach(function(f) {
+                    _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
+                });
+                didChange = true;
+            }
+            if (!didChange) return;
             alUpdateBadge();
             alStartBackgroundPolling();
             renderHistory();
@@ -159,6 +180,7 @@
     };
 
     function alSaveFired() {
+        _alFiredLoaded = true; // mark fired-history as user-owned so any late alLoad response won't overwrite
         var str = JSON.stringify(alertFiredList.slice(0, 100));
         kvSet('alerts_fired', str);
         try { localStorage.setItem(LS_AL_FIRED_KEY, str); } catch(e) {}
