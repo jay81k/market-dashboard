@@ -1767,7 +1767,7 @@
             }
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:#e6edf3;font-size:22px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
@@ -3482,7 +3482,7 @@
                 } else { mcapEl.style.display = 'none'; }
             }
             document.getElementById('wl-chart-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:#e6edf3;font-size:22px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' + chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
             document.getElementById('wl-chart-mkt-day').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
