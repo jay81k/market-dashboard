@@ -1794,6 +1794,21 @@
         // Delete/Escape key handler — trendlines + AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
         _mcFsKeyHandler = function(evt) {
+            if (
+                evt.key.length === 1 && /[a-zA-Z0-9]/.test(evt.key) &&
+                !evt.ctrlKey && !evt.metaKey && !evt.altKey &&
+                evt.target.tagName !== 'INPUT' && evt.target.tagName !== 'TEXTAREA' &&
+                !document.getElementById('mc-fs-sym-input')
+            ) {
+                window._mcFsSymClick();
+                var _quickInp = document.getElementById('mc-fs-sym-input');
+                if (_quickInp) {
+                    _quickInp.value = evt.key.toUpperCase();
+                    _quickInp.dispatchEvent(new Event('input'));
+                }
+                evt.preventDefault();
+                return;
+            }
             // Escape: cancel in-progress draw OR deselect selected trendline OR clear measure
             if (evt.key === 'Escape') {
                 if (_mcFsMeasureActive || _mcFsMeasurePhase === 1) {
