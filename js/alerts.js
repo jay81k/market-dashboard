@@ -2436,10 +2436,15 @@
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
+            var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
+            var w52HiLabel = yrHigh > 0 ? {
+                text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
+                color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
+            } : null;
             document.getElementById('al-chart-mkt-52w').innerHTML =
                 '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
-                mkBar(yrLow, yrHigh, close, 120, null) +
+                mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
             document.getElementById('al-chart-mkt-info').style.display = 'flex';
         })();
