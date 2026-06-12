@@ -3505,6 +3505,21 @@
         // Keyboard: Delete/Escape for trendlines + AVWAP
         if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); }
         _wlKeyHandler = function(evt) {
+            if (
+                evt.key.length === 1 && /[a-zA-Z0-9]/.test(evt.key) &&
+                !evt.ctrlKey && !evt.metaKey && !evt.altKey &&
+                evt.target.tagName !== 'INPUT' && evt.target.tagName !== 'TEXTAREA' &&
+                !document.getElementById('wl-chart-sym-input')
+            ) {
+                window._wlChartSymClick();
+                var _quickInp = document.getElementById('wl-chart-sym-input');
+                if (_quickInp) {
+                    _quickInp.value = evt.key.toUpperCase();
+                    _quickInp.dispatchEvent(new Event('input'));
+                }
+                evt.preventDefault();
+                return;
+            }
             if (evt.key === 'Escape') {
                 if (_wlMeasureActive || _wlMeasurePhase === 1) {
                     _wlMeasureActive = false;
