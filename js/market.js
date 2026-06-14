@@ -242,7 +242,7 @@
                 '</div>' +
             '</div>' +
             subRowHtml +
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:220px;margin:4px 0 2px;"></div>';
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:2px 0 2px;"></div>';
 
         // Render LightweightCharts into the placeholder now that it's in the DOM
         marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
