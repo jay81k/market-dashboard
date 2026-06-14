@@ -4,6 +4,7 @@
     var mcCols           = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var mcTickers        = [];
     var mcWidgets        = {};
+    var _mcSelectedIdx   = -1;
 
     window.setMcCols = function(n) {
         mcCols = n;
@@ -618,11 +619,12 @@
         Object.keys(widgetsObj).forEach(function(k) { delete widgetsObj[k]; });
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+        _mcSelectedIdx = -1;
 
         _mcRenderTokens[contextKey]++;
         var token = _mcRenderTokens[contextKey];
 
-        tickers.forEach(function(sym) {
+        tickers.forEach(function(sym, cellIdx) {
             var cell = document.createElement('div');
             cell.className = 'mc-cell';
             cell.setAttribute('data-sym', sym);
@@ -645,6 +647,7 @@
             overlay.className = 'mc-cell-overlay';
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
+                _mcSelectedIdx = cellIdx;
                 _mcFsTf = tf;
                 openChartModal(sym);
             });
@@ -2571,6 +2574,58 @@
         if (!grid) return;
         _buildLwMcGrid(grid, mcTickers, mcTimeframe, mcCols, mcWidgets, 'ind');
     }
+
+    // ── Multichart keyboard navigation ────────────────────────────────────────
+    (function() {
+        var s = document.createElement('style');
+        s.textContent = '.mc-cell--kbd-sel { outline: 2px solid #58a6ff; outline-offset: -2px; position: relative; z-index: 1; }';
+        document.head.appendChild(s);
+    })();
+
+    function _mcSetSelected(idx) {
+        var grid = document.getElementById('multichart-grid');
+        if (!grid) return;
+        var cells = grid.querySelectorAll('.mc-cell');
+        if (_mcSelectedIdx >= 0 && _mcSelectedIdx < cells.length)
+            cells[_mcSelectedIdx].classList.remove('mc-cell--kbd-sel');
+        _mcSelectedIdx = (idx >= 0 && idx < cells.length) ? idx : -1;
+        if (_mcSelectedIdx >= 0) {
+            cells[_mcSelectedIdx].classList.add('mc-cell--kbd-sel');
+            cells[_mcSelectedIdx].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        var grid = document.getElementById('multichart-grid');
+        if (!grid || !grid.offsetParent) return;
+        var fsOverlay = document.getElementById('mc-fullscreen-overlay');
+        if (fsOverlay && fsOverlay.classList.contains('open')) return;
+        var cells = grid.querySelectorAll('.mc-cell');
+        var total = cells.length;
+        if (!total) return;
+        var cols = mcCols || 4;
+        var cur  = _mcSelectedIdx;
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            _mcSetSelected(cur < 0 ? 0 : Math.min(cur + 1, total - 1));
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            _mcSetSelected(cur < 0 ? 0 : Math.max(cur - 1, 0));
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            _mcSetSelected(cur < 0 ? 0 : Math.min(cur + cols, total - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            _mcSetSelected(cur < 0 ? 0 : Math.max(cur - cols, 0));
+        } else if (e.key === 'Enter') {
+            if (cur >= 0 && cur < total) {
+                e.preventDefault();
+                var sym = cells[cur].getAttribute('data-sym');
+                if (sym) { _mcFsTf = mcTimeframe; openChartModal(sym); }
+            }
+        }
+    });
 
     window.openMcFullscreen = function(sym, tf, displayName) {
         tf = tf || mcTimeframe || 'D';
