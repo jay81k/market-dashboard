@@ -92,25 +92,25 @@
 
         var ohlcv = parsed.ohlcv;
 
-        var lwChart = LightweightCharts.createChart(container, {
+       var lwChart = LightweightCharts.createChart(container, {
             width:  container.clientWidth  || 400,
-            height: 180, // Keep your existing height
+            height: 240, // Expanded to absorb the total height of the card
             layout: { 
                 background: { color: '#0d1117' }, 
                 textColor: '#6e7681',
-                padding: { top: 0, bottom: 0, left: 0, right: 0 } // Tighten to edges
+                // 45px top padding gives the floating text layout space to breathe
+                padding: { top: 45, bottom: 0, left: 0, right: 0 } 
             },
-            grid: { 
-                vertLines: { visible: false }, 
-                horzLines: { color: '#21262d' } 
-            },
+            grid:   { vertLines: { visible: false }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { 
-                borderVisible: false, // Removes the outer border to save pixels
-                textColor: '#6e7681' 
+                borderVisible: false, 
+                textColor: '#6e7681',
+                // Keeps the candles compressed in the bottom 60% of the chart area
+                scaleMargins: { top: 0.4, bottom: 0.05 } 
             },
             timeScale: { 
-                visible: false // Reclaims the timeline footer space
+                visible: false // Fully reclaimed for chart real estate
             },
             handleScroll: false,
             handleScale:  false,
@@ -240,21 +240,31 @@
 
         card.className = 'market-index-card ' + direction;
         card.innerHTML =
-            '<div class="mic-header">' +
-                '<span class="mic-label">' + idx.label + '</span>' +
-                '<span class="mic-name">' + idx.name + '</span>' +
-                (futuresPillHtml ? futuresPillHtml : '') +
-                '<span class="mic-date">' + dateStr + '</span>' +
-            '</div>' +
-            '<div class="mic-price-row">' +
-                '<span class="mic-price">' + priceStr + '</span>' +
-                '<div class="mic-change">' +
-                    '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
-                    '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
+            // Chart container matches total previous layout height and acts as relative anchor
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:240px; margin:0; position:relative;">' +
+                
+                // Floating text overlay layer (ghosted layer via pointer-events: none)
+                '<div class="mic-data-overlay" style="position:absolute; top:8px; left:10px; right:10px; z-index:10; pointer-events:none;">' +
+                    '<div class="mic-header" style="background:transparent; border:none; padding:0; margin:0; display:flex; align-items:center; gap:6px;">' +
+                        '<span class="mic-label">' + idx.label + '</span>' +
+                        '<span class="mic-name" style="opacity:0.6; font-size:11px;">' + idx.name + '</span>' +
+                        (futuresPillHtml ? futuresPillHtml : '') +
+                    '</div>' +
+                    '<div class="mic-price-row" style="margin:2px 0 0; padding:0; display:flex; align-items:baseline; gap:8px;">' +
+                        '<span class="mic-price" style="font-size:1.35em; line-height:1;">' + priceStr + '</span>' +
+                        '<div class="mic-change" style="display:inline-flex; gap:4px; font-size:12px;">' +
+                            '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
+                            '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
+                        '</div>' +
+                    '</div>' +
+                    (subRowHtml ? subRowHtml : '') +
                 '</div>' +
-            '</div>' +
-            subRowHtml +
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:0;"></div>';
+                
+                // Tucks date cleanly in the bottom right corner over the chart canvas
+                '<div style="position:absolute; bottom:6px; right:10px; z-index:10; font-size:10px; color:#484f58; pointer-events:none;">' + 
+                    dateStr + 
+                '</div>' +
+            '</div>';
 
         // Render LightweightCharts into the placeholder now that it's in the DOM
         marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
