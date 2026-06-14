@@ -328,8 +328,9 @@
         var vol   = ohlcv[barIdx] ? ohlcv[barIdx].volume : null;
         var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>';
         var html = '<div style="color:#8b949e;margin-bottom:3px;">' + _fmtBarDate(barTime) + '</div>';
-        var lastVal = '<span style="color:' + cl + '">' + fp(d.close) + E;
+        var lastVal = '<span><span style="color:' + cl + '">' + fp(d.close) + E;
         if (barIdx > 0) lastVal += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
+        lastVal += '</span>';
         var ohlcvRows =
             L + 'Open'  + E + '<span style="color:' + cl    + '">' + fp(d.open)  + E +
             L + 'High'  + E + '<span style="color:' + cl    + '">' + fp(d.high)  + E +
