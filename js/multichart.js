@@ -353,7 +353,7 @@
             var label = (def.ema ? 'EMA' : 'SMA') + '(' + def.period + ')';
             var dp    = (d.close - maVal) / maVal * 100;
             var dpClr = dp >= 0 ? '#3fb950' : '#f85149';
-            html += '<div>' + L + label + E + sp + V + fp(maVal) + E + ' <span style="color:' + dpClr + '">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%' + E + '</div>';
+            html += '<div>' + L + label + E + sp + '<span style="color:' + def.color + '">' + fp(maVal) + E + ' <span style="color:' + dpClr + '">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%' + E + '</div>';
         });
         return html;
     }
