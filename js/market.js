@@ -1,4 +1,4 @@
-// ── Market Overview ───────────────────────────────────────────────────
+    // ── Market Overview ───────────────────────────────────────────────────
 
     var MARKET_INDEXES = [
         { id: 'GSPC', symbol: '^GSPC', label: 'SPX',  name: 'S&P 500',      futures: 'ES=F' },
@@ -92,27 +92,14 @@
 
         var ohlcv = parsed.ohlcv;
 
-        // OPTIMIZED CHART CONFIGURATION TO RECLAIM DEAD REAL ESTATE
         var lwChart = LightweightCharts.createChart(container, {
             width:  container.clientWidth  || 400,
-            height: 200, // Increased height to occupy reclaimed vertical margin space
-            layout: { 
-                background: { color: '#0d1117' }, 
-                textColor: '#6e7681',
-                padding: { top: 4, bottom: 0, left: 0, right: 0 } // Reclaims default internal canvas padding
-            },
-            grid: { 
-                vertLines: { visible: false }, // Hiding vertical lines maximizes horizontal tracking space
-                horzLines: { color: '#21262d' } 
-            },
+            height: 180,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
+            grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
-            rightPriceScale: { 
-                borderVisible: false, // Removes the right border column line to maximize chart width
-                textColor: '#6e7681' 
-            },
-            timeScale: { 
-                visible: false // Disabling completely removes the bottom timeline box area
-            },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
+            timeScale: { borderColor: '#21262d', timeVisible: false },
             handleScroll: false,
             handleScale:  false,
         });
@@ -136,13 +123,13 @@
             priceScaleId: 'volume',
         });
         lwChart.priceScale('volume').applyOptions({
-            scaleMargins: { top: 0.85, bottom: 0 }, // Pushes volume bars slightly lower to clear candle space
+            scaleMargins: { top: 0.82, bottom: 0 },
         });
         volSeries.setData(ohlcv.map(function(d) {
             return {
                 time:  d.time,
                 value: d.volume,
-                color: d.close >= d.open ? 'rgba(24,72,204,0.4)' : 'rgba(248,81,73,0.25)',
+                color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)',
             };
         }));
 
@@ -255,8 +242,7 @@
                 '</div>' +
             '</div>' +
             subRowHtml +
-            // COMPRESSED LAYOUT MARGINS TO MATCH TALLER 200px CHART FOOTPRINT WITHOUT OVERFLOWING THE CARD
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:200px;margin:4px 0 0;"></div>';
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:8px 0 2px;"></div>';
 
         // Render LightweightCharts into the placeholder now that it's in the DOM
         marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
@@ -907,4 +893,34 @@
                     '<div class="analytics-title" id="rs-dist-title">RS Distribution</div>' +
                     '<div style="' + toggleStyle + '">' +
                         '<button id="rs-dist-btn-rs"   style="' + btnActive   + '" onclick="rsDistSwitch(\'rs\')">RS</button>' +
-                        '<button id="rs-dist-btn-rs3m" style="' + btnInactive + '" onclick="rsDistSwitch(\'rs3m\')">3M RS
+                        '<button id="rs-dist-btn-rs3m" style="' + btnInactive + '" onclick="rsDistSwitch(\'rs3m\')">3M RS</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="analytics-sub" id="rs-dist-count">' + datasets.rs.total.toLocaleString() + ' stocks</div>' +
+            '</div>' +
+            '<svg id="rs-dist-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block;margin-top:8px;" xmlns="http://www.w3.org/2000/svg">' +
+                buildSvgInner(datasets.rs) +
+            '</svg>' +
+            legend +
+            '<div class="rs-footer" id="rs-dist-footer">' + buildFooter(datasets.rs) + '</div>';
+
+        // ── Toggle handler ─────────────────────────────────────────────────
+        window.rsDistSwitch = function(which) {
+            if (which === activeDs) return;
+            activeDs = which;
+            var ds = datasets[which];
+            var svg = document.getElementById('rs-dist-svg');
+            if (svg) svg.innerHTML = buildSvgInner(ds);
+            var footer = document.getElementById('rs-dist-footer');
+            if (footer) footer.innerHTML = buildFooter(ds);
+            var title = document.getElementById('rs-dist-title');
+            if (title) title.textContent = which === 'rs3m' ? '3M RS Distribution' : 'RS Distribution';
+            var count = document.getElementById('rs-dist-count');
+            if (count) count.textContent = ds.total.toLocaleString() + ' stocks';
+            var btnRs   = document.getElementById('rs-dist-btn-rs');
+            var btnRs3m = document.getElementById('rs-dist-btn-rs3m');
+            if (btnRs)   btnRs.style.cssText   = (which === 'rs'   ? btnActive : btnInactive);
+            if (btnRs3m) btnRs3m.style.cssText = (which === 'rs3m' ? btnActive : btnInactive);
+        };
+    }
+
