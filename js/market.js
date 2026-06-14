@@ -94,12 +94,24 @@
 
         var lwChart = LightweightCharts.createChart(container, {
             width:  container.clientWidth  || 400,
-            height: 180,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
-            grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            height: 180, // Keep your existing height
+            layout: { 
+                background: { color: '#0d1117' }, 
+                textColor: '#6e7681',
+                padding: { top: 0, bottom: 0, left: 0, right: 0 } // Tighten to edges
+            },
+            grid: { 
+                vertLines: { visible: false }, 
+                horzLines: { color: '#21262d' } 
+            },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
-            timeScale: { borderColor: '#21262d', timeVisible: false },
+            rightPriceScale: { 
+                borderVisible: false, // Removes the outer border to save pixels
+                textColor: '#6e7681' 
+            },
+            timeScale: { 
+                visible: false // Reclaims the timeline footer space
+            },
             handleScroll: false,
             handleScale:  false,
         });
@@ -242,7 +254,7 @@
                 '</div>' +
             '</div>' +
             subRowHtml +
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:8px 0 2px;"></div>';
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:0;"></div>';
 
         // Render LightweightCharts into the placeholder now that it's in the DOM
         marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
