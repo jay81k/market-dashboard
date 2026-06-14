@@ -37,10 +37,24 @@
         var quote      = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
         var closes     = quote.close  || [];
         var opens      = quote.open   || [];
+        var highs      = quote.high   || [];
+        var lows       = quote.low    || [];
+        var volumes    = quote.volume || [];
 
-        var points = [], ts = [];
+        var points = [], ts = [], ohlcv = [];
         for (var i = 0; i < timestamps.length; i++) {
-            if (closes[i] != null) { points.push(closes[i]); ts.push(timestamps[i]); }
+            if (closes[i] != null) {
+                points.push(closes[i]);
+                ts.push(timestamps[i]);
+                ohlcv.push({
+                    time:   timestamps[i],
+                    open:   opens[i]   != null ? opens[i]   : closes[i],
+                    high:   highs[i]   != null ? highs[i]   : closes[i],
+                    low:    lows[i]    != null ? lows[i]    : closes[i],
+                    close:  closes[i],
+                    volume: volumes[i] || 0,
+                });
+            }
         }
 
         // First real open value from the bars — most reliable source for intraday "from open"
@@ -55,6 +69,7 @@
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
+            ohlcv:      ohlcv,
         };
     }
 
@@ -63,104 +78,96 @@
         return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function marketXLabels(points, timestamps) {
-        if (!timestamps || timestamps.length < 2) return '<span></span><span></span><span></span>';
-        var fmt = function(ts) {
-            var d = new Date(ts * 1000);
-            if (marketTf === '1d') {
-                return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
-            }
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        };
-        var n   = timestamps.length;
-        var mid = Math.floor(n / 2);
-        return '<span>' + fmt(timestamps[0]) + '</span>' +
-               '<span>' + fmt(timestamps[mid]) + '</span>' +
-               '<span>' + fmt(timestamps[n - 1]) + '</span>';
-    }
+    function marketRenderIndexChart(container, parsed, direction) {
+        if (!container || !parsed || !parsed.ohlcv || parsed.ohlcv.length < 2) return;
+        if (typeof LightweightCharts === 'undefined') return;
 
-    function marketSparklineSVG(points, prevClose, direction) {
-        if (!points || points.length < 2) return '<div class="mic-chart-wrap"></div>';
-
-        var W = 500, H = 130, padL = 4, padR = 56, padT = 8, padB = 8;
-        var chartW = W - padL - padR;
-        var chartH = H - padT - padB;
-
-        var allVals = points.slice();
-        if (prevClose != null) allVals.push(prevClose);
-        var min = Math.min.apply(null, allVals);
-        var max = Math.max.apply(null, allVals);
-        var range = (max - min) || 1;
-        // Add 5% headroom top and bottom
-        min -= range * 0.05;
-        max += range * 0.05;
-        range = max - min;
-
-        var toX = function(i) { return padL + (i / (points.length - 1)) * chartW; };
-        var toY = function(v) { return padT + (1 - (v - min) / range) * chartH; };
-
-        // Grid lines at high / mid / low
-        var gridVals = [max - range * 0.05, min + range * 0.5, min + range * 0.05];
-        var gridLines = gridVals.map(function(v) {
-            var y = toY(v).toFixed(1);
-            return '<line class="mic-grid-line" x1="' + padL + '" y1="' + y + '" x2="' + (padL + chartW) + '" y2="' + y + '"/>';
-        }).join('');
-
-        // Prev-close dashed line
-        var pcLine = '';
-        if (prevClose != null) {
-            var pcy = toY(prevClose).toFixed(1);
-            pcLine = '<line class="mic-prev-close-line" x1="' + padL + '" y1="' + pcy + '" x2="' + (padL + chartW) + '" y2="' + pcy + '"/>';
+        // Destroy any previous chart on this container
+        if (container._lwChart) {
+            try { container._lwChart.remove(); } catch(e) {}
+            container._lwChart = null;
         }
+        container.innerHTML = '';
+        container.style.position = 'relative';
 
-        // Price line + area
-        var coords = points.map(function(v, i) {
-            return toX(i).toFixed(1) + ',' + toY(v).toFixed(1);
+        var ohlcv = parsed.ohlcv;
+
+        var lwChart = LightweightCharts.createChart(container, {
+            width:  container.clientWidth  || 400,
+            height: 180,
+            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
+            grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
+            timeScale: { borderColor: '#21262d', timeVisible: marketTf === '1d' },
+            handleScroll: false,
+            handleScale:  false,
         });
-        var pathD  = 'M' + coords.join(' L');
-        var lastX  = toX(points.length - 1).toFixed(1);
-        var botY   = (padT + chartH).toFixed(1);
-        var areaD  = pathD + ' L' + lastX + ',' + botY + ' L' + padL + ',' + botY + ' Z';
+        container._lwChart = lwChart;
 
-        // Current price dot
-        var lastV  = points[points.length - 1];
-        var dotX   = toX(points.length - 1).toFixed(1);
-        var dotY   = toY(lastV).toFixed(1);
-        var dot    = '<circle class="mic-current-dot" cx="' + dotX + '" cy="' + dotY + '" r="3.5"/>';
+        // Candlestick series
+        var candleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor:               '#3fb950',
+            downColor:             '#f85149',
+            borderVisible:         false,
+            wickUpColor:           '#3fb950',
+            wickDownColor:         '#f85149',
+            priceLineVisible:      false,
+            lastValueVisible:      true,
+        });
+        candleSeries.setData(ohlcv);
 
-        // Y-axis price labels — high, prev-close, current (coloured badge)
-        var hiVal  = Math.max.apply(null, points);
-        var loVal  = Math.min.apply(null, points);
-        var hiY    = toY(hiVal).toFixed(1);
-        var loY    = toY(loVal).toFixed(1);
-        var curY   = dotY;
-        var labelX = padL + chartW + 4;
+        // Volume histogram
+        var volSeries = lwChart.addSeries(LightweightCharts.HistogramSeries, {
+            priceFormat:  { type: 'volume' },
+            priceScaleId: 'volume',
+        });
+        lwChart.priceScale('volume').applyOptions({
+            scaleMargins: { top: 0.82, bottom: 0 },
+        });
+        volSeries.setData(ohlcv.map(function(d) {
+            return {
+                time:  d.time,
+                value: d.volume,
+                color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)',
+            };
+        }));
 
-        var yLabels =
-            '<text x="' + labelX + '" y="' + (parseFloat(hiY) + 3.5) + '" font-size="9" fill="#484f58" font-family="inherit">' + marketFmtPrice(hiVal) + '</text>' +
-            '<text x="' + labelX + '" y="' + (parseFloat(loY) + 3.5) + '" font-size="9" fill="#484f58" font-family="inherit">' + marketFmtPrice(loVal) + '</text>';
+        lwChart.timeScale().fitContent();
 
-        // Current price badge (coloured rect + text)
-        var curColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#484f58';
-        var curLabel = marketFmtPrice(lastV);
-        var badgeW   = curLabel.length * 5.6 + 8;
-        yLabels += '<rect x="' + labelX + '" y="' + (parseFloat(curY) - 8) + '" width="' + badgeW + '" height="13" rx="2" fill="' + curColor + '"/>' +
-                   '<text x="' + (labelX + 4) + '" y="' + (parseFloat(curY) + 3) + '" font-size="9" fill="#0d1117" font-weight="700" font-family="inherit">' + curLabel + '</text>';
+        // OHLC crosshair readout — same as popup
+        var ohlcLegend = document.createElement('div');
+        ohlcLegend.style.cssText = [
+            'position:absolute', 'top:4px', 'left:6px', 'z-index:10',
+            'font-size:10px', 'font-weight:600', 'font-variant-numeric:tabular-nums',
+            'color:#8b949e', 'pointer-events:none', 'line-height:1.5',
+            'background:rgba(13,17,23,0.75)', 'padding:1px 5px', 'border-radius:3px',
+        ].join(';');
+        container.appendChild(ohlcLegend);
 
-        // Prev-close label
-        if (prevClose != null) {
-            var pcy2 = toY(prevClose).toFixed(1);
-            yLabels += '<text x="' + labelX + '" y="' + (parseFloat(pcy2) - 2) + '" font-size="8.5" fill="#484f58" font-family="inherit" opacity="0.7">PC ' + marketFmtPrice(prevClose) + '</text>';
+        function fmtP(v) { return v != null ? v.toFixed(2) : '—'; }
+        function fmtV(v) {
+            if (v == null) return '—';
+            return v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'K' : v.toFixed(0);
         }
 
-        var svg = '<svg class="mic-sparkline ' + direction + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
-            gridLines + pcLine +
-            '<path class="mic-sparkline-area" d="' + areaD + '"/>' +
-            '<path class="mic-sparkline-path" d="' + pathD + '"/>' +
-            dot + yLabels +
-            '</svg>';
-
-        return '<div class="mic-chart-wrap">' + svg + '</div>';
+        lwChart.subscribeCrosshairMove(function(param) {
+            if (!param.time || !param.seriesData || !param.seriesData.size) {
+                ohlcLegend.innerHTML = '';
+                return;
+            }
+            var d = param.seriesData.get(candleSeries);
+            if (!d) { ohlcLegend.innerHTML = ''; return; }
+            var cl   = d.close >= d.open ? '#3fb950' : '#f85149';
+            var vd   = param.seriesData.get(volSeries);
+            var volStr = vd ? '&nbsp;&nbsp;<span style="color:#484f58">Vol</span> ' + fmtV(vd.value) : '';
+            ohlcLegend.innerHTML =
+                '<span style="color:#6e7681">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
+                '<span style="color:#6e7681">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
+                '<span style="color:#6e7681">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
+                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
+                volStr;
+        });
     }
 
     function marketRenderCard(idx, parsed, futuresParsed) {
@@ -217,6 +224,8 @@
             '</div>';
         }
 
+        var chartContainerId = 'mic-lwchart-' + idx.id;
+
         card.className = 'market-index-card ' + direction;
         card.innerHTML =
             '<div class="mic-header">' +
@@ -233,8 +242,10 @@
                 '</div>' +
             '</div>' +
             subRowHtml +
-            marketSparklineSVG(parsed.points, parsed.prevClose, direction) +
-            '<div class="mic-xaxis">' + marketXLabels(parsed.points, parsed.timestamps) + '</div>';
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:8px 0 2px;"></div>';
+
+        // Render LightweightCharts into the placeholder now that it's in the DOM
+        marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
     }
 
     function marketFetchAll() {
