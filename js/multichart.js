@@ -328,13 +328,13 @@
         var vol   = ohlcv[barIdx] ? ohlcv[barIdx].volume : null;
         var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>';
         var html = '<div style="color:#8b949e;margin-bottom:3px;">' + _fmtBarDate(barTime) + '</div>';
-        var lastVal = '<span><span style="color:' + cl + '">' + fp(d.close) + E;
+        var lastVal = '<span>' + V + fp(d.close) + E;
         if (barIdx > 0) lastVal += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
         lastVal += '</span>';
         var ohlcvRows =
-            L + 'Open'  + E + '<span style="color:' + cl    + '">' + fp(d.open)  + E +
-            L + 'High'  + E + '<span style="color:' + cl    + '">' + fp(d.high)  + E +
-            L + 'Low'   + E + '<span style="color:' + cl    + '">' + fp(d.low)   + E +
+            L + 'Open'  + E + V + fp(d.open)  + E +
+            L + 'High'  + E + V + fp(d.high)  + E +
+            L + 'Low'   + E + V + fp(d.low)   + E +
             L + 'Last'  + E + lastVal +
             L + '% Chg' + E + '<span style="color:' + chgClr + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' + E +
             L + 'CR%'   + E + (cr != null ? '<span style="color:' + crClr + '">' + cr + '%' + E : L + '\u2014' + E) +
