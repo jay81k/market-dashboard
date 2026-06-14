@@ -99,7 +99,7 @@
             grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
-            timeScale: { borderColor: '#21262d', timeVisible: marketTf === '1d' },
+            timeScale: { borderColor: '#21262d', timeVisible: false },
             handleScroll: false,
             handleScale:  false,
         });
@@ -242,7 +242,7 @@
                 '</div>' +
             '</div>' +
             subRowHtml +
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:8px 0 2px;"></div>';
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:220px;margin:4px 0 2px;"></div>';
 
         // Render LightweightCharts into the placeholder now that it's in the DOM
         marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
