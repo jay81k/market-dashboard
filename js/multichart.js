@@ -345,6 +345,7 @@
             }
         }
         var maOrder = ['SMA5', 'EMA8', 'EMA21', 'SMA50', 'SMA150', 'SMA200'];
+        var maRows = [];
         maOrder.forEach(function(key) {
             if (!activeMas[key] || !maDataMap[key]) return;
             var maVal = maDataMap[key].get(barTime);
@@ -353,8 +354,16 @@
             var label = (def.ema ? 'EMA' : 'SMA') + '(' + def.period + ')';
             var dp    = (d.close - maVal) / maVal * 100;
             var dpClr = dp >= 0 ? '#3fb950' : '#f85149';
-            html += '<div>' + '<span style="color:' + def.color + '">' + label + E + sp + V + fp(maVal) + E + ' <span style="color:' + dpClr + '">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%' + E + '</div>';
+            maRows.push(
+                '<span style="color:' + def.color + '">' + label + '</span>' +
+                '<span style="color:#c9d1d9;justify-self:end">' + fp(maVal) + '</span>' +
+                '<span style="color:' + dpClr + ';justify-self:end">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%</span>'
+            );
         });
+        if (maRows.length) {
+            html += '<div style="border-top:1px solid #30363d;margin:5px 0 4px;"></div>';
+            html += '<div style="display:grid;grid-template-columns:auto auto auto;column-gap:10px;row-gap:2px;">' + maRows.join('') + '</div>';
+        }
         return html;
     }
 
