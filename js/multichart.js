@@ -55,6 +55,13 @@
     var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
     var _mcFsKeyHandler  = null;
 
+    // ── Candle hover tooltip ──────────────────────────────────────────────────
+    var _mcFsTooltipEnabled = false;
+    var _wlTooltipEnabled   = false;
+    var _mcFsVolSmaMap      = null;
+    var _wlVolSmaMap        = null;
+    var _lwTooltipDiv       = null;
+
     // Trendline drawing state
     var _mcFsTrendlineMode          = false;   // tool active?
     var _mcFsTrendlines             = [];      // array of { primitive, p1, p2, leftP, rightP, selected, requestUpdate }
@@ -274,6 +281,81 @@
     function _barIdxByTime(ohlcv, time) {
         for (var i = 0; i < ohlcv.length; i++) { if (ohlcv[i].time >= time) return i; }
         return -1;
+    }
+
+    // ── Candle hover tooltip helpers ──────────────────────────────────────────
+    function _getLwTooltipDiv() {
+        if (!_lwTooltipDiv) {
+            _lwTooltipDiv = document.createElement('div');
+            _lwTooltipDiv.id = 'lw-hover-tooltip';
+            _lwTooltipDiv.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;display:none;' +
+                'background:rgba(13,17,23,0.96);border:1px solid #30363d;border-radius:5px;' +
+                'padding:8px 12px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;' +
+                'font-family:inherit;color:#c9d1d9;line-height:1.75;white-space:nowrap;' +
+                'box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+            document.body.appendChild(_lwTooltipDiv);
+        }
+        return _lwTooltipDiv;
+    }
+    function _positionTooltip(div, cx, cy) {
+        var W = window.innerWidth, H = window.innerHeight;
+        var tw = div.offsetWidth  || 180;
+        var th = div.offsetHeight || 240;
+        var x = cx + 18, y = cy + 18;
+        if (x + tw > W - 8) x = cx - tw - 18;
+        if (y + th > H - 8) y = cy - th - 18;
+        div.style.left = Math.max(8, x) + 'px';
+        div.style.top  = Math.max(8, y) + 'px';
+    }
+    function _fmtBarDate(time) {
+        var d = new Date(time * 1000);
+        return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + '/' + d.getUTCFullYear();
+    }
+    function _buildTooltipHtml(d, barIdx, ohlcv, volSmaMap, maDataMap, activeMas, barTime) {
+        function fp(v) { return v != null ? v.toFixed(2) : '\u2014'; }
+        function fv(v) { return v == null ? '\u2014' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toFixed(0); }
+        var cl     = d.close >= d.open ? '#089981' : '#b22833';
+        var delta  = 0, pct = 0, chgClr = '#6e7681';
+        if (barIdx > 0) {
+            var prevClose = ohlcv[barIdx - 1].close;
+            delta  = d.close - prevClose;
+            pct    = (delta / prevClose) * 100;
+            chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+        }
+        var cr    = (d.high > d.low) ? Math.round((d.close - d.low) / (d.high - d.low) * 100) : null;
+        var crClr = cr != null ? (cr >= 60 ? '#3fb950' : cr >= 30 ? '#e3852b' : '#f85149') : '#6e7681';
+        var vol   = ohlcv[barIdx] ? ohlcv[barIdx].volume : null;
+        var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>', sp = '&nbsp;&nbsp;';
+        var html = '<div style="color:#8b949e;margin-bottom:1px;">' + _fmtBarDate(barTime) + '</div>';
+        html += '<div>' + L + 'Open'  + E + sp + '<span style="color:' + cl + '">' + fp(d.open)  + E + '</div>';
+        html += '<div>' + L + 'High'  + E + sp + '<span style="color:' + cl + '">' + fp(d.high)  + E + '</div>';
+        html += '<div>' + L + 'Low'   + E + sp + '<span style="color:' + cl + '">' + fp(d.low)   + E + '</div>';
+        html += '<div>' + L + 'Last'  + E + sp + '<span style="color:' + cl + '">' + fp(d.close) + E;
+        if (barIdx > 0) html += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
+        html += '</div>';
+        html += '<div>' + L + '% Chg' + E + sp + '<span style="color:' + chgClr + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' + E + '</div>';
+        html += '<div>' + L + 'CR%'   + E + sp + (cr != null ? '<span style="color:' + crClr + '">' + cr + '%' + E : L + '\u2014' + E) + '</div>';
+        html += '<div>' + L + 'Vol'   + E + sp + V + fv(vol) + E + '</div>';
+        if (vol != null && volSmaMap) {
+            var smaVal = volSmaMap.get(barTime);
+            if (smaVal && smaVal > 0) {
+                var vp    = (vol / smaVal - 1) * 100;
+                var vpClr = vp >= 0 ? '#3fb950' : '#f85149';
+                html += '<div>' + L + 'Vol % Chg' + E + sp + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E + '</div>';
+            }
+        }
+        var maOrder = ['SMA5', 'EMA8', 'EMA21', 'SMA50', 'SMA150', 'SMA200'];
+        maOrder.forEach(function(key) {
+            if (!activeMas[key] || !maDataMap[key]) return;
+            var maVal = maDataMap[key].get(barTime);
+            if (maVal == null) return;
+            var def   = _MC_MA_DEFS[key]; if (!def) return;
+            var label = (def.ema ? 'EMA' : 'SMA') + '(' + def.period + ')';
+            var dp    = (d.close - maVal) / maVal * 100;
+            var dpClr = dp >= 0 ? '#3fb950' : '#f85149';
+            html += '<div>' + L + label + E + sp + V + fp(maVal) + E + ' <span style="color:' + dpClr + '">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%' + E + '</div>';
+        });
+        return html;
     }
 
     // ── Shared measure tool helpers ───────────────────────────────────────────
@@ -1485,6 +1567,9 @@
             }, 1);
             _mcFsVolMa.setData(_mcFsVolData);
         })();
+        _mcFsVolSmaMap = _mcFsVolData && _mcFsVolData.length
+            ? new Map(_mcFsVolData.map(function(d) { return [d.time, d.value]; }))
+            : null;
 
         // Pin volume pane to ~22% of chart height so price pane fills the rest
         (function() {
@@ -1659,8 +1744,17 @@
             }
             // Track bar time for MA proximity detection on right-click
             _mcFsLastCrosshairTime = p.time || null;
-            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
-            var d = p.seriesData.get(_mcFsCandle); if (!d) { leg.innerHTML = ''; return; }
+            if (!p.time || !p.seriesData || !p.seriesData.size) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
+            var d = p.seriesData.get(_mcFsCandle);
+            if (!d) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_mcFsVol);
             // Price change from previous candle
@@ -1683,6 +1777,18 @@
                 '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
                 (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">V</span> <span style="color:#8b949e">'+fv(vd.value)+'</span>' : '');
+            // Floating tooltip
+            if (_mcFsTooltipEnabled) {
+                var ttDiv = _getLwTooltipDiv();
+                ttDiv.innerHTML = _buildTooltipHtml(d, barIdx, _mcFsOhlcv, _mcFsVolSmaMap, _mcFsMaDataMap, _mcFsActiveMas, p.time);
+                ttDiv.style.display = 'block';
+                if (p.point) {
+                    var rect = container.getBoundingClientRect();
+                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y);
+                }
+            } else if (_lwTooltipDiv) {
+                _lwTooltipDiv.style.display = 'none';
+            }
         });
 
         // ── Market info strip (price/change, day range, 52W range) ──────────────
@@ -1862,6 +1968,22 @@
         };
         document.addEventListener('keydown', _mcFsKeyHandler);
 
+        // Tooltip button (injected once, idempotent)
+        (function() {
+            var avwapBtn = document.getElementById('mc-fs-vwap-btn');
+            if (avwapBtn && !document.getElementById('mc-fs-tooltip-btn')) {
+                var ttBtn = document.createElement('button');
+                ttBtn.id        = 'mc-fs-tooltip-btn';
+                ttBtn.className = avwapBtn.className.replace(/\bactive\b/g, '').trim();
+                ttBtn.title     = 'Data Tooltip';
+                ttBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+                ttBtn.addEventListener('click', window.mcFsToggleTooltip);
+                avwapBtn.parentNode.insertBefore(ttBtn, avwapBtn.nextSibling);
+            }
+            var existing = document.getElementById('mc-fs-tooltip-btn');
+            if (existing) existing.classList.toggle('active', _mcFsTooltipEnabled);
+        })();
+
         // Inject today's live bar into the fullscreen chart so the latest
         // intraday OHLC is always reflected, even if Yahoo's historical feed
         // returned a stale or missing current-day bar.
@@ -2039,6 +2161,13 @@
             _mcFsMeasureResult = null;
         }
     };
+    window.mcFsToggleTooltip = function() {
+        _mcFsTooltipEnabled = !_mcFsTooltipEnabled;
+        var btn = document.getElementById('mc-fs-tooltip-btn');
+        if (btn) btn.classList.toggle('active', _mcFsTooltipEnabled);
+        if (!_mcFsTooltipEnabled && _lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+    };
+
     // ── Inline symbol switcher ───────────────────────────────────────────────
     window._mcFsSymClick = function() {
         var symEl = document.getElementById('mc-fullscreen-sym');
@@ -2519,6 +2648,8 @@
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         if (tBtn)  tBtn.classList.remove('active');
         _mcFsMaDataMap = {}; _mcFsLastCrosshairTime = null;
+        _mcFsVolSmaMap = null;
+        if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         _mcFsSym = null;
         var _mktEl = document.getElementById('mc-fs-mkt-info');
         if (_mktEl) _mktEl.style.display = 'none';
@@ -3156,6 +3287,8 @@
         _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
         _wlTrendlineMode = false; _wlSelectedTrendlineIdx = -1; _wlSelectedVwapIdx = -1;
         _wlMaDataMap = {}; _wlLastCrosshairTime = null; _wlSym = null;
+        _wlVolSmaMap = null;
+        if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); _wlKeyHandler = null; }
         var mktEl = document.getElementById('wl-chart-mkt-info');
         if (mktEl) mktEl.style.display = 'none';
@@ -3163,6 +3296,8 @@
         if (tBtn)  tBtn.classList.remove('active');
         var vBtn  = document.getElementById('wl-chart-vwap-btn');
         if (vBtn)  vBtn.classList.remove('active');
+        var ttBtn = document.getElementById('wl-chart-tooltip-btn');
+        if (ttBtn) ttBtn.classList.toggle('active', _wlTooltipEnabled);
         var maPanel   = document.getElementById('wl-chart-ma-panel');
         var maChevron = document.getElementById('wl-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -3266,6 +3401,9 @@
             }, 1);
             _wlVolMa.setData(_wlVolData);
         })();
+        _wlVolSmaMap = _wlVolData && _wlVolData.length
+            ? new Map(_wlVolData.map(function(d) { return [d.time, d.value]; }))
+            : null;
 
         // Pin volume pane to ~22% height
         (function() {
@@ -3418,8 +3556,17 @@
                 _wlLastCrosshairPrice = null;
             }
             _wlLastCrosshairTime = p.time || null;
-            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
-            var d = p.seriesData.get(_wlCandle); if (!d) { leg.innerHTML = ''; return; }
+            if (!p.time || !p.seriesData || !p.seriesData.size) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
+            var d = p.seriesData.get(_wlCandle);
+            if (!d) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_wlVol);
             var chgHtml = '';
@@ -3441,6 +3588,18 @@
                 '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
                 (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">Vol</span> <span style="color:#8b949e">' + fv(vd.value) + '</span>' : '');
+            // Floating tooltip
+            if (_wlTooltipEnabled) {
+                var ttDiv = _getLwTooltipDiv();
+                ttDiv.innerHTML = _buildTooltipHtml(d, barIdx, _wlOhlcv, _wlVolSmaMap, _wlMaDataMap, _wlActiveMas, p.time);
+                ttDiv.style.display = 'block';
+                if (p.point) {
+                    var rect = container.getBoundingClientRect();
+                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y);
+                }
+            } else if (_lwTooltipDiv) {
+                _lwTooltipDiv.style.display = 'none';
+            }
         });
 
         // Market info bar
@@ -3580,6 +3739,22 @@
             }
         };
         document.addEventListener('keydown', _wlKeyHandler);
+
+        // Tooltip button (injected once, idempotent)
+        (function() {
+            var avwapBtn = document.getElementById('wl-chart-vwap-btn');
+            if (avwapBtn && !document.getElementById('wl-chart-tooltip-btn')) {
+                var ttBtn = document.createElement('button');
+                ttBtn.id        = 'wl-chart-tooltip-btn';
+                ttBtn.className = avwapBtn.className.replace(/\bactive\b/g, '').trim();
+                ttBtn.title     = 'Data Tooltip';
+                ttBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+                ttBtn.addEventListener('click', window.wlToggleTooltip);
+                avwapBtn.parentNode.insertBefore(ttBtn, avwapBtn.nextSibling);
+            }
+            var existing = document.getElementById('wl-chart-tooltip-btn');
+            if (existing) existing.classList.toggle('active', _wlTooltipEnabled);
+        })();
 
         // Inject today's live bar so the WL chart always shows the latest
         // intraday OHLC — mirrors the fullscreen chart fix above.
@@ -3738,6 +3913,13 @@
             _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
             _wlMeasureResult = null;
         }
+    };
+
+    window.wlToggleTooltip = function() {
+        _wlTooltipEnabled = !_wlTooltipEnabled;
+        var btn = document.getElementById('wl-chart-tooltip-btn');
+        if (btn) btn.classList.toggle('active', _wlTooltipEnabled);
+        if (!_wlTooltipEnabled && _lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
     };
 
     // ══════════════════════════════════════════════════════════════════════
