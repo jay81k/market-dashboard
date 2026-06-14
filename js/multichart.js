@@ -1241,6 +1241,8 @@
             if (!chartDiv.contains(evt.target)) return; // header / settings bar click
             evt.preventDefault();
             evt.stopPropagation();
+            // Toggle off data tooltip on right-click
+            if (_mcFsTooltipEnabled) { _mcFsTooltipEnabled = false; var _ttBtn = document.getElementById('mc-fs-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
             // Right-click: cancel active measurement first (no context menu shown)
             if (_mcFsMeasurePhase === 1) {
                 _mcFsMeasureActive = false;
@@ -1938,6 +1940,12 @@
                     _deselectAllVwaps();
                 }
                 return;
+            }
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
+                if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.mcFsToggleTooltip(); return; }
+                if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.mcFsToggleTrendline(); return; }
+                if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.mcFsToggleVwap(); return; }
             }
             if (evt.key !== 'Delete') return;
             // Don't steal Delete from the symbol input
@@ -3145,6 +3153,8 @@
             if (!chartDiv.contains(evt.target)) return;
             evt.preventDefault();
             evt.stopPropagation();
+            // Toggle off data tooltip on right-click
+            if (_wlTooltipEnabled) { _wlTooltipEnabled = false; var _ttBtn = document.getElementById('wl-chart-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
             // Right-click: cancel active measurement first (no context menu shown)
             if (_wlMeasurePhase === 1) {
                 _wlMeasureActive = false;
@@ -3716,6 +3726,12 @@
                     _wlDeselectAllVwaps();
                 }
                 return;
+            }
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
+                if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.wlToggleTooltip(); return; }
+                if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.wlChartToggleTrendline(); return; }
+                if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.wlChartToggleVwap(); return; }
             }
             if (evt.key !== 'Delete') return;
             if (_wlSelectedTrendlineIdx !== -1) {
