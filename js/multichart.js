@@ -297,12 +297,13 @@
         }
         return _lwTooltipDiv;
     }
-    function _positionTooltip(div, cx, cy) {
+    function _positionTooltip(div, cx, cy, rightBound) {
         var W = window.innerWidth, H = window.innerHeight;
         var tw = div.offsetWidth  || 180;
         var th = div.offsetHeight || 240;
+        var rb = (rightBound != null ? rightBound : W) - 8;
         var x = cx + 18, y = cy + 18;
-        if (x + tw > W - 8) x = cx - tw - 18;
+        if (x + tw > rb) x = cx - tw - 18;
         if (y + th > H - 8) y = cy - th - 18;
         div.style.left = Math.max(8, x) + 'px';
         div.style.top  = Math.max(8, y) + 'px';
@@ -1795,7 +1796,7 @@
                 ttDiv.style.display = 'block';
                 if (p.point) {
                     var rect = container.getBoundingClientRect();
-                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y);
+                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y, rect.right);
                 }
             } else if (_lwTooltipDiv) {
                 _lwTooltipDiv.style.display = 'none';
@@ -3614,7 +3615,7 @@
                 ttDiv.style.display = 'block';
                 if (p.point) {
                     var rect = container.getBoundingClientRect();
-                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y);
+                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y, rect.right);
                 }
             } else if (_lwTooltipDiv) {
                 _lwTooltipDiv.style.display = 'none';
