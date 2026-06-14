@@ -326,25 +326,27 @@
         var cr    = (d.high > d.low) ? Math.round((d.close - d.low) / (d.high - d.low) * 100) : null;
         var crClr = cr != null ? (cr >= 60 ? '#3fb950' : cr >= 30 ? '#e3852b' : '#f85149') : '#6e7681';
         var vol   = ohlcv[barIdx] ? ohlcv[barIdx].volume : null;
-        var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>', sp = '&nbsp;&nbsp;';
-        var html = '<div style="color:#8b949e;margin-bottom:1px;">' + _fmtBarDate(barTime) + '</div>';
-        html += '<div>' + L + 'Open'  + E + sp + '<span style="color:' + cl + '">' + fp(d.open)  + E + '</div>';
-        html += '<div>' + L + 'High'  + E + sp + '<span style="color:' + cl + '">' + fp(d.high)  + E + '</div>';
-        html += '<div>' + L + 'Low'   + E + sp + '<span style="color:' + cl + '">' + fp(d.low)   + E + '</div>';
-        html += '<div>' + L + 'Last'  + E + sp + '<span style="color:' + cl + '">' + fp(d.close) + E;
-        if (barIdx > 0) html += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
-        html += '</div>';
-        html += '<div>' + L + '% Chg' + E + sp + '<span style="color:' + chgClr + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' + E + '</div>';
-        html += '<div>' + L + 'CR%'   + E + sp + (cr != null ? '<span style="color:' + crClr + '">' + cr + '%' + E : L + '\u2014' + E) + '</div>';
-        html += '<div>' + L + 'Vol'   + E + sp + V + fv(vol) + E + '</div>';
+        var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>';
+        var html = '<div style="color:#8b949e;margin-bottom:3px;">' + _fmtBarDate(barTime) + '</div>';
+        var lastVal = '<span style="color:' + cl + '">' + fp(d.close) + E;
+        if (barIdx > 0) lastVal += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
+        var ohlcvRows =
+            L + 'Open'  + E + '<span style="color:' + cl    + '">' + fp(d.open)  + E +
+            L + 'High'  + E + '<span style="color:' + cl    + '">' + fp(d.high)  + E +
+            L + 'Low'   + E + '<span style="color:' + cl    + '">' + fp(d.low)   + E +
+            L + 'Last'  + E + lastVal +
+            L + '% Chg' + E + '<span style="color:' + chgClr + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' + E +
+            L + 'CR%'   + E + (cr != null ? '<span style="color:' + crClr + '">' + cr + '%' + E : L + '\u2014' + E) +
+            L + 'Vol'   + E + V + fv(vol) + E;
         if (vol != null && volSmaMap) {
             var smaVal = volSmaMap.get(barTime);
             if (smaVal && smaVal > 0) {
                 var vp    = (vol / smaVal - 1) * 100;
                 var vpClr = vp >= 0 ? '#3fb950' : '#f85149';
-                html += '<div>' + L + 'Vol % Chg' + E + sp + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E + '</div>';
+                ohlcvRows += L + 'Vol % Chg' + E + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E;
             }
         }
+        html += '<div style="display:grid;grid-template-columns:auto auto;column-gap:10px;row-gap:0;">' + ohlcvRows + '</div>';
         var maOrder = ['SMA5', 'EMA8', 'EMA21', 'SMA50', 'SMA150', 'SMA200'];
         var maRows = [];
         maOrder.forEach(function(key) {
