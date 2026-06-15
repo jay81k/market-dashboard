@@ -107,7 +107,8 @@
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { 
                 borderVisible: false,
-                textColor: '#6e7681' 
+                textColor: '#6e7681',
+                scaleMargins: { top: 0.32, bottom: 0.02 },
             },
             timeScale: { 
                 visible: false
@@ -227,8 +228,7 @@
         // ── Overlay: top-left — name, price/change, from open (with backdrop so candles don't bleed through) ──
         var dirColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#8b949e';
         var topLeft = document.createElement('div');
-        topLeft.style.cssText = 'position:absolute;top:6px;left:6px;z-index:5;pointer-events:none;' +
-            'background:rgba(13,17,23,0.72);padding:5px 8px;border-radius:5px;';
+        topLeft.style.cssText = 'position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;';
 
         var foColor  = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
         var fromOpenRowHtml = (is1D && fromOpenStr != null)
