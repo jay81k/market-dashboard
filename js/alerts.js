@@ -1409,6 +1409,9 @@
     var _alMeasureHLine      = null;
     var _alMeasureInfoDiv    = null;
 
+    var _alTooltipEnabled = false;
+    var _alVolSmaMap      = null;
+
     var _alClickTimer   = null;
     var _alClickTicker  = null;
 
@@ -1972,6 +1975,8 @@
             if (!chartDiv.contains(evt.target)) return;
             evt.preventDefault();
             evt.stopPropagation();
+            // Toggle off data tooltip on right-click
+            if (_alTooltipEnabled) { _alTooltipEnabled = false; var _ttBtn = document.getElementById('al-chart-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
             // Right-click: cancel active measurement first (no context menu shown)
             if (_alMeasurePhase === 1) {
                 _alMeasureActive = false;
@@ -2105,13 +2110,14 @@
     // ── Core chart destroy / build ────────────────────────────────────────
     function _destroyAlChart() {
         if (_alChart) { try { _alChart.remove(); } catch(e) {} _alChart = null; }
-        _alCandle = null; _alVol = null; _alVolMa = null; _alVolData = null;
+        _alCandle = null; _alVol = null; _alVolMa = null; _alVolData = null; _alVolSmaMap = null;
         _alMaSeries = {}; _alMaDataMap = {};
         _alVwapSeries = []; _alTrendlines = []; _alTrendlineFirst = null;
         _alTrendSvgOverlay = null; _alTrendSvgLine = null;
         _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
         _alTrendlineMode = false; _alSelectedTrendlineIdx = -1; _alSelectedVwapIdx = -1;
         _alLastCrosshairTime = null; _alSym = null;
+        _alTooltipEnabled = false;
         if (_alKeyHandler) { document.removeEventListener('keydown', _alKeyHandler); _alKeyHandler = null; }
         var mktEl = document.getElementById('al-chart-mkt-info');
         if (mktEl) mktEl.style.display = 'none';
@@ -2119,6 +2125,9 @@
         if (tBtn)  tBtn.classList.remove('active');
         var vBtn  = document.getElementById('al-chart-vwap-btn');
         if (vBtn)  vBtn.classList.remove('active');
+        var ttBtn = document.getElementById('al-chart-tooltip-btn');
+        if (ttBtn) ttBtn.classList.remove('active');
+        if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         var maPanel   = document.getElementById('al-chart-ma-panel');
         var maChevron = document.getElementById('al-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
@@ -2222,6 +2231,9 @@
             }, 1);
             _alVolMa.setData(_alVolData);
         })();
+        _alVolSmaMap = _alVolData && _alVolData.length
+            ? new Map(_alVolData.map(function(d) { return [d.time, d.value]; }))
+            : null;
 
         // Pin volume pane to ~22% height
         (function() {
@@ -2374,8 +2386,17 @@
                 _alLastCrosshairPrice = null;
             }
             _alLastCrosshairTime = p.time || null;
-            if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
-            var d = p.seriesData.get(_alCandle); if (!d) { leg.innerHTML = ''; return; }
+            if (!p.time || !p.seriesData || !p.seriesData.size) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
+            var d = p.seriesData.get(_alCandle);
+            if (!d) {
+                leg.innerHTML = '';
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+                return;
+            }
             var cl = d.close >= d.open ? '#089981' : '#b22833';
             var vd = p.seriesData.get(_alVol);
             var chgHtml = '';
@@ -2397,6 +2418,18 @@
                 '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
                 (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">Vol</span> <span style="color:#8b949e">' + fv(vd.value) + '</span>' : '');
+            // Floating tooltip
+            if (_alTooltipEnabled) {
+                var ttDiv = _getLwTooltipDiv();
+                ttDiv.innerHTML = _buildTooltipHtml(d, barIdx, _alOhlcv, _alVolSmaMap, _alMaDataMap, _alActiveMas, p.time);
+                ttDiv.style.display = 'block';
+                if (p.point) {
+                    var rect = container.getBoundingClientRect();
+                    _positionTooltip(ttDiv, rect.left + p.point.x, rect.top + p.point.y, rect.right);
+                }
+            } else if (_lwTooltipDiv) {
+                _lwTooltipDiv.style.display = 'none';
+            }
         });
 
         // Market info bar
@@ -2497,6 +2530,12 @@
                 }
                 return;
             }
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
+                if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.alChartToggleTooltip(); return; }
+                if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.alChartToggleTrendline(); return; }
+                if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.alChartToggleVwap(); return; }
+            }
             if (evt.key !== 'Delete') return;
             if (_alSelectedTrendlineIdx !== -1) {
                 evt.stopPropagation();
@@ -2522,6 +2561,22 @@
             }
         };
         document.addEventListener('keydown', _alKeyHandler);
+
+        // Tooltip button (injected once, idempotent)
+        (function() {
+            var avwapBtn = document.getElementById('al-chart-vwap-btn');
+            if (avwapBtn && !document.getElementById('al-chart-tooltip-btn')) {
+                var ttBtn = document.createElement('button');
+                ttBtn.id        = 'al-chart-tooltip-btn';
+                ttBtn.className = avwapBtn.className.replace(/\bactive\b/g, '').trim();
+                ttBtn.title     = 'Data Tooltip';
+                ttBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+                ttBtn.addEventListener('click', window.alChartToggleTooltip);
+                avwapBtn.parentNode.insertBefore(ttBtn, avwapBtn.nextSibling);
+            }
+            var existing = document.getElementById('al-chart-tooltip-btn');
+            if (existing) existing.classList.toggle('active', _alTooltipEnabled);
+        })();
 
         // Inject live bar
         _injectChartLiveBar(sym, tf, _alCandle, _alVol, _alOhlcv,
@@ -2580,6 +2635,10 @@
         });
 
         // Reset per-symbol tool state
+        _alTooltipEnabled = false;
+        var ttBtn = document.getElementById('al-chart-tooltip-btn');
+        if (ttBtn) ttBtn.classList.remove('active');
+        if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         _alVwapMode = false; _alVwapSeries = []; _alSelectedVwapIdx = -1;
         var vwapBtn = document.getElementById('al-chart-vwap-btn');
         if (vwapBtn) vwapBtn.classList.remove('active');
@@ -2619,6 +2678,10 @@
         document.querySelectorAll('.al-chart-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
+        _alTooltipEnabled = false;
+        var ttBtn = document.getElementById('al-chart-tooltip-btn');
+        if (ttBtn) ttBtn.classList.remove('active');
+        if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         _alVwapMode = false; _alVwapSeries = []; _alSelectedVwapIdx = -1;
         var vwapBtn = document.getElementById('al-chart-vwap-btn');
         if (vwapBtn) vwapBtn.classList.remove('active');
@@ -2725,6 +2788,13 @@
         _alTrendlineFirst = null;
         if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         if (_alSelectedTrendlineIdx !== -1) _alDeselectAllTrendlines();
+    };
+
+    window.alChartToggleTooltip = function() {
+        _alTooltipEnabled = !_alTooltipEnabled;
+        var btn = document.getElementById('al-chart-tooltip-btn');
+        if (btn) btn.classList.toggle('active', _alTooltipEnabled);
+        if (!_alTooltipEnabled && _lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
     };
 
     window.alChartToggleMeasure = function() {
