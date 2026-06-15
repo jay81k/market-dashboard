@@ -94,11 +94,11 @@
 
         var lwChart = LightweightCharts.createChart(container, {
             width:  container.clientWidth  || 400,
-            height: 180, // Keep your existing height
+            height: container.clientHeight || 230,
             layout: { 
                 background: { color: '#0d1117' }, 
                 textColor: '#6e7681',
-                padding: { top: 0, bottom: 0, left: 0, right: 0 } // Tighten to edges
+                padding: { top: 0, bottom: 0, left: 0, right: 0 }
             },
             grid: { 
                 vertLines: { visible: false }, 
@@ -106,11 +106,11 @@
             },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { 
-                borderVisible: false, // Removes the outer border to save pixels
+                borderVisible: false,
                 textColor: '#6e7681' 
             },
             timeScale: { 
-                visible: false // Reclaims the timeline footer space
+                visible: false
             },
             handleScroll: false,
             handleScale:  false,
@@ -147,13 +147,14 @@
 
         lwChart.timeScale().fitContent();
 
-        // OHLC crosshair readout — same as popup
+        // OHLC crosshair readout — hidden until hover
         var ohlcLegend = document.createElement('div');
         ohlcLegend.style.cssText = [
-            'position:absolute', 'top:4px', 'left:6px', 'z-index:10',
+            'position:absolute', 'top:6px', 'left:6px', 'z-index:20',
             'font-size:10px', 'font-weight:600', 'font-variant-numeric:tabular-nums',
             'color:#8b949e', 'pointer-events:none', 'line-height:1.5',
-            'background:rgba(13,17,23,0.75)', 'padding:1px 5px', 'border-radius:3px',
+            'background:rgba(13,17,23,0.88)', 'padding:2px 6px', 'border-radius:3px',
+            'display:none',
         ].join(';');
         container.appendChild(ohlcLegend);
 
@@ -165,11 +166,12 @@
 
         lwChart.subscribeCrosshairMove(function(param) {
             if (!param.time || !param.seriesData || !param.seriesData.size) {
-                ohlcLegend.innerHTML = '';
+                ohlcLegend.style.display = 'none';
                 return;
             }
             var d = param.seriesData.get(candleSeries);
-            if (!d) { ohlcLegend.innerHTML = ''; return; }
+            if (!d) { ohlcLegend.style.display = 'none'; return; }
+            ohlcLegend.style.display = '';
             var cl   = d.close >= d.open ? '#3fb950' : '#f85149';
             var vd   = param.seriesData.get(volSeries);
             var volStr = vd ? '&nbsp;&nbsp;<span style="color:#484f58">Vol</span> ' + fmtV(vd.value) : '';
@@ -186,11 +188,19 @@
         var card = document.getElementById('mc-' + idx.id);
         if (!card) return;
 
+        card.style.padding  = '0';
+        card.style.overflow = 'hidden';
+
         if (!parsed) {
             card.className = 'market-index-card';
             card.innerHTML =
-                '<div class="mic-header"><span class="mic-label">' + idx.label + '</span><span class="mic-name">' + idx.name + '</span></div>' +
-                '<div class="mic-price-row"><span class="mic-price" style="color:#484f58;">—</span></div>';
+                '<div style="height:230px;position:relative;background:#0d1117;">' +
+                    '<div style="position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;">' +
+                        '<div style="font-size:12px;font-weight:700;color:#484f58;letter-spacing:0.06em;">' + idx.label + '</div>' +
+                        '<div style="font-size:10px;color:#484f58;">' + idx.name + '</div>' +
+                    '</div>' +
+                    '<div style="position:absolute;bottom:10px;left:10px;font-size:18px;font-weight:700;color:#484f58;font-variant-numeric:tabular-nums;z-index:5;">—</div>' +
+                '</div>';
             return;
         }
 
@@ -221,43 +231,55 @@
             var fChgPct = ((futuresParsed.price - futuresParsed.prevClose) / futuresParsed.prevClose) * 100;
             var fDir    = fChgPct > 0 ? 'up' : fChgPct < 0 ? 'down' : 'flat';
             var fStr    = (fChgPct >= 0 ? '▲ +' : '▼ ') + fChgPct.toFixed(2) + '%';
-            futuresPillHtml = '<div class="mic-futures-pill ' + fDir + '">' +
-                '<span class="mic-futures-sym">' + idx.futures + '</span>' +
-                '<span class="mic-futures-val">' + fStr + '</span>' +
-            '</div>';
-        }
-
-        // Sub-row: from open — 1D only, always shown
-        var subRowHtml = '';
-        if (is1D && fromOpenStr != null) {
-            var fromOpenLbl = isOpen ? 'from open' : 'from open';
-            subRowHtml = '<div class="mic-sub-row">' +
-                '<div class="mic-from-open"><span class="mic-from-open-lbl">' + fromOpenLbl + '</span><span class="mic-from-open-val ' + fromOpenDir + '">' + fromOpenStr + '</span></div>' +
-            '</div>';
+            futuresPillHtml =
+                '<div class="mic-futures-pill ' + fDir + '">' +
+                    '<span class="mic-futures-sym">' + idx.futures + '</span>' +
+                    '<span class="mic-futures-val">' + fStr + '</span>' +
+                '</div>';
         }
 
         var chartContainerId = 'mic-lwchart-' + idx.id;
-
         card.className = 'market-index-card ' + direction;
-        card.innerHTML =
-            '<div class="mic-header">' +
-                '<span class="mic-label">' + idx.label + '</span>' +
-                '<span class="mic-name">' + idx.name + '</span>' +
-                (futuresPillHtml ? futuresPillHtml : '') +
-                '<span class="mic-date">' + dateStr + '</span>' +
-            '</div>' +
-            '<div class="mic-price-row">' +
-                '<span class="mic-price">' + priceStr + '</span>' +
-                '<div class="mic-change">' +
-                    '<span class="mic-chg-abs ' + direction + '">' + chgAbsStr + '</span>' +
-                    '<span class="mic-chg-pct ' + direction + '">(' + chgPctStr + ')</span>' +
-                '</div>' +
-            '</div>' +
-            subRowHtml +
-            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:180px;margin:0;"></div>';
 
-        // Render LightweightCharts into the placeholder now that it's in the DOM
-        marketRenderIndexChart(document.getElementById(chartContainerId), parsed, direction);
+        // Chart wrap is the only child — fills the entire card
+        card.innerHTML =
+            '<div class="mic-chart-wrap" id="' + chartContainerId + '" style="height:230px;margin:0;"></div>';
+
+        var chartContainer = document.getElementById(chartContainerId);
+
+        // Render chart first (clears container internally, then adds canvas + ohlcLegend)
+        marketRenderIndexChart(chartContainer, parsed, direction);
+
+        // ── Overlay: top-left — label + name ─────────────────────────────
+        var topLeft = document.createElement('div');
+        topLeft.style.cssText = 'position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;';
+        topLeft.innerHTML =
+            '<div style="font-size:12px;font-weight:700;color:#e6edf3;letter-spacing:0.06em;line-height:1.3;">' + idx.label + '</div>' +
+            '<div style="font-size:10px;color:#8b949e;line-height:1.3;">' + idx.name + '</div>';
+        chartContainer.appendChild(topLeft);
+
+        // ── Overlay: top-right — futures pill + date ──────────────────────
+        var topRight = document.createElement('div');
+        topRight.style.cssText = 'position:absolute;top:8px;right:8px;z-index:5;pointer-events:none;display:flex;align-items:center;gap:6px;';
+        topRight.innerHTML = futuresPillHtml + '<span style="font-size:10px;color:#8b949e;">' + dateStr + '</span>';
+        chartContainer.appendChild(topRight);
+
+        // ── Overlay: bottom-left — price + change + from open ─────────────
+        var dirColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#8b949e';
+        var bottomLeft = document.createElement('div');
+        bottomLeft.style.cssText = 'position:absolute;bottom:8px;left:10px;z-index:5;pointer-events:none;';
+        var bottomHtml =
+            '<div style="display:flex;align-items:baseline;gap:5px;">' +
+                '<span style="font-size:18px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
+                '<span style="font-size:11px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
+            '</div>';
+        if (is1D && fromOpenStr != null) {
+            var foColor = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
+            bottomHtml +=
+                '<div style="font-size:10px;color:#8b949e;margin-top:2px;">from open <span style="color:' + foColor + ';">' + fromOpenStr + '</span></div>';
+        }
+        bottomLeft.innerHTML = bottomHtml;
+        chartContainer.appendChild(bottomLeft);
     }
 
     function marketFetchAll() {
