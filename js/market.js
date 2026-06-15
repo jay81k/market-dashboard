@@ -136,6 +136,7 @@
         });
         lwChart.priceScale('volume').applyOptions({
             scaleMargins: { top: 0.82, bottom: 0 },
+            visible: false,
         });
         volSeries.setData(ohlcv.map(function(d) {
             return {
@@ -219,9 +220,6 @@
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
         var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
 
-        var now     = new Date();
-        var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
         var isOpen   = wlIsMarketOpen();
         var is1D     = marketTf === '1d';
 
@@ -232,7 +230,7 @@
             var fDir    = fChgPct > 0 ? 'up' : fChgPct < 0 ? 'down' : 'flat';
             var fStr    = (fChgPct >= 0 ? '▲ +' : '▼ ') + fChgPct.toFixed(2) + '%';
             futuresPillHtml =
-                '<div class="mic-futures-pill ' + fDir + '">' +
+                '<div class="mic-futures-pill ' + fDir + '" style="display:inline-flex;">' +
                     '<span class="mic-futures-sym">' + idx.futures + '</span>' +
                     '<span class="mic-futures-val">' + fStr + '</span>' +
                 '</div>';
@@ -250,36 +248,32 @@
         // Render chart first (clears container internally, then adds canvas + ohlcLegend)
         marketRenderIndexChart(chartContainer, parsed, direction);
 
-        // ── Overlay: top-left — label + name ─────────────────────────────
-        var topLeft = document.createElement('div');
-        topLeft.style.cssText = 'position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;';
-        topLeft.innerHTML =
-            '<div style="font-size:12px;font-weight:700;color:#e6edf3;letter-spacing:0.06em;line-height:1.3;">' + idx.label + '</div>' +
-            '<div style="font-size:10px;color:#8b949e;line-height:1.3;">' + idx.name + '</div>';
-        chartContainer.appendChild(topLeft);
-
-        // ── Overlay: top-right — futures pill + date ──────────────────────
-        var topRight = document.createElement('div');
-        topRight.style.cssText = 'position:absolute;top:8px;right:8px;z-index:5;pointer-events:none;display:flex;align-items:center;gap:6px;';
-        topRight.innerHTML = futuresPillHtml + '<span style="font-size:10px;color:#8b949e;">' + dateStr + '</span>';
-        chartContainer.appendChild(topRight);
-
-        // ── Overlay: bottom-left — price + change + from open ─────────────
+        // ── Overlay: top-left — name + futures pill on row 1, price/change/from-open below ──
         var dirColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#8b949e';
-        var bottomLeft = document.createElement('div');
-        bottomLeft.style.cssText = 'position:absolute;bottom:8px;left:10px;z-index:5;pointer-events:none;';
-        var bottomHtml =
-            '<div style="display:flex;align-items:baseline;gap:5px;">' +
+        var topLeft = document.createElement('div');
+        // right:75px keeps us clear of the price axis
+        topLeft.style.cssText = 'position:absolute;top:8px;left:10px;right:75px;z-index:5;pointer-events:none;';
+
+        var foColor  = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
+        var fromOpenRowHtml = (is1D && fromOpenStr != null)
+            ? '<div style="font-size:10px;color:#8b949e;margin-top:2px;">from open <span style="color:' + foColor + ';">' + fromOpenStr + '</span></div>'
+            : '';
+
+        topLeft.innerHTML =
+            // Row 1: index name + futures pill
+            '<div style="display:flex;align-items:center;gap:6px;line-height:1.3;">' +
+                '<span style="font-size:12px;font-weight:700;color:#e6edf3;">' + idx.name + '</span>' +
+                futuresPillHtml +
+            '</div>' +
+            // Row 2: price + change
+            '<div style="display:flex;align-items:baseline;gap:5px;margin-top:4px;">' +
                 '<span style="font-size:18px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
                 '<span style="font-size:11px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
-            '</div>';
-        if (is1D && fromOpenStr != null) {
-            var foColor = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
-            bottomHtml +=
-                '<div style="font-size:10px;color:#8b949e;margin-top:2px;">from open <span style="color:' + foColor + ';">' + fromOpenStr + '</span></div>';
-        }
-        bottomLeft.innerHTML = bottomHtml;
-        chartContainer.appendChild(bottomLeft);
+            '</div>' +
+            // Row 3: from open
+            fromOpenRowHtml;
+
+        chartContainer.appendChild(topLeft);
     }
 
     function marketFetchAll() {
