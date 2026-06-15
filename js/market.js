@@ -129,14 +129,13 @@
         });
         candleSeries.setData(ohlcv);
 
-        // Volume histogram
+        // Volume histogram — priceScaleId:'' = overlay scale, no axis labels rendered at all
         var volSeries = lwChart.addSeries(LightweightCharts.HistogramSeries, {
             priceFormat:  { type: 'volume' },
-            priceScaleId: 'volume',
+            priceScaleId: '',
         });
-        lwChart.priceScale('volume').applyOptions({
+        volSeries.priceScale().applyOptions({
             scaleMargins: { top: 0.82, bottom: 0 },
-            visible: false,
         });
         volSeries.setData(ohlcv.map(function(d) {
             return {
@@ -248,11 +247,11 @@
         // Render chart first (clears container internally, then adds canvas + ohlcLegend)
         marketRenderIndexChart(chartContainer, parsed, direction);
 
-        // ── Overlay: top-left — name + futures pill on row 1, price/change/from-open below ──
+        // ── Overlay: top-left — name, price/change, from open (with backdrop so candles don't bleed through) ──
         var dirColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#8b949e';
         var topLeft = document.createElement('div');
-        // right:75px keeps us clear of the price axis
-        topLeft.style.cssText = 'position:absolute;top:8px;left:10px;right:75px;z-index:5;pointer-events:none;';
+        topLeft.style.cssText = 'position:absolute;top:6px;left:6px;z-index:5;pointer-events:none;' +
+            'background:rgba(13,17,23,0.72);padding:5px 8px;border-radius:5px;';
 
         var foColor  = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
         var fromOpenRowHtml = (is1D && fromOpenStr != null)
@@ -260,13 +259,10 @@
             : '';
 
         topLeft.innerHTML =
-            // Row 1: index name + futures pill
-            '<div style="display:flex;align-items:center;gap:6px;line-height:1.3;">' +
-                '<span style="font-size:12px;font-weight:700;color:#e6edf3;">' + idx.name + '</span>' +
-                futuresPillHtml +
-            '</div>' +
+            // Row 1: index name only
+            '<div style="font-size:12px;font-weight:700;color:#e6edf3;line-height:1.3;">' + idx.name + '</div>' +
             // Row 2: price + change
-            '<div style="display:flex;align-items:baseline;gap:5px;margin-top:4px;">' +
+            '<div style="display:flex;align-items:baseline;gap:5px;margin-top:3px;">' +
                 '<span style="font-size:18px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
                 '<span style="font-size:11px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
             '</div>' +
@@ -274,6 +270,14 @@
             fromOpenRowHtml;
 
         chartContainer.appendChild(topLeft);
+
+        // ── Overlay: top-right — futures pill anchored just before the price axis ──
+        if (futuresPillHtml) {
+            var topRight = document.createElement('div');
+            topRight.style.cssText = 'position:absolute;top:8px;right:78px;z-index:5;pointer-events:none;';
+            topRight.innerHTML = futuresPillHtml;
+            chartContainer.appendChild(topRight);
+        }
     }
 
     function marketFetchAll() {
