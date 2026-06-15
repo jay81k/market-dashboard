@@ -129,22 +129,6 @@
         });
         candleSeries.setData(ohlcv);
 
-        // Volume histogram — priceScaleId:'' = overlay scale, no axis labels rendered at all
-        var volSeries = lwChart.addSeries(LightweightCharts.HistogramSeries, {
-            priceFormat:  { type: 'volume' },
-            priceScaleId: '',
-        });
-        volSeries.priceScale().applyOptions({
-            scaleMargins: { top: 0.82, bottom: 0 },
-        });
-        volSeries.setData(ohlcv.map(function(d) {
-            return {
-                time:  d.time,
-                value: d.volume,
-                color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)',
-            };
-        }));
-
         lwChart.timeScale().fitContent();
 
         // OHLC crosshair readout — hidden until hover
@@ -159,10 +143,6 @@
         container.appendChild(ohlcLegend);
 
         function fmtP(v) { return v != null ? v.toFixed(2) : '—'; }
-        function fmtV(v) {
-            if (v == null) return '—';
-            return v >= 1e9 ? (v / 1e9).toFixed(1) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'K' : v.toFixed(0);
-        }
 
         lwChart.subscribeCrosshairMove(function(param) {
             if (!param.time || !param.seriesData || !param.seriesData.size) {
@@ -172,15 +152,12 @@
             var d = param.seriesData.get(candleSeries);
             if (!d) { ohlcLegend.style.display = 'none'; return; }
             ohlcLegend.style.display = '';
-            var cl   = d.close >= d.open ? '#3fb950' : '#f85149';
-            var vd   = param.seriesData.get(volSeries);
-            var volStr = vd ? '&nbsp;&nbsp;<span style="color:#484f58">Vol</span> ' + fmtV(vd.value) : '';
+            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
             ohlcLegend.innerHTML =
                 '<span style="color:#6e7681">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
                 '<span style="color:#6e7681">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
                 '<span style="color:#6e7681">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
-                volStr;
+                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>';
         });
     }
 
