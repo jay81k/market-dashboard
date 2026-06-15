@@ -241,7 +241,7 @@
             // Row 2: price + change
             '<div style="display:flex;align-items:baseline;gap:5px;margin-top:3px;">' +
                 '<span style="font-size:18px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
-                '<span style="font-size:11px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
+                '<span style="font-size:13px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
             '</div>' +
             // Row 3: from open
             fromOpenRowHtml;
