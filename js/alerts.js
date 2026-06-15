@@ -305,6 +305,8 @@
                 key = window.alPatternAlertKey(a);
             else if (a.alertType === 'trendline')
                 key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
+            else if (a.alertType === 'avwap')
+                key = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
             else
                 key = a.ticker + '_' + a.price + '_' + a.condition;
             if (_alertFiredSess[key]) return;
@@ -375,6 +377,23 @@
                 hitVal = tlLivePrice;
                 hit = (a.condition === 'above' && tlLivePrice >= tlLinePrice) ||
                       (a.condition === 'below' && tlLivePrice <= tlLinePrice);
+            } else if (a.alertType === 'avwap') {
+                var avLivePrice = alertPrices[a.ticker];
+                if (avLivePrice == null || !a.anchorTime) return;
+                var avOhlcv = _mcOhlcvCache[a.ticker + '_D'] || _mcOhlcvCache[a.ticker + '_d'];
+                if (!avOhlcv || !avOhlcv.length) return;
+                // Find anchor bar index by time
+                var avAnchorIdx = -1;
+                for (var ai = 0; ai < avOhlcv.length; ai++) {
+                    if (avOhlcv[ai].time === a.anchorTime) { avAnchorIdx = ai; break; }
+                }
+                if (avAnchorIdx < 0) return;
+                var avData = _calcAVWAP(avOhlcv, avAnchorIdx);
+                if (!avData || !avData.length) return;
+                var avwapNow = avData[avData.length - 1].value;
+                hitVal = avLivePrice;
+                hit = (a.condition === 'above' && avLivePrice >= avwapNow) ||
+                      (a.condition === 'below' && avLivePrice <= avwapNow);
             } else {
                 var price = alertPrices[a.ticker];
                 if (price == null) return;
@@ -393,6 +412,7 @@
                 patternKeys: window.alGetPatternKeys(a), patternTf: a.patternTf || null,
                 triggeredPatternKeys: (a.alertType === 'pattern' ? triggeredPats : null),
                 p1: a.p1 || null, p2: a.p2 || null,
+                anchorTime: a.anchorTime || null, anchorUnix: a.anchorUnix || null,
                 name: a.name || '',
                 firedAt: new Date().toISOString(), dismissed: false
             });
@@ -412,6 +432,8 @@
                     body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
                 } else if (a.alertType === 'trendline') {
                     body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline · now $' + hitVal.toFixed(2);
+                } else if (a.alertType === 'avwap') {
+                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' AVWAP · now $' + hitVal.toFixed(2);
                 } else {
                 }
                 new Notification(a.ticker + ' alert triggered', { body: body });
@@ -426,6 +448,7 @@
                 else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
                 else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
                 else if (a.alertType === 'trendline') k = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
+                else if (a.alertType === 'avwap') k = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
                 else k = a.ticker + '_' + a.price + '_' + a.condition;
                 return !removeSet[k];
             });
@@ -574,6 +597,7 @@
             else if (a.alertType === 'ma') key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
             else if (a.alertType === 'pattern') key = window.alPatternAlertKey(a);
             else if (a.alertType === 'trendline') key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
+            else if (a.alertType === 'avwap') key = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
             else key = a.ticker + '_' + a.price + '_' + a.condition;
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
@@ -588,6 +612,10 @@
                         ? (a.condition === 'above'
                             ? '<span style="color:#3fb950;">▲ trendline</span>'
                             : '<span style="color:#f85149;">▼ trendline</span>')
+                        : a.alertType === 'avwap'
+                            ? (a.condition === 'above'
+                                ? '<span style="color:#3fb950;">▲ AVWAP</span>'
+                                : '<span style="color:#f85149;">▼ AVWAP</span>')
                         : a.isPrevDay === 'high'
                         ? '<span style="color:#3fb950;">▲ PDH</span>'
                         : a.isPrevDay === 'low'
@@ -671,6 +699,33 @@
                     var tlCls   = tlPct < 1 ? ' imminent' : tlPct < 5 ? ' close' : '';
                     awayHtml    = '<div class="al-col-away' + tlCls + '">' + tlPct.toFixed(1) + '%</div>';
                 }
+            } else if (a.alertType === 'avwap') {
+                if (fired || curr == null || !a.anchorTime) {
+                    awayHtml = '<div class="al-col-away">—</div>';
+                } else {
+                    var avOhlcvAw = _mcOhlcvCache[a.ticker + '_D'] || _mcOhlcvCache[a.ticker + '_d'];
+                    if (!avOhlcvAw || !avOhlcvAw.length) {
+                        awayHtml = '<div class="al-col-away">—</div>';
+                    } else {
+                        var avIdxAw = -1;
+                        for (var awi = 0; awi < avOhlcvAw.length; awi++) {
+                            if (avOhlcvAw[awi].time === a.anchorTime) { avIdxAw = awi; break; }
+                        }
+                        if (avIdxAw < 0) {
+                            awayHtml = '<div class="al-col-away">—</div>';
+                        } else {
+                            var avDataAw  = _calcAVWAP(avOhlcvAw, avIdxAw);
+                            var avNowAw   = avDataAw && avDataAw.length ? avDataAw[avDataAw.length - 1].value : null;
+                            if (avNowAw == null || avNowAw <= 0) {
+                                awayHtml = '<div class="al-col-away">—</div>';
+                            } else {
+                                var avPct = Math.abs((curr - avNowAw) / avNowAw * 100);
+                                var avCls = avPct < 1 ? ' imminent' : avPct < 5 ? ' close' : '';
+                                awayHtml  = '<div class="al-col-away' + avCls + '">' + avPct.toFixed(1) + '%</div>';
+                            }
+                        }
+                    }
+                }
             } else if (fired || curr == null) {
                 awayHtml = '<div class="al-col-away">—</div>';
             } else {
@@ -696,14 +751,14 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : a.alertType === 'trendline' ? '<span style="display:inline-flex;align-items:center;"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><line x1="1" y1="11" x2="15" y2="1" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="10.5" r="1.8" fill="#8b949e"/><circle cx="14" cy="1.5" r="1.8" fill="#8b949e"/></svg></span>' : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : a.alertType === 'trendline' ? '<span style="display:inline-flex;align-items:center;"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><line x1="1" y1="11" x2="15" y2="1" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="10.5" r="1.8" fill="#8b949e"/><circle cx="14" cy="1.5" r="1.8" fill="#8b949e"/></svg></span>' : a.alertType === 'avwap' ? '<span style="display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#8b949e;letter-spacing:.5px;">AVWAP</span>' : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
                 awayHtml +
                 '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
-                (a.alertType === 'trendline'
+                (a.alertType === 'trendline' || a.alertType === 'avwap'
                     ? '<div class="al-col-edit" style="visibility:hidden;pointer-events:none;">✎</div>'
                     : '<div class="al-col-edit" onclick="alEditOpen(' + idx + ')" title="Edit">✎</div>') +
                 '<div class="al-col-del" onclick="alDeleteConfirm(' + idx + ',\'' + esc(a.ticker) + '\')" title="Remove">×</div>' +
@@ -802,6 +857,8 @@
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'trendline'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline</span>'
+                : f.alertType === 'avwap'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' AVWAP</span>'
                 : f.alertType === 'pattern'
                 ? (function() {
                     var pKeys = (f.triggeredPatternKeys && f.triggeredPatternKeys.length)
@@ -1543,6 +1600,27 @@
         _alSelectedVwapIdx = -1;
     }
 
+    function _alVwapHitTest(clientX, clientY) {
+        if (!_alChart || !_alVwapSeries.length || !_alLastCrosshairTime) return -1;
+        var chartDiv = document.getElementById('al-chart-widget');
+        var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
+        if (!rect) return -1;
+        var localY   = clientY - rect.top;
+        var HIT_PX   = 8;
+        var bestDist = HIT_PX;
+        var hitIdx   = -1;
+        _alVwapSeries.forEach(function(entry, i) {
+            if (!entry.dataMap) return;
+            var avwapVal = entry.dataMap.get(_alLastCrosshairTime);
+            if (avwapVal == null) return;
+            var yCoord = entry.series.priceToCoordinate(avwapVal);
+            if (yCoord == null) return;
+            var dist = Math.abs(localY - yCoord);
+            if (dist < bestDist) { bestDist = dist; hitIdx = i; }
+        });
+        return hitIdx;
+    }
+
     function _alAnchorHitTest(clientX, clientY, tlIdx) {
         if (tlIdx < 0 || !_alTrendlines[tlIdx] || !_alChart || !_alCandle || !_alTrendContRef) return null;
         var tl   = _alTrendlines[tlIdx];
@@ -1665,6 +1743,39 @@
         return alertsList.filter(function(a) {
             return a.alertType === 'trendline' && a.ticker === ticker && a.p1 && a.p2;
         });
+    };
+
+    window.alAddAvwapAlert = function(ticker, anchorTime, condition) {
+        if (!anchorTime) return;
+        // Convert anchorTime to unix for dedup key
+        function toUnix(t) {
+            if (typeof t === 'number') return t;
+            if (typeof t === 'string') return Math.floor(new Date(t).getTime() / 1000);
+            if (t && t.year != null) return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
+            return 0;
+        }
+        var anchorUnix = toUnix(anchorTime);
+        // Dedup: same ticker + same anchor + same condition
+        var exists = alertsList.some(function(a) {
+            return a.alertType === 'avwap' && a.ticker === ticker &&
+                   a.condition === condition && a.anchorUnix === anchorUnix;
+        });
+        if (exists) return;
+        var name = (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '';
+        alertsList.push({
+            ticker:     ticker,
+            alertType:  'avwap',
+            condition:  condition,
+            anchorTime: anchorTime,
+            anchorUnix: anchorUnix,
+            name:       name,
+            addedAt:    new Date().toISOString()
+        });
+        _alLoaded = true;
+        alSave();
+        alStartBackgroundPolling();
+        if (currentView === 'alerts') renderAlerts();
+        alStampBadges();
     };
 
     // ── AL Measure drag handlers ─────────────────────────────────────────────
@@ -1902,6 +2013,7 @@
 
     // ── Right-click context menu ──────────────────────────────────────────
     var _alCtxTrendline = null; // {p1, p2} when right-click lands on a trendline
+    var _alCtxAvwap     = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
 
     // Returns the unix timestamp to use when evaluating a trendline.
     // Daily/weekly/monthly bars have midnight-UTC anchors (divisible by 86400).
@@ -1928,6 +2040,7 @@
         _alCtxPrice     = null;
         _alCtxMa        = null;
         _alCtxTrendline = null;
+        _alCtxAvwap     = null;
     }
 
     window.alChartCtxAlert = function(direction) {
@@ -1936,6 +2049,13 @@
             _alDismissCtx();
             if (!_alSym) return;
             window.alAddTrendlineAlert(_alSym, tl.p1, tl.p2, direction);
+            return;
+        }
+        if (_alCtxAvwap) {
+            var av = _alCtxAvwap;
+            _alDismissCtx();
+            if (!_alSym) return;
+            window.alAddAvwapAlert(_alSym, av.anchorTime, direction);
             return;
         }
         if (_alCtxMa) {
@@ -2039,6 +2159,45 @@
                     }
                     document.addEventListener('mousedown', _tlDismiss, true);
                     document.addEventListener('keydown',   _tlKd,      true);
+                }, 0);
+                return;
+            }
+            // ── AVWAP right-click: check hit before price/MA ──────────────────
+            var _avHitIdx = _alVwapHitTest(evt.clientX, evt.clientY);
+            if (_avHitIdx !== -1) {
+                var _avHit = _alVwapSeries[_avHitIdx];
+                _alCtxAvwap     = { anchorIdx: _avHit.anchor, anchorTime: _alOhlcv[_avHit.anchor] ? _alOhlcv[_avHit.anchor].time : null };
+                _alCtxTrendline = null;
+                _alCtxPrice     = null;
+                _alCtxMa        = null;
+                document.getElementById('al-chart-ctx-label').textContent     = _alSym + ' · AVWAP';
+                document.getElementById('al-chart-ctx-above-txt').textContent = 'Alert above AVWAP';
+                document.getElementById('al-chart-ctx-below-txt').textContent = 'Alert below AVWAP';
+                var avMenu  = document.getElementById('al-chart-ctx-menu');
+                avMenu.style.display = 'block';
+                var avMw = avMenu.offsetWidth  || 185;
+                var avMh = avMenu.offsetHeight || 90;
+                var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
+                var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
+                avMenu.style.left = avX + 'px';
+                avMenu.style.top  = avY + 'px';
+                setTimeout(function() {
+                    function _avDismiss(e) {
+                        if (!avMenu.contains(e.target)) {
+                            _alDismissCtx();
+                            document.removeEventListener('mousedown', _avDismiss, true);
+                            document.removeEventListener('keydown',   _avKd,      true);
+                        }
+                    }
+                    function _avKd(e) {
+                        if (e.key === 'Escape') {
+                            _alDismissCtx();
+                            document.removeEventListener('mousedown', _avDismiss, true);
+                            document.removeEventListener('keydown',   _avKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _avDismiss, true);
+                    document.addEventListener('keydown',   _avKd,      true);
                 }, 0);
                 return;
             }
@@ -2586,6 +2745,30 @@
         alertsList.forEach(function(a) {
             if (a.alertType !== 'trendline' || a.ticker !== sym || !a.p1 || !a.p2) return;
             _addAlTrendline(a.p1, a.p2);
+        });
+
+        // Restore AVWAP lines from saved avwap alerts for this ticker
+        alertsList.forEach(function(a) {
+            if (a.alertType !== 'avwap' || a.ticker !== sym || !a.anchorTime) return;
+            // Find anchor bar index by time in the loaded ohlcv
+            var anchorIdx = -1;
+            for (var ri = 0; ri < _alOhlcv.length; ri++) {
+                if (_alOhlcv[ri].time === a.anchorTime) { anchorIdx = ri; break; }
+            }
+            if (anchorIdx < 0) return;
+            // Avoid duplicates if already drawn (e.g. user drew it and then reloaded)
+            var already = _alVwapSeries.some(function(v) { return v.anchor === anchorIdx; });
+            if (already) return;
+            var avData = _calcAVWAP(_alOhlcv, anchorIdx);
+            if (!avData || !avData.length) return;
+            var color = _AVWAP_COLOR;
+            var s = _alChart.addSeries(LightweightCharts.LineSeries, {
+                color: color, lineWidth: 1.5, priceLineVisible: false,
+                lastValueVisible: true, crosshairMarkerVisible: true,
+            });
+            s.setData(avData);
+            var dm = new Map(avData.map(function(d) { return [d.time, d.value]; }));
+            _alVwapSeries.push({ series: s, anchor: anchorIdx, color: color, dataMap: dm });
         });
     }
 
