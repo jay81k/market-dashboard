@@ -232,7 +232,7 @@
 
         var foColor  = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
         var fromOpenRowHtml = (is1D && fromOpenStr != null)
-            ? '<div style="font-size:11px;color:#8b949e;margin-top:2px;">from open <span style="color:' + foColor + ';">' + fromOpenStr + '</span></div>'
+            ? '<div style="font-size:11px;color:#8b949e;margin-top:2px;">from open <span style="font-size:12px;color:' + foColor + ';">' + fromOpenStr + '</span></div>'
             : '';
 
         topLeft.innerHTML =
