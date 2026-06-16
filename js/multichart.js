@@ -121,6 +121,7 @@
     var _wlCtxPrice             = null;
     var _wlCtxMa                = null;
     var _wlCtxTrendline         = null; // {p1, p2} when right-clicking on a trendline
+    var _wlCtxAvwap             = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _wlCtxAttached          = false;
 
     // Measure tool state (wl)
@@ -839,6 +840,27 @@
         _mcFsSelectedVwapIdx = -1;
     }
 
+    function _mcFsVwapHitTest(clientX, clientY) {
+        if (!_mcFsChart || !_mcFsVwapSeries.length || !_mcFsLastCrosshairTime) return -1;
+        var chartDiv = document.getElementById('mc-fullscreen-chart');
+        var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
+        if (!rect) return -1;
+        var localY   = clientY - rect.top;
+        var HIT_PX   = 8;
+        var bestDist = HIT_PX;
+        var hitIdx   = -1;
+        _mcFsVwapSeries.forEach(function(entry, i) {
+            if (!entry.dataMap) return;
+            var avwapVal = entry.dataMap.get(_mcFsLastCrosshairTime);
+            if (avwapVal == null) return;
+            var yCoord = entry.series.priceToCoordinate(avwapVal);
+            if (yCoord == null) return;
+            var dist = Math.abs(localY - yCoord);
+            if (dist < bestDist) { bestDist = dist; hitIdx = i; }
+        });
+        return hitIdx;
+    }
+
     // Returns 'left' or 'right' if clientX/Y is near an anchor of trendline[tlIdx], else null
     function _anchorHitTest(clientX, clientY, tlIdx) {
         if (tlIdx < 0 || !_mcFsTrendlines[tlIdx] || !_mcFsChart || !_mcFsCandle || !_mcFsTrendContRef) return null;
@@ -1193,6 +1215,7 @@
     var _mcFsCtxPrice      = null;
     var _mcFsCtxMa         = null; // MA key when right-clicking on an MA line
     var _mcFsCtxTrendline  = null; // {p1, p2} when right-clicking on a trendline
+    var _mcFsCtxAvwap      = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _mcFsCtxAttached   = false;
 
     function _mcFsDismissCtx() {
@@ -1200,9 +1223,17 @@
         _mcFsCtxPrice     = null;
         _mcFsCtxMa        = null;
         _mcFsCtxTrendline = null;
+        _mcFsCtxAvwap     = null;
     }
 
     window.mcFsCtxAlert = function(direction) {
+        if (_mcFsCtxAvwap) {
+            var av = _mcFsCtxAvwap;
+            _mcFsDismissCtx();
+            if (!_mcFsSym) return;
+            window.alAddAvwapAlert(_mcFsSym, av.anchorTime, direction);
+            return;
+        }
         if (_mcFsCtxTrendline) {
             var tl = _mcFsCtxTrendline;
             _mcFsDismissCtx();
@@ -1323,13 +1354,46 @@
                 }, 0);
                 return;
             }
+            // ── AVWAP right-click: check hit before price/MA ──────────────────
+            var _mcFsAvHitIdx = _mcFsVwapHitTest(evt.clientX, evt.clientY);
+            if (_mcFsAvHitIdx !== -1) {
+                var _mcFsAvHit = _mcFsVwapSeries[_mcFsAvHitIdx];
+                _mcFsCtxAvwap     = { anchorIdx: _mcFsAvHit.anchor, anchorTime: _mcFsOhlcv[_mcFsAvHit.anchor] ? _mcFsOhlcv[_mcFsAvHit.anchor].time : null };
+                _mcFsCtxTrendline = null;
+                _mcFsCtxPrice     = null;
+                _mcFsCtxMa        = null;
+                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · AVWAP';
+                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above AVWAP';
+                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below AVWAP';
+                var _mcFsAvMenu = document.getElementById('mc-fs-ctx-menu');
+                _mcFsAvMenu.style.display = 'block';
+                var avMw = _mcFsAvMenu.offsetWidth  || 185;
+                var avMh = _mcFsAvMenu.offsetHeight || 90;
+                var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
+                var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
+                _mcFsAvMenu.style.left = avX + 'px';
+                _mcFsAvMenu.style.top  = avY + 'px';
+                setTimeout(function() {
+                    function _mcFsAvDismiss(e) {
+                        if (!_mcFsAvMenu.contains(e.target)) {
+                            _mcFsDismissCtx();
+                            document.removeEventListener('mousedown', _mcFsAvDismiss, true);
+                            document.removeEventListener('keydown',   _mcFsAvKd,      true);
+                        }
+                    }
+                    function _mcFsAvKd(e) {
+                        if (e.key === 'Escape') {
+                            _mcFsDismissCtx();
+                            document.removeEventListener('mousedown', _mcFsAvDismiss, true);
+                            document.removeEventListener('keydown',   _mcFsAvKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _mcFsAvDismiss, true);
+                    document.addEventListener('keydown',   _mcFsAvKd,      true);
+                }, 0);
+                return;
+            }
             var chartRect = chartDiv.getBoundingClientRect();
-            var localY    = evt.clientY - chartRect.top;
-            var price = _mcFsLastCrosshairPrice;
-            if (price == null || isNaN(price)) {
-                // Fallback: crosshair is in empty space to the right of the last candle —
-                // LW Charts never fires crosshair data there, so derive the price
-                // directly from the click's Y coordinate via the candle series.
                 if (_mcFsCandle) {
                     var fallbackPrice = _mcFsCandle.coordinateToPrice(localY);
                     if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
@@ -2800,7 +2864,26 @@
         _wlSelectedVwapIdx = -1;
     }
 
-    function _wlAnchorHitTest(clientX, clientY, tlIdx) {
+    function _wlVwapHitTest(clientX, clientY) {
+        if (!_wlChart || !_wlVwapSeries.length || !_wlLastCrosshairTime) return -1;
+        var chartDiv = document.getElementById('wl-chart-widget');
+        var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
+        if (!rect) return -1;
+        var localY   = clientY - rect.top;
+        var HIT_PX   = 8;
+        var bestDist = HIT_PX;
+        var hitIdx   = -1;
+        _wlVwapSeries.forEach(function(entry, i) {
+            if (!entry.dataMap) return;
+            var avwapVal = entry.dataMap.get(_wlLastCrosshairTime);
+            if (avwapVal == null) return;
+            var yCoord = entry.series.priceToCoordinate(avwapVal);
+            if (yCoord == null) return;
+            var dist = Math.abs(localY - yCoord);
+            if (dist < bestDist) { bestDist = dist; hitIdx = i; }
+        });
+        return hitIdx;
+    }
         if (tlIdx < 0 || !_wlTrendlines[tlIdx] || !_wlChart || !_wlCandle || !_wlTrendContRef) return null;
         var tl   = _wlTrendlines[tlIdx];
         var rect = _wlTrendContRef.getBoundingClientRect();
@@ -3115,9 +3198,17 @@
         _wlCtxPrice     = null;
         _wlCtxMa        = null;
         _wlCtxTrendline = null;
+        _wlCtxAvwap     = null;
     }
 
     window.wlCtxAlert = function(direction) {
+        if (_wlCtxAvwap) {
+            var av = _wlCtxAvwap;
+            _wlDismissCtx();
+            if (!_wlSym) return;
+            window.alAddAvwapAlert(_wlSym, av.anchorTime, direction);
+            return;
+        }
         if (_wlCtxTrendline) {
             var tl = _wlCtxTrendline;
             _wlDismissCtx();
@@ -3230,6 +3321,45 @@
                     }
                     document.addEventListener('mousedown', _wlTlDismiss, true);
                     document.addEventListener('keydown',   _wlTlKd,      true);
+                }, 0);
+                return;
+            }
+            // ── AVWAP right-click: check hit before price/MA ──────────────────
+            var _wlAvHitIdx = _wlVwapHitTest(evt.clientX, evt.clientY);
+            if (_wlAvHitIdx !== -1) {
+                var _wlAvHit = _wlVwapSeries[_wlAvHitIdx];
+                _wlCtxAvwap     = { anchorIdx: _wlAvHit.anchor, anchorTime: _wlOhlcv[_wlAvHit.anchor] ? _wlOhlcv[_wlAvHit.anchor].time : null };
+                _wlCtxTrendline = null;
+                _wlCtxPrice     = null;
+                _wlCtxMa        = null;
+                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · AVWAP';
+                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above AVWAP';
+                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below AVWAP';
+                var _wlAvMenu = document.getElementById('wl-chart-ctx-menu');
+                _wlAvMenu.style.display = 'block';
+                var avMw = _wlAvMenu.offsetWidth  || 185;
+                var avMh = _wlAvMenu.offsetHeight || 90;
+                var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
+                var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
+                _wlAvMenu.style.left = avX + 'px';
+                _wlAvMenu.style.top  = avY + 'px';
+                setTimeout(function() {
+                    function _wlAvDismiss(e) {
+                        if (!_wlAvMenu.contains(e.target)) {
+                            _wlDismissCtx();
+                            document.removeEventListener('mousedown', _wlAvDismiss, true);
+                            document.removeEventListener('keydown',   _wlAvKd,      true);
+                        }
+                    }
+                    function _wlAvKd(e) {
+                        if (e.key === 'Escape') {
+                            _wlDismissCtx();
+                            document.removeEventListener('mousedown', _wlAvDismiss, true);
+                            document.removeEventListener('keydown',   _wlAvKd,      true);
+                        }
+                    }
+                    document.addEventListener('mousedown', _wlAvDismiss, true);
+                    document.addEventListener('keydown',   _wlAvKd,      true);
                 }, 0);
                 return;
             }
