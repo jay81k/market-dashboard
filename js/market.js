@@ -66,6 +66,7 @@
         return {
             price:      meta.regularMarketPrice                      || null,
             prevClose:  meta.previousClose || meta.chartPreviousClose || null,
+            chg:        meta.regularMarketChange                     || null,
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
@@ -184,7 +185,9 @@
 
         var price     = parsed.price;
         var prevClose = parsed.prevClose;
-        var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
+        var chgAbs    = (idx.symbol === '^RUT' && parsed.chg != null)
+            ? parsed.chg
+            : (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
