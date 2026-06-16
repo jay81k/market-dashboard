@@ -274,7 +274,7 @@
                         .then(function(r) { return r.json(); })
                         .then(function(d) {
                             var closes = d.chart.result[0].indicators.quote[0].close.filter(function(c) { return c != null; });
-                            return closes.length >= 2 ? closes[closes.length - 2] : null;
+                            return closes.length >= 1 ? closes[closes.length - 1] : null;
                         })
                         .catch(function() { return null; })
                     : Promise.resolve(null),
