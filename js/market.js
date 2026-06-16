@@ -273,8 +273,18 @@
                     ? fetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
                         .then(function(r) { return r.json(); })
                         .then(function(d) {
-                            var closes = d.chart.result[0].indicators.quote[0].close.filter(function(c) { return c != null; });
-                            return closes.length >= 1 ? closes[closes.length - 1] : null;
+                            var bars    = d.chart.result[0];
+                            var times   = bars.timestamp;
+                            var closes  = bars.indicators.quote[0].close;
+                            var today   = new Date().toDateString();
+                            var prevClose = null;
+                            for (var i = times.length - 1; i >= 0; i--) {
+                                if (closes[i] != null && new Date(times[i] * 1000).toDateString() !== today) {
+                                    prevClose = closes[i];
+                                    break;
+                                }
+                            }
+                            return prevClose;
                         })
                         .catch(function() { return null; })
                     : Promise.resolve(null),
