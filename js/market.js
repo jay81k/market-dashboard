@@ -65,7 +65,7 @@
 
         return {
             price:      meta.regularMarketPrice                      || null,
-            prevClose:  meta.chartPreviousClose || meta.previousClose || null,
+            prevClose:  meta.previousClose || meta.chartPreviousClose || null,
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
