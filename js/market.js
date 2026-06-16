@@ -66,7 +66,6 @@
         return {
             price:      meta.regularMarketPrice                      || null,
             prevClose:  meta.previousClose || meta.chartPreviousClose || null,
-            chg:        meta.regularMarketChange                     || null,
             marketOpen: meta.regularMarketOpen || firstOpen          || null,
             points:     points,
             timestamps: ts,
@@ -185,9 +184,7 @@
 
         var price     = parsed.price;
         var prevClose = parsed.prevClose;
-        var chgAbs    = (idx.symbol === '^RUT' && parsed.chg != null)
-            ? parsed.chg
-            : (price != null && prevClose != null) ? price - prevClose : null;
+        var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
@@ -272,10 +269,24 @@
             return Promise.all([
                 marketFetchOne(idx.symbol).then(function(data) { return marketParseResult(data); }),
                 marketFetchOne(idx.futures).then(function(data) { return marketParseResult(data); }),
+                idx.symbol === '^RUT'
+                    ? fetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
+                        .then(function(r) { return r.json(); })
+                        .then(function(d) {
+                            var closes = d.chart.result[0].indicators.quote[0].close.filter(function(c) { return c != null; });
+                            return closes.length >= 2 ? closes[closes.length - 2] : null;
+                        })
+                        .catch(function() { return null; })
+                    : Promise.resolve(null),
             ]);
         })).then(function(results) {
             MARKET_INDEXES.forEach(function(idx, i) {
-                marketRenderCard(idx, results[i][0], results[i][1]);
+                var parsed       = results[i][0];
+                var rutPrevClose = results[i][2];
+                if (idx.symbol === '^RUT' && rutPrevClose != null && parsed) {
+                    parsed.prevClose = rutPrevClose;
+                }
+                marketRenderCard(idx, parsed, results[i][1]);
             });
             renderMarketBreadth();
             renderMarketHL();
