@@ -1394,6 +1394,12 @@
                 return;
             }
             var chartRect = chartDiv.getBoundingClientRect();
+            var localY    = evt.clientY - chartRect.top;
+            var price = _mcFsLastCrosshairPrice;
+            if (price == null || isNaN(price)) {
+                // Fallback: crosshair is in empty space to the right of the last candle —
+                // LW Charts never fires crosshair data there, so derive the price
+                // directly from the click's Y coordinate via the candle series.
                 if (_mcFsCandle) {
                     var fallbackPrice = _mcFsCandle.coordinateToPrice(localY);
                     if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
@@ -2884,6 +2890,8 @@
         });
         return hitIdx;
     }
+
+    function _wlAnchorHitTest(clientX, clientY, tlIdx) {
         if (tlIdx < 0 || !_wlTrendlines[tlIdx] || !_wlChart || !_wlCandle || !_wlTrendContRef) return null;
         var tl   = _wlTrendlines[tlIdx];
         var rect = _wlTrendContRef.getBoundingClientRect();
