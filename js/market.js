@@ -300,8 +300,9 @@
                     parsed.prevClose = rutPrevClose;
                 }
                 if (idx.symbol === '^RUT') {
-                    console.log('rutPrevClose:', rutPrevClose);
-                    console.log('parsed.prevClose:', parsed.prevClose);
+                    console.log('rutPrevClose:', JSON.stringify(rutPrevClose));
+                    console.log('parsed.prevClose:', JSON.stringify(parsed.prevClose));
+                    console.log('override fired:', (rutPrevClose != null && parsed) ? 'YES' : 'NO');
                 }
                 marketRenderCard(idx, parsed, results[i][1]);
             });
