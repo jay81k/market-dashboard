@@ -299,13 +299,10 @@
                 if (idx.symbol === '^RUT' && rutPrevClose != null && parsed) {
                     parsed.prevClose = rutPrevClose;
                 }
-                // ← ADD THIS
-    if (idx.symbol === '^RUT') {
-        console.log('rutPrevClose:', rutPrevClose);
-        console.log('parsed.prevClose:', parsed.prevClose);
-    }
-    marketRenderCard(idx, parsed, results[i][1]);
-});
+                if (idx.symbol === '^RUT') {
+                    console.log('rutPrevClose:', rutPrevClose);
+                    console.log('parsed.prevClose:', parsed.prevClose);
+                }
                 marketRenderCard(idx, parsed, results[i][1]);
             });
             renderMarketBreadth();
