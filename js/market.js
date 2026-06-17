@@ -278,10 +278,12 @@
                             var closes  = bars.indicators.quote[0].close;
                             var now     = new Date();
                             var todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+                            console.log('todayUTC:', todayUTC, new Date(todayUTC).toISOString());
                             var prevClose = null;
                             for (var i = times.length - 1; i >= 0; i--) {
                                 var b = new Date(times[i] * 1000);
                                 var barUTC = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+                                console.log('bar', i, '| barUTC:', barUTC, new Date(barUTC).toISOString(), '| close:', closes[i], '| match:', barUTC === todayUTC);
                                 if (closes[i] != null && barUTC !== todayUTC) {
                                     prevClose = closes[i];
                                     break;
