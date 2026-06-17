@@ -273,18 +273,12 @@
                     ? fetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
                         .then(function(r) { return r.json(); })
                         .then(function(d) {
-                            var bars    = d.chart.result[0];
-                            var times   = bars.timestamp;
-                            var closes  = bars.indicators.quote[0].close;
-                            var now     = new Date();
-                            var todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-                            console.log('todayUTC:', todayUTC, new Date(todayUTC).toISOString());
-                            var prevClose = null;
-                            for (var i = times.length - 1; i >= 0; i--) {
-                                var b = new Date(times[i] * 1000);
-                                var barUTC = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
-                                console.log('bar', i, '| barUTC:', barUTC, new Date(barUTC).toISOString(), '| close:', closes[i], '| match:', barUTC === todayUTC);
-                                if (closes[i] != null && barUTC !== todayUTC) {
+                            var bars         = d.chart.result[0];
+                            var closes       = bars.indicators.quote[0].close;
+                            var currentPrice = bars.meta.regularMarketPrice;
+                            var prevClose    = null;
+                            for (var i = closes.length - 1; i >= 0; i--) {
+                                if (closes[i] != null && Math.abs(closes[i] - currentPrice) > 0.01) {
                                     prevClose = closes[i];
                                     break;
                                 }
@@ -300,11 +294,6 @@
                 var rutPrevClose = results[i][2];
                 if (idx.symbol === '^RUT' && rutPrevClose != null && parsed) {
                     parsed.prevClose = rutPrevClose;
-                }
-                if (idx.symbol === '^RUT') {
-                    console.log('rutPrevClose:', JSON.stringify(rutPrevClose));
-                    console.log('parsed.prevClose:', JSON.stringify(parsed.prevClose));
-                    console.log('override fired:', (rutPrevClose != null && parsed) ? 'YES' : 'NO');
                 }
                 marketRenderCard(idx, parsed, results[i][1]);
             });
