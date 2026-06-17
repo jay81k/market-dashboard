@@ -273,8 +273,21 @@
                     ? fetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
                         .then(function(r) { return r.json(); })
                         .then(function(d) {
-                            var closes = d.chart.result[0].indicators.quote[0].close.filter(function(c) { return c != null; });
-                            return closes.length >= 1 ? closes[closes.length - 1] : null;
+                            var bars    = d.chart.result[0];
+                            var times   = bars.timestamp;
+                            var closes  = bars.indicators.quote[0].close;
+                            var now     = new Date();
+                            var todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+                            var prevClose = null;
+                            for (var i = times.length - 1; i >= 0; i--) {
+                                var b = new Date(times[i] * 1000);
+                                var barUTC = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+                                if (closes[i] != null && barUTC !== todayUTC) {
+                                    prevClose = closes[i];
+                                    break;
+                                }
+                            }
+                            return prevClose;
                         })
                         .catch(function() { return null; })
                     : Promise.resolve(null),
