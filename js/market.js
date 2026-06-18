@@ -154,11 +154,14 @@
             if (!d) { ohlcLegend.style.display = 'none'; return; }
             ohlcLegend.style.display = '';
             var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var barDate = new Date(param.time * 1000);
+            var barTime = barDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             ohlcLegend.innerHTML =
                 '<span style="color:#6e7681">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
                 '<span style="color:#6e7681">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
                 '<span style="color:#6e7681">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>';
+                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
+                '<span style="color:#6e7681"> | ' + barTime + '</span>';
         });
     }
 
