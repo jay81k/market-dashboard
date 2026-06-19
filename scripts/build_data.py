@@ -924,6 +924,7 @@ def main():
             row["fwd_pe"]            = fund.get("fwd_pe")
             row["ps_ratio"]          = fund.get("ps_ratio")
             row["peg_ratio"]         = fund.get("peg_ratio")
+            row["earnings_date"]     = fund.get("earnings_date")
         else:
             row["eps_this_y_pct"]    = None
             row["eps_next_y_pct"]    = None
@@ -934,6 +935,7 @@ def main():
             row["fwd_pe"]            = None
             row["ps_ratio"]          = None
             row["peg_ratio"]         = None
+            row["earnings_date"]     = None
 
         # For supplemental tickers, compute CSV passthrough fields from price history
         if ticker in supplemental_set and ticker in histories:

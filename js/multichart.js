@@ -2636,6 +2636,35 @@
         return hdr;
     }
 
+    // EPS/earnings-date badge -- shown in the fullscreen + watchlist header only,
+    // inserted as a sibling right after the 3-month RS badge. Not used in the
+    // dense multichart grid cells by design.
+    function applyMcEpsBadge(afterEl, fundRow) {
+        if (!afterEl) return;
+        var existing = document.getElementById('mc-eps-badge');
+        var html = '';
+        if (fundRow && fundRow.earnings_date) {
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var ed = new Date(fundRow.earnings_date + 'T00:00:00');
+            var days = Math.round((ed - today) / 86400000);
+            if (days >= 0 && days <= 30) {
+                var urgent = days <= 7;
+                var bg = urgent ? '#3a2008' : '#3a3008';
+                var fg = urgent ? '#f0883e' : '#e3c225';
+                html = '<span id="mc-eps-badge" style="background:' + bg + ';color:' + fg
+                     + ';font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;'
+                     + 'margin-left:6px;white-space:nowrap;">EPS ' + days + 'd</span>';
+            }
+        }
+        if (existing) {
+            if (html) { existing.outerHTML = html; }
+            else { existing.parentNode.removeChild(existing); }
+        } else if (html) {
+            afterEl.insertAdjacentHTML('afterend', html);
+        }
+    }
+
     function renderMulticharts() {
         var grid = document.getElementById('multichart-grid');
         if (!grid) return;
@@ -2671,6 +2700,7 @@
             }
         }
         applyRsBadge(document.getElementById('mc-fullscreen-rs-badge'), mcPct, mcFundRow ? mcFundRow.weighted_rs_pct : null, document.getElementById('mc-fullscreen-3mrs-badge'));
+        applyMcEpsBadge(document.getElementById('mc-fullscreen-3mrs-badge'), mcFundRow);
         var mcFundStatsEl = document.getElementById('mc-fullscreen-fund-stats');
         if (mcFundStatsEl) mcFundStatsEl.innerHTML = fundStatsHtml(mcFundRow);
         var mcMetaEl = document.getElementById('mc-fullscreen-meta');

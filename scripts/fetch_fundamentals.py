@@ -8,6 +8,7 @@ Fields fetched per ticker:
   - eps_qoq_pct      : EPS Growth Quarter over Quarter (%)
   - sales_qoq_pct    : Sales Growth Quarter over Quarter (%)
   - profit_margin_pct: Profit Margin (%)
+  - earnings_date    : Next earnings date, ISO format (e.g. '2026-07-22')
 
 Output: data/fundamentals.json
 
@@ -23,8 +24,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import time
-from datetime import datetime
+from datetime import date, datetime
 
 import requests
 from finvizfinance.quote import finvizfinance
@@ -80,6 +82,43 @@ def parse_float(val) -> float | None:
         return None
 
 
+def parse_earnings_date(val) -> str | None:
+    """Parse Finviz's 'Earnings' field (e.g. 'Jun 18 AMC') into an ISO date.
+
+    Finviz gives month/day with no year, so the year is inferred: if the
+    resulting date has already passed, roll forward to next year. The
+    AMC/BMO timing suffix (and the older "/a" "/b" variant) is matched but
+    discarded -- not currently used anywhere downstream.
+    NOTE: unverified against a live response as of writing -- confirm the
+    exact field name/format with a manual test run before relying on this.
+    """
+    if not val:
+        return None
+    s = str(val).strip()
+    if s in ("-", "", "N/A"):
+        return None
+    m = re.match(r'([A-Za-z]{3})\s+(\d{1,2})', s)
+    if not m:
+        return None
+    mon_str, day_str = m.groups()
+    try:
+        month = datetime.strptime(mon_str, "%b").month
+        day = int(day_str)
+    except ValueError:
+        return None
+    today = date.today()
+    try:
+        d = date(today.year, month, day)
+    except ValueError:
+        return None
+    if d < today:
+        try:
+            d = date(today.year + 1, month, day)
+        except ValueError:
+            return None
+    return d.isoformat()
+
+
 def _is_retryable(exc: Exception) -> bool:
     """Return True if the exception looks like a transient server error worth retrying."""
     if isinstance(exc, requests.exceptions.HTTPError):
@@ -98,6 +137,7 @@ def fetch_fundamentals(ticker: str) -> dict | None:
         try:
             stock     = finvizfinance(ticker)
             fundament = stock.ticker_fundament()
+            earnings_date = parse_earnings_date(fundament.get("Earnings"))
             return {
                 "eps_this_y_pct":    parse_pct(fundament.get("EPS this Y")),
                 "eps_next_y_pct":    parse_pct(fundament.get("EPS next Y Percentage")),
@@ -108,6 +148,7 @@ def fetch_fundamentals(ticker: str) -> dict | None:
                 "fwd_pe":            parse_float(fundament.get("Forward P/E")),
                 "ps_ratio":          parse_float(fundament.get("P/S")),
                 "peg_ratio":         parse_float(fundament.get("PEG")),
+                "earnings_date":     earnings_date,
             }
 
         except Exception as e:
@@ -169,7 +210,8 @@ def main():
                   f"PM={str(data['profit_margin_pct']):<8} "
                   f"FWD_PE={str(data['fwd_pe']):<8} "
                   f"PS={str(data['ps_ratio']):<8} "
-                  f"PEG={str(data['peg_ratio'])}")
+                  f"PEG={str(data['peg_ratio']):<8} "
+                  f"EARN={str(data['earnings_date'])}")
         else:
             failed.append(ticker)
             print(f"  [{i:04d}/{total}] {ticker:<8} FAILED")
