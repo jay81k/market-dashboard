@@ -254,7 +254,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
     """Compute all price-derived metrics for a single ticker."""
     try:
         hist = hist.dropna(subset=["Close", "Open", "High", "Low"])
-        if len(hist) < 10:
+        if len(hist) < 2:
             return None
 
         close   = hist["Close"]
@@ -747,15 +747,15 @@ def fetch_history_batch(tickers: list[str], max_workers: int = 10) -> dict[str, 
             )
             if len(chunk) == 1:
                 df = raw.dropna(how="all")
-                if len(df) >= 10:
+                if len(df) >= 2:
                     results[chunk[0]] = df
-                ok = 1 if len(df) >= 10 else 0
+                ok = 1 if len(df) >= 2 else 0
             else:
                 ok = 0
                 for ticker in chunk:
                     try:
                         df = raw[ticker].dropna(how="all")
-                        if len(df) >= 10:
+                        if len(df) >= 2:
                             results[ticker] = df
                             ok += 1
                     except Exception:
@@ -766,7 +766,7 @@ def fetch_history_batch(tickers: list[str], max_workers: int = 10) -> dict[str, 
             def _fetch_one(t: str):
                 try:
                     df = yf.Ticker(t).history(period="14mo")
-                    return t, df if len(df) >= 10 else None
+                    return t, df if len(df) >= 2 else None
                 except Exception:
                     return t, None
 
