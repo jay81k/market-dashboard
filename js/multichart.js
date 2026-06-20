@@ -2652,7 +2652,8 @@
                 var urgent = days <= 7;
                 var bg = urgent ? '#3a2008' : '#3a3008';
                 var fg = urgent ? '#f0883e' : '#e3c225';
-                html = '<span id="mc-eps-badge" style="background:' + bg + ';color:' + fg
+                var dateLabel = ed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                html = '<span id="mc-eps-badge" title="' + dateLabel + '" style="background:' + bg + ';color:' + fg
                      + ';font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;'
                      + 'margin-left:6px;white-space:nowrap;">EPS ' + days + 'd</span>';
             }
