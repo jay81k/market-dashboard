@@ -32,6 +32,7 @@
     // ── LW Multichart Infrastructure ─────────────────────────────────────────
 
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
+    var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
     var MC_FETCH_LIMIT  = 50;
 
@@ -184,6 +185,7 @@
                 fetch(url).then(function(r) { return r.json(); })
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
+                        if (result && result.meta) _mcMetaCache[s] = result.meta;
                         var ohlcv = [];
                         if (result && result.timestamp) {
                             var ts = result.timestamp;
@@ -1813,6 +1815,13 @@
         container.style.position = 'relative';
         container.appendChild(leg);
 
+        // Pre/post-market price badge — top-right, hidden unless meta says we're
+        // in an extended session and Yahoo actually gave us a price for it.
+        var prepost = document.createElement('div');
+        prepost.id = 'mc-fs-prepost-badge';
+        prepost.style.cssText = 'position:absolute;top:8px;right:8px;z-index:10;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;pointer-events:none;line-height:1.6;padding:3px 8px;border-radius:4px;display:none;';
+        container.appendChild(prepost);
+
         function fp(v) { return v != null ? v.toFixed(2) : '—'; }
         function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
 
@@ -1980,6 +1989,48 @@
                 '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
+        })();
+
+        // ── Pre/post-market badge content ────────────────────────────────────
+        // Pulled from result.meta, cached per-symbol in _mcFsRender's fetch.
+        // Shows only when marketState is an extended session AND Yahoo gave us
+        // an actual price for it — fails silently (badge stays hidden) otherwise.
+        (function() {
+            var badge = document.getElementById('mc-fs-prepost-badge');
+            if (!badge) return;
+            var meta  = _mcMetaCache[sym];
+            var state = meta && meta.marketState;
+            var isPre  = state === 'PRE'  || state === 'PREPRE';
+            var isPost = state === 'POST' || state === 'POSTPOST';
+            if (!meta || (!isPre && !isPost)) { badge.style.display = 'none'; return; }
+
+            var price = isPre ? meta.preMarketPrice  : meta.postMarketPrice;
+            var chg   = isPre ? meta.preMarketChange : meta.postMarketChange;
+            var pct   = isPre ? meta.preMarketChangePercent : meta.postMarketChangePercent;
+            if (typeof price !== 'number') { badge.style.display = 'none'; return; }
+            // Yahoo usually includes chg/pct directly, but fall back to computing
+            // them from regularMarketPrice if either is missing.
+            if (typeof chg !== 'number' && typeof meta.regularMarketPrice === 'number') {
+                chg = price - meta.regularMarketPrice;
+            }
+            if (typeof pct !== 'number' && typeof chg === 'number' && meta.regularMarketPrice) {
+                pct = (chg / meta.regularMarketPrice) * 100;
+            }
+
+            var up    = chg == null || chg >= 0;
+            var rgb   = up ? '63,185,80' : '248,81,73';
+            var sign  = up ? '+' : '';
+            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
+
+            badge.style.background = 'rgba(' + rgb + ',0.12)';
+            badge.style.border     = '1px solid rgba(' + rgb + ',0.3)';
+            badge.style.color      = up ? '#3fb950' : '#f85149';
+            badge.innerHTML =
+                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
+                fp(price) +
+                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
+                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
+            badge.style.display = 'block';
         })();
 
         // Delete/Escape key handler — trendlines + AVWAP
