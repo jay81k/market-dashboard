@@ -20,6 +20,22 @@
     var _alLoaded      = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
     var _alFiredLoaded = false; // guard: once fired-history has been mutated, ignore any late alLoad responses
 
+    // Canonical dedup key for a fired-history entry — MUST stay in sync with the
+    // live key format built in alCheckTriggers() (the hit-check branch and the
+    // toRemove filter both duplicate this shape; this is the version used when
+    // rehydrating _alertFiredSess from persisted history on page load). Previously
+    // this always used ticker_alertPrice_condition regardless of alertType, which
+    // is the wrong shape for macross/ma/pattern/trendline/avwap and meant their
+    // session dedup never carried over a reload correctly.
+    function _alFiredHistKey(f) {
+        if (f.alertType === 'macross') return f.ticker + '_macross_' + f.ma1Key + '_' + f.ma2Key + '_' + f.condition;
+        if (f.alertType === 'ma') return f.ticker + '_ma_' + f.maKey + '_' + f.condition;
+        if (f.alertType === 'pattern') return window.alPatternAlertKey(f);
+        if (f.alertType === 'trendline') return f.ticker + '_trendline_' + (f.p1 ? f.p1.unix : '') + '_' + (f.p2 ? f.p2.unix : '') + '_' + f.condition;
+        if (f.alertType === 'avwap') return f.ticker + '_avwap_' + (f.anchorUnix || '') + '_' + f.condition;
+        return f.ticker + '_' + f.alertPrice + '_' + f.condition;
+    }
+
     function alLoad() {
         // Alert search bar
         var _alSrch = document.getElementById('al-search-input');
@@ -61,7 +77,7 @@
                 // Mirror KV data to localStorage so fallback stays fresh
                 if (r[1]) { try { localStorage.setItem(LS_AL_FIRED_KEY, r[1]); } catch(e) {} }
                 alertFiredList.forEach(function(f) {
-                    _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
+                    _alertFiredSess[_alFiredHistKey(f)] = true;
                 });
                 didChange = true;
             }
@@ -83,7 +99,7 @@
                 _alFiredLoaded = true;
                 try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
                 alertFiredList.forEach(function(f) {
-                    _alertFiredSess[f.ticker + '_' + f.alertPrice + '_' + f.condition] = true;
+                    _alertFiredSess[_alFiredHistKey(f)] = true;
                 });
                 didChange = true;
             }
@@ -225,6 +241,41 @@
         }, 60 * 1000);
     }
 
+    // _mcOhlcvCache (multichart.js) caches daily OHLCV permanently for the
+    // session — fetchMcOhlcv() only refetches if the key is missing entirely.
+    // That means an AVWAP alert's "today" bar can be frozen at whatever
+    // O/H/L/C it had when the chart was last opened, hours or days stale,
+    // which silently breaks avwapNow comparisons in alCheckTriggers() until
+    // something happens to delete that cache key (e.g. closing a chart).
+    //
+    // Fix: every poll, patch today's cached bar in place with the live quote
+    // price we already fetched (no extra network call — quotes_batch doesn't
+    // return volume/high/low so we can't true those up here, only close and
+    // the high/low bounds). If today's bar isn't in the cache yet at all
+    // (first run, or first poll after a day rollover), force a real refetch
+    // via fetchMcOhlcv so the AVWAP calc has a same-day bar to work with.
+    function alSyncAvwapCache(tickers, prices) {
+        if (!tickers.length) return Promise.resolve();
+        var nowSec    = Math.floor(Date.now() / 1000);
+        var todayNoon = Math.floor(nowSec / 86400) * 86400 + 43200; // matches noon-UTC bucketing in fetchMcOhlcv
+        var pending = [];
+        tickers.forEach(function(ticker) {
+            var key  = ticker + '_D';
+            var arr  = _mcOhlcvCache[key];
+            var live = prices[ticker];
+            if (!arr || !arr.length || arr[arr.length - 1].time !== todayNoon) {
+                delete _mcOhlcvCache[key];
+                pending.push(fetchMcOhlcv(ticker, 'D'));
+            } else if (live != null) {
+                var bar = arr[arr.length - 1];
+                bar.close = live;
+                if (live > bar.high) bar.high = live;
+                if (live < bar.low)  bar.low  = live;
+            }
+        });
+        return pending.length ? Promise.all(pending) : Promise.resolve();
+    }
+
     function alFetchPrices() {
         var activeTickers  = alertsList.map(function(a) { return a.ticker; });
         var historyTickers = alertFiredList.map(function(f) { return f.ticker; });
@@ -248,6 +299,12 @@
                 });
             });
             alUpdateEstimatedMAs();
+            var avwapTickers = alertsList
+                .filter(function(a) { return a.alertType === 'avwap'; })
+                .map(function(a) { return a.ticker; })
+                .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+            return alSyncAvwapCache(avwapTickers, alertPrices);
+        }).then(function() {
             alCheckTriggers();
             if (currentView === 'alerts') renderAlerts();
         }).catch(function() {});
@@ -1731,6 +1788,11 @@
             name:      name,
             addedAt:   new Date().toISOString()
         });
+        // A previous trendline alert with this exact ticker+points+condition may have
+        // fired and been removed earlier this session — that leaves _alertFiredSess
+        // holding the matching key forever, which would silently block this brand-new
+        // alert from ever triggering. Clear it so the new alert starts fresh.
+        delete _alertFiredSess[ticker + '_trendline_' + np1.unix + '_' + np2.unix + '_' + condition];
         _alLoaded = true;
         alSave();
         alStartBackgroundPolling();
@@ -1771,6 +1833,11 @@
             name:       name,
             addedAt:    new Date().toISOString()
         });
+        // Same fix as alAddTrendlineAlert above — an earlier AVWAP alert on this exact
+        // ticker+anchor+condition may have already fired and been removed this session,
+        // leaving a stale _alertFiredSess key that would otherwise block this new one
+        // from ever triggering.
+        delete _alertFiredSess[ticker + '_avwap_' + (anchorUnix || '') + '_' + condition];
         _alLoaded = true;
         alSave();
         alStartBackgroundPolling();
