@@ -1974,48 +1974,85 @@
         renderScans();
     };
 
+    // Generation counter: each scanFetchPrices() call bumps this. In-flight
+    // requests from a superseded call check their captured generation before
+    // applying results, so stale data (e.g. from before a filter change)
+    // never overwrites fresher state. _scanFetchActive guards the periodic
+    // timer specifically, so it doesn't stack a fresh full wave on top of
+    // one still in progress; filter/render-triggered calls always proceed
+    // regardless, since user-driven changes should take priority.
+    var _scanFetchGen = 0;
+    var _scanFetchActive = false;
+    var SCAN_FETCH_CONCURRENCY = 2; // max simultaneous 50-ticker batches in flight
+
     function scanFetchPrices() {
         var tickers = _vsData.map(function(r) { return r.ticker; });
         if (!tickers.length) return;
+
+        var myGen = ++_scanFetchGen;
+        _scanFetchActive = true;
+
         var batches = [];
         for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
-        batches.forEach(function(batch) {
-            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
-            fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-                if (!data || !data.quotes) return;
-                data.quotes.forEach(function(q) {
-                    if (q && q.ticker && q.price) {
-                        scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
-                        var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
-                        if (dataRow) {
-                            if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
-                                dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
-                            if (q.prevClose && q.prevClose > 0)
-                                dataRow.daily = ((q.price - q.prevClose) / q.prevClose) * 100;
-                        }
-                    }
-                });
-                scanUpdatePriceRows();
-                // Re-apply intraday-sensitive filters now that live data is available.
-                // Stocks that were filtered out using snapshot values get a second pass.
-                var _intradayActive = sfRows.some(function(f) {
-                    return (f.type === 'perf' && (f.perfTf || '1d') === '1d') ||
-                           (f.type === 'cr'   && (!f.crTf || f.crTf === 'd'));
-                });
-                if (_intradayActive && !_scanLiveRefilterScheduled) {
-                    _scanLiveRefilterScheduled = true;
-                    setTimeout(function() {
-                        _scanLiveRefilterScheduled = false;
-                        _scanPreserveScroll = true;
-                        _scanLiveRefilterRender = true;
-                        renderScans();
-                    }, 200);
-                }
-                // Stop refresh button spin once prices are in
+
+        var idx = 0;
+
+        function runRound() {
+            if (myGen !== _scanFetchGen) return; // superseded by a newer call; stop silently
+
+            if (idx >= batches.length) {
+                if (myGen === _scanFetchGen) _scanFetchActive = false;
                 var _refreshBtn = document.getElementById('scans-refresh-btn');
                 if (_refreshBtn) _refreshBtn.classList.remove('spinning');
-            }).catch(function() {});
-        });
+                return;
+            }
+
+            var slice = batches.slice(idx, idx + SCAN_FETCH_CONCURRENCY);
+            idx += SCAN_FETCH_CONCURRENCY;
+
+            var roundPromises = slice.map(function(batch) {
+                var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+                return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                    if (myGen !== _scanFetchGen) return; // stale; discard results
+                    if (!data || !data.quotes) return;
+                    data.quotes.forEach(function(q) {
+                        if (q && q.ticker && q.price) {
+                            scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
+                            var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
+                            if (dataRow) {
+                                if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
+                                    dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+                                if (q.prevClose && q.prevClose > 0)
+                                    dataRow.daily = ((q.price - q.prevClose) / q.prevClose) * 100;
+                            }
+                        }
+                    });
+                    if (myGen !== _scanFetchGen) return;
+                    scanUpdatePriceRows();
+                    // Re-apply intraday-sensitive filters now that live data is available.
+                    // Stocks that were filtered out using snapshot values get a second pass.
+                    var _intradayActive = sfRows.some(function(f) {
+                        return (f.type === 'perf' && (f.perfTf || '1d') === '1d') ||
+                               (f.type === 'cr'   && (!f.crTf || f.crTf === 'd'));
+                    });
+                    if (_intradayActive && !_scanLiveRefilterScheduled) {
+                        _scanLiveRefilterScheduled = true;
+                        setTimeout(function() {
+                            _scanLiveRefilterScheduled = false;
+                            _scanPreserveScroll = true;
+                            _scanLiveRefilterRender = true;
+                            renderScans();
+                        }, 200);
+                    }
+                }).catch(function() {});
+            });
+
+            Promise.all(roundPromises).then(function() {
+                runRound();
+            });
+        }
+
+        runRound();
     }
 
     function scanUpdatePriceRows() {
@@ -2068,6 +2105,7 @@
         scanPriceTimer = setInterval(function() {
             if (currentView !== 'scans') { scanStopPricePolling(); return; }
             if (!wlIsMarketOpen()) { scanStopPricePolling(); return; }
+            if (_scanFetchActive) return; // previous cycle still running; skip this tick rather than stacking another wave
             scanFetchPrices();
         }, 60 * 1000);
     }
