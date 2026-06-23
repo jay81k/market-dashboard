@@ -5,6 +5,8 @@
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
     var alertPrevClose   = {};   // {ticker: prevClosePrice}
+    var alertDayHigh     = {};   // {ticker: today's intraday high} — used to catch spikes the 60s poll misses
+    var alertDayLow      = {};   // {ticker: today's intraday low}  — same, for 'below' conditions
     var alertEstimatedMAs = {};  // {"ticker_maKey": estimatedMAValue} derived from snapshot
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
@@ -295,6 +297,8 @@
                     if (q && q.ticker && q.price) {
                         alertPrices[q.ticker]    = q.price;
                         alertPrevClose[q.ticker] = q.prevClose || null;
+                        alertDayHigh[q.ticker]   = (q.dayHigh != null) ? q.dayHigh : null;
+                        alertDayLow[q.ticker]    = (q.dayLow  != null) ? q.dayLow  : null;
                     }
                 });
             });
@@ -453,10 +457,21 @@
                       (a.condition === 'below' && avLivePrice <= avwapNow);
             } else {
                 var price = alertPrices[a.ticker];
+                var dHigh = alertDayHigh[a.ticker];
+                var dLow  = alertDayLow[a.ticker];
                 if (price == null) return;
-                hitVal = price;
-                hit = (a.condition === 'above' && price >= a.price) ||
-                      (a.condition === 'below' && price <= a.price);
+                // Compare against the day's high/low, not just the last-polled price.
+                // A 60s poll can otherwise completely miss a spike that prints and
+                // reverts faster than the poll interval (e.g. high $313.33, alert at
+                // $309.61, price already back to $307.80 by the next poll — the
+                // condition was met on the exchange but never observed by us).
+                if (a.condition === 'above') {
+                    hitVal = (dHigh != null) ? Math.max(price, dHigh) : price;
+                    hit = hitVal >= a.price;
+                } else {
+                    hitVal = (dLow != null) ? Math.min(price, dLow) : price;
+                    hit = hitVal <= a.price;
+                }
             }
             if (!hit) return;
             _alertFiredSess[key] = true;
