@@ -1525,7 +1525,6 @@
     var _alCtxPrice             = null;
     var _alCtxMa                = null;
     var _alCtxAttached          = false;
-    var _alPrePostToken         = 0;   // guards against stale pre/post-badge fetches after a symbol/TF switch
 
     // Measure tool state (al)
     var _alMeasureMode       = false;
@@ -2377,43 +2376,17 @@
     }
 
     function _alRenderPrePostBadge(sym) {
-        var badge = document.getElementById('al-chart-prepost-badge');
-        if (badge) badge.style.display = 'none'; // hidden until fetch confirms PRE/POST
-        var token = ++_alPrePostToken;
-        fetchMcPrePost(sym).then(function(data) {
-            if (token !== _alPrePostToken) return; // superseded by a later open/switch
-            if (_alSym !== sym) return;              // symbol changed under us
-            var panel = document.getElementById('al-chart-panel');
-            if (!panel || !panel.classList.contains('open')) return;
-            var badge = document.getElementById('al-chart-prepost-badge');
-            if (!badge || !data) return;
-
-            var state  = data.marketState;
-            var isPre  = state === 'PRE';
-            var isPost = state === 'POST';
-            if ((!isPre && !isPost) || typeof data.price !== 'number') { badge.style.display = 'none'; return; }
-
-            function fp(v) { return v != null ? v.toFixed(2) : '—'; }
-            var price = data.price, chg = data.change, pct = data.changePercent;
-            var up    = chg == null || chg >= 0;
-            var sign  = up ? '+' : '';
-            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
-
-            badge.style.color = up ? '#3fb950' : '#f85149';
-            badge.innerHTML =
-                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
-                fp(price) +
-                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
-                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
-
-            // Offset from the actual rendered price-scale width so the badge
-            // never collides with axis labels, regardless of price range/digits.
-            var rightOffset = 8;
-            if (_alChart) {
-                try { rightOffset = _alChart.priceScale('right').width() + 2; } catch (e) {}
+        // Shared core lives in multichart.js — same cross-file pattern this
+        // codebase already uses for fetchMcOhlcv/fetchMcPrePost.
+        _renderPrePostBadge({
+            sym: sym,
+            badgeId: 'al-chart-prepost-badge',
+            getChart: function() { return _alChart; },
+            getCurrentSym: function() { return _alSym; },
+            isOpen: function() {
+                var panel = document.getElementById('al-chart-panel');
+                return !!panel && panel.classList.contains('open');
             }
-            badge.style.right = rightOffset + 'px';
-            badge.style.display = 'block';
         });
     }
 
