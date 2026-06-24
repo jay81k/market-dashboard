@@ -1525,6 +1525,7 @@
     var _alCtxPrice             = null;
     var _alCtxMa                = null;
     var _alCtxAttached          = false;
+    var _alPrePostToken         = 0;   // guards against stale pre/post-badge fetches after a symbol/TF switch
 
     // Measure tool state (al)
     var _alMeasureMode       = false;
@@ -2375,6 +2376,47 @@
         if (maChevron) maChevron.style.transform = '';
     }
 
+    function _alRenderPrePostBadge(sym) {
+        var badge = document.getElementById('al-chart-prepost-badge');
+        if (badge) badge.style.display = 'none'; // hidden until fetch confirms PRE/POST
+        var token = ++_alPrePostToken;
+        fetchMcPrePost(sym).then(function(data) {
+            if (token !== _alPrePostToken) return; // superseded by a later open/switch
+            if (_alSym !== sym) return;              // symbol changed under us
+            var panel = document.getElementById('al-chart-panel');
+            if (!panel || !panel.classList.contains('open')) return;
+            var badge = document.getElementById('al-chart-prepost-badge');
+            if (!badge || !data) return;
+
+            var state  = data.marketState;
+            var isPre  = state === 'PRE';
+            var isPost = state === 'POST';
+            if ((!isPre && !isPost) || typeof data.price !== 'number') { badge.style.display = 'none'; return; }
+
+            function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+            var price = data.price, chg = data.change, pct = data.changePercent;
+            var up    = chg == null || chg >= 0;
+            var sign  = up ? '+' : '';
+            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
+
+            badge.style.color = up ? '#3fb950' : '#f85149';
+            badge.innerHTML =
+                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
+                fp(price) +
+                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
+                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
+
+            // Offset from the actual rendered price-scale width so the badge
+            // never collides with axis labels, regardless of price range/digits.
+            var rightOffset = 8;
+            if (_alChart) {
+                try { rightOffset = _alChart.priceScale('right').width() + 2; } catch (e) {}
+            }
+            badge.style.right = rightOffset + 'px';
+            badge.style.display = 'block';
+        });
+    }
+
     function _buildAlChart(sym, ohlcv, tf) {
         var container = document.getElementById('al-chart-widget');
         container.innerHTML = '';
@@ -2615,6 +2657,15 @@
         leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
+
+        // Pre/post-market price badge — same treatment as the fullscreen/watchlist
+        // charts: no background/border, right-offset computed dynamically off the
+        // price-scale's actual rendered width so it never overlaps axis labels.
+        var alPrepost = document.createElement('div');
+        alPrepost.id = 'al-chart-prepost-badge';
+        alPrepost.style.cssText = 'position:absolute;top:8px;right:8px;z-index:10;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;pointer-events:none;line-height:1.6;padding:3px 8px;border-radius:4px;display:none;';
+        container.appendChild(alPrepost);
+        _alRenderPrePostBadge(sym);
 
         function fp(v) { return v != null ? v.toFixed(2) : '—'; }
         function fv(v) { return v==null?'—':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0); }
