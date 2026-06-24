@@ -34,8 +34,6 @@
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
     var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
-    var _mcFsPrePostToken = 0;  // guards against stale pre/post-badge fetches after a symbol/TF switch
-    var _wlPrePostToken   = 0;  // same guard, for the watchlist side-panel chart
     var MC_FETCH_LIMIT  = 50;
 
     // Fullscreen state
@@ -1559,57 +1557,21 @@
             .catch(function() { return null; });
     }
 
-    function _mcFsRenderPrePostBadge(sym) {
-        var badge = document.getElementById('mc-fs-prepost-badge');
+    // Shared pre/post-market badge renderer — used by the fullscreen and
+    // watchlist charts here, and called cross-file by the alerts chart too
+    // (same pattern as fetchMcOhlcv/fetchMcPrePost already being shared).
+    var _prePostTokens = {}; // per-badge-id guard counters, keyed by badgeId
+
+    function _renderPrePostBadge(cfg) {
+        // cfg: { sym, badgeId, getChart(), getCurrentSym(), isOpen() }
+        var badge = document.getElementById(cfg.badgeId);
         if (badge) badge.style.display = 'none'; // hidden until fetch confirms PRE/POST
-        var token = ++_mcFsPrePostToken;
-        fetchMcPrePost(sym).then(function(data) {
-            if (token !== _mcFsPrePostToken) return; // superseded by a later open/switch
-            if (_mcFsSym !== sym) return;             // symbol changed under us
-            var overlay = document.getElementById('mc-fullscreen-overlay');
-            if (!overlay || !overlay.classList.contains('open')) return;
-            var badge = document.getElementById('mc-fs-prepost-badge');
-            if (!badge || !data) return;
-
-            var state  = data.marketState;
-            var isPre  = state === 'PRE';
-            var isPost = state === 'POST';
-            if ((!isPre && !isPost) || typeof data.price !== 'number') { badge.style.display = 'none'; return; }
-
-            function fp(v) { return v != null ? v.toFixed(2) : '—'; }
-            var price = data.price, chg = data.change, pct = data.changePercent;
-            var up    = chg == null || chg >= 0;
-            var sign  = up ? '+' : '';
-            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
-
-            badge.style.color      = up ? '#3fb950' : '#f85149';
-            badge.innerHTML =
-                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
-                fp(price) +
-                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
-                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
-
-            // Offset from the actual rendered price-scale width so the badge
-            // never collides with axis labels, regardless of price range/digits.
-            var rightOffset = 8;
-            if (_mcFsChart) {
-                try { rightOffset = _mcFsChart.priceScale('right').width() + 2; } catch (e) {}
-            }
-            badge.style.right = rightOffset + 'px';
-            badge.style.display = 'block';
-        });
-    }
-
-    function _wlRenderPrePostBadge(sym) {
-        var badge = document.getElementById('wl-chart-prepost-badge');
-        if (badge) badge.style.display = 'none'; // hidden until fetch confirms PRE/POST
-        var token = ++_wlPrePostToken;
-        fetchMcPrePost(sym).then(function(data) {
-            if (token !== _wlPrePostToken) return; // superseded by a later open/switch
-            if (_wlSym !== sym) return;              // symbol changed under us
-            var wlContainer = document.getElementById('wl-chart-widget');
-            if (!wlContainer || wlContainer.style.display === 'none') return;
-            var badge = document.getElementById('wl-chart-prepost-badge');
+        var token = (_prePostTokens[cfg.badgeId] = (_prePostTokens[cfg.badgeId] || 0) + 1);
+        fetchMcPrePost(cfg.sym).then(function(data) {
+            if (token !== _prePostTokens[cfg.badgeId]) return; // superseded by a later open/switch
+            if (cfg.getCurrentSym() !== cfg.sym) return;         // symbol changed under us
+            if (!cfg.isOpen()) return;
+            var badge = document.getElementById(cfg.badgeId);
             if (!badge || !data) return;
 
             var state  = data.marketState;
@@ -1633,11 +1595,38 @@
             // Offset from the actual rendered price-scale width so the badge
             // never collides with axis labels, regardless of price range/digits.
             var rightOffset = 8;
-            if (_wlChart) {
-                try { rightOffset = _wlChart.priceScale('right').width() + 2; } catch (e) {}
+            var chart = cfg.getChart();
+            if (chart) {
+                try { rightOffset = chart.priceScale('right').width() + 2; } catch (e) {}
             }
             badge.style.right = rightOffset + 'px';
             badge.style.display = 'block';
+        });
+    }
+
+    function _mcFsRenderPrePostBadge(sym) {
+        _renderPrePostBadge({
+            sym: sym,
+            badgeId: 'mc-fs-prepost-badge',
+            getChart: function() { return _mcFsChart; },
+            getCurrentSym: function() { return _mcFsSym; },
+            isOpen: function() {
+                var overlay = document.getElementById('mc-fullscreen-overlay');
+                return !!overlay && overlay.classList.contains('open');
+            }
+        });
+    }
+
+    function _wlRenderPrePostBadge(sym) {
+        _renderPrePostBadge({
+            sym: sym,
+            badgeId: 'wl-chart-prepost-badge',
+            getChart: function() { return _wlChart; },
+            getCurrentSym: function() { return _wlSym; },
+            isOpen: function() {
+                var wlContainer = document.getElementById('wl-chart-widget');
+                return !!wlContainer && wlContainer.style.display !== 'none';
+            }
         });
     }
 
