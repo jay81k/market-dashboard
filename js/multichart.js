@@ -34,6 +34,7 @@
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
     var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
+    var _mcFsPrePostToken = 0;  // guards against stale pre/post-badge fetches after a symbol/TF switch
     var MC_FETCH_LIMIT  = 50;
 
     // Fullscreen state
@@ -1544,6 +1545,55 @@
         }
     }
 
+    // ── Pre/post-market badge (fullscreen chart) ────────────────────────────
+    // Yahoo's chart-endpoint meta (what _mcMetaCache holds) never includes
+    // marketState/extended-hours prices — those only exist on Yahoo's quote
+    // endpoint, which now requires crumb/cookie auth. Instead the Worker
+    // derives state + price from the same chart endpoint via
+    // includePrePost=true + currentTradingPeriod (see Worker action=prepost).
+    // One fetch per fullscreen open/TF-switch — not part of the OHLCV queue.
+    function fetchMcPrePost(sym) {
+        return fetch(WL_PROXY + '?action=prepost&symbol=' + encodeURIComponent(sym))
+            .then(function(r) { return r.json(); })
+            .catch(function() { return null; });
+    }
+
+    function _mcFsRenderPrePostBadge(sym) {
+        var badge = document.getElementById('mc-fs-prepost-badge');
+        if (badge) badge.style.display = 'none'; // hidden until fetch confirms PRE/POST
+        var token = ++_mcFsPrePostToken;
+        fetchMcPrePost(sym).then(function(data) {
+            if (token !== _mcFsPrePostToken) return; // superseded by a later open/switch
+            if (_mcFsSym !== sym) return;             // symbol changed under us
+            var overlay = document.getElementById('mc-fullscreen-overlay');
+            if (!overlay || !overlay.classList.contains('open')) return;
+            var badge = document.getElementById('mc-fs-prepost-badge');
+            if (!badge || !data) return;
+
+            var state  = data.marketState;
+            var isPre  = state === 'PRE';
+            var isPost = state === 'POST';
+            if ((!isPre && !isPost) || typeof data.price !== 'number') { badge.style.display = 'none'; return; }
+
+            function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+            var price = data.price, chg = data.change, pct = data.changePercent;
+            var up    = chg == null || chg >= 0;
+            var rgb   = up ? '63,185,80' : '248,81,73';
+            var sign  = up ? '+' : '';
+            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
+
+            badge.style.background = 'rgba(' + rgb + ',0.12)';
+            badge.style.border     = '1px solid rgba(' + rgb + ',0.3)';
+            badge.style.color      = up ? '#3fb950' : '#f85149';
+            badge.innerHTML =
+                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
+                fp(price) +
+                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
+                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
+            badge.style.display = 'block';
+        });
+    }
+
     function _buildFsChart(sym, ohlcv, tf) {
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
@@ -1992,46 +2042,11 @@
         })();
 
         // ── Pre/post-market badge content ────────────────────────────────────
-        // Pulled from result.meta, cached per-symbol in _mcFsRender's fetch.
-        // Shows only when marketState is an extended session AND Yahoo gave us
-        // an actual price for it — fails silently (badge stays hidden) otherwise.
-        (function() {
-            var badge = document.getElementById('mc-fs-prepost-badge');
-            if (!badge) return;
-            var meta  = _mcMetaCache[sym];
-            var state = meta && meta.marketState;
-            var isPre  = state === 'PRE'  || state === 'PREPRE';
-            var isPost = state === 'POST' || state === 'POSTPOST';
-            if (!meta || (!isPre && !isPost)) { badge.style.display = 'none'; return; }
-
-            var price = isPre ? meta.preMarketPrice  : meta.postMarketPrice;
-            var chg   = isPre ? meta.preMarketChange : meta.postMarketChange;
-            var pct   = isPre ? meta.preMarketChangePercent : meta.postMarketChangePercent;
-            if (typeof price !== 'number') { badge.style.display = 'none'; return; }
-            // Yahoo usually includes chg/pct directly, but fall back to computing
-            // them from regularMarketPrice if either is missing.
-            if (typeof chg !== 'number' && typeof meta.regularMarketPrice === 'number') {
-                chg = price - meta.regularMarketPrice;
-            }
-            if (typeof pct !== 'number' && typeof chg === 'number' && meta.regularMarketPrice) {
-                pct = (chg / meta.regularMarketPrice) * 100;
-            }
-
-            var up    = chg == null || chg >= 0;
-            var rgb   = up ? '63,185,80' : '248,81,73';
-            var sign  = up ? '+' : '';
-            var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
-
-            badge.style.background = 'rgba(' + rgb + ',0.12)';
-            badge.style.border     = '1px solid rgba(' + rgb + ',0.3)';
-            badge.style.color      = up ? '#3fb950' : '#f85149';
-            badge.innerHTML =
-                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
-                fp(price) +
-                (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
-                (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
-            badge.style.display = 'block';
-        })();
+        // NOTE: this can no longer be read out of _mcMetaCache[sym] — Yahoo's
+        // chart-meta (what _mcMetaCache holds) never includes marketState or
+        // extended-hours prices. It's fetched separately via a dedicated Worker
+        // route; see _mcFsRenderPrePostBadge below.
+        _mcFsRenderPrePostBadge(sym);
 
         // Delete/Escape key handler — trendlines + AVWAP
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); }
