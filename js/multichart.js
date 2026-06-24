@@ -1582,14 +1582,20 @@
             var sign  = up ? '+' : '';
             var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
 
-            badge.style.background = 'rgba(' + rgb + ',0.12)';
-            badge.style.border     = '1px solid rgba(' + rgb + ',0.3)';
             badge.style.color      = up ? '#3fb950' : '#f85149';
             badge.innerHTML =
                 '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
                 fp(price) +
                 (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
                 (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
+
+            // Offset from the actual rendered price-scale width so the badge
+            // never collides with axis labels, regardless of price range/digits.
+            var rightOffset = 8;
+            if (_mcFsChart) {
+                try { rightOffset = _mcFsChart.priceScale('right').width() + 8; } catch (e) {}
+            }
+            badge.style.right = rightOffset + 'px';
             badge.style.display = 'block';
         });
     }
