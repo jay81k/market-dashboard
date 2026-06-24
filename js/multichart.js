@@ -1593,7 +1593,7 @@
             // never collides with axis labels, regardless of price range/digits.
             var rightOffset = 8;
             if (_mcFsChart) {
-                try { rightOffset = _mcFsChart.priceScale('right').width() + 8; } catch (e) {}
+                try { rightOffset = _mcFsChart.priceScale('right').width() + 2; } catch (e) {}
             }
             badge.style.right = rightOffset + 'px';
             badge.style.display = 'block';
