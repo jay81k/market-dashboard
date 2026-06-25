@@ -1625,88 +1625,29 @@
     }
 
     function _alTrendlineHitTest(clientX, clientY) {
-        if (!_alChart || !_alCandle || !_alTrendlines.length || !_alTrendContRef) return -1;
-        var rect     = _alTrendContRef.getBoundingClientRect();
-        var px       = clientX - rect.left;
-        var py       = clientY - rect.top;
-        var HIT_PX   = 7;
-        var bestIdx  = -1;
-        var bestDist = HIT_PX;
-        _alTrendlines.forEach(function(tl, idx) {
-            var x1 = _mcFsTimeToX(_alChart, _alOhlcv, tl.leftP.time);
-            var x2 = _mcFsTimeToX(_alChart, _alOhlcv, tl.rightP.time);
-            var y1 = _alCandle.priceToCoordinate(tl.leftP.price);
-            var y2 = _alCandle.priceToCoordinate(tl.rightP.price);
-            if (x1 == null || x2 == null || y1 == null || y2 == null) return;
-            var dx = x2 - x1, dy = y2 - y1;
-            var lenSq = dx * dx + dy * dy;
-            var dist;
-            if (lenSq === 0) {
-                dist = Math.hypot(px - x1, py - y1);
-            } else {
-                var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
-                dist  = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-            }
-            if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
-        });
-        return bestIdx;
+        return _trendlineHitTestCore(clientX, clientY, _alChart, _alCandle, _alOhlcv, _alTrendlines, _alTrendContRef);
     }
 
     function _alDeselectAllTrendlines() {
-        _alTrendlines.forEach(function(tl) {
-            if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
-        });
+        _deselectAllTrendlinesCore(_alTrendlines);
         _alSelectedTrendlineIdx = -1;
     }
 
     function _alSelectVwap(idx) {
-        _alVwapSeries.forEach(function(entry, i) {
-            entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
-        });
+        _selectVwapCore(_alVwapSeries, idx);
         _alSelectedVwapIdx = idx;
     }
     function _alDeselectAllVwaps() {
-        _alVwapSeries.forEach(function(entry) {
-            entry.series.applyOptions({ lineWidth: 1.5 });
-        });
+        _deselectAllVwapsCore(_alVwapSeries);
         _alSelectedVwapIdx = -1;
     }
 
     function _alVwapHitTest(clientX, clientY) {
-        if (!_alChart || !_alVwapSeries.length || !_alLastCrosshairTime) return -1;
-        var chartDiv = document.getElementById('al-chart-widget');
-        var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
-        if (!rect) return -1;
-        var localY   = clientY - rect.top;
-        var HIT_PX   = 8;
-        var bestDist = HIT_PX;
-        var hitIdx   = -1;
-        _alVwapSeries.forEach(function(entry, i) {
-            if (!entry.dataMap) return;
-            var avwapVal = entry.dataMap.get(_alLastCrosshairTime);
-            if (avwapVal == null) return;
-            var yCoord = entry.series.priceToCoordinate(avwapVal);
-            if (yCoord == null) return;
-            var dist = Math.abs(localY - yCoord);
-            if (dist < bestDist) { bestDist = dist; hitIdx = i; }
-        });
-        return hitIdx;
+        return _vwapHitTestCore(clientX, clientY, _alChart, _alVwapSeries, _alLastCrosshairTime, 'al-chart-widget');
     }
 
     function _alAnchorHitTest(clientX, clientY, tlIdx) {
-        if (tlIdx < 0 || !_alTrendlines[tlIdx] || !_alChart || !_alCandle || !_alTrendContRef) return null;
-        var tl   = _alTrendlines[tlIdx];
-        var rect = _alTrendContRef.getBoundingClientRect();
-        var px   = clientX - rect.left;
-        var py   = clientY - rect.top;
-        var HIT  = 10;
-        var x1 = _mcFsTimeToX(_alChart, _alOhlcv, tl.leftP.time);
-        var y1 = _alCandle.priceToCoordinate(tl.leftP.price);
-        if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
-        var x2 = _mcFsTimeToX(_alChart, _alOhlcv, tl.rightP.time);
-        var y2 = _alCandle.priceToCoordinate(tl.rightP.price);
-        if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
-        return null;
+        return _anchorHitTestCore(clientX, clientY, tlIdx, _alTrendlines, _alChart, _alCandle, _alOhlcv, _alTrendContRef);
     }
 
     // ── Anchor drag ───────────────────────────────────────────────────────
