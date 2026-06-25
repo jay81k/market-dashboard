@@ -1564,64 +1564,7 @@
 
     // ── Trendline helpers ─────────────────────────────────────────────────
     function _addAlTrendline(p1, p2) {
-        if (!_alChart || !_alCandle || !_alOhlcv.length) return;
-        var refChart  = _alChart;
-        var refSeries = _alCandle;
-        var ohlcv     = _alOhlcv;
-        var leftP  = p1.time <= p2.time ? p1 : p2;
-        var rightP = p1.time <= p2.time ? p2 : p1;
-        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
-        var primitive = {
-            attached: function(param) {
-                tlObj.requestUpdate = function() { try { param.requestUpdate(); } catch(e) {} };
-                param.requestUpdate();
-            },
-            paneViews: function() {
-                return [{
-                    renderer: function() {
-                        return {
-                            draw: function(target) {
-                                if (tlObj.dragging) return;
-                                var x1 = _mcFsTimeToX(refChart, ohlcv, tlObj.leftP.time);
-                                var x2 = _mcFsTimeToX(refChart, ohlcv, tlObj.rightP.time);
-                                var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
-                                var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
-                                if (x1 == null || x2 == null || y1 == null || y2 == null) return;
-                                target.useBitmapCoordinateSpace(function(scope) {
-                                    var ctx = scope.context;
-                                    var rx  = scope.horizontalPixelRatio;
-                                    var ry  = scope.verticalPixelRatio;
-                                    var bx1 = x1 * rx, by1 = y1 * ry;
-                                    var bx2 = x2 * rx, by2 = y2 * ry;
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.moveTo(bx1, by1);
-                                    ctx.lineTo(bx2, by2);
-                                    ctx.strokeStyle = _TRENDLINE_COLOR;
-                                    ctx.lineWidth   = 1.5 * rx;
-                                    ctx.stroke();
-                                    if (tlObj.selected) {
-                                        [[bx1, by1], [bx2, by2]].forEach(function(pt) {
-                                            ctx.beginPath();
-                                            ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
-                                            ctx.fillStyle   = _TRENDLINE_COLOR;
-                                            ctx.fill();
-                                            ctx.strokeStyle = '#0d1117';
-                                            ctx.lineWidth   = 1.5 * rx;
-                                            ctx.stroke();
-                                        });
-                                    }
-                                    ctx.restore();
-                                });
-                            }
-                        };
-                    }
-                }];
-            }
-        };
-        tlObj.primitive = primitive;
-        refSeries.attachPrimitive(primitive);
-        _alTrendlines.push(tlObj);
+        _addTrendlineCore(p1, p2, _alChart, _alCandle, _alOhlcv, _alTrendlines);
     }
 
     function _alTrendlineHitTest(clientX, clientY) {
