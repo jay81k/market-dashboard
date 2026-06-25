@@ -722,11 +722,13 @@
     // Draw a trendline through two bar-index/price anchors using a v5 canvas
     // primitive.  The trendline object stores leftP/rightP for hit-testing and
     // a `selected` flag that the renderer reads to draw the highlight state.
-    function _addFsTrendline(p1, p2) {
-        if (!_mcFsChart || !_mcFsCandle || !_mcFsOhlcv.length) return;
-        var refChart  = _mcFsChart;
-        var refSeries = _mcFsCandle;
-        var ohlcv     = _mcFsOhlcv; // closed over for extrapolation in renderer
+    // Builds the canvas-primitive trendline object and attaches it to the
+    // candle series. Shared by fullscreen/watchlist/alerts (alerts.js calls
+    // this cross-file, same pattern as the other shared cores above).
+    function _addTrendlineCore(p1, p2, chart, candle, ohlcv, trendlines) {
+        if (!chart || !candle || !ohlcv.length) return;
+        var refChart  = chart;
+        var refSeries = candle;
 
         // Normalise so leftP is always the earlier anchor (by time, supports future timestamps)
         var leftP  = p1.time <= p2.time ? p1 : p2;
@@ -789,7 +791,11 @@
 
         tlObj.primitive = primitive;
         refSeries.attachPrimitive(primitive);
-        _mcFsTrendlines.push(tlObj);
+        trendlines.push(tlObj);
+    }
+
+    function _addFsTrendline(p1, p2) {
+        _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines);
     }
 
     // ── Shared hit-test / selection cores — used by fullscreen, watchlist, and
@@ -2920,64 +2926,7 @@
 
     // ── Trendline primitive ───────────────────────────────────────────────
     function _addWlTrendline(p1, p2) {
-        if (!_wlChart || !_wlCandle || !_wlOhlcv.length) return;
-        var refChart  = _wlChart;
-        var refSeries = _wlCandle;
-        var ohlcv     = _wlOhlcv;
-        var leftP  = p1.time <= p2.time ? p1 : p2;
-        var rightP = p1.time <= p2.time ? p2 : p1;
-        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
-        var primitive = {
-            attached: function(param) {
-                tlObj.requestUpdate = function() { try { param.requestUpdate(); } catch(e) {} };
-                param.requestUpdate();
-            },
-            paneViews: function() {
-                return [{
-                    renderer: function() {
-                        return {
-                            draw: function(target) {
-                                if (tlObj.dragging) return;
-                                var x1 = _mcFsTimeToX(refChart, ohlcv, tlObj.leftP.time);
-                                var x2 = _mcFsTimeToX(refChart, ohlcv, tlObj.rightP.time);
-                                var y1 = refSeries.priceToCoordinate(tlObj.leftP.price);
-                                var y2 = refSeries.priceToCoordinate(tlObj.rightP.price);
-                                if (x1 == null || x2 == null || y1 == null || y2 == null) return;
-                                target.useBitmapCoordinateSpace(function(scope) {
-                                    var ctx = scope.context;
-                                    var rx  = scope.horizontalPixelRatio;
-                                    var ry  = scope.verticalPixelRatio;
-                                    var bx1 = x1 * rx, by1 = y1 * ry;
-                                    var bx2 = x2 * rx, by2 = y2 * ry;
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.moveTo(bx1, by1);
-                                    ctx.lineTo(bx2, by2);
-                                    ctx.strokeStyle = _TRENDLINE_COLOR;
-                                    ctx.lineWidth   = 1.5 * rx;
-                                    ctx.stroke();
-                                    if (tlObj.selected) {
-                                        [[bx1, by1], [bx2, by2]].forEach(function(pt) {
-                                            ctx.beginPath();
-                                            ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
-                                            ctx.fillStyle   = _TRENDLINE_COLOR;
-                                            ctx.fill();
-                                            ctx.strokeStyle = '#0d1117';
-                                            ctx.lineWidth   = 1.5 * rx;
-                                            ctx.stroke();
-                                        });
-                                    }
-                                    ctx.restore();
-                                });
-                            }
-                        };
-                    }
-                }];
-            }
-        };
-        tlObj.primitive = primitive;
-        refSeries.attachPrimitive(primitive);
-        _wlTrendlines.push(tlObj);
+        _addTrendlineCore(p1, p2, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines);
     }
 
     // ── Hit-test helpers ─────────────────────────────────────────────────
