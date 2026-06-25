@@ -792,20 +792,21 @@
         _mcFsTrendlines.push(tlObj);
     }
 
-    // ── Trendline hit-test: returns _mcFsTrendlines index within HIT_PX, or -1
-    function _trendlineHitTest(clientX, clientY) {
-        if (!_mcFsChart || !_mcFsCandle || !_mcFsTrendlines.length || !_mcFsTrendContRef) return -1;
-        var rect     = _mcFsTrendContRef.getBoundingClientRect();
+    // ── Shared hit-test / selection cores — used by fullscreen, watchlist, and
+    // alerts charts (alerts.js calls these cross-file, same pattern as fetchMcOhlcv).
+    function _trendlineHitTestCore(clientX, clientY, chart, candle, ohlcv, trendlines, contRef) {
+        if (!chart || !candle || !trendlines.length || !contRef) return -1;
+        var rect     = contRef.getBoundingClientRect();
         var px       = clientX - rect.left;
         var py       = clientY - rect.top;
         var HIT_PX   = 7;
         var bestIdx  = -1;
         var bestDist = HIT_PX;
-        _mcFsTrendlines.forEach(function(tl, idx) {
-            var x1 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.leftP.time);
-            var x2 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.rightP.time);
-            var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
-            var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
+        trendlines.forEach(function(tl, idx) {
+            var x1 = _mcFsTimeToX(chart, ohlcv, tl.leftP.time);
+            var x2 = _mcFsTimeToX(chart, ohlcv, tl.rightP.time);
+            var y1 = candle.priceToCoordinate(tl.leftP.price);
+            var y2 = candle.priceToCoordinate(tl.rightP.price);
             if (x1 == null || x2 == null || y1 == null || y2 == null) return;
             var dx = x2 - x1, dy = y2 - y1;
             var lenSq = dx * dx + dy * dy;
@@ -821,39 +822,36 @@
         return bestIdx;
     }
 
-    // ── Selection helpers ─────────────────────────────────────────────────────
-    function _deselectAllTrendlines() {
-        _mcFsTrendlines.forEach(function(tl) {
+    function _deselectAllTrendlinesCore(trendlines) {
+        trendlines.forEach(function(tl) {
             if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
         });
-        _mcFsSelectedTrendlineIdx = -1;
     }
 
-    function _selectVwap(idx) {
-        _mcFsVwapSeries.forEach(function(entry, i) {
+    function _selectVwapCore(vwapSeries, idx) {
+        vwapSeries.forEach(function(entry, i) {
             entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
         });
-        _mcFsSelectedVwapIdx = idx;
-    }
-    function _deselectAllVwaps() {
-        _mcFsVwapSeries.forEach(function(entry) {
-            entry.series.applyOptions({ lineWidth: 1.5 });
-        });
-        _mcFsSelectedVwapIdx = -1;
     }
 
-    function _mcFsVwapHitTest(clientX, clientY) {
-        if (!_mcFsChart || !_mcFsVwapSeries.length || !_mcFsLastCrosshairTime) return -1;
-        var chartDiv = document.getElementById('mc-fullscreen-chart');
+    function _deselectAllVwapsCore(vwapSeries) {
+        vwapSeries.forEach(function(entry) {
+            entry.series.applyOptions({ lineWidth: 1.5 });
+        });
+    }
+
+    function _vwapHitTestCore(clientX, clientY, chart, vwapSeries, lastCrosshairTime, containerId) {
+        if (!chart || !vwapSeries.length || !lastCrosshairTime) return -1;
+        var chartDiv = document.getElementById(containerId);
         var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
         if (!rect) return -1;
         var localY   = clientY - rect.top;
         var HIT_PX   = 8;
         var bestDist = HIT_PX;
         var hitIdx   = -1;
-        _mcFsVwapSeries.forEach(function(entry, i) {
+        vwapSeries.forEach(function(entry, i) {
             if (!entry.dataMap) return;
-            var avwapVal = entry.dataMap.get(_mcFsLastCrosshairTime);
+            var avwapVal = entry.dataMap.get(lastCrosshairTime);
             if (avwapVal == null) return;
             var yCoord = entry.series.priceToCoordinate(avwapVal);
             if (yCoord == null) return;
@@ -863,21 +861,49 @@
         return hitIdx;
     }
 
-    // Returns 'left' or 'right' if clientX/Y is near an anchor of trendline[tlIdx], else null
-    function _anchorHitTest(clientX, clientY, tlIdx) {
-        if (tlIdx < 0 || !_mcFsTrendlines[tlIdx] || !_mcFsChart || !_mcFsCandle || !_mcFsTrendContRef) return null;
-        var tl   = _mcFsTrendlines[tlIdx];
-        var rect = _mcFsTrendContRef.getBoundingClientRect();
+    // Returns 'left' or 'right' if clientX/Y is near an anchor of trendlines[tlIdx], else null
+    function _anchorHitTestCore(clientX, clientY, tlIdx, trendlines, chart, candle, ohlcv, contRef) {
+        if (tlIdx < 0 || !trendlines[tlIdx] || !chart || !candle || !contRef) return null;
+        var tl   = trendlines[tlIdx];
+        var rect = contRef.getBoundingClientRect();
         var px   = clientX - rect.left;
         var py   = clientY - rect.top;
         var HIT  = 10;
-        var x1 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.leftP.time);
-        var y1 = _mcFsCandle.priceToCoordinate(tl.leftP.price);
+        var x1 = _mcFsTimeToX(chart, ohlcv, tl.leftP.time);
+        var y1 = candle.priceToCoordinate(tl.leftP.price);
         if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
-        var x2 = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, tl.rightP.time);
-        var y2 = _mcFsCandle.priceToCoordinate(tl.rightP.price);
+        var x2 = _mcFsTimeToX(chart, ohlcv, tl.rightP.time);
+        var y2 = candle.priceToCoordinate(tl.rightP.price);
         if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
         return null;
+    }
+
+    // ── Trendline hit-test: returns _mcFsTrendlines index within HIT_PX, or -1
+    function _trendlineHitTest(clientX, clientY) {
+        return _trendlineHitTestCore(clientX, clientY, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines, _mcFsTrendContRef);
+    }
+
+    // ── Selection helpers ─────────────────────────────────────────────────────
+    function _deselectAllTrendlines() {
+        _deselectAllTrendlinesCore(_mcFsTrendlines);
+        _mcFsSelectedTrendlineIdx = -1;
+    }
+
+    function _selectVwap(idx) {
+        _selectVwapCore(_mcFsVwapSeries, idx);
+        _mcFsSelectedVwapIdx = idx;
+    }
+    function _deselectAllVwaps() {
+        _deselectAllVwapsCore(_mcFsVwapSeries);
+        _mcFsSelectedVwapIdx = -1;
+    }
+
+    function _mcFsVwapHitTest(clientX, clientY) {
+        return _vwapHitTestCore(clientX, clientY, _mcFsChart, _mcFsVwapSeries, _mcFsLastCrosshairTime, 'mc-fullscreen-chart');
+    }
+
+    function _anchorHitTest(clientX, clientY, tlIdx) {
+        return _anchorHitTestCore(clientX, clientY, tlIdx, _mcFsTrendlines, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendContRef);
     }
 
     // ── Anchor drag ───────────────────────────────────────────────────────────
@@ -2956,88 +2982,29 @@
 
     // ── Hit-test helpers ─────────────────────────────────────────────────
     function _wlTrendlineHitTest(clientX, clientY) {
-        if (!_wlChart || !_wlCandle || !_wlTrendlines.length || !_wlTrendContRef) return -1;
-        var rect     = _wlTrendContRef.getBoundingClientRect();
-        var px       = clientX - rect.left;
-        var py       = clientY - rect.top;
-        var HIT_PX   = 7;
-        var bestIdx  = -1;
-        var bestDist = HIT_PX;
-        _wlTrendlines.forEach(function(tl, idx) {
-            var x1 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.leftP.time);
-            var x2 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.rightP.time);
-            var y1 = _wlCandle.priceToCoordinate(tl.leftP.price);
-            var y2 = _wlCandle.priceToCoordinate(tl.rightP.price);
-            if (x1 == null || x2 == null || y1 == null || y2 == null) return;
-            var dx = x2 - x1, dy = y2 - y1;
-            var lenSq = dx * dx + dy * dy;
-            var dist;
-            if (lenSq === 0) {
-                dist = Math.hypot(px - x1, py - y1);
-            } else {
-                var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
-                dist  = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-            }
-            if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
-        });
-        return bestIdx;
+        return _trendlineHitTestCore(clientX, clientY, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines, _wlTrendContRef);
     }
 
     function _wlDeselectAllTrendlines() {
-        _wlTrendlines.forEach(function(tl) {
-            if (tl.selected) { tl.selected = false; if (tl.requestUpdate) tl.requestUpdate(); }
-        });
+        _deselectAllTrendlinesCore(_wlTrendlines);
         _wlSelectedTrendlineIdx = -1;
     }
 
     function _wlSelectVwap(idx) {
-        _wlVwapSeries.forEach(function(entry, i) {
-            entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
-        });
+        _selectVwapCore(_wlVwapSeries, idx);
         _wlSelectedVwapIdx = idx;
     }
     function _wlDeselectAllVwaps() {
-        _wlVwapSeries.forEach(function(entry) {
-            entry.series.applyOptions({ lineWidth: 1.5 });
-        });
+        _deselectAllVwapsCore(_wlVwapSeries);
         _wlSelectedVwapIdx = -1;
     }
 
     function _wlVwapHitTest(clientX, clientY) {
-        if (!_wlChart || !_wlVwapSeries.length || !_wlLastCrosshairTime) return -1;
-        var chartDiv = document.getElementById('wl-chart-widget');
-        var rect = chartDiv ? chartDiv.getBoundingClientRect() : null;
-        if (!rect) return -1;
-        var localY   = clientY - rect.top;
-        var HIT_PX   = 8;
-        var bestDist = HIT_PX;
-        var hitIdx   = -1;
-        _wlVwapSeries.forEach(function(entry, i) {
-            if (!entry.dataMap) return;
-            var avwapVal = entry.dataMap.get(_wlLastCrosshairTime);
-            if (avwapVal == null) return;
-            var yCoord = entry.series.priceToCoordinate(avwapVal);
-            if (yCoord == null) return;
-            var dist = Math.abs(localY - yCoord);
-            if (dist < bestDist) { bestDist = dist; hitIdx = i; }
-        });
-        return hitIdx;
+        return _vwapHitTestCore(clientX, clientY, _wlChart, _wlVwapSeries, _wlLastCrosshairTime, 'wl-chart-widget');
     }
 
     function _wlAnchorHitTest(clientX, clientY, tlIdx) {
-        if (tlIdx < 0 || !_wlTrendlines[tlIdx] || !_wlChart || !_wlCandle || !_wlTrendContRef) return null;
-        var tl   = _wlTrendlines[tlIdx];
-        var rect = _wlTrendContRef.getBoundingClientRect();
-        var px   = clientX - rect.left;
-        var py   = clientY - rect.top;
-        var HIT  = 10;
-        var x1 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.leftP.time);
-        var y1 = _wlCandle.priceToCoordinate(tl.leftP.price);
-        if (x1 != null && y1 != null && Math.hypot(px - x1, py - y1) <= HIT) return 'left';
-        var x2 = _mcFsTimeToX(_wlChart, _wlOhlcv, tl.rightP.time);
-        var y2 = _wlCandle.priceToCoordinate(tl.rightP.price);
-        if (x2 != null && y2 != null && Math.hypot(px - x2, py - y2) <= HIT) return 'right';
-        return null;
+        return _anchorHitTestCore(clientX, clientY, tlIdx, _wlTrendlines, _wlChart, _wlCandle, _wlOhlcv, _wlTrendContRef);
     }
 
     // ── Anchor drag ───────────────────────────────────────────────────────
