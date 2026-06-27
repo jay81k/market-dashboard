@@ -28,17 +28,58 @@ import re
 import time
 from datetime import date, datetime
 
+import pandas as pd
 import requests
 from curl_cffi import requests as curl_requests
-from finvizfinance.quote import finvizfinance
 import finvizfinance.util as _futil
+from finvizfinance import quote as _fvquote
+from finvizfinance.quote import finvizfinance
 
 # ---------------------------------------------------------------------------
-# curl_cffi patch — replaces finvizfinance's internal session with one that
-# impersonates Chrome's TLS fingerprint, bypassing Cloudflare bot protection
+# Patch 1: curl_cffi session — bypasses Cloudflare TLS fingerprinting
 # ---------------------------------------------------------------------------
 
 _futil.session = curl_requests.Session(impersonate="chrome110")
+
+# ---------------------------------------------------------------------------
+# Patch 2: fix ticker_fundament — Finviz renamed "quote-links" to
+# "quote-header_categories" and added a 5th link, shifting Exchange to index 4
+# ---------------------------------------------------------------------------
+
+def _patched_ticker_fundament(self, raw=True, output_format="dict"):
+    if output_format not in ["dict", "series"]:
+        raise ValueError(
+            "Invalid output format '{}'. Possible choice: {}".format(
+                output_format, ["dict", "series"]
+            )
+        )
+    fundament_info = {}
+
+    fundament_info["Company"] = self.soup.find(
+        "h2", class_="quote-header_ticker-wrapper_company"
+    ).text.strip()
+
+    quote_links = self.soup.find("div", class_="quote-header_categories")
+    links = quote_links.find_all("a")
+    fundament_info["Sector"]   = links[0].text
+    fundament_info["Industry"] = links[1].text
+    fundament_info["Country"]  = links[2].text
+    fundament_info["Exchange"] = links[4].text  # index shifted: new cap-size link at [3]
+
+    fundament_table = self.soup.find("table", class_="snapshot-table2")
+    rows = fundament_table.find_all("tr")
+
+    for row in rows:
+        cols = row.find_all("td")
+        cols = [i.text for i in cols]
+        fundament_info = self._parse_column(cols, raw, fundament_info)
+    self.info["fundament"] = fundament_info
+
+    if output_format == "dict":
+        return fundament_info
+    return pd.DataFrame.from_dict(fundament_info, orient="index", columns=["Stat"])
+
+_fvquote.finvizfinance.ticker_fundament = _patched_ticker_fundament
 
 # ---------------------------------------------------------------------------
 # Config
@@ -95,11 +136,7 @@ def parse_earnings_date(val) -> str | None:
     """Parse Finviz's 'Earnings' field (e.g. 'Jun 18 AMC') into an ISO date.
 
     Finviz gives month/day with no year, so the year is inferred: if the
-    resulting date has already passed, roll forward to next year. The
-    AMC/BMO timing suffix (and the older "/a" "/b" variant) is matched but
-    discarded -- not currently used anywhere downstream.
-    NOTE: unverified against a live response as of writing -- confirm the
-    exact field name/format with a manual test run before relying on this.
+    resulting date has already passed, roll forward to next year.
     """
     if not val:
         return None
@@ -133,7 +170,6 @@ def _is_retryable(exc: Exception) -> bool:
     if isinstance(exc, requests.exceptions.HTTPError):
         code = exc.response.status_code if exc.response is not None else None
         return code in RETRY_STATUS_CODES
-    # finvizfinance raises plain exceptions with the status text in the message
     msg = str(exc).lower()
     return any(str(c) in msg for c in RETRY_STATUS_CODES)
 
@@ -163,12 +199,11 @@ def fetch_fundamentals(ticker: str) -> dict | None:
         except Exception as e:
             last_exc = e
             if _is_retryable(e) and attempt < MAX_RETRIES:
-                wait = RETRY_BASE_DELAY * (2 ** attempt)   # 2s, 4s, 8s
+                wait = RETRY_BASE_DELAY * (2 ** attempt)
                 print(f"  RETRY [{ticker}] attempt {attempt + 1}/{MAX_RETRIES} "
                       f"after {wait:.0f}s — {e}")
                 time.sleep(wait)
             else:
-                # Non-retryable error or retries exhausted
                 break
 
     print(f"  ERROR [{ticker}]: {last_exc}")
@@ -185,7 +220,6 @@ def main():
     parser.add_argument("--out-dir",       default="data",               help="Output directory")
     args = parser.parse_args()
 
-    # Load tickers from snapshot
     print(f"Loading snapshot: {args.snapshot_path}")
     with open(args.snapshot_path, "r", encoding="utf-8") as f:
         snapshot = json.load(f)
@@ -201,7 +235,6 @@ def main():
     total   = len(tickers)
     print(f"Tickers to fetch: {total}\n")
 
-    # Fetch fundamentals
     results  = {}
     failed   = []
     start    = time.time()
@@ -232,11 +265,10 @@ def main():
     if failed:
         print(f"Failed tickers: {failed}")
 
-    # Write output
     os.makedirs(args.out_dir, exist_ok=True)
     out_path = os.path.join(args.out_dir, "fundamentals.json")
     output = {
-        "built_at":   datetime.utcnow().isoformat() + "Z",
+        "built_at":     datetime.utcnow().isoformat() + "Z",
         "ticker_count": len(results),
         "fundamentals": results,
     }
