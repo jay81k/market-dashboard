@@ -23,37 +23,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: DIAGNOSTIC - inspect exact tag around quote-header_categories
-        run: |
-          cat > /tmp/diag2.py << 'PYEOF'
-          from curl_cffi import requests as curl_requests
-          import finvizfinance.util as _futil
-
-          sess = curl_requests.Session(impersonate='chrome110')
-          _futil.session = sess
-
-          r = sess.get(
-              "https://finviz.com/quote.ashx?t=AAPL",
-              headers=_futil.headers,
-              timeout=_futil.timeout_value,
-              proxies=_futil.proxy_dict,
-          )
-          html = r.text
-
-          idx = html.find("quote-header_categories")
-          print("Occurrences:", html.count("quote-header_categories"))
-          if idx != -1:
-              print("--- 200 chars before / 1000 chars after first match ---")
-              print(html[max(0, idx - 200):idx + 1000])
-
-          from bs4 import BeautifulSoup
-          soup = BeautifulSoup(html, "lxml")
-          found = soup.find("div", class_="quote-header_categories")
-          print()
-          print("BeautifulSoup exact-token find() result:", found)
-          PYEOF
-          python3 /tmp/diag2.py
-
       - name: Build fundamentals data
         run: python scripts/fetch_fundamentals.py --snapshot-path data/snapshot.json --out-dir data
 
