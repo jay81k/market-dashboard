@@ -913,35 +913,35 @@
     }
 
     // ── Anchor drag ───────────────────────────────────────────────────────────
-    function _onTrendAnchorDragMove(evt) {
-        if (!_mcFsTrendDragState || !_mcFsChart || !_mcFsCandle || !_mcFsTrendContRef) return;
-        var tl = _mcFsTrendlines[_mcFsTrendDragState.tlIdx];
+    // Shared anchor-drag core — used by fullscreen/watchlist/alerts trendline dragging
+    function _onTrendAnchorDragMoveCore(evt, cfg) {
+        var dragState = cfg.dragState;
+        if (!dragState || !cfg.chart || !cfg.candle || !cfg.contRef) return;
+        var tl = cfg.trendlines[dragState.tlIdx];
         if (!tl) return;
-        if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = 'grabbing';
-        var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        cfg.contRef.style.cursor = 'grabbing';
+        var rect  = cfg.contRef.getBoundingClientRect();
         var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
-        var price = _mcFsCandle.coordinateToPrice(ly);
-        var time  = _mcFsChart.timeScale().coordinateToTime(lx);
+        var price = cfg.candle.coordinateToPrice(ly);
+        var time  = cfg.chart.timeScale().coordinateToTime(lx);
         if (price == null) return;
         // Allow dragging into the future: if coordinateToTime returns null (off right edge),
         // extrapolate from the last bar interval so the anchor can be placed in future space
         if (time == null) {
-            var ohlcv = _mcFsOhlcv;
-            var last  = ohlcv[ohlcv.length - 1];
-            var prev  = ohlcv[ohlcv.length - 2] || last;
+            var ohlcv  = cfg.ohlcv;
+            var last   = ohlcv[ohlcv.length - 1];
+            var prev   = ohlcv[ohlcv.length - 2] || last;
             var barSec = ohlcv.length >= 2 ? (last.time - prev.time) : 86400;
-            var lastX = _mcFsChart.timeScale().timeToCoordinate(last.time);
+            var lastX  = cfg.chart.timeScale().timeToCoordinate(last.time);
             if (lastX == null) return;
-            var barsAhead = Math.round((lx - lastX) / Math.max(1, (lx - lastX) / Math.max(1, ohlcv.length)));
-            // Simpler: pixel-per-bar from the last two bars
-            var prevX = _mcFsChart.timeScale().timeToCoordinate(prev.time);
+            var prevX    = cfg.chart.timeScale().timeToCoordinate(prev.time);
             var pxPerBar = prevX != null ? Math.abs(lastX - prevX) : 8;
-            barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
+            var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
             time = last.time + barsAhead * barSec;
         }
         var newAnchor = { time: time, price: price };
-        if (_mcFsTrendDragState.anchorSide === 'left') {
+        if (dragState.anchorSide === 'left') {
             tl.leftP = newAnchor;
         } else {
             tl.rightP = newAnchor;
@@ -949,79 +949,148 @@
         // Re-normalise if anchors have crossed (compare by time)
         if (tl.leftP.time > tl.rightP.time) {
             var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
-            _mcFsTrendDragState.anchorSide = _mcFsTrendDragState.anchorSide === 'left' ? 'right' : 'left';
+            dragState.anchorSide = dragState.anchorSide === 'left' ? 'right' : 'left';
         }
         tl.p1 = tl.leftP; tl.p2 = tl.rightP;
         // Drive the SVG preview instantly (no LW canvas re-render on every move)
-        if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _mcFsTrendDragState.fixedX != null) {
-            _mcFsTrendSvgLine.setAttribute('x2', lx);
-            _mcFsTrendSvgLine.setAttribute('y2', ly);
+        if (cfg.svgOverlay && cfg.svgLine && dragState.fixedX != null) {
+            cfg.svgLine.setAttribute('x2', lx);
+            cfg.svgLine.setAttribute('y2', ly);
         }
     }
 
-    function _onTrendAnchorDragEnd() {
-        var state = _mcFsTrendDragState;
-        _mcFsTrendDragState = null;
-        document.removeEventListener('mousemove', _onTrendAnchorDragMove);
-        document.removeEventListener('mouseup',   _onTrendAnchorDragEnd);
-        if (_mcFsTrendContRef) _mcFsTrendContRef.style.cursor = '';
+    function _onTrendAnchorDragEndCore(cfg) {
+        var state = cfg.getDragState();
+        cfg.setDragState(null);
+        document.removeEventListener('mousemove', cfg.moveHandler);
+        document.removeEventListener('mouseup',   cfg.endHandler);
+        if (cfg.contRef) cfg.contRef.style.cursor = '';
         // Re-enable canvas draw and commit final position
         if (state) {
-            var tl = _mcFsTrendlines[state.tlIdx];
+            var tl = cfg.trendlines[state.tlIdx];
             if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
         }
         // Hide SVG after two rAFs so LW canvas has time to paint the committed line
         requestAnimationFrame(function() {
             requestAnimationFrame(function() {
-                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+                if (cfg.svgOverlay) cfg.svgOverlay.style.display = 'none';
             });
         });
     }
 
-    // ── mc-fs Measure drag handlers ──────────────────────────────────────────
-    function _onMcFsMeasureDragMove(evt) {
-        if (!_mcFsMeasureActive || !_mcFsTrendContRef || !_mcFsChart || !_mcFsCandle) return;
-        if (_mcFsMeasureRafId) return; // already a frame queued — skip raw event
-        var cx = evt.clientX, cy = evt.clientY;
-        _mcFsMeasureRafId = requestAnimationFrame(function() {
-            _mcFsMeasureRafId = null;
-            if (!_mcFsMeasureActive) return;
-            var r  = _mcFsTrendContRef.getBoundingClientRect();
-            var lx = cx - r.left;
-            var ly = cy - r.top;
-            var eP = _mcFsCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
-            if (eP == null || eT == null) return;
-            _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
-                _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
-                _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+    function _onTrendAnchorDragMove(evt) {
+        _onTrendAnchorDragMoveCore(evt, {
+            dragState:  _mcFsTrendDragState,
+            chart:      _mcFsChart,
+            candle:     _mcFsCandle,
+            contRef:    _mcFsTrendContRef,
+            trendlines: _mcFsTrendlines,
+            ohlcv:      _mcFsOhlcv,
+            svgOverlay: _mcFsTrendSvgOverlay,
+            svgLine:    _mcFsTrendSvgLine
         });
     }
-    function _onMcFsMeasureDragEnd() {
-        document.removeEventListener('mousemove', _onMcFsMeasureDragMove);
-        document.removeEventListener('mouseup',   _onMcFsMeasureDragEnd);
-        _mcFsMeasureActive = false;
+
+    function _onTrendAnchorDragEnd() {
+        _onTrendAnchorDragEndCore({
+            getDragState: function() { return _mcFsTrendDragState; },
+            setDragState: function(v) { _mcFsTrendDragState = v; },
+            trendlines:   _mcFsTrendlines,
+            contRef:      _mcFsTrendContRef,
+            svgOverlay:   _mcFsTrendSvgOverlay,
+            moveHandler:  _onTrendAnchorDragMove,
+            endHandler:   _onTrendAnchorDragEnd
+        });
+    }
+
+    // ── Measure-tool drag core — used by fullscreen/watchlist/alerts ─────────
+    function _onMeasureDragMoveCore(evt, cfg) {
+        if (!cfg.getActive() || !cfg.contRef || !cfg.chart || !cfg.candle) return;
+        if (cfg.getRafId()) return; // already a frame queued — skip raw event
+        var cx = evt.clientX, cy = evt.clientY;
+        cfg.setRafId(requestAnimationFrame(function() {
+            cfg.setRafId(null);
+            if (!cfg.getActive()) return;
+            var r  = cfg.contRef.getBoundingClientRect();
+            var lx = cx - r.left;
+            var ly = cy - r.top;
+            var eP = cfg.candle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(cfg.chart, cfg.ohlcv, lx);
+            if (eP == null || eT == null) return;
+            var result = _computeMeasureResult(cfg.ohlcv, cfg.getStart().time, cfg.getStart().price, eT, eP);
+            cfg.setResult(result);
+            _renderMeasureOverlay(cfg.chart, cfg.candle, cfg.contRef,
+                cfg.svgOverlay, cfg.svgRect, cfg.hLine, cfg.infoDiv, result);
+        }));
+    }
+    function _onMeasureDragEndCore(cfg) {
+        document.removeEventListener('mousemove', cfg.moveHandler);
+        document.removeEventListener('mouseup',   cfg.endHandler);
+        cfg.setActive(false);
         // Result stays visible; cleared on next non-measure click or Escape
     }
     // Two-click preview: fires on free mousemove after first Shift+click (no button held)
-    function _onMcFsMeasurePreviewMove(evt) {
-        if (!_mcFsMeasureActive || _mcFsMeasurePhase !== 1 || !_mcFsTrendContRef || !_mcFsChart || !_mcFsCandle) return;
-        if (_mcFsMeasureRafId) return;
+    function _onMeasurePreviewMoveCore(evt, cfg) {
+        if (!cfg.getActive() || cfg.getPhase() !== 1 || !cfg.contRef || !cfg.chart || !cfg.candle) return;
+        if (cfg.getRafId()) return;
         var cx = evt.clientX, cy = evt.clientY;
-        _mcFsMeasureRafId = requestAnimationFrame(function() {
-            _mcFsMeasureRafId = null;
-            if (!_mcFsMeasureActive || _mcFsMeasurePhase !== 1) return;
-            var r  = _mcFsTrendContRef.getBoundingClientRect();
+        cfg.setRafId(requestAnimationFrame(function() {
+            cfg.setRafId(null);
+            if (!cfg.getActive() || cfg.getPhase() !== 1) return;
+            var r  = cfg.contRef.getBoundingClientRect();
             var lx = cx - r.left;
             var ly = cy - r.top;
-            var eP = _mcFsCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, lx);
+            var eP = cfg.candle.coordinateToPrice(ly);
+            var eT = _measureGetTimeAtX(cfg.chart, cfg.ohlcv, lx);
             if (eP == null || eT == null) return;
-            _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
-                _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
-                _mcFsMeasureInfoDiv, _mcFsMeasureResult);
+            var result = _computeMeasureResult(cfg.ohlcv, cfg.getStart().time, cfg.getStart().price, eT, eP);
+            cfg.setResult(result);
+            _renderMeasureOverlay(cfg.chart, cfg.candle, cfg.contRef,
+                cfg.svgOverlay, cfg.svgRect, cfg.hLine, cfg.infoDiv, result);
+        }));
+    }
+
+    // ── mc-fs Measure drag handlers ──────────────────────────────────────────
+    function _onMcFsMeasureDragMove(evt) {
+        _onMeasureDragMoveCore(evt, {
+            getActive:  function() { return _mcFsMeasureActive; },
+            contRef:    _mcFsTrendContRef,
+            chart:      _mcFsChart,
+            candle:     _mcFsCandle,
+            ohlcv:      _mcFsOhlcv,
+            getStart:   function() { return _mcFsMeasureStart; },
+            getRafId:   function() { return _mcFsMeasureRafId; },
+            setRafId:   function(v) { _mcFsMeasureRafId = v; },
+            setResult:  function(v) { _mcFsMeasureResult = v; },
+            svgOverlay: _mcFsMeasureSvgOverlay,
+            svgRect:    _mcFsMeasureSvgRect,
+            hLine:      _mcFsMeasureHLine,
+            infoDiv:    _mcFsMeasureInfoDiv
+        });
+    }
+    function _onMcFsMeasureDragEnd() {
+        _onMeasureDragEndCore({
+            moveHandler: _onMcFsMeasureDragMove,
+            endHandler:  _onMcFsMeasureDragEnd,
+            setActive:   function(v) { _mcFsMeasureActive = v; }
+        });
+    }
+    function _onMcFsMeasurePreviewMove(evt) {
+        _onMeasurePreviewMoveCore(evt, {
+            getActive:  function() { return _mcFsMeasureActive; },
+            getPhase:   function() { return _mcFsMeasurePhase; },
+            contRef:    _mcFsTrendContRef,
+            chart:      _mcFsChart,
+            candle:     _mcFsCandle,
+            ohlcv:      _mcFsOhlcv,
+            getStart:   function() { return _mcFsMeasureStart; },
+            getRafId:   function() { return _mcFsMeasureRafId; },
+            setRafId:   function(v) { _mcFsMeasureRafId = v; },
+            setResult:  function(v) { _mcFsMeasureResult = v; },
+            svgOverlay: _mcFsMeasureSvgOverlay,
+            svgRect:    _mcFsMeasureSvgRect,
+            hLine:      _mcFsMeasureHLine,
+            infoDiv:    _mcFsMeasureInfoDiv
         });
     }
 
@@ -1030,145 +1099,151 @@
     // live extended-line preview; second click finalises.  Uses raw DOM mousedown
     // in capture phase so LW Charts never sees the event and cannot start a pan.
 
-    function _onTrendMouseDown(evt) {
-        if (evt.button !== 0 || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
+    // ── Shared trendline mousedown core — used by all three charts. Handles the
+    // measure-tool intercept, anchor-drag pickup, line select/deselect, and the
+    // two-click draw flow. (alerts.js calls this cross-file.)
+    function _onTrendMouseDownCore(evt, cfg) {
+        if (evt.button !== 0 || !cfg.candle || !cfg.chart || !cfg.contRef) return;
 
         // ── Measure tool intercept ───────────────────────────────────────────
-        if ((evt.shiftKey || _mcFsMeasureMode) && !_mcFsTrendDragState) {
+        if ((evt.shiftKey || cfg.getMeasureMode()) && !cfg.getDragState()) {
             evt.stopPropagation();
             evt.preventDefault();
-            if (_mcFsTrendDraw.active) {
-                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
-                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+            if (cfg.trendDraw.active) {
+                cfg.trendDraw.active = false; cfg.trendDraw.startTime = null; cfg.trendDraw.startPrice = null;
+                if (cfg.svgOverlay) cfg.svgOverlay.style.display = 'none';
             }
-            var _mRect = _mcFsTrendContRef.getBoundingClientRect();
+            var _mRect = cfg.contRef.getBoundingClientRect();
             var _mlx   = evt.clientX - _mRect.left;
             var _mly   = evt.clientY - _mRect.top;
-            var _mP    = _mcFsCandle.coordinateToPrice(_mly);
-            var _mT    = _measureGetTimeAtX(_mcFsChart, _mcFsOhlcv, _mlx);
+            var _mP    = cfg.candle.coordinateToPrice(_mly);
+            var _mT    = _measureGetTimeAtX(cfg.chart, cfg.ohlcv, _mlx);
             if (_mP == null || _mT == null) return;
-            var _mSi   = _barIdxByTime(_mcFsOhlcv, _mT);
+            var _mSi   = _barIdxByTime(cfg.ohlcv, _mT);
 
-            if (_mcFsMeasurePhase === 1) {
+            if (cfg.getMeasurePhase() === 1) {
                 // Second click — finalise at current cursor position
-                _mcFsMeasureResult = _computeMeasureResult(_mcFsOhlcv, _mcFsMeasureStart.time, _mcFsMeasureStart.price, _mT, _mP);
-                _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
-                    _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
-                    _mcFsMeasureInfoDiv, _mcFsMeasureResult);
-                _mcFsMeasureActive = false;
-                _mcFsMeasurePhase  = 0;
-                if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
+                var result = _computeMeasureResult(cfg.ohlcv, cfg.getMeasureStart().time, cfg.getMeasureStart().price, _mT, _mP);
+                cfg.setMeasureResult(result);
+                _renderMeasureOverlay(cfg.chart, cfg.candle, cfg.contRef,
+                    cfg.measureSvgOverlay, cfg.measureSvgRect, cfg.measureHLine,
+                    cfg.measureInfoDiv, result);
+                cfg.setMeasureActive(false);
+                cfg.setMeasurePhase(0);
+                if (cfg.getMeasureRafId()) { cancelAnimationFrame(cfg.getMeasureRafId()); cfg.setMeasureRafId(null); }
+                document.removeEventListener('mousemove', cfg.measurePreviewMoveHandler);
                 return;
             }
 
             // First click — set anchor, enter free-move preview phase
-            _mcFsMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
-            _mcFsMeasureResult = null;
-            _mcFsMeasureActive = true;
-            _mcFsMeasurePhase  = 1;
-            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-            document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove); // clear stale
-            document.addEventListener('mousemove', _onMcFsMeasurePreviewMove);
+            cfg.setMeasureStart({ time: _mT, price: _mP, barIdx: _mSi });
+            cfg.setMeasureResult(null);
+            cfg.setMeasureActive(true);
+            cfg.setMeasurePhase(1);
+            _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
+            document.removeEventListener('mousemove', cfg.measurePreviewMoveHandler); // clear stale
+            document.addEventListener('mousemove', cfg.measurePreviewMoveHandler);
             return;
         }
 
         // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
-        if (_mcFsMeasurePhase === 1) {
-            _mcFsMeasureActive = false;
-            _mcFsMeasurePhase  = 0;
-            if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
-            document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
-            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-            _mcFsMeasureResult = null;
-        } else if (_mcFsMeasureResult && !_mcFsMeasureMode) {
-            _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-            _mcFsMeasureResult = null;
+        if (cfg.getMeasurePhase() === 1) {
+            cfg.setMeasureActive(false);
+            cfg.setMeasurePhase(0);
+            if (cfg.getMeasureRafId()) { cancelAnimationFrame(cfg.getMeasureRafId()); cfg.setMeasureRafId(null); }
+            document.removeEventListener('mousemove', cfg.measurePreviewMoveHandler);
+            _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
+            cfg.setMeasureResult(null);
+        } else if (cfg.getMeasureResult() && !cfg.getMeasureMode()) {
+            _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
+            cfg.setMeasureResult(null);
         }
 
         // ── Phase 1: anchor drag — check selected line first, then all others
-        if (!_mcFsTrendDraw.active) {
+        if (!cfg.trendDraw.active) {
             var dragTlIdx = -1, anchorSide = null;
             // Prefer the already-selected line so its anchors take priority
-            if (_mcFsSelectedTrendlineIdx !== -1) {
-                anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
-                if (anchorSide) dragTlIdx = _mcFsSelectedTrendlineIdx;
+            var selIdx = cfg.getSelectedIdx();
+            if (selIdx !== -1) {
+                anchorSide = cfg.anchorHitTest(evt.clientX, evt.clientY, selIdx);
+                if (anchorSide) dragTlIdx = selIdx;
             }
             // Fall back to any other line's anchors
             if (dragTlIdx === -1) {
-                for (var _di = 0; _di < _mcFsTrendlines.length; _di++) {
-                    var _as = _anchorHitTest(evt.clientX, evt.clientY, _di);
+                for (var _di = 0; _di < cfg.trendlines.length; _di++) {
+                    var _as = cfg.anchorHitTest(evt.clientX, evt.clientY, _di);
                     if (_as) { dragTlIdx = _di; anchorSide = _as; break; }
                 }
             }
             if (dragTlIdx !== -1) {
                 evt.stopPropagation();
                 // Auto-select the line if it wasn't already selected
-                if (_mcFsSelectedTrendlineIdx !== dragTlIdx) {
-                    _deselectAllTrendlines();
-                    _mcFsSelectedTrendlineIdx = dragTlIdx;
-                    _mcFsTrendlines[dragTlIdx].selected = true;
-                    if (_mcFsTrendlines[dragTlIdx].requestUpdate) _mcFsTrendlines[dragTlIdx].requestUpdate();
+                if (cfg.getSelectedIdx() !== dragTlIdx) {
+                    cfg.deselectAllTrendlines();
+                    cfg.setSelectedIdx(dragTlIdx);
+                    cfg.trendlines[dragTlIdx].selected = true;
+                    if (cfg.trendlines[dragTlIdx].requestUpdate) cfg.trendlines[dragTlIdx].requestUpdate();
                 }
-                var _dragTl   = _mcFsTrendlines[dragTlIdx];
+                var _dragTl   = cfg.trendlines[dragTlIdx];
                 var _fixedP   = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
                 // Use _mcFsTimeToX so future-anchored fixed points also resolve correctly
-                var _fixedX   = _mcFsTimeToX(_mcFsChart, _mcFsOhlcv, _fixedP.time);
-                var _fixedY   = _mcFsCandle.priceToCoordinate(_fixedP.price);
-                _mcFsTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
+                var _fixedX   = _mcFsTimeToX(cfg.chart, cfg.ohlcv, _fixedP.time);
+                var _fixedY   = cfg.candle.priceToCoordinate(_fixedP.price);
+                cfg.setDragState({ tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY });
                 // Suppress the canvas line so only the SVG preview is visible during drag
                 _dragTl.dragging = true;
                 if (_dragTl.requestUpdate) _dragTl.requestUpdate();
                 // Kick off SVG drag-preview immediately (same overlay used while drawing)
-                if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _fixedX != null && _fixedY != null) {
-                    var _dRect = _mcFsTrendContRef.getBoundingClientRect();
+                if (cfg.svgOverlay && cfg.svgLine && _fixedX != null && _fixedY != null) {
+                    var _dRect = cfg.contRef.getBoundingClientRect();
                     var _curX  = evt.clientX - _dRect.left;
                     var _curY  = evt.clientY - _dRect.top;
-                    _mcFsTrendSvgLine.setAttribute('x1', _fixedX); _mcFsTrendSvgLine.setAttribute('y1', _fixedY);
-                    _mcFsTrendSvgLine.setAttribute('x2', _curX);   _mcFsTrendSvgLine.setAttribute('y2', _curY);
-                    _mcFsTrendSvgOverlay.style.display = '';
+                    cfg.svgLine.setAttribute('x1', _fixedX); cfg.svgLine.setAttribute('y1', _fixedY);
+                    cfg.svgLine.setAttribute('x2', _curX);   cfg.svgLine.setAttribute('y2', _curY);
+                    cfg.svgOverlay.style.display = '';
                 }
-                document.addEventListener('mousemove', _onTrendAnchorDragMove);
-                document.addEventListener('mouseup',   _onTrendAnchorDragEnd);
+                document.addEventListener('mousemove', cfg.dragMoveHandler);
+                document.addEventListener('mouseup',   cfg.dragEndHandler);
                 return;
             }
         }
 
         // ── Phase 2: hit-test lines (select / deselect)
-        if (!_mcFsTrendDraw.active) {
-            var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
+        if (!cfg.trendDraw.active) {
+            var hitIdx = cfg.trendlineHitTest(evt.clientX, evt.clientY);
             if (hitIdx !== -1) {
                 evt.stopPropagation();
-                if (_mcFsSelectedTrendlineIdx !== -1 && _mcFsSelectedTrendlineIdx !== hitIdx) {
-                    var prev = _mcFsTrendlines[_mcFsSelectedTrendlineIdx];
+                var curSel = cfg.getSelectedIdx();
+                if (curSel !== -1 && curSel !== hitIdx) {
+                    var prev = cfg.trendlines[curSel];
                     if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
                 }
-                _mcFsSelectedTrendlineIdx = hitIdx;
-                _mcFsTrendlines[hitIdx].selected = true;
-                if (_mcFsTrendlines[hitIdx].requestUpdate) _mcFsTrendlines[hitIdx].requestUpdate();
+                cfg.setSelectedIdx(hitIdx);
+                cfg.trendlines[hitIdx].selected = true;
+                if (cfg.trendlines[hitIdx].requestUpdate) cfg.trendlines[hitIdx].requestUpdate();
                 return;
             }
             // No hit — deselect
-            if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
+            if (cfg.getSelectedIdx() !== -1) cfg.deselectAllTrendlines();
         }
 
         // ── Phase 3: drawing mode guard
-        if (!_mcFsTrendlineMode) return;
+        if (!cfg.getTrendlineMode()) return;
         evt.stopPropagation();
 
-        var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        var rect  = cfg.contRef.getBoundingClientRect();
         var lx    = evt.clientX - rect.left;
         var ly    = evt.clientY - rect.top;
-        var price = _mcFsCandle.coordinateToPrice(ly);
+        var price = cfg.candle.coordinateToPrice(ly);
         // Within the bar area, use the crosshair time (reliable, snaps to nearest bar).
         // Only switch to pixel extrapolation when the cursor is visually past the last bar.
         var time  = null;
-        if (_mcFsOhlcv.length >= 2) {
-            var _ohlcv   = _mcFsOhlcv;
+        if (cfg.ohlcv.length >= 2) {
+            var _ohlcv   = cfg.ohlcv;
             var _last    = _ohlcv[_ohlcv.length - 1];
             var _prev    = _ohlcv[_ohlcv.length - 2];
-            var _lastX   = _mcFsChart.timeScale().timeToCoordinate(_last.time);
-            var _prevX   = _mcFsChart.timeScale().timeToCoordinate(_prev.time);
+            var _lastX   = cfg.chart.timeScale().timeToCoordinate(_last.time);
+            var _prevX   = cfg.chart.timeScale().timeToCoordinate(_prev.time);
             var _pxPerBar = (_lastX != null && _prevX != null) ? Math.abs(_lastX - _prevX) : 8;
             if (_lastX != null && lx > _lastX + _pxPerBar * 0.5) {
                 // Cursor is past the last bar — extrapolate a future timestamp
@@ -1177,72 +1252,133 @@
                 time = _last.time + _barsAhead * _barSec;
             } else {
                 // Within bar area — crosshair time is reliable
-                time = _mcFsLastCrosshairTime || _last.time;
+                time = cfg.getLastCrosshairTime() || _last.time;
             }
         }
         if (price == null || time == null) return;
-        if (!_mcFsTrendDraw.active) {
+        if (!cfg.trendDraw.active) {
             // ── First click: set start anchor ──────────────────────────────
-            _mcFsTrendDraw.active     = true;
-            _mcFsTrendDraw.startTime  = time;
-            _mcFsTrendDraw.startPrice = price;
-            if (_mcFsTrendSvgOverlay && _mcFsTrendSvgLine && _mcFsChart) {
-                var ax = _mcFsChart.timeScale().timeToCoordinate(time);
-                var ay = _mcFsCandle.priceToCoordinate(price);
+            cfg.trendDraw.active     = true;
+            cfg.trendDraw.startTime  = time;
+            cfg.trendDraw.startPrice = price;
+            if (cfg.svgOverlay && cfg.svgLine && cfg.chart) {
+                var ax = cfg.chart.timeScale().timeToCoordinate(time);
+                var ay = cfg.candle.priceToCoordinate(price);
                 if (ax != null && ay != null) {
-                    _mcFsTrendSvgLine.setAttribute('x1', ax); _mcFsTrendSvgLine.setAttribute('y1', ay);
-                    _mcFsTrendSvgLine.setAttribute('x2', ax); _mcFsTrendSvgLine.setAttribute('y2', ay);
+                    cfg.svgLine.setAttribute('x1', ax); cfg.svgLine.setAttribute('y1', ay);
+                    cfg.svgLine.setAttribute('x2', ax); cfg.svgLine.setAttribute('y2', ay);
                 }
-                _mcFsTrendSvgOverlay.style.display = '';
+                cfg.svgOverlay.style.display = '';
             }
         } else {
             // ── Second click: finalise ──────────────────────────────────────
-            var p1 = { time: _mcFsTrendDraw.startTime, price: _mcFsTrendDraw.startPrice };
-            _mcFsTrendDraw.active = false;
-            _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
-            if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
-            if (time !== p1.time) _addFsTrendline(p1, { time: time, price: price });
+            var p1 = { time: cfg.trendDraw.startTime, price: cfg.trendDraw.startPrice };
+            cfg.trendDraw.active = false;
+            cfg.trendDraw.startTime = null; cfg.trendDraw.startPrice = null;
+            if (cfg.svgOverlay) cfg.svgOverlay.style.display = 'none';
+            if (time !== p1.time) cfg.addTrendline(p1, { time: time, price: price });
             // Auto-deactivate: turn button off after trendline is drawn
-            _mcFsTrendlineMode = false;
-            var tDoneBtn = document.getElementById('mc-fs-trendline-btn');
+            cfg.setTrendlineMode(false);
+            var tDoneBtn = document.getElementById(cfg.doneBtnId);
             if (tDoneBtn) tDoneBtn.classList.remove('active');
         }
+    }
+
+    function _onTrendMouseDown(evt) {
+        _onTrendMouseDownCore(evt, {
+            candle:  _mcFsCandle,
+            chart:   _mcFsChart,
+            contRef: _mcFsTrendContRef,
+            getMeasureMode:    function() { return _mcFsMeasureMode; },
+            getDragState:      function() { return _mcFsTrendDragState; },
+            setDragState:      function(v) { _mcFsTrendDragState = v; },
+            trendDraw:         _mcFsTrendDraw,
+            svgOverlay:        _mcFsTrendSvgOverlay,
+            svgLine:           _mcFsTrendSvgLine,
+            ohlcv:             _mcFsOhlcv,
+            getMeasurePhase:   function() { return _mcFsMeasurePhase; },
+            setMeasurePhase:   function(v) { _mcFsMeasurePhase = v; },
+            getMeasureResult:  function() { return _mcFsMeasureResult; },
+            setMeasureResult:  function(v) { _mcFsMeasureResult = v; },
+            setMeasureActive:  function(v) { _mcFsMeasureActive = v; },
+            getMeasureRafId:   function() { return _mcFsMeasureRafId; },
+            setMeasureRafId:   function(v) { _mcFsMeasureRafId = v; },
+            getMeasureStart:   function() { return _mcFsMeasureStart; },
+            setMeasureStart:   function(v) { _mcFsMeasureStart = v; },
+            measureSvgOverlay: _mcFsMeasureSvgOverlay,
+            measureSvgRect:    _mcFsMeasureSvgRect,
+            measureHLine:      _mcFsMeasureHLine,
+            measureInfoDiv:    _mcFsMeasureInfoDiv,
+            measurePreviewMoveHandler: _onMcFsMeasurePreviewMove,
+            getSelectedIdx:    function() { return _mcFsSelectedTrendlineIdx; },
+            setSelectedIdx:    function(v) { _mcFsSelectedTrendlineIdx = v; },
+            trendlines:        _mcFsTrendlines,
+            deselectAllTrendlines: _deselectAllTrendlines,
+            anchorHitTest:     _anchorHitTest,
+            trendlineHitTest:  _trendlineHitTest,
+            dragMoveHandler:   _onTrendAnchorDragMove,
+            dragEndHandler:    _onTrendAnchorDragEnd,
+            getTrendlineMode:  function() { return _mcFsTrendlineMode; },
+            setTrendlineMode:  function(v) { _mcFsTrendlineMode = v; },
+            getLastCrosshairTime: function() { return _mcFsLastCrosshairTime; },
+            addTrendline:      _addFsTrendline,
+            doneBtnId:         'mc-fs-trendline-btn'
+        });
     }
 
     // ── Trendline SVG preview: mousemove drives the overlay line ──────────
     // Reads raw pixel coords and uses timeToCoordinate/priceToCoordinate to
     // place the anchor — zero LW Charts canvas re-render on every move.
-    function _onTrendMouseMove(evt) {
+    // Shared trendline-draw-preview / hover-cursor core — used by all three charts
+    function _onTrendMouseMoveCore(evt, cfg) {
         // SVG preview during active draw
-        if (_mcFsTrendDraw.active) {
-            if (!_mcFsTrendSvgOverlay || !_mcFsTrendSvgLine || !_mcFsCandle || !_mcFsChart || !_mcFsTrendContRef) return;
-            var rect  = _mcFsTrendContRef.getBoundingClientRect();
+        if (cfg.getTrendDraw().active) {
+            if (!cfg.svgOverlay || !cfg.svgLine || !cfg.candle || !cfg.chart || !cfg.contRef) return;
+            var rect  = cfg.contRef.getBoundingClientRect();
             var curX  = evt.clientX - rect.left;
             var curY  = evt.clientY - rect.top;
-            var startTime = _mcFsTrendDraw.startTime;
+            var startTime = cfg.getTrendDraw().startTime;
             if (!startTime) return;
-            var x1 = _mcFsChart.timeScale().timeToCoordinate(startTime);
-            var y1 = _mcFsCandle.priceToCoordinate(_mcFsTrendDraw.startPrice);
+            var x1 = cfg.chart.timeScale().timeToCoordinate(startTime);
+            var y1 = cfg.candle.priceToCoordinate(cfg.getTrendDraw().startPrice);
             if (x1 == null || y1 == null) return;
-            _mcFsTrendSvgLine.setAttribute('x1', x1);
-            _mcFsTrendSvgLine.setAttribute('y1', y1);
-            _mcFsTrendSvgLine.setAttribute('x2', curX);
-            _mcFsTrendSvgLine.setAttribute('y2', curY);
+            cfg.svgLine.setAttribute('x1', x1);
+            cfg.svgLine.setAttribute('y1', y1);
+            cfg.svgLine.setAttribute('x2', curX);
+            cfg.svgLine.setAttribute('y2', curY);
             return;
         }
         // Cursor feedback when not drawing
-        if (_mcFsTrendlines.length && _mcFsTrendContRef && !_mcFsTrendlineMode) {
+        if (cfg.trendlines.length && cfg.contRef && !cfg.getTrendlineMode()) {
             // Don't interfere while an anchor drag is in progress
-            if (_mcFsTrendDragState) return;
+            if (cfg.getDragState()) return;
             // Grab cursor near anchors of the selected trendline
-            if (_mcFsSelectedTrendlineIdx !== -1) {
-                var anchorSide = _anchorHitTest(evt.clientX, evt.clientY, _mcFsSelectedTrendlineIdx);
-                if (anchorSide) { _mcFsTrendContRef.style.cursor = 'grab'; return; }
+            var selIdx = cfg.getSelectedIdx();
+            if (selIdx !== -1) {
+                var anchorSide = cfg.anchorHitTest(evt.clientX, evt.clientY, selIdx);
+                if (anchorSide) { cfg.contRef.style.cursor = 'grab'; return; }
             }
             // Pointer cursor on any line body
-            var hitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
-            _mcFsTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
+            var hitIdx = cfg.trendlineHitTest(evt.clientX, evt.clientY);
+            cfg.contRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
         }
+    }
+
+    function _onTrendMouseMove(evt) {
+        _onTrendMouseMoveCore(evt, {
+            getTrendDraw:    function() { return _mcFsTrendDraw; },
+            svgOverlay:      _mcFsTrendSvgOverlay,
+            svgLine:         _mcFsTrendSvgLine,
+            candle:          _mcFsCandle,
+            chart:           _mcFsChart,
+            contRef:         _mcFsTrendContRef,
+            trendlines:      _mcFsTrendlines,
+            getTrendlineMode: function() { return _mcFsTrendlineMode; },
+            getDragState:    function() { return _mcFsTrendDragState; },
+            getSelectedIdx:  function() { return _mcFsSelectedTrendlineIdx; },
+            anchorHitTest:   _anchorHitTest,
+            trendlineHitTest: _trendlineHitTest
+        });
     }
 
     // ── Fullscreen right-click alert context menu ──────────────────────────
@@ -1252,35 +1388,45 @@
     var _mcFsCtxAvwap      = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _mcFsCtxAttached   = false;
 
+    // Shared "hide the ctx menu" helper — used by all three dismissCtx wrappers
+    function _hideCtxMenu(menuId) {
+        var el = document.getElementById(menuId);
+        if (el) el.style.display = 'none';
+    }
+
     function _mcFsDismissCtx() {
-        document.getElementById('mc-fs-ctx-menu').style.display = 'none';
+        _hideCtxMenu('mc-fs-ctx-menu');
         _mcFsCtxPrice     = null;
         _mcFsCtxMa        = null;
         _mcFsCtxTrendline = null;
         _mcFsCtxAvwap     = null;
     }
 
-    window.mcFsCtxAlert = function(direction) {
-        if (_mcFsCtxAvwap) {
-            var av = _mcFsCtxAvwap;
-            _mcFsDismissCtx();
-            if (!_mcFsSym) return;
-            window.alAddAvwapAlert(_mcFsSym, av.anchorTime, direction);
+    // Shared "resolve the right-click menu choice into an alert" core — used by
+    // all three ctx-alert window functions (alerts.js calls this cross-file).
+    function _ctxAlertCore(direction, cfg) {
+        var tl = cfg.getCtxTrendline();
+        if (tl) {
+            cfg.dismiss();
+            var sym = cfg.getSym();
+            if (!sym) return;
+            window.alAddTrendlineAlert(sym, tl.p1, tl.p2, direction);
             return;
         }
-        if (_mcFsCtxTrendline) {
-            var tl = _mcFsCtxTrendline;
-            _mcFsDismissCtx();
-            if (!_mcFsSym) return;
-            window.alAddTrendlineAlert(_mcFsSym, tl.p1, tl.p2, direction);
+        var av = cfg.getCtxAvwap();
+        if (av) {
+            cfg.dismiss();
+            var avSym = cfg.getSym();
+            if (!avSym) return;
+            window.alAddAvwapAlert(avSym, av.anchorTime, direction);
             return;
         }
-        if (_mcFsCtxMa) {
-            // MA alert — price crosses above/below a specific moving average
-            var maKey = _mcFsCtxMa;
-            _mcFsDismissCtx();
-            if (!_mcFsSym) return;
-            alShowForm(_mcFsSym);
+        var maKey = cfg.getCtxMa();
+        if (maKey) {
+            cfg.dismiss();
+            var maSym = cfg.getSym();
+            if (!maSym) return;
+            alShowForm(maSym);
             setTimeout(function() {
                 document.getElementById('al-input-type').value = 'ma';
                 if (typeof alFormTypeChange === 'function') alFormTypeChange();
@@ -1291,12 +1437,11 @@
                 document.getElementById('al-input-ma').focus();
             }, 60);
         } else {
-            // Price alert
-            var capturedPrice = _mcFsCtxPrice;
-            _mcFsDismissCtx();
-            if (!_mcFsSym || capturedPrice == null) return;
-            var price = parseFloat(capturedPrice.toFixed(2));
-            alShowForm(_mcFsSym);
+            var price = cfg.getCtxPrice();
+            cfg.dismiss();
+            var pSym = cfg.getSym();
+            if (!pSym || price == null) return;
+            alShowForm(pSym);
             setTimeout(function() {
                 document.getElementById('al-input-type').value = 'price';
                 if (typeof alFormTypeChange === 'function') alFormTypeChange();
@@ -1305,137 +1450,164 @@
                 document.getElementById('al-input-price').focus();
             }, 60);
         }
+    }
+
+    window.mcFsCtxAlert = function(direction) {
+        _ctxAlertCore(direction, {
+            getCtxTrendline: function() { return _mcFsCtxTrendline; },
+            getCtxAvwap:     function() { return _mcFsCtxAvwap; },
+            getCtxMa:        function() { return _mcFsCtxMa; },
+            getCtxPrice:     function() { return _mcFsCtxPrice; },
+            getSym:          function() { return _mcFsSym; },
+            dismiss:         _mcFsDismissCtx
+        });
     };
 
-    function _mcFsAttachCtxMenu() {
-        if (_mcFsCtxAttached) return;
-        _mcFsCtxAttached = true;
-        var overlay  = document.getElementById('mc-fullscreen-overlay');
-        var chartDiv = document.getElementById('mc-fullscreen-chart');
-        // Attach to the overlay (fixed parent) so LW Charts' internal canvas
-        // handlers can never swallow the event before we see it.
-        // The .contains() guard ensures the header/settings bar don't trigger it.
-        overlay.addEventListener('contextmenu', function(evt) {
+    // ── Shared right-click context-menu core — used by all three charts.
+    // IMPORTANT: the attach wrapper only runs its setup once (guarded by
+    // getAttached/setAttached); the actual 'contextmenu' listener it registers
+    // here persists across chart rebuilds. So every piece of state that gets
+    // *reassigned* on a chart rebuild (chart, candle, trendlines, vwapSeries,
+    // ohlcv, maDataMap, maSeries, svgOverlay, sym, ...) MUST be read through a
+    // getter function each time the listener fires — capturing the value
+    // directly here would freeze it at first-attach time and go stale the
+    // moment the user switches symbols. (alerts.js calls this cross-file.)
+    function _attachCtxMenuCore(cfg) {
+        if (cfg.getAttached()) return;
+        cfg.setAttached(true);
+        var parentEl = document.getElementById(cfg.parentElId);
+        var chartDiv = document.getElementById(cfg.chartDivId);
+        parentEl.addEventListener('contextmenu', function(evt) {
             if (!chartDiv.contains(evt.target)) return; // header / settings bar click
             evt.preventDefault();
             evt.stopPropagation();
             // Toggle off data tooltip on right-click
-            if (_mcFsTooltipEnabled) { _mcFsTooltipEnabled = false; var _ttBtn = document.getElementById('mc-fs-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
+            if (cfg.getTooltipEnabled()) {
+                cfg.setTooltipEnabled(false);
+                var _ttBtn = document.getElementById(cfg.tooltipBtnId);
+                if (_ttBtn) _ttBtn.classList.remove('active');
+                if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
+            }
             // Right-click: cancel active measurement first (no context menu shown)
-            if (_mcFsMeasurePhase === 1) {
-                _mcFsMeasureActive = false;
-                _mcFsMeasurePhase  = 0;
-                if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
-                _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-                _mcFsMeasureResult = null;
+            if (cfg.getMeasurePhase() === 1) {
+                cfg.setMeasureActive(false);
+                cfg.setMeasurePhase(0);
+                if (cfg.getMeasureRafId()) { cancelAnimationFrame(cfg.getMeasureRafId()); cfg.setMeasureRafId(null); }
+                document.removeEventListener('mousemove', cfg.measurePreviewMoveHandler);
+                _hideMeasureOverlay(cfg.getMeasureSvgOverlay(), cfg.getMeasureInfoDiv());
+                cfg.setMeasureResult(null);
                 return;
             }
-            if (_mcFsMeasureResult) {
-                _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
-                _mcFsMeasureResult = null;
+            if (cfg.getMeasureResult()) {
+                _hideMeasureOverlay(cfg.getMeasureSvgOverlay(), cfg.getMeasureInfoDiv());
+                cfg.setMeasureResult(null);
                 return;
             }
             // Right-click while drawing a trendline: cancel draw, skip context menu
-            if (_mcFsTrendDraw.active) {
-                _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
-                if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+            var trendDraw = cfg.trendDraw;
+            if (trendDraw.active) {
+                trendDraw.active = false; trendDraw.startTime = null; trendDraw.startPrice = null;
+                var tdSvg = cfg.getSvgOverlay();
+                if (tdSvg) tdSvg.style.display = 'none';
                 return;
             }
             // Right-click while AVWAP mode is active: turn it off, skip context menu
-            if (_mcFsVwapMode) {
-                _mcFsVwapMode = false;
-                var vBtn = document.getElementById('mc-fs-vwap-btn');
+            if (cfg.getVwapMode()) {
+                cfg.setVwapMode(false);
+                var vBtn = document.getElementById(cfg.vwapBtnId);
                 if (vBtn) vBtn.classList.remove('active');
                 return;
             }
-            if (!_mcFsChart || !_mcFsSym) return;
+            if (!cfg.getChart() || !cfg.getSym()) return;
             // ── Trendline right-click: check hit before price/MA ──────────────
-            var _mcFsTlHitIdx = _trendlineHitTest(evt.clientX, evt.clientY);
-            if (_mcFsTlHitIdx !== -1) {
-                var _mcFsTlHit = _mcFsTrendlines[_mcFsTlHitIdx];
-                _mcFsCtxTrendline = { p1: _mcFsTlHit.leftP, p2: _mcFsTlHit.rightP };
-                _mcFsCtxPrice = null;
-                _mcFsCtxMa    = null;
-                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · Trendline';
-                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above trendline';
-                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below trendline';
-                var _mcFsTlMenu = document.getElementById('mc-fs-ctx-menu');
-                _mcFsTlMenu.style.display = 'block';
-                var mw = _mcFsTlMenu.offsetWidth  || 185;
-                var mh = _mcFsTlMenu.offsetHeight || 90;
+            var _tlHitIdx = cfg.trendlineHitTest(evt.clientX, evt.clientY);
+            if (_tlHitIdx !== -1) {
+                var _tlHit = cfg.getTrendlines()[_tlHitIdx];
+                cfg.setCtxTrendline({ p1: _tlHit.leftP, p2: _tlHit.rightP });
+                cfg.setCtxPrice(null);
+                cfg.setCtxMa(null);
+                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · Trendline';
+                document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above trendline';
+                document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below trendline';
+                var _tlMenu = document.getElementById(cfg.ctxMenuId);
+                _tlMenu.style.display = 'block';
+                var mw = _tlMenu.offsetWidth  || 185;
+                var mh = _tlMenu.offsetHeight || 90;
                 var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
                 var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
-                _mcFsTlMenu.style.left = x + 'px';
-                _mcFsTlMenu.style.top  = y + 'px';
+                _tlMenu.style.left = x + 'px';
+                _tlMenu.style.top  = y + 'px';
                 setTimeout(function() {
-                    function _mcFsTlDismiss(e) {
-                        if (!_mcFsTlMenu.contains(e.target)) {
-                            _mcFsDismissCtx();
-                            document.removeEventListener('mousedown', _mcFsTlDismiss, true);
-                            document.removeEventListener('keydown',   _mcFsTlKd,      true);
+                    function _tlDismiss(e) {
+                        if (!_tlMenu.contains(e.target)) {
+                            cfg.dismissCtx();
+                            document.removeEventListener('mousedown', _tlDismiss, true);
+                            document.removeEventListener('keydown',   _tlKd,      true);
                         }
                     }
-                    function _mcFsTlKd(e) {
+                    function _tlKd(e) {
                         if (e.key === 'Escape') {
-                            _mcFsDismissCtx();
-                            document.removeEventListener('mousedown', _mcFsTlDismiss, true);
-                            document.removeEventListener('keydown',   _mcFsTlKd,      true);
+                            cfg.dismissCtx();
+                            document.removeEventListener('mousedown', _tlDismiss, true);
+                            document.removeEventListener('keydown',   _tlKd,      true);
                         }
                     }
-                    document.addEventListener('mousedown', _mcFsTlDismiss, true);
-                    document.addEventListener('keydown',   _mcFsTlKd,      true);
+                    document.addEventListener('mousedown', _tlDismiss, true);
+                    document.addEventListener('keydown',   _tlKd,      true);
                 }, 0);
                 return;
             }
             // ── AVWAP right-click: check hit before price/MA ──────────────────
-            var _mcFsAvHitIdx = _mcFsVwapHitTest(evt.clientX, evt.clientY);
-            if (_mcFsAvHitIdx !== -1) {
-                var _mcFsAvHit = _mcFsVwapSeries[_mcFsAvHitIdx];
-                _mcFsCtxAvwap     = { anchorIdx: _mcFsAvHit.anchor, anchorTime: _mcFsOhlcv[_mcFsAvHit.anchor] ? _mcFsOhlcv[_mcFsAvHit.anchor].time : null };
-                _mcFsCtxTrendline = null;
-                _mcFsCtxPrice     = null;
-                _mcFsCtxMa        = null;
-                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · AVWAP';
-                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above AVWAP';
-                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below AVWAP';
-                var _mcFsAvMenu = document.getElementById('mc-fs-ctx-menu');
-                _mcFsAvMenu.style.display = 'block';
-                var avMw = _mcFsAvMenu.offsetWidth  || 185;
-                var avMh = _mcFsAvMenu.offsetHeight || 90;
+            var _avHitIdx = cfg.vwapHitTest(evt.clientX, evt.clientY);
+            if (_avHitIdx !== -1) {
+                var vwapSeries = cfg.getVwapSeries();
+                var ohlcv      = cfg.getOhlcv();
+                var _avHit = vwapSeries[_avHitIdx];
+                cfg.setCtxAvwap({ anchorIdx: _avHit.anchor, anchorTime: ohlcv[_avHit.anchor] ? ohlcv[_avHit.anchor].time : null });
+                cfg.setCtxTrendline(null);
+                cfg.setCtxPrice(null);
+                cfg.setCtxMa(null);
+                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · AVWAP';
+                document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above AVWAP';
+                document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below AVWAP';
+                var _avMenu = document.getElementById(cfg.ctxMenuId);
+                _avMenu.style.display = 'block';
+                var avMw = _avMenu.offsetWidth  || 185;
+                var avMh = _avMenu.offsetHeight || 90;
                 var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
                 var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
-                _mcFsAvMenu.style.left = avX + 'px';
-                _mcFsAvMenu.style.top  = avY + 'px';
+                _avMenu.style.left = avX + 'px';
+                _avMenu.style.top  = avY + 'px';
                 setTimeout(function() {
-                    function _mcFsAvDismiss(e) {
-                        if (!_mcFsAvMenu.contains(e.target)) {
-                            _mcFsDismissCtx();
-                            document.removeEventListener('mousedown', _mcFsAvDismiss, true);
-                            document.removeEventListener('keydown',   _mcFsAvKd,      true);
+                    function _avDismiss(e) {
+                        if (!_avMenu.contains(e.target)) {
+                            cfg.dismissCtx();
+                            document.removeEventListener('mousedown', _avDismiss, true);
+                            document.removeEventListener('keydown',   _avKd,      true);
                         }
                     }
-                    function _mcFsAvKd(e) {
+                    function _avKd(e) {
                         if (e.key === 'Escape') {
-                            _mcFsDismissCtx();
-                            document.removeEventListener('mousedown', _mcFsAvDismiss, true);
-                            document.removeEventListener('keydown',   _mcFsAvKd,      true);
+                            cfg.dismissCtx();
+                            document.removeEventListener('mousedown', _avDismiss, true);
+                            document.removeEventListener('keydown',   _avKd,      true);
                         }
                     }
-                    document.addEventListener('mousedown', _mcFsAvDismiss, true);
-                    document.addEventListener('keydown',   _mcFsAvKd,      true);
+                    document.addEventListener('mousedown', _avDismiss, true);
+                    document.addEventListener('keydown',   _avKd,      true);
                 }, 0);
                 return;
             }
             var chartRect = chartDiv.getBoundingClientRect();
             var localY    = evt.clientY - chartRect.top;
-            var price = _mcFsLastCrosshairPrice;
+            var price = cfg.getLastCrosshairPrice();
             if (price == null || isNaN(price)) {
                 // Fallback: crosshair is in empty space to the right of the last candle —
                 // LW Charts never fires crosshair data there, so derive the price
                 // directly from the click's Y coordinate via the candle series.
-                if (_mcFsCandle) {
-                    var fallbackPrice = _mcFsCandle.coordinateToPrice(localY);
+                var candle = cfg.getCandle();
+                if (candle) {
+                    var fallbackPrice = candle.coordinateToPrice(localY);
                     if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
                 }
             }
@@ -1444,33 +1616,36 @@
             // MA proximity — find the closest active MA within the hit threshold
             var nearestMa   = null;
             var nearestDist = 10; // px
-            if (_mcFsLastCrosshairTime) {
-                Object.keys(_mcFsMaDataMap).forEach(function(key) {
-                    if (!_mcFsMaSeries[key]) return;
-                    var maVal = _mcFsMaDataMap[key].get(_mcFsLastCrosshairTime);
+            var lastCrosshairTime = cfg.getLastCrosshairTime();
+            if (lastCrosshairTime) {
+                var maDataMap = cfg.getMaDataMap();
+                var maSeries  = cfg.getMaSeries();
+                Object.keys(maDataMap).forEach(function(key) {
+                    if (!maSeries[key]) return;
+                    var maVal = maDataMap[key].get(lastCrosshairTime);
                     if (maVal == null) return;
-                    var maCoord = _mcFsMaSeries[key].priceToCoordinate(maVal);
+                    var maCoord = maSeries[key].priceToCoordinate(maVal);
                     if (maCoord == null) return;
                     var dist = Math.abs(localY - maCoord);
                     if (dist < nearestDist) { nearestDist = dist; nearestMa = key; }
                 });
             }
 
-            _mcFsCtxPrice = price;
-            _mcFsCtxMa    = nearestMa;
+            cfg.setCtxPrice(price);
+            cfg.setCtxMa(nearestMa);
 
             if (nearestMa) {
                 var maLabel = _maLabel(nearestMa);
-                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + maLabel;
-                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Price crosses above ' + maLabel;
-                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Price crosses below ' + maLabel;
+                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · ' + maLabel;
+                document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Price crosses above ' + maLabel;
+                document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Price crosses below ' + maLabel;
             } else {
                 var fmt = '$' + price.toFixed(2);
-                document.getElementById('mc-fs-ctx-label').textContent     = _mcFsSym + ' · ' + fmt;
-                document.getElementById('mc-fs-ctx-above-txt').textContent  = 'Alert above ' + fmt;
-                document.getElementById('mc-fs-ctx-below-txt').textContent  = 'Alert below ' + fmt;
+                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · ' + fmt;
+                document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above ' + fmt;
+                document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below ' + fmt;
             }
-            var menu  = document.getElementById('mc-fs-ctx-menu');
+            var menu  = document.getElementById(cfg.ctxMenuId);
             menu.style.display = 'block';
             var mw = menu.offsetWidth  || 185;
             var mh = menu.offsetHeight || 90;
@@ -1481,14 +1656,14 @@
             setTimeout(function() {
                 function _dismiss(e) {
                     if (!menu.contains(e.target)) {
-                        _mcFsDismissCtx();
+                        cfg.dismissCtx();
                         document.removeEventListener('mousedown', _dismiss, true);
                         document.removeEventListener('keydown',   _kd,      true);
                     }
                 }
                 function _kd(e) {
                     if (e.key === 'Escape') {
-                        _mcFsDismissCtx();
+                        cfg.dismissCtx();
                         document.removeEventListener('mousedown', _dismiss, true);
                         document.removeEventListener('keydown',   _kd,      true);
                     }
@@ -1497,6 +1672,54 @@
                 document.addEventListener('keydown',   _kd,      true);
             }, 0);
         }, true); // capture phase — overlay-level intercept, nothing below can block it
+    }
+
+    function _mcFsAttachCtxMenu() {
+        _attachCtxMenuCore({
+            getAttached: function() { return _mcFsCtxAttached; },
+            setAttached: function(v) { _mcFsCtxAttached = v; },
+            parentElId: 'mc-fullscreen-overlay',
+            chartDivId: 'mc-fullscreen-chart',
+            getTooltipEnabled: function() { return _mcFsTooltipEnabled; },
+            setTooltipEnabled: function(v) { _mcFsTooltipEnabled = v; },
+            tooltipBtnId: 'mc-fs-tooltip-btn',
+            getMeasurePhase:  function() { return _mcFsMeasurePhase; },
+            setMeasurePhase:  function(v) { _mcFsMeasurePhase = v; },
+            setMeasureActive: function(v) { _mcFsMeasureActive = v; },
+            getMeasureRafId:  function() { return _mcFsMeasureRafId; },
+            setMeasureRafId:  function(v) { _mcFsMeasureRafId = v; },
+            measurePreviewMoveHandler: _onMcFsMeasurePreviewMove,
+            getMeasureSvgOverlay: function() { return _mcFsMeasureSvgOverlay; },
+            getMeasureInfoDiv:    function() { return _mcFsMeasureInfoDiv; },
+            getMeasureResult: function() { return _mcFsMeasureResult; },
+            setMeasureResult: function(v) { _mcFsMeasureResult = v; },
+            trendDraw:     _mcFsTrendDraw,
+            getSvgOverlay: function() { return _mcFsTrendSvgOverlay; },
+            getVwapMode: function() { return _mcFsVwapMode; },
+            setVwapMode: function(v) { _mcFsVwapMode = v; },
+            vwapBtnId: 'mc-fs-vwap-btn',
+            getChart: function() { return _mcFsChart; },
+            getSym:   function() { return _mcFsSym; },
+            trendlineHitTest: _trendlineHitTest,
+            getTrendlines: function() { return _mcFsTrendlines; },
+            ctxLabelId:     'mc-fs-ctx-label',
+            ctxAboveTxtId:  'mc-fs-ctx-above-txt',
+            ctxBelowTxtId:  'mc-fs-ctx-below-txt',
+            ctxMenuId:      'mc-fs-ctx-menu',
+            setCtxTrendline: function(v) { _mcFsCtxTrendline = v; },
+            setCtxPrice:     function(v) { _mcFsCtxPrice = v; },
+            setCtxMa:        function(v) { _mcFsCtxMa = v; },
+            vwapHitTest: _mcFsVwapHitTest,
+            getVwapSeries: function() { return _mcFsVwapSeries; },
+            getOhlcv:      function() { return _mcFsOhlcv; },
+            setCtxAvwap: function(v) { _mcFsCtxAvwap = v; },
+            getCandle: function() { return _mcFsCandle; },
+            getLastCrosshairPrice: function() { return _mcFsLastCrosshairPrice; },
+            getLastCrosshairTime:  function() { return _mcFsLastCrosshairTime; },
+            getMaDataMap: function() { return _mcFsMaDataMap; },
+            getMaSeries:  function() { return _mcFsMaSeries; },
+            dismissCtx: _mcFsDismissCtx
+        });
     }
 
     // ── Live bar injection — fullscreen + WL charts ───────────────────────────
@@ -2958,300 +3181,138 @@
 
     // ── Anchor drag ───────────────────────────────────────────────────────
     function _onWlTrendAnchorDragMove(evt) {
-        if (!_wlTrendDragState || !_wlChart || !_wlCandle || !_wlTrendContRef) return;
-        var tl = _wlTrendlines[_wlTrendDragState.tlIdx];
-        if (!tl) return;
-        if (_wlTrendContRef) _wlTrendContRef.style.cursor = 'grabbing';
-        var rect  = _wlTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
-        var ly    = evt.clientY - rect.top;
-        var price = _wlCandle.coordinateToPrice(ly);
-        var time  = _wlChart.timeScale().coordinateToTime(lx);
-        if (price == null) return;
-        if (time == null) {
-            var ohlcv  = _wlOhlcv;
-            var last   = ohlcv[ohlcv.length - 1];
-            var prev   = ohlcv[ohlcv.length - 2] || last;
-            var barSec = ohlcv.length >= 2 ? (last.time - prev.time) : 86400;
-            var lastX  = _wlChart.timeScale().timeToCoordinate(last.time);
-            if (lastX == null) return;
-            var prevX    = _wlChart.timeScale().timeToCoordinate(prev.time);
-            var pxPerBar = prevX != null ? Math.abs(lastX - prevX) : 8;
-            var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
-            time = last.time + barsAhead * barSec;
-        }
-        var newAnchor = { time: time, price: price };
-        if (_wlTrendDragState.anchorSide === 'left') {
-            tl.leftP = newAnchor;
-        } else {
-            tl.rightP = newAnchor;
-        }
-        if (tl.leftP.time > tl.rightP.time) {
-            var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
-            _wlTrendDragState.anchorSide = _wlTrendDragState.anchorSide === 'left' ? 'right' : 'left';
-        }
-        tl.p1 = tl.leftP; tl.p2 = tl.rightP;
-        if (_wlTrendSvgOverlay && _wlTrendSvgLine && _wlTrendDragState.fixedX != null) {
-            _wlTrendSvgLine.setAttribute('x2', lx);
-            _wlTrendSvgLine.setAttribute('y2', ly);
-        }
+        _onTrendAnchorDragMoveCore(evt, {
+            dragState:  _wlTrendDragState,
+            chart:      _wlChart,
+            candle:     _wlCandle,
+            contRef:    _wlTrendContRef,
+            trendlines: _wlTrendlines,
+            ohlcv:      _wlOhlcv,
+            svgOverlay: _wlTrendSvgOverlay,
+            svgLine:    _wlTrendSvgLine
+        });
     }
 
     function _onWlTrendAnchorDragEnd() {
-        var state = _wlTrendDragState;
-        _wlTrendDragState = null;
-        document.removeEventListener('mousemove', _onWlTrendAnchorDragMove);
-        document.removeEventListener('mouseup',   _onWlTrendAnchorDragEnd);
-        if (_wlTrendContRef) _wlTrendContRef.style.cursor = '';
-        if (state) {
-            var tl = _wlTrendlines[state.tlIdx];
-            if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
-        }
-        requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
-            });
+        _onTrendAnchorDragEndCore({
+            getDragState: function() { return _wlTrendDragState; },
+            setDragState: function(v) { _wlTrendDragState = v; },
+            trendlines:   _wlTrendlines,
+            contRef:      _wlTrendContRef,
+            svgOverlay:   _wlTrendSvgOverlay,
+            moveHandler:  _onWlTrendAnchorDragMove,
+            endHandler:   _onWlTrendAnchorDragEnd
         });
     }
 
     // ── WL Measure drag handlers ─────────────────────────────────────────────
     function _onWlMeasureDragMove(evt) {
-        if (!_wlMeasureActive || !_wlTrendContRef || !_wlChart || !_wlCandle) return;
-        if (_wlMeasureRafId) return;
-        var cx = evt.clientX, cy = evt.clientY;
-        _wlMeasureRafId = requestAnimationFrame(function() {
-            _wlMeasureRafId = null;
-            if (!_wlMeasureActive) return;
-            var r  = _wlTrendContRef.getBoundingClientRect();
-            var lx = cx - r.left;
-            var ly = cy - r.top;
-            var eP = _wlCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
-            if (eP == null || eT == null) return;
-            _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
-                _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
-                _wlMeasureInfoDiv, _wlMeasureResult);
+        _onMeasureDragMoveCore(evt, {
+            getActive:  function() { return _wlMeasureActive; },
+            contRef:    _wlTrendContRef,
+            chart:      _wlChart,
+            candle:     _wlCandle,
+            ohlcv:      _wlOhlcv,
+            getStart:   function() { return _wlMeasureStart; },
+            getRafId:   function() { return _wlMeasureRafId; },
+            setRafId:   function(v) { _wlMeasureRafId = v; },
+            setResult:  function(v) { _wlMeasureResult = v; },
+            svgOverlay: _wlMeasureSvgOverlay,
+            svgRect:    _wlMeasureSvgRect,
+            hLine:      _wlMeasureHLine,
+            infoDiv:    _wlMeasureInfoDiv
         });
     }
     function _onWlMeasureDragEnd() {
-        document.removeEventListener('mousemove', _onWlMeasureDragMove);
-        document.removeEventListener('mouseup',   _onWlMeasureDragEnd);
-        _wlMeasureActive = false;
+        _onMeasureDragEndCore({
+            moveHandler: _onWlMeasureDragMove,
+            endHandler:  _onWlMeasureDragEnd,
+            setActive:   function(v) { _wlMeasureActive = v; }
+        });
     }
     function _onWlMeasurePreviewMove(evt) {
-        if (!_wlMeasureActive || _wlMeasurePhase !== 1 || !_wlTrendContRef || !_wlChart || !_wlCandle) return;
-        if (_wlMeasureRafId) return;
-        var cx = evt.clientX, cy = evt.clientY;
-        _wlMeasureRafId = requestAnimationFrame(function() {
-            _wlMeasureRafId = null;
-            if (!_wlMeasureActive || _wlMeasurePhase !== 1) return;
-            var r  = _wlTrendContRef.getBoundingClientRect();
-            var lx = cx - r.left;
-            var ly = cy - r.top;
-            var eP = _wlCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_wlChart, _wlOhlcv, lx);
-            if (eP == null || eT == null) return;
-            _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
-                _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
-                _wlMeasureInfoDiv, _wlMeasureResult);
+        _onMeasurePreviewMoveCore(evt, {
+            getActive:  function() { return _wlMeasureActive; },
+            getPhase:   function() { return _wlMeasurePhase; },
+            contRef:    _wlTrendContRef,
+            chart:      _wlChart,
+            candle:     _wlCandle,
+            ohlcv:      _wlOhlcv,
+            getStart:   function() { return _wlMeasureStart; },
+            getRafId:   function() { return _wlMeasureRafId; },
+            setRafId:   function(v) { _wlMeasureRafId = v; },
+            setResult:  function(v) { _wlMeasureResult = v; },
+            svgOverlay: _wlMeasureSvgOverlay,
+            svgRect:    _wlMeasureSvgRect,
+            hLine:      _wlMeasureHLine,
+            infoDiv:    _wlMeasureInfoDiv
         });
     }
 
     // ── Trendline mousedown (capture phase, blocks LW canvas pan) ─────────
     function _onWlTrendMouseDown(evt) {
-        if (evt.button !== 0 || !_wlCandle || !_wlChart || !_wlTrendContRef) return;
-
-        // ── Measure tool intercept ────────────────────────────────────────────
-        if ((evt.shiftKey || _wlMeasureMode) && !_wlTrendDragState) {
-            evt.stopPropagation();
-            evt.preventDefault();
-            if (_wlTrendDraw.active) {
-                _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
-                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
-            }
-            var _mRect = _wlTrendContRef.getBoundingClientRect();
-            var _mlx   = evt.clientX - _mRect.left;
-            var _mly   = evt.clientY - _mRect.top;
-            var _mP    = _wlCandle.coordinateToPrice(_mly);
-            var _mT    = _measureGetTimeAtX(_wlChart, _wlOhlcv, _mlx);
-            if (_mP == null || _mT == null) return;
-            var _mSi   = _barIdxByTime(_wlOhlcv, _mT);
-
-            if (_wlMeasurePhase === 1) {
-                _wlMeasureResult = _computeMeasureResult(_wlOhlcv, _wlMeasureStart.time, _wlMeasureStart.price, _mT, _mP);
-                _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
-                    _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
-                    _wlMeasureInfoDiv, _wlMeasureResult);
-                _wlMeasureActive = false;
-                _wlMeasurePhase  = 0;
-                if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
-                return;
-            }
-
-            _wlMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
-            _wlMeasureResult = null;
-            _wlMeasureActive = true;
-            _wlMeasurePhase  = 1;
-            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-            document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
-            document.addEventListener('mousemove', _onWlMeasurePreviewMove);
-            return;
-        }
-
-        // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
-        if (_wlMeasurePhase === 1) {
-            _wlMeasureActive = false;
-            _wlMeasurePhase  = 0;
-            if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
-            document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
-            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-            _wlMeasureResult = null;
-        } else if (_wlMeasureResult && !_wlMeasureMode) {
-            _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-            _wlMeasureResult = null;
-        }
-
-        if (!_wlTrendDraw.active) {
-            var dragTlIdx = -1, anchorSide = null;
-            if (_wlSelectedTrendlineIdx !== -1) {
-                anchorSide = _wlAnchorHitTest(evt.clientX, evt.clientY, _wlSelectedTrendlineIdx);
-                if (anchorSide) dragTlIdx = _wlSelectedTrendlineIdx;
-            }
-            if (dragTlIdx === -1) {
-                for (var _di = 0; _di < _wlTrendlines.length; _di++) {
-                    var _as = _wlAnchorHitTest(evt.clientX, evt.clientY, _di);
-                    if (_as) { dragTlIdx = _di; anchorSide = _as; break; }
-                }
-            }
-            if (dragTlIdx !== -1) {
-                evt.stopPropagation();
-                if (_wlSelectedTrendlineIdx !== dragTlIdx) {
-                    _wlDeselectAllTrendlines();
-                    _wlSelectedTrendlineIdx = dragTlIdx;
-                    _wlTrendlines[dragTlIdx].selected = true;
-                    if (_wlTrendlines[dragTlIdx].requestUpdate) _wlTrendlines[dragTlIdx].requestUpdate();
-                }
-                var _dragTl = _wlTrendlines[dragTlIdx];
-                var _fixedP = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
-                var _fixedX = _mcFsTimeToX(_wlChart, _wlOhlcv, _fixedP.time);
-                var _fixedY = _wlCandle.priceToCoordinate(_fixedP.price);
-                _wlTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
-                _dragTl.dragging = true;
-                if (_dragTl.requestUpdate) _dragTl.requestUpdate();
-                if (_wlTrendSvgOverlay && _wlTrendSvgLine && _fixedX != null && _fixedY != null) {
-                    var _dRect = _wlTrendContRef.getBoundingClientRect();
-                    var _curX  = evt.clientX - _dRect.left;
-                    var _curY  = evt.clientY - _dRect.top;
-                    _wlTrendSvgLine.setAttribute('x1', _fixedX); _wlTrendSvgLine.setAttribute('y1', _fixedY);
-                    _wlTrendSvgLine.setAttribute('x2', _curX);   _wlTrendSvgLine.setAttribute('y2', _curY);
-                    _wlTrendSvgOverlay.style.display = '';
-                }
-                document.addEventListener('mousemove', _onWlTrendAnchorDragMove);
-                document.addEventListener('mouseup',   _onWlTrendAnchorDragEnd);
-                return;
-            }
-        }
-
-        if (!_wlTrendDraw.active) {
-            var hitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
-            if (hitIdx !== -1) {
-                evt.stopPropagation();
-                if (_wlSelectedTrendlineIdx !== -1 && _wlSelectedTrendlineIdx !== hitIdx) {
-                    var prev = _wlTrendlines[_wlSelectedTrendlineIdx];
-                    if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
-                }
-                _wlSelectedTrendlineIdx = hitIdx;
-                _wlTrendlines[hitIdx].selected = true;
-                if (_wlTrendlines[hitIdx].requestUpdate) _wlTrendlines[hitIdx].requestUpdate();
-                return;
-            }
-            if (_wlSelectedTrendlineIdx !== -1) _wlDeselectAllTrendlines();
-        }
-
-        if (!_wlTrendlineMode) return;
-        evt.stopPropagation();
-
-        var rect  = _wlTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
-        var ly    = evt.clientY - rect.top;
-        var price = _wlCandle.coordinateToPrice(ly);
-        var time  = null;
-        if (_wlOhlcv.length >= 2) {
-            var _ohlcv   = _wlOhlcv;
-            var _last    = _ohlcv[_ohlcv.length - 1];
-            var _prev    = _ohlcv[_ohlcv.length - 2];
-            var _lastX   = _wlChart.timeScale().timeToCoordinate(_last.time);
-            var _prevX   = _wlChart.timeScale().timeToCoordinate(_prev.time);
-            var _pxPerBar = (_lastX != null && _prevX != null) ? Math.abs(_lastX - _prevX) : 8;
-            if (_lastX != null && lx > _lastX + _pxPerBar * 0.5) {
-                var _barSec   = _last.time - _prev.time;
-                var _barsAhead = Math.max(1, Math.round((lx - _lastX) / _pxPerBar));
-                time = _last.time + _barsAhead * _barSec;
-            } else {
-                time = _wlLastCrosshairTime || _last.time;
-            }
-        }
-        if (price == null || time == null) return;
-        if (!_wlTrendDraw.active) {
-            _wlTrendDraw.active     = true;
-            _wlTrendDraw.startTime  = time;
-            _wlTrendDraw.startPrice = price;
-            if (_wlTrendSvgOverlay && _wlTrendSvgLine && _wlChart) {
-                var ax = _wlChart.timeScale().timeToCoordinate(time);
-                var ay = _wlCandle.priceToCoordinate(price);
-                if (ax != null && ay != null) {
-                    _wlTrendSvgLine.setAttribute('x1', ax); _wlTrendSvgLine.setAttribute('y1', ay);
-                    _wlTrendSvgLine.setAttribute('x2', ax); _wlTrendSvgLine.setAttribute('y2', ay);
-                }
-                _wlTrendSvgOverlay.style.display = '';
-            }
-        } else {
-            var p1 = { time: _wlTrendDraw.startTime, price: _wlTrendDraw.startPrice };
-            _wlTrendDraw.active = false;
-            _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
-            if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
-            if (time !== p1.time) _addWlTrendline(p1, { time: time, price: price });
-            _wlTrendlineMode = false;
-            var tDoneBtn = document.getElementById('wl-chart-trendline-btn');
-            if (tDoneBtn) tDoneBtn.classList.remove('active');
-        }
+        _onTrendMouseDownCore(evt, {
+            candle:  _wlCandle,
+            chart:   _wlChart,
+            contRef: _wlTrendContRef,
+            getMeasureMode:    function() { return _wlMeasureMode; },
+            getDragState:      function() { return _wlTrendDragState; },
+            setDragState:      function(v) { _wlTrendDragState = v; },
+            trendDraw:         _wlTrendDraw,
+            svgOverlay:        _wlTrendSvgOverlay,
+            svgLine:           _wlTrendSvgLine,
+            ohlcv:             _wlOhlcv,
+            getMeasurePhase:   function() { return _wlMeasurePhase; },
+            setMeasurePhase:   function(v) { _wlMeasurePhase = v; },
+            getMeasureResult:  function() { return _wlMeasureResult; },
+            setMeasureResult:  function(v) { _wlMeasureResult = v; },
+            setMeasureActive:  function(v) { _wlMeasureActive = v; },
+            getMeasureRafId:   function() { return _wlMeasureRafId; },
+            setMeasureRafId:   function(v) { _wlMeasureRafId = v; },
+            getMeasureStart:   function() { return _wlMeasureStart; },
+            setMeasureStart:   function(v) { _wlMeasureStart = v; },
+            measureSvgOverlay: _wlMeasureSvgOverlay,
+            measureSvgRect:    _wlMeasureSvgRect,
+            measureHLine:      _wlMeasureHLine,
+            measureInfoDiv:    _wlMeasureInfoDiv,
+            measurePreviewMoveHandler: _onWlMeasurePreviewMove,
+            getSelectedIdx:    function() { return _wlSelectedTrendlineIdx; },
+            setSelectedIdx:    function(v) { _wlSelectedTrendlineIdx = v; },
+            trendlines:        _wlTrendlines,
+            deselectAllTrendlines: _wlDeselectAllTrendlines,
+            anchorHitTest:     _wlAnchorHitTest,
+            trendlineHitTest:  _wlTrendlineHitTest,
+            dragMoveHandler:   _onWlTrendAnchorDragMove,
+            dragEndHandler:    _onWlTrendAnchorDragEnd,
+            getTrendlineMode:  function() { return _wlTrendlineMode; },
+            setTrendlineMode:  function(v) { _wlTrendlineMode = v; },
+            getLastCrosshairTime: function() { return _wlLastCrosshairTime; },
+            addTrendline:      _addWlTrendline,
+            doneBtnId:         'wl-chart-trendline-btn'
+        });
     }
 
     // ── Trendline SVG mousemove preview ───────────────────────────────────
     function _onWlTrendMouseMove(evt) {
-        if (_wlTrendDraw.active) {
-            if (!_wlTrendSvgOverlay || !_wlTrendSvgLine || !_wlCandle || !_wlChart || !_wlTrendContRef) return;
-            var rect  = _wlTrendContRef.getBoundingClientRect();
-            var curX  = evt.clientX - rect.left;
-            var curY  = evt.clientY - rect.top;
-            var startTime = _wlTrendDraw.startTime;
-            if (!startTime) return;
-            var x1 = _wlChart.timeScale().timeToCoordinate(startTime);
-            var y1 = _wlCandle.priceToCoordinate(_wlTrendDraw.startPrice);
-            if (x1 == null || y1 == null) return;
-            _wlTrendSvgLine.setAttribute('x1', x1);
-            _wlTrendSvgLine.setAttribute('y1', y1);
-            _wlTrendSvgLine.setAttribute('x2', curX);
-            _wlTrendSvgLine.setAttribute('y2', curY);
-            return;
-        }
-        if (_wlTrendlines.length && _wlTrendContRef && !_wlTrendlineMode) {
-            if (_wlTrendDragState) return;
-            if (_wlSelectedTrendlineIdx !== -1) {
-                var anchorSide = _wlAnchorHitTest(evt.clientX, evt.clientY, _wlSelectedTrendlineIdx);
-                if (anchorSide) { _wlTrendContRef.style.cursor = 'grab'; return; }
-            }
-            var hitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
-            _wlTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
-        }
+        _onTrendMouseMoveCore(evt, {
+            getTrendDraw:    function() { return _wlTrendDraw; },
+            svgOverlay:      _wlTrendSvgOverlay,
+            svgLine:         _wlTrendSvgLine,
+            candle:          _wlCandle,
+            chart:           _wlChart,
+            contRef:         _wlTrendContRef,
+            trendlines:      _wlTrendlines,
+            getTrendlineMode: function() { return _wlTrendlineMode; },
+            getDragState:    function() { return _wlTrendDragState; },
+            getSelectedIdx:  function() { return _wlSelectedTrendlineIdx; },
+            anchorHitTest:   _wlAnchorHitTest,
+            trendlineHitTest: _wlTrendlineHitTest
+        });
     }
 
     // ── Right-click context menu ──────────────────────────────────────────
     function _wlDismissCtx() {
-        document.getElementById('wl-chart-ctx-menu').style.display = 'none';
+        _hideCtxMenu('wl-chart-ctx-menu');
         _wlCtxPrice     = null;
         _wlCtxMa        = null;
         _wlCtxTrendline = null;
@@ -3259,233 +3320,62 @@
     }
 
     window.wlCtxAlert = function(direction) {
-        if (_wlCtxAvwap) {
-            var av = _wlCtxAvwap;
-            _wlDismissCtx();
-            if (!_wlSym) return;
-            window.alAddAvwapAlert(_wlSym, av.anchorTime, direction);
-            return;
-        }
-        if (_wlCtxTrendline) {
-            var tl = _wlCtxTrendline;
-            _wlDismissCtx();
-            if (!_wlSym) return;
-            window.alAddTrendlineAlert(_wlSym, tl.p1, tl.p2, direction);
-            return;
-        }
-        if (_wlCtxMa) {
-            var maKey = _wlCtxMa;
-            _wlDismissCtx();
-            if (!_wlSym) return;
-            alShowForm(_wlSym);
-            setTimeout(function() {
-                document.getElementById('al-input-type').value = 'ma';
-                if (typeof alFormTypeChange === 'function') alFormTypeChange();
-                document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
-                if (typeof alMACondChange === 'function') alMACondChange();
-                document.getElementById('al-input-ma').value = maKey;
-                document.getElementById('al-input-ma').focus();
-            }, 60);
-        } else {
-            var price = _wlCtxPrice;
-            _wlDismissCtx();
-            if (!_wlSym || price == null) return;
-            alShowForm(_wlSym);
-            setTimeout(function() {
-                document.getElementById('al-input-type').value = 'price';
-                if (typeof alFormTypeChange === 'function') alFormTypeChange();
-                document.getElementById('al-input-cond').value = direction === 'above' ? 'above' : 'below';
-                document.getElementById('al-input-price').value = price.toFixed(2);
-                document.getElementById('al-input-price').focus();
-            }, 60);
-        }
+        _ctxAlertCore(direction, {
+            getCtxTrendline: function() { return _wlCtxTrendline; },
+            getCtxAvwap:     function() { return _wlCtxAvwap; },
+            getCtxMa:        function() { return _wlCtxMa; },
+            getCtxPrice:     function() { return _wlCtxPrice; },
+            getSym:          function() { return _wlSym; },
+            dismiss:         _wlDismissCtx
+        });
     };
 
     function _wlAttachCtxMenu() {
-        if (_wlCtxAttached) return;
-        _wlCtxAttached = true;
-        var chartBody = document.getElementById('wl-chart-body');
-        var chartDiv  = document.getElementById('wl-chart-widget');
-        // Attach to the parent (wl-chart-body) so LW Charts' internal canvas
-        // handlers registered on wl-chart-widget can never swallow the event
-        // before we see it — same pattern as mc-fullscreen-overlay.
-        // The .contains() guard keeps header/empty-state clicks from triggering it.
-        chartBody.addEventListener('contextmenu', function(evt) {
-            if (!chartDiv.contains(evt.target)) return;
-            evt.preventDefault();
-            evt.stopPropagation();
-            // Toggle off data tooltip on right-click
-            if (_wlTooltipEnabled) { _wlTooltipEnabled = false; var _ttBtn = document.getElementById('wl-chart-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
-            // Right-click: cancel active measurement first (no context menu shown)
-            if (_wlMeasurePhase === 1) {
-                _wlMeasureActive = false;
-                _wlMeasurePhase  = 0;
-                if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
-                _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-                _wlMeasureResult = null;
-                return;
-            }
-            if (_wlMeasureResult) {
-                _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
-                _wlMeasureResult = null;
-                return;
-            }
-            if (_wlTrendDraw.active) {
-                _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
-                if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
-                return;
-            }
-            if (_wlVwapMode) {
-                _wlVwapMode = false;
-                var vBtn = document.getElementById('wl-chart-vwap-btn');
-                if (vBtn) vBtn.classList.remove('active');
-                return;
-            }
-            if (!_wlChart || !_wlSym) return;
-            // ── Trendline right-click: check hit before price/MA ──────────────
-            var _wlTlHitIdx = _wlTrendlineHitTest(evt.clientX, evt.clientY);
-            if (_wlTlHitIdx !== -1) {
-                var _wlTlHit = _wlTrendlines[_wlTlHitIdx];
-                _wlCtxTrendline = { p1: _wlTlHit.leftP, p2: _wlTlHit.rightP };
-                _wlCtxPrice = null;
-                _wlCtxMa    = null;
-                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · Trendline';
-                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above trendline';
-                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below trendline';
-                var _wlTlMenu = document.getElementById('wl-chart-ctx-menu');
-                _wlTlMenu.style.display = 'block';
-                var mw = _wlTlMenu.offsetWidth  || 185;
-                var mh = _wlTlMenu.offsetHeight || 90;
-                var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
-                var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
-                _wlTlMenu.style.left = x + 'px';
-                _wlTlMenu.style.top  = y + 'px';
-                setTimeout(function() {
-                    function _wlTlDismiss(e) {
-                        if (!_wlTlMenu.contains(e.target)) {
-                            _wlDismissCtx();
-                            document.removeEventListener('mousedown', _wlTlDismiss, true);
-                            document.removeEventListener('keydown',   _wlTlKd,      true);
-                        }
-                    }
-                    function _wlTlKd(e) {
-                        if (e.key === 'Escape') {
-                            _wlDismissCtx();
-                            document.removeEventListener('mousedown', _wlTlDismiss, true);
-                            document.removeEventListener('keydown',   _wlTlKd,      true);
-                        }
-                    }
-                    document.addEventListener('mousedown', _wlTlDismiss, true);
-                    document.addEventListener('keydown',   _wlTlKd,      true);
-                }, 0);
-                return;
-            }
-            // ── AVWAP right-click: check hit before price/MA ──────────────────
-            var _wlAvHitIdx = _wlVwapHitTest(evt.clientX, evt.clientY);
-            if (_wlAvHitIdx !== -1) {
-                var _wlAvHit = _wlVwapSeries[_wlAvHitIdx];
-                _wlCtxAvwap     = { anchorIdx: _wlAvHit.anchor, anchorTime: _wlOhlcv[_wlAvHit.anchor] ? _wlOhlcv[_wlAvHit.anchor].time : null };
-                _wlCtxTrendline = null;
-                _wlCtxPrice     = null;
-                _wlCtxMa        = null;
-                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · AVWAP';
-                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above AVWAP';
-                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below AVWAP';
-                var _wlAvMenu = document.getElementById('wl-chart-ctx-menu');
-                _wlAvMenu.style.display = 'block';
-                var avMw = _wlAvMenu.offsetWidth  || 185;
-                var avMh = _wlAvMenu.offsetHeight || 90;
-                var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
-                var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
-                _wlAvMenu.style.left = avX + 'px';
-                _wlAvMenu.style.top  = avY + 'px';
-                setTimeout(function() {
-                    function _wlAvDismiss(e) {
-                        if (!_wlAvMenu.contains(e.target)) {
-                            _wlDismissCtx();
-                            document.removeEventListener('mousedown', _wlAvDismiss, true);
-                            document.removeEventListener('keydown',   _wlAvKd,      true);
-                        }
-                    }
-                    function _wlAvKd(e) {
-                        if (e.key === 'Escape') {
-                            _wlDismissCtx();
-                            document.removeEventListener('mousedown', _wlAvDismiss, true);
-                            document.removeEventListener('keydown',   _wlAvKd,      true);
-                        }
-                    }
-                    document.addEventListener('mousedown', _wlAvDismiss, true);
-                    document.addEventListener('keydown',   _wlAvKd,      true);
-                }, 0);
-                return;
-            }
-            var chartRect = chartDiv.getBoundingClientRect();
-            var localY    = evt.clientY - chartRect.top;
-            var price = _wlLastCrosshairPrice;
-            if (price == null || isNaN(price)) {
-                // Fallback: crosshair is in empty space to the right of the last candle —
-                // LW Charts never fires crosshair data there, so derive the price
-                // directly from the click's Y coordinate via the candle series.
-                if (_wlCandle) {
-                    var fallbackPrice = _wlCandle.coordinateToPrice(localY);
-                    if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
-                }
-            }
-            if (price == null || isNaN(price)) return;
-            var nearestMa   = null;
-            var nearestDist = 10;
-            if (_wlLastCrosshairTime) {
-                Object.keys(_wlMaDataMap).forEach(function(key) {
-                    if (!_wlMaSeries[key]) return;
-                    var maVal = _wlMaDataMap[key].get(_wlLastCrosshairTime);
-                    if (maVal == null) return;
-                    var maCoord = _wlMaSeries[key].priceToCoordinate(maVal);
-                    if (maCoord == null) return;
-                    var dist = Math.abs(localY - maCoord);
-                    if (dist < nearestDist) { nearestDist = dist; nearestMa = key; }
-                });
-            }
-            _wlCtxPrice = price;
-            _wlCtxMa    = nearestMa;
-            if (nearestMa) {
-                var maLabel = _maLabel(nearestMa);
-                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · ' + maLabel;
-                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Price crosses above ' + maLabel;
-                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Price crosses below ' + maLabel;
-            } else {
-                var fmt = '$' + price.toFixed(2);
-                document.getElementById('wl-chart-ctx-label').textContent    = _wlSym + ' · ' + fmt;
-                document.getElementById('wl-chart-ctx-above-txt').textContent = 'Alert above ' + fmt;
-                document.getElementById('wl-chart-ctx-below-txt').textContent = 'Alert below ' + fmt;
-            }
-            var menu  = document.getElementById('wl-chart-ctx-menu');
-            menu.style.display = 'block';
-            var mw = menu.offsetWidth  || 185;
-            var mh = menu.offsetHeight || 90;
-            var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
-            var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
-            menu.style.left = x + 'px';
-            menu.style.top  = y + 'px';
-            setTimeout(function() {
-                function _dismiss(e) {
-                    if (!menu.contains(e.target)) {
-                        _wlDismissCtx();
-                        document.removeEventListener('mousedown', _dismiss, true);
-                        document.removeEventListener('keydown',   _kd,      true);
-                    }
-                }
-                function _kd(e) {
-                    if (e.key === 'Escape') {
-                        _wlDismissCtx();
-                        document.removeEventListener('mousedown', _dismiss, true);
-                        document.removeEventListener('keydown',   _kd,      true);
-                    }
-                }
-                document.addEventListener('mousedown', _dismiss, true);
-                document.addEventListener('keydown',   _kd,      true);
-            }, 0);
-        }, true);
+        _attachCtxMenuCore({
+            getAttached: function() { return _wlCtxAttached; },
+            setAttached: function(v) { _wlCtxAttached = v; },
+            parentElId: 'wl-chart-body',
+            chartDivId: 'wl-chart-widget',
+            getTooltipEnabled: function() { return _wlTooltipEnabled; },
+            setTooltipEnabled: function(v) { _wlTooltipEnabled = v; },
+            tooltipBtnId: 'wl-chart-tooltip-btn',
+            getMeasurePhase:  function() { return _wlMeasurePhase; },
+            setMeasurePhase:  function(v) { _wlMeasurePhase = v; },
+            setMeasureActive: function(v) { _wlMeasureActive = v; },
+            getMeasureRafId:  function() { return _wlMeasureRafId; },
+            setMeasureRafId:  function(v) { _wlMeasureRafId = v; },
+            measurePreviewMoveHandler: _onWlMeasurePreviewMove,
+            getMeasureSvgOverlay: function() { return _wlMeasureSvgOverlay; },
+            getMeasureInfoDiv:    function() { return _wlMeasureInfoDiv; },
+            getMeasureResult: function() { return _wlMeasureResult; },
+            setMeasureResult: function(v) { _wlMeasureResult = v; },
+            trendDraw:     _wlTrendDraw,
+            getSvgOverlay: function() { return _wlTrendSvgOverlay; },
+            getVwapMode: function() { return _wlVwapMode; },
+            setVwapMode: function(v) { _wlVwapMode = v; },
+            vwapBtnId: 'wl-chart-vwap-btn',
+            getChart: function() { return _wlChart; },
+            getSym:   function() { return _wlSym; },
+            trendlineHitTest: _wlTrendlineHitTest,
+            getTrendlines: function() { return _wlTrendlines; },
+            ctxLabelId:     'wl-chart-ctx-label',
+            ctxAboveTxtId:  'wl-chart-ctx-above-txt',
+            ctxBelowTxtId:  'wl-chart-ctx-below-txt',
+            ctxMenuId:      'wl-chart-ctx-menu',
+            setCtxTrendline: function(v) { _wlCtxTrendline = v; },
+            setCtxPrice:     function(v) { _wlCtxPrice = v; },
+            setCtxMa:        function(v) { _wlCtxMa = v; },
+            vwapHitTest: _wlVwapHitTest,
+            getVwapSeries: function() { return _wlVwapSeries; },
+            getOhlcv:      function() { return _wlOhlcv; },
+            setCtxAvwap: function(v) { _wlCtxAvwap = v; },
+            getCandle: function() { return _wlCandle; },
+            getLastCrosshairPrice: function() { return _wlLastCrosshairPrice; },
+            getLastCrosshairTime:  function() { return _wlLastCrosshairTime; },
+            getMaDataMap: function() { return _wlMaDataMap; },
+            getMaSeries:  function() { return _wlMaSeries; },
+            dismissCtx: _wlDismissCtx
+        });
     }
 
     // ── Core chart builder ────────────────────────────────────────────────
