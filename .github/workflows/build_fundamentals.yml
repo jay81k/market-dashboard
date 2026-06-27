@@ -23,18 +23,37 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: DIAGNOSTIC - run actual patched library call on this runner
+      - name: DIAGNOSTIC - inspect raw HTML around quote-header_categories
         run: |
-          pip show finvizfinance
-          python3 -c "
+          cat > /tmp/diag.py << 'PYEOF'
           from curl_cffi import requests as curl_requests
           import finvizfinance.util as _futil
-          _futil.session = curl_requests.Session(impersonate='chrome110')
-          from finvizfinance.quote import finvizfinance
-          stock = finvizfinance('AAPL')
-          f = stock.ticker_fundament()
-          print('RESULT:', f.get('EPS this Y'))
-          "
+
+          sess = curl_requests.Session(impersonate='chrome110')
+          _futil.session = sess
+
+          r = sess.get(
+              "https://finviz.com/quote.ashx?t=AAPL",
+              headers=_futil.headers,
+              timeout=_futil.timeout_value,
+              proxies=_futil.proxy_dict,
+          )
+          html = r.text
+
+          print("Status:", r.status_code)
+          print("HTML length:", len(html))
+          for needle in ["quote-header_categories", "quote-header_ticker-wrapper_company", "snapshot-table2"]:
+              print(needle, "->", "FOUND" if needle in html else "MISSING")
+
+          idx = html.find("quote-header_ticker-wrapper_company")
+          if idx != -1:
+              print()
+              print("--- Context around company header (1500 chars) ---")
+              print(html[idx:idx + 1500])
+          else:
+              print("Company header class not found at all in this HTML.")
+          PYEOF
+          python3 /tmp/diag.py
 
       - name: Build fundamentals data
         run: python scripts/fetch_fundamentals.py --snapshot-path data/snapshot.json --out-dir data
