@@ -23,6 +23,31 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: DIAGNOSTIC - test Finviz access from this runner
+        run: |
+          python3 -c "
+          from curl_cffi import requests as curl_requests
+          from finvizfinance.util import headers as stale_headers
+          import requests as std_requests
+
+          print('--- Runner public IP ---')
+          try:
+              print(std_requests.get('https://api.ipify.org', timeout=10).text)
+          except Exception as e:
+              print('IP check failed:', e)
+
+          print()
+          print('--- curl_cffi chrome110, curl_cffi own headers ---')
+          sess = curl_requests.Session(impersonate='chrome110')
+          r1 = sess.get('https://finviz.com/quote.ashx?t=AAPL')
+          print(r1.status_code, 'snapshot-table2 found:', 'snapshot-table2' in r1.text)
+
+          print()
+          print('--- curl_cffi chrome110, WITH stale headers (matches fetch_fundamentals.py) ---')
+          r2 = sess.get('https://finviz.com/quote.ashx?t=AAPL', headers=stale_headers)
+          print(r2.status_code, 'snapshot-table2 found:', 'snapshot-table2' in r2.text)
+          "
+
       - name: Build fundamentals data
         run: python scripts/fetch_fundamentals.py --snapshot-path data/snapshot.json --out-dir data
 
