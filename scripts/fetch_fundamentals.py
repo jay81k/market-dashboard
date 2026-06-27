@@ -29,7 +29,16 @@ import time
 from datetime import date, datetime
 
 import requests
+from curl_cffi import requests as curl_requests
 from finvizfinance.quote import finvizfinance
+import finvizfinance.util as _futil
+
+# ---------------------------------------------------------------------------
+# curl_cffi patch — replaces finvizfinance's internal session with one that
+# impersonates Chrome's TLS fingerprint, bypassing Cloudflare bot protection
+# ---------------------------------------------------------------------------
+
+_futil.session = curl_requests.Session(impersonate="chrome110")
 
 # ---------------------------------------------------------------------------
 # Config
