@@ -1595,59 +1595,27 @@
 
     // ── Anchor drag ───────────────────────────────────────────────────────
     function _onAlTrendAnchorDragMove(evt) {
-        if (!_alTrendDragState || !_alChart || !_alCandle || !_alTrendContRef) return;
-        var tl = _alTrendlines[_alTrendDragState.tlIdx];
-        if (!tl) return;
-        if (_alTrendContRef) _alTrendContRef.style.cursor = 'grabbing';
-        var rect  = _alTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
-        var ly    = evt.clientY - rect.top;
-        var price = _alCandle.coordinateToPrice(ly);
-        var time  = _alChart.timeScale().coordinateToTime(lx);
-        if (price == null) return;
-        if (time == null) {
-            var ohlcv  = _alOhlcv;
-            var last   = ohlcv[ohlcv.length - 1];
-            var prev   = ohlcv[ohlcv.length - 2] || last;
-            var barSec = ohlcv.length >= 2 ? (last.time - prev.time) : 86400;
-            var lastX  = _alChart.timeScale().timeToCoordinate(last.time);
-            if (lastX == null) return;
-            var prevX    = _alChart.timeScale().timeToCoordinate(prev.time);
-            var pxPerBar = prevX != null ? Math.abs(lastX - prevX) : 8;
-            var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
-            time = last.time + barsAhead * barSec;
-        }
-        var newAnchor = { time: time, price: price };
-        if (_alTrendDragState.anchorSide === 'left') {
-            tl.leftP = newAnchor;
-        } else {
-            tl.rightP = newAnchor;
-        }
-        if (tl.leftP.time > tl.rightP.time) {
-            var tmp = tl.leftP; tl.leftP = tl.rightP; tl.rightP = tmp;
-            _alTrendDragState.anchorSide = _alTrendDragState.anchorSide === 'left' ? 'right' : 'left';
-        }
-        tl.p1 = tl.leftP; tl.p2 = tl.rightP;
-        if (_alTrendSvgOverlay && _alTrendSvgLine && _alTrendDragState.fixedX != null) {
-            _alTrendSvgLine.setAttribute('x2', lx);
-            _alTrendSvgLine.setAttribute('y2', ly);
-        }
+        _onTrendAnchorDragMoveCore(evt, {
+            dragState:  _alTrendDragState,
+            chart:      _alChart,
+            candle:     _alCandle,
+            contRef:    _alTrendContRef,
+            trendlines: _alTrendlines,
+            ohlcv:      _alOhlcv,
+            svgOverlay: _alTrendSvgOverlay,
+            svgLine:    _alTrendSvgLine
+        });
     }
 
     function _onAlTrendAnchorDragEnd() {
-        var state = _alTrendDragState;
-        _alTrendDragState = null;
-        document.removeEventListener('mousemove', _onAlTrendAnchorDragMove);
-        document.removeEventListener('mouseup',   _onAlTrendAnchorDragEnd);
-        if (_alTrendContRef) _alTrendContRef.style.cursor = '';
-        if (state) {
-            var tl = _alTrendlines[state.tlIdx];
-            if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
-        }
-        requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-                if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
-            });
+        _onTrendAnchorDragEndCore({
+            getDragState: function() { return _alTrendDragState; },
+            setDragState: function(v) { _alTrendDragState = v; },
+            trendlines:   _alTrendlines,
+            contRef:      _alTrendContRef,
+            svgOverlay:   _alTrendSvgOverlay,
+            moveHandler:  _onAlTrendAnchorDragMove,
+            endHandler:   _onAlTrendAnchorDragEnd
         });
     }
 
@@ -1746,235 +1714,105 @@
 
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
-        if (!_alMeasureActive || !_alTrendContRef || !_alChart || !_alCandle) return;
-        if (_alMeasureRafId) return;
-        var cx = evt.clientX, cy = evt.clientY;
-        _alMeasureRafId = requestAnimationFrame(function() {
-            _alMeasureRafId = null;
-            if (!_alMeasureActive) return;
-            var r  = _alTrendContRef.getBoundingClientRect();
-            var lx = cx - r.left;
-            var ly = cy - r.top;
-            var eP = _alCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
-            if (eP == null || eT == null) return;
-            _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
-                _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
-                _alMeasureInfoDiv, _alMeasureResult);
+        _onMeasureDragMoveCore(evt, {
+            getActive:  function() { return _alMeasureActive; },
+            contRef:    _alTrendContRef,
+            chart:      _alChart,
+            candle:     _alCandle,
+            ohlcv:      _alOhlcv,
+            getStart:   function() { return _alMeasureStart; },
+            getRafId:   function() { return _alMeasureRafId; },
+            setRafId:   function(v) { _alMeasureRafId = v; },
+            setResult:  function(v) { _alMeasureResult = v; },
+            svgOverlay: _alMeasureSvgOverlay,
+            svgRect:    _alMeasureSvgRect,
+            hLine:      _alMeasureHLine,
+            infoDiv:    _alMeasureInfoDiv
         });
     }
     function _onAlMeasureDragEnd() {
-        document.removeEventListener('mousemove', _onAlMeasureDragMove);
-        document.removeEventListener('mouseup',   _onAlMeasureDragEnd);
-        _alMeasureActive = false;
+        _onMeasureDragEndCore({
+            moveHandler: _onAlMeasureDragMove,
+            endHandler:  _onAlMeasureDragEnd,
+            setActive:   function(v) { _alMeasureActive = v; }
+        });
     }
     function _onAlMeasurePreviewMove(evt) {
-        if (!_alMeasureActive || _alMeasurePhase !== 1 || !_alTrendContRef || !_alChart || !_alCandle) return;
-        if (_alMeasureRafId) return;
-        var cx = evt.clientX, cy = evt.clientY;
-        _alMeasureRafId = requestAnimationFrame(function() {
-            _alMeasureRafId = null;
-            if (!_alMeasureActive || _alMeasurePhase !== 1) return;
-            var r  = _alTrendContRef.getBoundingClientRect();
-            var lx = cx - r.left;
-            var ly = cy - r.top;
-            var eP = _alCandle.coordinateToPrice(ly);
-            var eT = _measureGetTimeAtX(_alChart, _alOhlcv, lx);
-            if (eP == null || eT == null) return;
-            _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, eT, eP);
-            _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
-                _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
-                _alMeasureInfoDiv, _alMeasureResult);
+        _onMeasurePreviewMoveCore(evt, {
+            getActive:  function() { return _alMeasureActive; },
+            getPhase:   function() { return _alMeasurePhase; },
+            contRef:    _alTrendContRef,
+            chart:      _alChart,
+            candle:     _alCandle,
+            ohlcv:      _alOhlcv,
+            getStart:   function() { return _alMeasureStart; },
+            getRafId:   function() { return _alMeasureRafId; },
+            setRafId:   function(v) { _alMeasureRafId = v; },
+            setResult:  function(v) { _alMeasureResult = v; },
+            svgOverlay: _alMeasureSvgOverlay,
+            svgRect:    _alMeasureSvgRect,
+            hLine:      _alMeasureHLine,
+            infoDiv:    _alMeasureInfoDiv
         });
     }
 
     function _onAlTrendMouseDown(evt) {
-        if (evt.button !== 0 || !_alCandle || !_alChart || !_alTrendContRef) return;
-
-        // ── Measure tool intercept ────────────────────────────────────────────
-        if ((evt.shiftKey || _alMeasureMode) && !_alTrendDragState) {
-            evt.stopPropagation();
-            evt.preventDefault();
-            if (_alTrendDraw.active) {
-                _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
-                if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
-            }
-            var _mRect = _alTrendContRef.getBoundingClientRect();
-            var _mlx   = evt.clientX - _mRect.left;
-            var _mly   = evt.clientY - _mRect.top;
-            var _mP    = _alCandle.coordinateToPrice(_mly);
-            var _mT    = _measureGetTimeAtX(_alChart, _alOhlcv, _mlx);
-            if (_mP == null || _mT == null) return;
-            var _mSi   = _barIdxByTime(_alOhlcv, _mT);
-
-            if (_alMeasurePhase === 1) {
-                _alMeasureResult = _computeMeasureResult(_alOhlcv, _alMeasureStart.time, _alMeasureStart.price, _mT, _mP);
-                _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
-                    _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
-                    _alMeasureInfoDiv, _alMeasureResult);
-                _alMeasureActive = false;
-                _alMeasurePhase  = 0;
-                if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
-                return;
-            }
-
-            _alMeasureStart  = { time: _mT, price: _mP, barIdx: _mSi };
-            _alMeasureResult = null;
-            _alMeasureActive = true;
-            _alMeasurePhase  = 1;
-            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-            document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
-            document.addEventListener('mousemove', _onAlMeasurePreviewMove);
-            return;
-        }
-
-        // Plain click (no shift, no measure mode) — cancel phase-1 preview or clear result
-        if (_alMeasurePhase === 1) {
-            _alMeasureActive = false;
-            _alMeasurePhase  = 0;
-            if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
-            document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
-            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-            _alMeasureResult = null;
-        } else if (_alMeasureResult && !_alMeasureMode) {
-            _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-            _alMeasureResult = null;
-        }
-
-        if (!_alTrendDraw.active) {
-            var dragTlIdx = -1, anchorSide = null;
-            if (_alSelectedTrendlineIdx !== -1) {
-                anchorSide = _alAnchorHitTest(evt.clientX, evt.clientY, _alSelectedTrendlineIdx);
-                if (anchorSide) dragTlIdx = _alSelectedTrendlineIdx;
-            }
-            if (dragTlIdx === -1) {
-                for (var _di = 0; _di < _alTrendlines.length; _di++) {
-                    var _as = _alAnchorHitTest(evt.clientX, evt.clientY, _di);
-                    if (_as) { dragTlIdx = _di; anchorSide = _as; break; }
-                }
-            }
-            if (dragTlIdx !== -1) {
-                evt.stopPropagation();
-                if (_alSelectedTrendlineIdx !== dragTlIdx) {
-                    _alDeselectAllTrendlines();
-                    _alSelectedTrendlineIdx = dragTlIdx;
-                    _alTrendlines[dragTlIdx].selected = true;
-                    if (_alTrendlines[dragTlIdx].requestUpdate) _alTrendlines[dragTlIdx].requestUpdate();
-                }
-                var _dragTl = _alTrendlines[dragTlIdx];
-                var _fixedP = anchorSide === 'left' ? _dragTl.rightP : _dragTl.leftP;
-                var _fixedX = _mcFsTimeToX(_alChart, _alOhlcv, _fixedP.time);
-                var _fixedY = _alCandle.priceToCoordinate(_fixedP.price);
-                _alTrendDragState = { tlIdx: dragTlIdx, anchorSide: anchorSide, fixedX: _fixedX, fixedY: _fixedY };
-                _dragTl.dragging = true;
-                if (_dragTl.requestUpdate) _dragTl.requestUpdate();
-                if (_alTrendSvgOverlay && _alTrendSvgLine && _fixedX != null && _fixedY != null) {
-                    var _dRect = _alTrendContRef.getBoundingClientRect();
-                    var _curX  = evt.clientX - _dRect.left;
-                    var _curY  = evt.clientY - _dRect.top;
-                    _alTrendSvgLine.setAttribute('x1', _fixedX); _alTrendSvgLine.setAttribute('y1', _fixedY);
-                    _alTrendSvgLine.setAttribute('x2', _curX);   _alTrendSvgLine.setAttribute('y2', _curY);
-                    _alTrendSvgOverlay.style.display = '';
-                }
-                document.addEventListener('mousemove', _onAlTrendAnchorDragMove);
-                document.addEventListener('mouseup',   _onAlTrendAnchorDragEnd);
-                return;
-            }
-        }
-
-        if (!_alTrendDraw.active) {
-            var hitIdx = _alTrendlineHitTest(evt.clientX, evt.clientY);
-            if (hitIdx !== -1) {
-                evt.stopPropagation();
-                if (_alSelectedTrendlineIdx !== -1 && _alSelectedTrendlineIdx !== hitIdx) {
-                    var prev = _alTrendlines[_alSelectedTrendlineIdx];
-                    if (prev) { prev.selected = false; if (prev.requestUpdate) prev.requestUpdate(); }
-                }
-                _alSelectedTrendlineIdx = hitIdx;
-                _alTrendlines[hitIdx].selected = true;
-                if (_alTrendlines[hitIdx].requestUpdate) _alTrendlines[hitIdx].requestUpdate();
-                return;
-            }
-            if (_alSelectedTrendlineIdx !== -1) _alDeselectAllTrendlines();
-        }
-
-        if (!_alTrendlineMode) return;
-        evt.stopPropagation();
-
-        var rect  = _alTrendContRef.getBoundingClientRect();
-        var lx    = evt.clientX - rect.left;
-        var ly    = evt.clientY - rect.top;
-        var price = _alCandle.coordinateToPrice(ly);
-        var time  = null;
-        if (_alOhlcv.length >= 2) {
-            var _ohlcv   = _alOhlcv;
-            var _last    = _ohlcv[_ohlcv.length - 1];
-            var _prev    = _ohlcv[_ohlcv.length - 2];
-            var _lastX   = _alChart.timeScale().timeToCoordinate(_last.time);
-            var _prevX   = _alChart.timeScale().timeToCoordinate(_prev.time);
-            var _pxPerBar = (_lastX != null && _prevX != null) ? Math.abs(_lastX - _prevX) : 8;
-            if (_lastX != null && lx > _lastX + _pxPerBar * 0.5) {
-                var _barSec    = _last.time - _prev.time;
-                var _barsAhead = Math.max(1, Math.round((lx - _lastX) / _pxPerBar));
-                time = _last.time + _barsAhead * _barSec;
-            } else {
-                time = _alLastCrosshairTime || _last.time;
-            }
-        }
-        if (price == null || time == null) return;
-        if (!_alTrendDraw.active) {
-            _alTrendDraw.active     = true;
-            _alTrendDraw.startTime  = time;
-            _alTrendDraw.startPrice = price;
-            if (_alTrendSvgOverlay && _alTrendSvgLine && _alChart) {
-                var ax = _alChart.timeScale().timeToCoordinate(time);
-                var ay = _alCandle.priceToCoordinate(price);
-                if (ax != null && ay != null) {
-                    _alTrendSvgLine.setAttribute('x1', ax); _alTrendSvgLine.setAttribute('y1', ay);
-                    _alTrendSvgLine.setAttribute('x2', ax); _alTrendSvgLine.setAttribute('y2', ay);
-                }
-                _alTrendSvgOverlay.style.display = '';
-            }
-        } else {
-            var p1 = { time: _alTrendDraw.startTime, price: _alTrendDraw.startPrice };
-            _alTrendDraw.active = false;
-            _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
-            if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
-            if (time !== p1.time) _addAlTrendline(p1, { time: time, price: price });
-            _alTrendlineMode = false;
-            var tDoneBtn = document.getElementById('al-chart-trendline-btn');
-            if (tDoneBtn) tDoneBtn.classList.remove('active');
-        }
+        _onTrendMouseDownCore(evt, {
+            candle:  _alCandle,
+            chart:   _alChart,
+            contRef: _alTrendContRef,
+            getMeasureMode:    function() { return _alMeasureMode; },
+            getDragState:      function() { return _alTrendDragState; },
+            setDragState:      function(v) { _alTrendDragState = v; },
+            trendDraw:         _alTrendDraw,
+            svgOverlay:        _alTrendSvgOverlay,
+            svgLine:           _alTrendSvgLine,
+            ohlcv:             _alOhlcv,
+            getMeasurePhase:   function() { return _alMeasurePhase; },
+            setMeasurePhase:   function(v) { _alMeasurePhase = v; },
+            getMeasureResult:  function() { return _alMeasureResult; },
+            setMeasureResult:  function(v) { _alMeasureResult = v; },
+            setMeasureActive:  function(v) { _alMeasureActive = v; },
+            getMeasureRafId:   function() { return _alMeasureRafId; },
+            setMeasureRafId:   function(v) { _alMeasureRafId = v; },
+            getMeasureStart:   function() { return _alMeasureStart; },
+            setMeasureStart:   function(v) { _alMeasureStart = v; },
+            measureSvgOverlay: _alMeasureSvgOverlay,
+            measureSvgRect:    _alMeasureSvgRect,
+            measureHLine:      _alMeasureHLine,
+            measureInfoDiv:    _alMeasureInfoDiv,
+            measurePreviewMoveHandler: _onAlMeasurePreviewMove,
+            getSelectedIdx:    function() { return _alSelectedTrendlineIdx; },
+            setSelectedIdx:    function(v) { _alSelectedTrendlineIdx = v; },
+            trendlines:        _alTrendlines,
+            deselectAllTrendlines: _alDeselectAllTrendlines,
+            anchorHitTest:     _alAnchorHitTest,
+            trendlineHitTest:  _alTrendlineHitTest,
+            dragMoveHandler:   _onAlTrendAnchorDragMove,
+            dragEndHandler:    _onAlTrendAnchorDragEnd,
+            getTrendlineMode:  function() { return _alTrendlineMode; },
+            setTrendlineMode:  function(v) { _alTrendlineMode = v; },
+            getLastCrosshairTime: function() { return _alLastCrosshairTime; },
+            addTrendline:      _addAlTrendline,
+            doneBtnId:         'al-chart-trendline-btn'
+        });
     }
 
     function _onAlTrendMouseMove(evt) {
-        if (_alTrendDraw.active) {
-            if (!_alTrendSvgOverlay || !_alTrendSvgLine || !_alCandle || !_alChart || !_alTrendContRef) return;
-            var rect  = _alTrendContRef.getBoundingClientRect();
-            var curX  = evt.clientX - rect.left;
-            var curY  = evt.clientY - rect.top;
-            var startTime = _alTrendDraw.startTime;
-            if (!startTime) return;
-            var x1 = _alChart.timeScale().timeToCoordinate(startTime);
-            var y1 = _alCandle.priceToCoordinate(_alTrendDraw.startPrice);
-            if (x1 == null || y1 == null) return;
-            _alTrendSvgLine.setAttribute('x1', x1);
-            _alTrendSvgLine.setAttribute('y1', y1);
-            _alTrendSvgLine.setAttribute('x2', curX);
-            _alTrendSvgLine.setAttribute('y2', curY);
-            return;
-        }
-        if (_alTrendlines.length && _alTrendContRef && !_alTrendlineMode) {
-            if (_alTrendDragState) return;
-            if (_alSelectedTrendlineIdx !== -1) {
-                var anchorSide = _alAnchorHitTest(evt.clientX, evt.clientY, _alSelectedTrendlineIdx);
-                if (anchorSide) { _alTrendContRef.style.cursor = 'grab'; return; }
-            }
-            var hitIdx = _alTrendlineHitTest(evt.clientX, evt.clientY);
-            _alTrendContRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
-        }
+        _onTrendMouseMoveCore(evt, {
+            getTrendDraw:    function() { return _alTrendDraw; },
+            svgOverlay:      _alTrendSvgOverlay,
+            svgLine:         _alTrendSvgLine,
+            candle:          _alCandle,
+            chart:           _alChart,
+            contRef:         _alTrendContRef,
+            trendlines:      _alTrendlines,
+            getTrendlineMode: function() { return _alTrendlineMode; },
+            getDragState:    function() { return _alTrendDragState; },
+            getSelectedIdx:  function() { return _alSelectedTrendlineIdx; },
+            anchorHitTest:   _alAnchorHitTest,
+            trendlineHitTest: _alTrendlineHitTest
+        });
     }
 
     // ── Right-click context menu ──────────────────────────────────────────
@@ -2002,7 +1840,7 @@
     }
 
     function _alDismissCtx() {
-        document.getElementById('al-chart-ctx-menu').style.display = 'none';
+        _hideCtxMenu('al-chart-ctx-menu');
         _alCtxPrice     = null;
         _alCtxMa        = null;
         _alCtxTrendline = null;
@@ -2010,226 +1848,62 @@
     }
 
     window.alChartCtxAlert = function(direction) {
-        if (_alCtxTrendline) {
-            var tl = _alCtxTrendline;
-            _alDismissCtx();
-            if (!_alSym) return;
-            window.alAddTrendlineAlert(_alSym, tl.p1, tl.p2, direction);
-            return;
-        }
-        if (_alCtxAvwap) {
-            var av = _alCtxAvwap;
-            _alDismissCtx();
-            if (!_alSym) return;
-            window.alAddAvwapAlert(_alSym, av.anchorTime, direction);
-            return;
-        }
-        if (_alCtxMa) {
-            var maKey = _alCtxMa;
-            _alDismissCtx();
-            if (!_alSym) return;
-            alShowForm(_alSym);
-            setTimeout(function() {
-                document.getElementById('al-input-type').value = 'ma';
-                if (typeof alFormTypeChange === 'function') alFormTypeChange();
-                document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
-                if (typeof alMACondChange === 'function') alMACondChange();
-                document.getElementById('al-input-ma').value = maKey;
-                document.getElementById('al-input-ma').focus();
-            }, 60);
-        } else {
-            var price = _alCtxPrice;
-            _alDismissCtx();
-            if (!_alSym || price == null) return;
-            alShowForm(_alSym);
-            setTimeout(function() {
-                document.getElementById('al-input-type').value = 'price';
-                if (typeof alFormTypeChange === 'function') alFormTypeChange();
-                document.getElementById('al-input-cond').value = direction === 'above' ? 'above' : 'below';
-                document.getElementById('al-input-price').value = price.toFixed(2);
-                document.getElementById('al-input-price').focus();
-            }, 60);
-        }
+        _ctxAlertCore(direction, {
+            getCtxTrendline: function() { return _alCtxTrendline; },
+            getCtxAvwap:     function() { return _alCtxAvwap; },
+            getCtxMa:        function() { return _alCtxMa; },
+            getCtxPrice:     function() { return _alCtxPrice; },
+            getSym:          function() { return _alSym; },
+            dismiss:         _alDismissCtx
+        });
     };
 
     function _alAttachCtxMenu() {
-        if (_alCtxAttached) return;
-        _alCtxAttached = true;
-        var chartWrap = document.getElementById('al-chart-widget-wrap');
-        var chartDiv  = document.getElementById('al-chart-widget');
-        chartWrap.addEventListener('contextmenu', function(evt) {
-            if (!chartDiv.contains(evt.target)) return;
-            evt.preventDefault();
-            evt.stopPropagation();
-            // Toggle off data tooltip on right-click
-            if (_alTooltipEnabled) { _alTooltipEnabled = false; var _ttBtn = document.getElementById('al-chart-tooltip-btn'); if (_ttBtn) _ttBtn.classList.remove('active'); if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none'; }
-            // Right-click: cancel active measurement first (no context menu shown)
-            if (_alMeasurePhase === 1) {
-                _alMeasureActive = false;
-                _alMeasurePhase  = 0;
-                if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
-                document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
-                _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-                _alMeasureResult = null;
-                return;
-            }
-            if (_alMeasureResult) {
-                _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
-                _alMeasureResult = null;
-                return;
-            }
-            if (_alTrendDraw.active) {
-                _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
-                if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
-                return;
-            }
-            if (_alVwapMode) {
-                _alVwapMode = false;
-                var vBtn = document.getElementById('al-chart-vwap-btn');
-                if (vBtn) vBtn.classList.remove('active');
-                return;
-            }
-            if (!_alChart || !_alSym) return;
-            // ── Trendline right-click: check hit before price/MA ──────────────
-            var _tlHitIdx = _alTrendlineHitTest(evt.clientX, evt.clientY);
-            if (_tlHitIdx !== -1) {
-                var _tlHit = _alTrendlines[_tlHitIdx];
-                _alCtxTrendline = { p1: _tlHit.p1, p2: _tlHit.p2 };
-                _alCtxPrice = null;
-                _alCtxMa    = null;
-                document.getElementById('al-chart-ctx-label').textContent     = _alSym + ' · Trendline';
-                document.getElementById('al-chart-ctx-above-txt').textContent = 'Alert above trendline';
-                document.getElementById('al-chart-ctx-below-txt').textContent = 'Alert below trendline';
-                var menu  = document.getElementById('al-chart-ctx-menu');
-                menu.style.display = 'block';
-                var mw = menu.offsetWidth  || 185;
-                var mh = menu.offsetHeight || 90;
-                var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
-                var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
-                menu.style.left = x + 'px';
-                menu.style.top  = y + 'px';
-                setTimeout(function() {
-                    function _tlDismiss(e) {
-                        if (!menu.contains(e.target)) {
-                            _alDismissCtx();
-                            document.removeEventListener('mousedown', _tlDismiss, true);
-                            document.removeEventListener('keydown',   _tlKd,      true);
-                        }
-                    }
-                    function _tlKd(e) {
-                        if (e.key === 'Escape') {
-                            _alDismissCtx();
-                            document.removeEventListener('mousedown', _tlDismiss, true);
-                            document.removeEventListener('keydown',   _tlKd,      true);
-                        }
-                    }
-                    document.addEventListener('mousedown', _tlDismiss, true);
-                    document.addEventListener('keydown',   _tlKd,      true);
-                }, 0);
-                return;
-            }
-            // ── AVWAP right-click: check hit before price/MA ──────────────────
-            var _avHitIdx = _alVwapHitTest(evt.clientX, evt.clientY);
-            if (_avHitIdx !== -1) {
-                var _avHit = _alVwapSeries[_avHitIdx];
-                _alCtxAvwap     = { anchorIdx: _avHit.anchor, anchorTime: _alOhlcv[_avHit.anchor] ? _alOhlcv[_avHit.anchor].time : null };
-                _alCtxTrendline = null;
-                _alCtxPrice     = null;
-                _alCtxMa        = null;
-                document.getElementById('al-chart-ctx-label').textContent     = _alSym + ' · AVWAP';
-                document.getElementById('al-chart-ctx-above-txt').textContent = 'Alert above AVWAP';
-                document.getElementById('al-chart-ctx-below-txt').textContent = 'Alert below AVWAP';
-                var avMenu  = document.getElementById('al-chart-ctx-menu');
-                avMenu.style.display = 'block';
-                var avMw = avMenu.offsetWidth  || 185;
-                var avMh = avMenu.offsetHeight || 90;
-                var avX  = Math.min(evt.clientX, window.innerWidth  - avMw - 8);
-                var avY  = Math.min(evt.clientY, window.innerHeight - avMh - 8);
-                avMenu.style.left = avX + 'px';
-                avMenu.style.top  = avY + 'px';
-                setTimeout(function() {
-                    function _avDismiss(e) {
-                        if (!avMenu.contains(e.target)) {
-                            _alDismissCtx();
-                            document.removeEventListener('mousedown', _avDismiss, true);
-                            document.removeEventListener('keydown',   _avKd,      true);
-                        }
-                    }
-                    function _avKd(e) {
-                        if (e.key === 'Escape') {
-                            _alDismissCtx();
-                            document.removeEventListener('mousedown', _avDismiss, true);
-                            document.removeEventListener('keydown',   _avKd,      true);
-                        }
-                    }
-                    document.addEventListener('mousedown', _avDismiss, true);
-                    document.addEventListener('keydown',   _avKd,      true);
-                }, 0);
-                return;
-            }
-            var chartRect = chartDiv.getBoundingClientRect();
-            var localY    = evt.clientY - chartRect.top;
-            var price = _alLastCrosshairPrice;
-            if (price == null || isNaN(price)) {
-                if (_alCandle) {
-                    var fallbackPrice = _alCandle.coordinateToPrice(localY);
-                    if (fallbackPrice != null && !isNaN(fallbackPrice)) price = fallbackPrice;
-                }
-            }
-            if (price == null || isNaN(price)) return;
-            var nearestMa   = null;
-            var nearestDist = 10;
-            if (_alLastCrosshairTime) {
-                Object.keys(_alMaDataMap).forEach(function(key) {
-                    if (!_alMaSeries[key]) return;
-                    var maVal = _alMaDataMap[key].get(_alLastCrosshairTime);
-                    if (maVal == null) return;
-                    var maCoord = _alMaSeries[key].priceToCoordinate(maVal);
-                    if (maCoord == null) return;
-                    var dist = Math.abs(localY - maCoord);
-                    if (dist < nearestDist) { nearestDist = dist; nearestMa = key; }
-                });
-            }
-            _alCtxPrice = price;
-            _alCtxMa    = nearestMa;
-            if (nearestMa) {
-                var maLabel = _maLabel(nearestMa);
-                document.getElementById('al-chart-ctx-label').textContent    = _alSym + ' · ' + maLabel;
-                document.getElementById('al-chart-ctx-above-txt').textContent = 'Price crosses above ' + maLabel;
-                document.getElementById('al-chart-ctx-below-txt').textContent = 'Price crosses below ' + maLabel;
-            } else {
-                var fmt = '$' + price.toFixed(2);
-                document.getElementById('al-chart-ctx-label').textContent    = _alSym + ' · ' + fmt;
-                document.getElementById('al-chart-ctx-above-txt').textContent = 'Alert above ' + fmt;
-                document.getElementById('al-chart-ctx-below-txt').textContent = 'Alert below ' + fmt;
-            }
-            var menu  = document.getElementById('al-chart-ctx-menu');
-            menu.style.display = 'block';
-            var mw = menu.offsetWidth  || 185;
-            var mh = menu.offsetHeight || 90;
-            var x  = Math.min(evt.clientX, window.innerWidth  - mw - 8);
-            var y  = Math.min(evt.clientY, window.innerHeight - mh - 8);
-            menu.style.left = x + 'px';
-            menu.style.top  = y + 'px';
-            setTimeout(function() {
-                function _dismiss(e) {
-                    if (!menu.contains(e.target)) {
-                        _alDismissCtx();
-                        document.removeEventListener('mousedown', _dismiss, true);
-                        document.removeEventListener('keydown',   _kd,      true);
-                    }
-                }
-                function _kd(e) {
-                    if (e.key === 'Escape') {
-                        _alDismissCtx();
-                        document.removeEventListener('mousedown', _dismiss, true);
-                        document.removeEventListener('keydown',   _kd,      true);
-                    }
-                }
-                document.addEventListener('mousedown', _dismiss, true);
-                document.addEventListener('keydown',   _kd,      true);
-            }, 0);
-        }, true);
+        _attachCtxMenuCore({
+            getAttached: function() { return _alCtxAttached; },
+            setAttached: function(v) { _alCtxAttached = v; },
+            parentElId: 'al-chart-widget-wrap',
+            chartDivId: 'al-chart-widget',
+            getTooltipEnabled: function() { return _alTooltipEnabled; },
+            setTooltipEnabled: function(v) { _alTooltipEnabled = v; },
+            tooltipBtnId: 'al-chart-tooltip-btn',
+            getMeasurePhase:  function() { return _alMeasurePhase; },
+            setMeasurePhase:  function(v) { _alMeasurePhase = v; },
+            setMeasureActive: function(v) { _alMeasureActive = v; },
+            getMeasureRafId:  function() { return _alMeasureRafId; },
+            setMeasureRafId:  function(v) { _alMeasureRafId = v; },
+            measurePreviewMoveHandler: _onAlMeasurePreviewMove,
+            getMeasureSvgOverlay: function() { return _alMeasureSvgOverlay; },
+            getMeasureInfoDiv:    function() { return _alMeasureInfoDiv; },
+            getMeasureResult: function() { return _alMeasureResult; },
+            setMeasureResult: function(v) { _alMeasureResult = v; },
+            trendDraw:     _alTrendDraw,
+            getSvgOverlay: function() { return _alTrendSvgOverlay; },
+            getVwapMode: function() { return _alVwapMode; },
+            setVwapMode: function(v) { _alVwapMode = v; },
+            vwapBtnId: 'al-chart-vwap-btn',
+            getChart: function() { return _alChart; },
+            getSym:   function() { return _alSym; },
+            trendlineHitTest: _alTrendlineHitTest,
+            getTrendlines: function() { return _alTrendlines; },
+            ctxLabelId:     'al-chart-ctx-label',
+            ctxAboveTxtId:  'al-chart-ctx-above-txt',
+            ctxBelowTxtId:  'al-chart-ctx-below-txt',
+            ctxMenuId:      'al-chart-ctx-menu',
+            setCtxTrendline: function(v) { _alCtxTrendline = v; },
+            setCtxPrice:     function(v) { _alCtxPrice = v; },
+            setCtxMa:        function(v) { _alCtxMa = v; },
+            vwapHitTest: _alVwapHitTest,
+            getVwapSeries: function() { return _alVwapSeries; },
+            getOhlcv:      function() { return _alOhlcv; },
+            setCtxAvwap: function(v) { _alCtxAvwap = v; },
+            getCandle: function() { return _alCandle; },
+            getLastCrosshairPrice: function() { return _alLastCrosshairPrice; },
+            getLastCrosshairTime:  function() { return _alLastCrosshairTime; },
+            getMaDataMap: function() { return _alMaDataMap; },
+            getMaSeries:  function() { return _alMaSeries; },
+            dismissCtx: _alDismissCtx
+        });
     }
 
     // ── Core chart destroy / build ────────────────────────────────────────
