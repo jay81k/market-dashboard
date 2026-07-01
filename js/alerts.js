@@ -278,6 +278,30 @@
         return pending.length ? Promise.all(pending) : Promise.resolve();
     }
 
+    // Keeps a per-ticker daily OHLCV series cached for trendline alerts so their
+    // value can be computed from real trading-day bar positions instead of raw
+    // calendar time (see _alTrendlineValueNow). We don't need "today" itself to be
+    // in the series -- _alTrendlineValueNow treats a missing today bar as "one slot
+    // past the last close", which is the normal state all day until the close prints.
+    // We only force a refetch when the cache is missing outright or has clearly gone
+    // stale across several real trading days (tab left open over a long weekend etc.),
+    // not just because today hasn't printed yet -- that would refetch on every 60s poll.
+    function alSyncTrendlineCache(tickers) {
+        if (!tickers.length) return Promise.resolve();
+        var todayDay = Math.floor(Date.now() / 86400000);
+        var pending = [];
+        tickers.forEach(function(ticker) {
+            var key = ticker + '_D';
+            var arr = _mcOhlcvCache[key];
+            var lastDay = (arr && arr.length) ? Math.floor(arr[arr.length - 1].time / 86400) : null;
+            if (!arr || !arr.length || (todayDay - lastDay) > 4) {
+                delete _mcOhlcvCache[key];
+                pending.push(fetchMcOhlcv(ticker, 'D'));
+            }
+        });
+        return pending.length ? Promise.all(pending) : Promise.resolve();
+    }
+
     function alFetchPrices() {
         var activeTickers  = alertsList.map(function(a) { return a.ticker; });
         var historyTickers = alertFiredList.map(function(f) { return f.ticker; });
@@ -307,7 +331,14 @@
                 .filter(function(a) { return a.alertType === 'avwap'; })
                 .map(function(a) { return a.ticker; })
                 .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-            return alSyncAvwapCache(avwapTickers, alertPrices);
+            var trendlineTickers = alertsList
+                .filter(function(a) { return a.alertType === 'trendline'; })
+                .map(function(a) { return a.ticker; })
+                .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+            return Promise.all([
+                alSyncAvwapCache(avwapTickers, alertPrices),
+                alSyncTrendlineCache(trendlineTickers)
+            ]);
         }).then(function() {
             alCheckTriggers();
             if (currentView === 'alerts') renderAlerts();
@@ -433,8 +464,7 @@
             } else if (a.alertType === 'trendline') {
                 var tlLivePrice = alertPrices[a.ticker];
                 if (tlLivePrice == null || !a.p1 || !a.p2) return;
-                var tlNowUnix   = _alTlEvalUnix(a.p1.unix, a.p2.unix);
-                var tlLinePrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNowUnix);
+                var tlLinePrice = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
                 hitVal = tlLivePrice;
                 hit = (a.condition === 'above' && tlLivePrice >= tlLinePrice) ||
                       (a.condition === 'below' && tlLivePrice <= tlLinePrice);
@@ -609,7 +639,7 @@
                     if (a.alertType === 'trendline') {
                         var tlCurr = alertPrices[a.ticker];
                         if (tlCurr == null || !a.p1 || !a.p2) return Infinity;
-                        var tlSortPrice = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, _alTlEvalUnix(a.p1.unix, a.p2.unix));
+                        var tlSortPrice = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
                         return tlSortPrice > 0 ? Math.abs((tlCurr - tlSortPrice) / tlSortPrice * 100) : Infinity;
                     }
                     if (a.alertType === 'macross') {
@@ -765,8 +795,7 @@
                 if (fired || curr == null || !a.p1 || !a.p2) {
                     awayHtml = '<div class="al-col-away">—</div>';
                 } else {
-                    var tlNow   = _alTlEvalUnix(a.p1.unix, a.p2.unix);
-                    var tlPriceNow = _alTrendlinePriceAt(a.p1.unix, a.p1.price, a.p2.unix, a.p2.price, tlNow);
+                    var tlPriceNow = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
                     var tlPct   = tlPriceNow > 0 ? Math.abs((curr - tlPriceNow) / tlPriceNow * 100) : 0;
                     var tlCls   = tlPct < 1 ? ' imminent' : tlPct < 5 ? ' close' : '';
                     awayHtml    = '<div class="al-col-away' + tlCls + '">' + tlPct.toFixed(1) + '%</div>';
@@ -1837,6 +1866,41 @@
     function _alTrendlinePriceAt(p1unix, p1price, p2unix, p2price, nowUnix) {
         if (p1unix === p2unix) return p1price;
         return p1price + (p2price - p1price) * (nowUnix - p1unix) / (p2unix - p1unix);
+    }
+
+    // Computes the trendline's current price using real trading-day bar positions
+    // (bar index), not calendar time. Lightweight Charts spaces daily bars evenly by
+    // index and gives weekends/holidays zero width, so a straight line drawn on the
+    // chart advances one "step" per trading day, not per elapsed calendar day. Calendar
+    // interpolation (_alTrendlinePriceAt) implicitly counts weekends as if the market
+    // moved on them, so the computed value drifts from the visual line as time passes
+    // since the alert was set -- this is what caused premature triggers. Matching is
+    // done by calendar day (not exact timestamp) so it's unaffected by whatever
+    // intraday offset fetchMcOhlcv's bar timestamps use.
+    // Falls back to the old calendar-time calc if the daily OHLCV cache isn't ready
+    // yet or either anchor can't be located in it (e.g. a weekly/monthly-drawn line).
+    function _alTrendlineValueNow(ticker, p1, p2) {
+        var ohlcv = _mcOhlcvCache[ticker + '_D'] || _mcOhlcvCache[ticker + '_d'];
+        if (ohlcv && ohlcv.length) {
+            var p1Day = Math.floor(p1.unix / 86400);
+            var p2Day = Math.floor(p2.unix / 86400);
+            var p1Idx = -1, p2Idx = -1;
+            for (var i = 0; i < ohlcv.length; i++) {
+                var barDay = Math.floor(ohlcv[i].time / 86400);
+                if (p1Idx < 0 && barDay === p1Day) p1Idx = i;
+                if (barDay === p2Day) p2Idx = i;
+            }
+            if (p1Idx >= 0 && p2Idx >= 0 && p1Idx !== p2Idx) {
+                var lastDay  = Math.floor(ohlcv[ohlcv.length - 1].time / 86400);
+                var todayDay = Math.floor(Date.now() / 86400000);
+                // If today's bar hasn't printed yet, treat "now" as one slot past the
+                // last close -- the normal state for the entire trading day.
+                var todayIdx = (lastDay >= todayDay) ? (ohlcv.length - 1) : ohlcv.length;
+                return p1.price + (p2.price - p1.price) * (todayIdx - p1Idx) / (p2Idx - p1Idx);
+            }
+        }
+        var tlNowUnix = _alTlEvalUnix(p1.unix, p2.unix);
+        return _alTrendlinePriceAt(p1.unix, p1.price, p2.unix, p2.price, tlNowUnix);
     }
 
     function _alDismissCtx() {
