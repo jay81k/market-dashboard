@@ -413,14 +413,13 @@
     function applyRsBadge(el, percentile, weightedRsPct, el3m) {
         if (!el) return;
         var b = rsBadge(percentile);
-        if (!b) {
+        if (b) {
+            el.className = 'chart-rs-badge ' + b.cls;
+            el.textContent = b.text;
+            el.style.display = '';
+        } else {
             el.style.display = 'none';
-            if (el3m) el3m.style.display = 'none';
-            return;
         }
-        el.className = 'chart-rs-badge ' + b.cls;
-        el.textContent = b.text;
-        el.style.display = '';
         if (el3m) {
             if (weightedRsPct != null) {
                 var wrs = Math.round(weightedRsPct);
