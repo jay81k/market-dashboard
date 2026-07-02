@@ -490,16 +490,38 @@
                 var dHigh = alertDayHigh[a.ticker];
                 var dLow  = alertDayLow[a.ticker];
                 if (price == null) return;
+                // Baseline = the day's high/low as of the first time we ever checked
+                // this alert, reset at the start of each new trading day. Only a move
+                // *past* the baseline counts as something that happened while the
+                // alert was actually watching -- see the spike-catch comment below for
+                // why we track a high/low at all instead of just the live price.
+                var todayDay = Math.floor(Date.now() / 86400000);
+                var baselineChanged = false;
+                if (a.baselineDay !== todayDay) {
+                    a.baselineDay = todayDay;
+                    a.baselineDayHigh = dHigh;
+                    a.baselineDayLow  = dLow;
+                    baselineChanged = true;
+                } else {
+                    if (a.baselineDayHigh == null && dHigh != null) { a.baselineDayHigh = dHigh; baselineChanged = true; }
+                    if (a.baselineDayLow  == null && dLow  != null) { a.baselineDayLow  = dLow;  baselineChanged = true; }
+                }
+                if (baselineChanged) alSave();
                 // Compare against the day's high/low, not just the last-polled price.
                 // A 60s poll can otherwise completely miss a spike that prints and
                 // reverts faster than the poll interval (e.g. high $313.33, alert at
                 // $309.61, price already back to $307.80 by the next poll — the
-                // condition was met on the exchange but never observed by us).
+                // condition was met on the exchange but never observed by us). But
+                // only count a high/low that's past the baseline above -- otherwise a
+                // brand new alert set after a big move already happened that day would
+                // fire immediately off history that predates the alert.
                 if (a.condition === 'above') {
-                    hitVal = (dHigh != null) ? Math.max(price, dHigh) : price;
+                    var newHigh = (dHigh != null && a.baselineDayHigh != null && dHigh > a.baselineDayHigh) ? dHigh : null;
+                    hitVal = (newHigh != null) ? Math.max(price, newHigh) : price;
                     hit = hitVal >= a.price;
                 } else {
-                    hitVal = (dLow != null) ? Math.min(price, dLow) : price;
+                    var newLow = (dLow != null && a.baselineDayLow != null && dLow < a.baselineDayLow) ? dLow : null;
+                    hitVal = (newLow != null) ? Math.min(price, newLow) : price;
                     hit = hitVal <= a.price;
                 }
             }
