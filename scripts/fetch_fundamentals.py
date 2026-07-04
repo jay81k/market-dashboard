@@ -66,13 +66,19 @@ def _patched_ticker_fundament(self, raw=True, output_format="dict"):
     fundament_info["Country"]  = links[2].text
     fundament_info["Exchange"] = links[4].text  # index shifted: new cap-size link at [3]
 
-    fundament_table = self.soup.find("table", class_="snapshot-table2")
-    rows = fundament_table.find_all("tr")
+    # Finviz now splits the fundamentals into multiple separate
+    # <table class="snapshot-table2"> blocks (confirmed: 6 on the quote
+    # page as of July 2026), instead of one big table. The old .find()
+    # only grabbed the first one, silently dropping EPS/growth/margin/
+    # valuation stats that live in the other 5 tables.
+    fundament_tables = self.soup.find_all("table", class_="snapshot-table2")
 
-    for row in rows:
-        cols = row.find_all("td")
-        cols = [i.text for i in cols]
-        fundament_info = self._parse_column(cols, raw, fundament_info)
+    for fundament_table in fundament_tables:
+        rows = fundament_table.find_all("tr")
+        for row in rows:
+            cols = row.find_all("td")
+            cols = [i.text for i in cols]
+            fundament_info = self._parse_column(cols, raw, fundament_info)
     self.info["fundament"] = fundament_info
 
     if output_format == "dict":
