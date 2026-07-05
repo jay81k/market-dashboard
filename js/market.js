@@ -861,7 +861,7 @@
             var above80 = buckets[8] + buckets[9];
             var below20 = buckets[0] + buckets[1];
             var skew    = above80 > below20 * 1.5 ? 'top' : below20 > above80 * 1.5 ? 'bot' : 'bal';
-            return { buckets: buckets, total: total, median: median, avg: avg, above80: above80, below20: below20, skew: skew };
+            return { buckets: buckets, total: total, median: median, avg: avg, above80: above80, below20: below20, skew: skew, field: field };
         }
 
         var datasets = {
@@ -888,7 +888,11 @@
                 var bh = (ds.buckets[i] / yMax) * chartH;
                 var bx = padL + i * barW;
                 var by = padT + chartH - bh;
-                barsHtml += '<rect x="' + (bx+2) + '" y="' + by + '" width="' + (barW-4) + '" height="' + bh + '" fill="' + COLORS[i] + '" rx="2"/>';
+                // Full-height invisible hit area (so short/empty bars are still easy to click) + the visible bar on top
+                barsHtml += '<g style="cursor:pointer;" onclick="goToRSBucket(' + i + ',\'' + ds.field + '\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">' +
+                    '<rect x="' + bx + '" y="' + padT + '" width="' + barW + '" height="' + chartH + '" fill="transparent"/>' +
+                    '<rect x="' + (bx+2) + '" y="' + by + '" width="' + (barW-4) + '" height="' + bh + '" fill="' + COLORS[i] + '" rx="2"/>' +
+                '</g>';
             }
 
             var xlHtml = '';
@@ -958,4 +962,34 @@
             if (btnRs3m) btnRs3m.style.cssText = (which === 'rs3m' ? btnActive : btnInactive);
         };
     }
+
+    // ── RS Distribution → Scans drill-down ──────────────────────────────────
+    // Clicking a bucket bar opens Scans filtered to that RS range. There's no
+    // native "between" filter on Scans, so this recreates it with two RS rows:
+    // one "greater than" and one "less than", matching the bucket's bounds.
+    window.goToRSBucket = function(bucketIndex, field) {
+        var bucketStart = bucketIndex * 10;
+
+        // Close any open filter popover/preset dropdown before wiping rows
+        var pop = document.getElementById('sf-popover');
+        if (pop) pop.style.display = 'none';
+        var dd = document.getElementById('sf-preset-dropdown');
+        if (dd) dd.classList.remove('open');
+        sfActivePillType     = null;
+        sfActivePopoverId    = null;
+        sfPillWasPreExisting = false;
+        sfPopoverIsNew       = false;
+        _activePresetName    = null;
+
+        // Clean slate, then set the two RS bounds that recreate this bucket.
+        // gt uses bucketStart-1 (not bucketStart) so stocks sitting exactly on
+        // the bucket floor are included, matching what the bar itself counted.
+        sfRows  = [];
+        sfRowId = 0;
+        sfRows.push({ id: ++sfRowId, type: 'rs', dir: 'gt', val: bucketStart - 1, rsMetric: field });
+        sfRows.push({ id: ++sfRowId, type: 'rs', dir: 'lt', val: bucketStart + 10, rsMetric: field });
+
+        sfRenderPills();
+        navTo('scans');
+    };
 
