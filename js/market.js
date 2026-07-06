@@ -443,16 +443,16 @@
 
         wrap.innerHTML =
             '<div class="market-ad-row">' +
-                '<div class="market-ad-side-adv">' +
+                '<div class="market-ad-side-adv" style="cursor:pointer;" onclick="goToBreadthPerf(\'up\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">' +
                     '<div class="market-ad-label adv">Advancing</div>' +
                     '<div class="market-ad-count adv">' + adv.toLocaleString() + ' <span class="market-ad-pct">(' + advPct + '%)</span></div>' +
                 '</div>' +
                 '<div class="market-ad-bar-wrap">' +
-                    '<div class="market-ad-bar-adv"  style="width:' + advW + '"></div>' +
+                    '<div class="market-ad-bar-adv"  style="width:' + advW + ';cursor:pointer;" onclick="goToBreadthPerf(\'up\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"></div>' +
                     (unch ? '<div class="market-ad-bar-unch" style="width:' + unW + '"></div>' : '') +
-                    '<div class="market-ad-bar-dec"  style="width:' + decW + '"></div>' +
+                    '<div class="market-ad-bar-dec"  style="width:' + decW + ';cursor:pointer;" onclick="goToBreadthPerf(\'down\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"></div>' +
                 '</div>' +
-                '<div class="market-ad-side-dec">' +
+                '<div class="market-ad-side-dec" style="cursor:pointer;" onclick="goToBreadthPerf(\'down\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">' +
                     '<div class="market-ad-label dec">Declining</div>' +
                     '<div class="market-ad-count dec">' + dec.toLocaleString() + ' <span class="market-ad-pct">(' + decPct + '%)</span></div>' +
                 '</div>' +
@@ -493,16 +493,16 @@
 
         wrap.innerHTML =
             '<div class="market-ad-row">' +
-                '<div class="market-ad-side-adv">' +
+                '<div class="market-ad-side-adv" style="cursor:pointer;" onclick="goToWk52(\'high\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">' +
                     '<div class="market-ad-label adv">New Highs</div>' +
                     '<div class="market-ad-count adv">' + nh.toLocaleString() + ' <span class="market-ad-pct">(' + nhPct + '%)</span></div>' +
                 '</div>' +
                 '<div class="market-ad-bar-wrap">' +
-                    '<div class="market-ad-bar-adv" style="width:' + nhW + '"></div>' +
+                    '<div class="market-ad-bar-adv" style="width:' + nhW + ';cursor:pointer;" onclick="goToWk52(\'high\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"></div>' +
                     '<div class="market-ad-bar-unch" style="flex:1"></div>' +
-                    '<div class="market-ad-bar-dec" style="width:' + nlW + '"></div>' +
+                    '<div class="market-ad-bar-dec" style="width:' + nlW + ';cursor:pointer;" onclick="goToWk52(\'low\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"></div>' +
                 '</div>' +
-                '<div class="market-ad-side-dec">' +
+                '<div class="market-ad-side-dec" style="cursor:pointer;" onclick="goToWk52(\'low\')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">' +
                     '<div class="market-ad-label dec">New Lows</div>' +
                     '<div class="market-ad-count dec">' + nl.toLocaleString() + ' <span class="market-ad-pct">(' + nlPct + '%)</span></div>' +
                 '</div>' +
@@ -541,9 +541,11 @@
         var tot = total || 1;
 
         // Simple split cards — 5 SMA and 21 EMA (above = filtered count, below = rest)
-        var ids    = ['market-ma-5sma', 'market-ma-21ema'];
-        var labels = ['5 SMA', '21 EMA'];
-        var cnts   = [sma5, ema21];
+        var ids      = ['market-ma-5sma', 'market-ma-21ema'];
+        var labels   = ['5 SMA', '21 EMA'];
+        var cnts     = [sma5, ema21];
+        var maTypes  = ['SMA', 'EMA'];
+        var maPeriods = [5, 21];
         for (var i = 0; i < 2; i++) {
             var el = document.getElementById(ids[i]);
             if (!el) continue;
@@ -555,10 +557,15 @@
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
             var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            // Above is exactly reproducible (above short MA AND above 50 SMA, same
+            // compound condition the card counts). Below isn't clickable — it would
+            // need OR logic ("below either MA") that the Scans filter system doesn't
+            // support, only AND across rows.
+            var aboveClick = ' onclick="goToMAAboveStack(\'' + maTypes[i] + '\',' + maPeriods[i] + ')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"';
             el.style.alignItems = '';
             el.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
-                    '<div style="display:flex;flex-direction:column;gap:1px;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;cursor:pointer;"' + aboveClick + '>' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
                         '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
                         '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
@@ -572,7 +579,7 @@
                 '</div>' +
                 '<div>' +
                     '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
-                        '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
+                        '<div' + aboveClick + ' style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';cursor:pointer;"></div>' +
                         '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
@@ -588,11 +595,14 @@
                 '</div>';
         }
 
-        // Split cards — 50 SMA and 200 SMA
-        var splitIds    = ['market-ma-50sma',  'market-ma-200sma'];
-        var splitLabels = ['50 SMA',           '200 SMA'];
-        var splitAbove  = [sma50a,              sma200a];
-        var splitBelow  = [sma50b,              sma200b];
+        // Split cards — 50 SMA and 200 SMA. Simple single-condition splits (no
+        // compound 50-SMA qualifier like the cards above), so both Above and
+        // Below map to one exact ma filter row each.
+        var splitIds     = ['market-ma-50sma',  'market-ma-200sma'];
+        var splitLabels  = ['50 SMA',           '200 SMA'];
+        var splitPeriods = [50,                 200];
+        var splitAbove   = [sma50a,              sma200a];
+        var splitBelow   = [sma50b,              sma200b];
         for (var j = 0; j < 2; j++) {
             var sel = document.getElementById(splitIds[j]);
             if (!sel) continue;
@@ -604,15 +614,18 @@
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
             var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            var period = splitPeriods[j];
+            var aboveClick = ' onclick="goToMA(\'above_price\',\'SMA\',' + period + ')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"';
+            var belowClick = ' onclick="goToMA(\'below_price\',\'SMA\',' + period + ')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"';
             sel.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
-                    '<div style="display:flex;flex-direction:column;gap:1px;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;cursor:pointer;"' + aboveClick + '>' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
                         '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
                         '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
                     '<div class="ma-label" style="align-self:center;text-align:center;">' + splitLabels[j] + '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
+                    '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;cursor:pointer;"' + belowClick + '>' +
                         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
                         '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:11px;">%</span></div>' +
                         '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
@@ -620,8 +633,8 @@
                 '</div>' +
                 '<div>' +
                     '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
-                        '<div style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';"></div>' +
-                        '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
+                        '<div' + aboveClick + ' style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';cursor:pointer;"></div>' +
+                        '<div' + belowClick + ' style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;cursor:pointer;"></div>' +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
                         '<div style="display:flex;flex-direction:column;gap:1px;">' +
@@ -963,14 +976,12 @@
         };
     }
 
-    // ── RS Distribution → Scans drill-down ──────────────────────────────────
-    // Clicking a bucket bar opens Scans filtered to that RS range. There's no
-    // native "between" filter on Scans, so this recreates it with two RS rows:
-    // one "greater than" and one "less than", matching the bucket's bounds.
-    window.goToRSBucket = function(bucketIndex, field) {
-        var bucketStart = bucketIndex * 10;
-
-        // Close any open filter popover/preset dropdown before wiping rows
+    // ── Market widgets → Scans drill-down ────────────────────────────────────
+    // Shared by every clickable chart/card below: wipes whatever filters are
+    // currently on the Scans page, closes any open filter popover/preset
+    // dropdown so there's no stale UI state, installs the given filter rows,
+    // refreshes the pill bar, then switches to the Scans view.
+    function sfGoToFilters(rows) {
         var pop = document.getElementById('sf-popover');
         if (pop) pop.style.display = 'none';
         var dd = document.getElementById('sf-preset-dropdown');
@@ -981,15 +992,64 @@
         sfPopoverIsNew       = false;
         _activePresetName    = null;
 
-        // Clean slate, then set the two RS bounds that recreate this bucket.
-        // gt uses bucketStart-1 (not bucketStart) so stocks sitting exactly on
-        // the bucket floor are included, matching what the bar itself counted.
         sfRows  = [];
         sfRowId = 0;
-        sfRows.push({ id: ++sfRowId, type: 'rs', dir: 'gt', val: bucketStart - 1, rsMetric: field });
-        sfRows.push({ id: ++sfRowId, type: 'rs', dir: 'lt', val: bucketStart + 10, rsMetric: field });
+        rows.forEach(function(r) {
+            r.id = ++sfRowId;
+            sfRows.push(r);
+        });
 
         sfRenderPills();
         navTo('scans');
+    }
+
+    // RS Distribution bucket click. There's no native "between" filter on
+    // Scans, so this recreates one with two RS rows: "greater than" and
+    // "less than", matching the clicked bucket's bounds. gt uses
+    // bucketStart-1 (not bucketStart) so stocks sitting exactly on the
+    // bucket floor are included, matching what the bar itself counted.
+    window.goToRSBucket = function(bucketIndex, field) {
+        var bucketStart = bucketIndex * 10;
+        sfGoToFilters([
+            { type: 'rs', dir: 'gt', val: bucketStart - 1, rsMetric: field },
+            { type: 'rs', dir: 'lt', val: bucketStart + 10, rsMetric: field }
+        ]);
+    };
+
+    // Advancing / Declining click → Performance filter, 1-day, up or down,
+    // 0% threshold (i.e. any positive/negative move). Note: this uses >= 0
+    // under the hood, so a stock at exactly 0.00% would appear here even
+    // though the breadth card buckets it as "unchanged" separately.
+    window.goToBreadthPerf = function(dir) {
+        sfGoToFilters([
+            { type: 'perf', perfTf: '1d', perfDir: dir, val: 0 }
+        ]);
+    };
+
+    // 50 SMA / 200 SMA click → single exact "above/below the MA" filter.
+    window.goToMA = function(cond, maType, period) {
+        sfGoToFilters([
+            { type: 'ma', maCondition: cond, maType: maType, maPeriod: period }
+        ]);
+    };
+
+    // 5 SMA / 21 EMA "Above" click → the card's Above count requires BOTH
+    // above the short MA and above the 50 SMA, so this stacks two AND'd
+    // rows to match exactly. (There's no clickable "Below" for these two
+    // cards — see conversation: it would require OR logic Scans doesn't
+    // support, since "Below" here means below-either, not below-both.)
+    window.goToMAAboveStack = function(maType, period) {
+        sfGoToFilters([
+            { type: 'ma', maCondition: 'above_price', maType: maType, maPeriod: period },
+            { type: 'ma', maCondition: 'above_price', maType: 'SMA', maPeriod: 50 }
+        ]);
+    };
+
+    // New Highs / New Lows click → strict boolean match (new_52wk_high/low),
+    // same definition the card itself counts.
+    window.goToWk52 = function(side) {
+        sfGoToFilters([
+            { type: 'wk52', wk52Side: side, wk52NewOnly: true }
+        ]);
     };
 
