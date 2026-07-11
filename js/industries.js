@@ -8,19 +8,44 @@
 
     // ── Sector drill-down ────────────────────────────────────────────────
     var currentSector = '';
+    var sectorSort = { col: null, dir: -1 };
 
     window.openSector = function(sectorName) {
         currentSector = sectorName;
         var secCl = sectorClass(sectorName);
 
-        // Get all industries in this sector from industriesData
-        var industries = (industriesData && industriesData.industries)
-            ? industriesData.industries.filter(function(i){ return i.sector === sectorName; })
-            : [];
-        industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
-
         document.getElementById('sector-name').innerHTML =
             '<span class="' + secCl + '">' + esc(sectorName) + '</span>';
+
+        // Reset column sort whenever a fresh sector is opened
+        sectorSort = { col: null, dir: -1 };
+        document.querySelectorAll('#sector-list-header .ind-col-hdr').forEach(function(el){ el.classList.remove('sorted','asc','desc'); });
+
+        renderSectorIndustries();
+        showView('sector');
+    };
+
+    function renderSectorIndustries() {
+        // Get all industries in this sector from industriesData
+        var industries = (industriesData && industriesData.industries)
+            ? industriesData.industries.filter(function(i){ return i.sector === currentSector; })
+            : [];
+
+        if (sectorSort.col) {
+            industries.sort(function(a,b){
+                var sumA = snapshot && snapshot.industry_summary && snapshot.industry_summary[a.industry];
+                var sumB = snapshot && snapshot.industry_summary && snapshot.industry_summary[b.industry];
+                var va = getIndSortVal(a, sumA, sectorSort.col);
+                var vb = getIndSortVal(b, sumB, sectorSort.col);
+                if (va == null && vb == null) return 0;
+                if (va == null) return 1;
+                if (vb == null) return -1;
+                return (va - vb) * sectorSort.dir * -1;
+            });
+        } else {
+            industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
+        }
+
         document.getElementById('sector-meta').textContent =
             industries.length + ' industries';
 
@@ -44,7 +69,22 @@
             html += '</div>';
         });
         document.getElementById('sector-industry-list').innerHTML = html || '<div class="loading-msg">No industries.</div>';
-        showView('sector');
+    }
+
+    window.setSectorSort = function(col) {
+        if (sectorSort.col === col) {
+            sectorSort.dir *= -1;
+        } else {
+            sectorSort.col = col;
+            sectorSort.dir = -1; // default desc (best performers first)
+        }
+        document.querySelectorAll('#sector-list-header .ind-col-hdr').forEach(function(el) {
+            el.classList.remove('sorted','asc','desc');
+            if (el.getAttribute('data-col') === col) {
+                el.classList.add('sorted', sectorSort.dir === 1 ? 'asc' : 'desc');
+            }
+        });
+        renderSectorIndustries();
     };
 
     window.backFromSector = function() {
@@ -60,7 +100,7 @@
             indSort.dir = -1; // default desc (best performers first)
         }
         // Update header indicators
-        document.querySelectorAll('.ind-col-hdr').forEach(function(el) {
+        document.querySelectorAll('#industry-list-header .ind-col-hdr').forEach(function(el) {
             el.classList.remove('sorted','asc','desc');
             if (el.getAttribute('data-col') === col) {
                 el.classList.add('sorted', indSort.dir === 1 ? 'asc' : 'desc');
@@ -73,7 +113,7 @@
         activeSort = s;
         indSort = { col: null, dir: -1 }; // reset column sort when switching preset sort
         document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sort') === s); });
-        document.querySelectorAll('.ind-col-hdr').forEach(function(el){ el.classList.remove('sorted','asc','desc'); });
+        document.querySelectorAll('#industry-list-header .ind-col-hdr').forEach(function(el){ el.classList.remove('sorted','asc','desc'); });
         renderIndustries();
     };
 
