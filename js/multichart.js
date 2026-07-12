@@ -34,7 +34,7 @@
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
     var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
-    var MC_FETCH_LIMIT  = 50;
+    var MC_FETCH_LIMIT  = 6; // was 50 — with the pre-warm-all loop removed, the queue is now driven only by what's actually scrolled into view, so this is a real concurrency cap rather than a rarely-hit ceiling
 
     // Fullscreen state
     var _mcFsOhlcv              = [];
@@ -180,9 +180,21 @@
                 continue;
             }
             q.active++;
-            (function doFetch(s, retriesLeft) {
+            (function doFetch(s, attempt) {
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf);
-                fetch(url).then(function(r) { return r.json(); })
+                fetch(url).then(function(resp) {
+                        if (resp.ok) return resp.json();
+                        // Drain the body before treating this as an error —
+                        // an unread body on a non-ok response is what makes
+                        // Cloudflare Workers cancel stalled in-flight requests.
+                        var retryAfter = resp.headers.get('Retry-After');
+                        return resp.text().catch(function() {}).then(function() {
+                            var err = new Error('http_' + resp.status);
+                            err.status = resp.status;
+                            err.retryAfter = retryAfter;
+                            throw err;
+                        });
+                    })
                     .then(function(data) {
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         if (result && result.meta) _mcMetaCache[s] = result.meta;
@@ -226,10 +238,19 @@
                         q.active = Math.max(0, q.active - 1);
                         _drainMcQueue(tf);
                     })
-                    .catch(function() {
-                        if (retriesLeft > 0) {
-                            // One automatic retry after 1.5s — keeps q.active held so the slot isn't reused
-                            setTimeout(function() { doFetch(s, retriesLeft - 1); }, 1500);
+                    .catch(function(err) {
+                        var MAX_RETRIES = 3;
+                        if (attempt < MAX_RETRIES) {
+                            var delayMs;
+                            if (err && err.retryAfter && !isNaN(parseInt(err.retryAfter, 10))) {
+                                delayMs = parseInt(err.retryAfter, 10) * 1000;
+                            } else {
+                                // Exponential backoff: 1s, 2s, 4s
+                                delayMs = 1000 * Math.pow(2, attempt);
+                            }
+                            delayMs = Math.min(delayMs, 10000); // don't let one stubborn ticker hold a slot forever
+                            // q.active stays held during the wait so the slot isn't reused
+                            setTimeout(function() { doFetch(s, attempt + 1); }, delayMs);
                         } else {
                             _mcOhlcvCache[s + '_' + tf] = [];
                             var res = (q.resolvers[s] || []).splice(0);
@@ -239,7 +260,7 @@
                             _drainMcQueue(tf);
                         }
                     });
-            })(sym, 1);
+            })(sym, 0);
         }
     }
 
@@ -680,16 +701,20 @@
                 }).catch(function() {
                     chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
                 });
-            }, { threshold: 0.05 });
+            // rootMargin gives a ~600px lookahead below the viewport so a
+            // chart starts fetching just before it's scrolled into view,
+            // instead of only once it's actually visible.
+            }, { threshold: 0.05, rootMargin: '600px 0px' });
             obs.observe(cell);
         });
 
-        // Pre-warm cache for all tickers (background, non-blocking)
-        tickers.forEach(function(sym) {
-            var key = sym + '_' + tf;
-            if (_mcOhlcvCache[key] !== undefined) return;
-            fetchMcOhlcv(sym, tf);
-        });
+        // Deliberately no pre-warm-everything loop here. A broad scan can
+        // hand this function 100+ tickers; only ~12 are ever visible at once
+        // (see mcCols), so eagerly fetching all of them up front was firing
+        // dozens of concurrent 10-year-history requests for charts nobody
+        // had scrolled to yet — the direct cause of the 429 flood. The
+        // IntersectionObserver above (with its lookahead margin) is the only
+        // thing that should be triggering fetches now.
     }
 
     // ── Fullscreen LW chart ────────────────────────────────────────────────────
