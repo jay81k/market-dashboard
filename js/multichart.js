@@ -745,15 +745,30 @@
             var rendered = false;
             var failed = false;
 
-            function attemptLoad() {
+            // Background retry schedule, tried only after the queue's own quick
+            // 1s/2s/4s retries (in doFetch) are already exhausted. Spread further
+            // apart and outside the concurrency queue so a slow-to-recover ticker
+            // never occupies one of the MC_FETCH_LIMIT slots while waiting.
+            var MC_BG_RETRY_DELAYS = [10000, 20000, 40000, 60000]; // ~2min total
+
+            function attemptLoad(bgAttempt) {
+                bgAttempt = bgAttempt || 0;
                 failed = false;
                 chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
                 fetchMcOhlcv(sym, tf).then(function(ohlcv) {
                     if (_mcRenderTokens[contextKey] !== token) return;
                     if (ohlcv === null) {
-                        // Failed after retries — distinct from a genuinely-empty [] result.
-                        // Clicking the cell (via the overlay's click handler above) retries
-                        // instead of opening fullscreen, since there's nothing to expand yet.
+                        if (bgAttempt < MC_BG_RETRY_DELAYS.length) {
+                            // Quietly try again later — covers the common case
+                            // (transient rate limit) with no click required.
+                            setTimeout(function() {
+                                if (_mcRenderTokens[contextKey] !== token) return; // grid moved on, abandon
+                                attemptLoad(bgAttempt + 1);
+                            }, MC_BG_RETRY_DELAYS[bgAttempt]);
+                            return;
+                        }
+                        // ~2 minutes of retries exhausted — genuinely persistent
+                        // failure. Manual retry is now the fallback, not the default.
                         failed = true;
                         chartDiv.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;color:#8b949e;font-size:11px;"><span>Failed to load</span><span style="text-decoration:underline;">Click to retry</span></div>';
                         return;
