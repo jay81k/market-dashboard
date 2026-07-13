@@ -36,6 +36,31 @@
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
     var MC_FETCH_LIMIT  = 6; // was 50 — with the pre-warm-all loop removed, the queue is now driven only by what's actually scrolled into view, so this is a real concurrency cap rather than a rarely-hit ceiling
 
+    // Launch pacing — MC_FETCH_LIMIT caps how many requests can be *open* at
+    // once, but a 429 rejection comes back fast, so a freed slot can get
+    // refilled almost instantly. That turns "6 concurrent" into a much
+    // higher effective launch rate once the proxy starts rejecting. This
+    // state throttles how often a *new* request is allowed to launch,
+    // and backs off hard (shared across D/W/M queues — same upstream proxy)
+    // if 429s start clustering.
+    var _mcPace = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
+    var MC_LAUNCH_MIN_SPACING = 350;  // ms between successive new-ticker launches
+    var MC_429_WINDOW         = 3000; // ms window for counting consecutive 429s
+    var MC_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
+    var MC_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
+
+    function _mcRegister429() {
+        var now = Date.now();
+        _mcPace.recent429s.push(now);
+        while (_mcPace.recent429s.length && now - _mcPace.recent429s[0] > MC_429_WINDOW) {
+            _mcPace.recent429s.shift();
+        }
+        if (_mcPace.recent429s.length >= MC_429_THRESHOLD) {
+            _mcPace.cooldownUntil = now + MC_COOLDOWN_MS;
+            _mcPace.recent429s = [];
+        }
+    }
+
     // Fullscreen state
     var _mcFsOhlcv              = [];
     var _mcFsSym               = null;
@@ -170,17 +195,44 @@
     function _drainMcQueue(tf) {
         var q = _mcFetchQueue[tf];
         if (!q) return;
+
+        if (Date.now() < _mcPace.cooldownUntil) {
+            if (!q._resumeTimer) {
+                var waitMs = _mcPace.cooldownUntil - Date.now() + 25;
+                q._resumeTimer = setTimeout(function() {
+                    q._resumeTimer = null;
+                    _drainMcQueue(tf);
+                }, waitMs);
+            }
+            return;
+        }
+
         while (q.pending.length > 0 && q.active < MC_FETCH_LIMIT) {
-            var sym = q.pending.shift();
+            var sym = q.pending[0];
             var key = sym + '_' + tf;
             if (_mcOhlcvCache[key] !== undefined) {
+                q.pending.shift();
                 var res0 = (q.resolvers[sym] || []).splice(0);
                 delete q.resolvers[sym];
                 res0.forEach(function(r) { r(_mcOhlcvCache[key]); });
                 continue;
             }
+
+            var sinceLast = Date.now() - _mcPace.lastLaunchAt;
+            if (sinceLast < MC_LAUNCH_MIN_SPACING) {
+                if (!q._paceTimer) {
+                    q._paceTimer = setTimeout(function() {
+                        q._paceTimer = null;
+                        _drainMcQueue(tf);
+                    }, MC_LAUNCH_MIN_SPACING - sinceLast);
+                }
+                break;
+            }
+
+            q.pending.shift();
             q.active++;
             (function doFetch(s, attempt) {
+                _mcPace.lastLaunchAt = Date.now();
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf);
                 fetch(url).then(function(resp) {
                         if (resp.ok) return resp.json();
@@ -188,6 +240,7 @@
                         // an unread body on a non-ok response is what makes
                         // Cloudflare Workers cancel stalled in-flight requests.
                         var retryAfter = resp.headers.get('Retry-After');
+                        if (resp.status === 429) _mcRegister429();
                         return resp.text().catch(function() {}).then(function() {
                             var err = new Error('http_' + resp.status);
                             err.status = resp.status;
