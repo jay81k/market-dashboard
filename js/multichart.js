@@ -34,17 +34,17 @@
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
     var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
-    var MC_FETCH_LIMIT  = 6; // was 50 — with the pre-warm-all loop removed, the queue is now driven only by what's actually scrolled into view, so this is a real concurrency cap rather than a rarely-hit ceiling
+    var MC_FETCH_LIMIT  = 12; // was 6, originally 50 — pre-warm-all is gone and this cap plus the cooldown below are now the real safety net, so this can sit closer to what's actually visible (~12 tiles) instead of being deliberately conservative
 
     // Launch pacing — MC_FETCH_LIMIT caps how many requests can be *open* at
     // once, but a 429 rejection comes back fast, so a freed slot can get
-    // refilled almost instantly. That turns "6 concurrent" into a much
+    // refilled almost instantly. That turns "12 concurrent" into a much
     // higher effective launch rate once the proxy starts rejecting. This
     // state throttles how often a *new* request is allowed to launch,
     // and backs off hard (shared across D/W/M queues — same upstream proxy)
     // if 429s start clustering.
     var _mcPace = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
-    var MC_LAUNCH_MIN_SPACING = 350;  // ms between successive new-ticker launches
+    var MC_LAUNCH_MIN_SPACING = 100;  // was 350 — that was the main cause of visible slowdown; the 429 cooldown below is the real backstop, this just prevents a same-tick stampede
     var MC_429_WINDOW         = 3000; // ms window for counting consecutive 429s
     var MC_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
     var MC_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
