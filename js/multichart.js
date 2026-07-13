@@ -305,10 +305,13 @@
                             // q.active stays held during the wait so the slot isn't reused
                             setTimeout(function() { doFetch(s, attempt + 1); }, delayMs);
                         } else {
-                            _mcOhlcvCache[s + '_' + tf] = [];
+                            // Don't cache this as confirmed-empty data — it's a failure, not
+                            // "no data for this ticker." Leaving the cache key unset means a
+                            // later retry (e.g. clicking the failed tile) triggers a real
+                            // fetch instead of instantly resolving to a stale permanent blank.
                             var res = (q.resolvers[s] || []).splice(0);
                             delete q.resolvers[s];
-                            res.forEach(function(r) { r([]); });
+                            res.forEach(function(r) { r(null); }); // null = failed, distinct from [] = genuinely no data
                             q.active = Math.max(0, q.active - 1);
                             _drainMcQueue(tf);
                         }
@@ -722,6 +725,7 @@
             overlay.className = 'mc-cell-overlay';
             overlay.addEventListener('click', function(e) {
                 e.stopPropagation();
+                if (failed) { attemptLoad(); return; }
                 _mcFsTf = tf;
                 openChartModal(sym);
             });
@@ -739,11 +743,21 @@
             grid.appendChild(cell);
 
             var rendered = false;
-            var obs = new IntersectionObserver(function(entries) {
-                if (!entries[0].isIntersecting || rendered) return;
-                obs.disconnect();
+            var failed = false;
+
+            function attemptLoad() {
+                failed = false;
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
                 fetchMcOhlcv(sym, tf).then(function(ohlcv) {
                     if (_mcRenderTokens[contextKey] !== token) return;
+                    if (ohlcv === null) {
+                        // Failed after retries — distinct from a genuinely-empty [] result.
+                        // Clicking the cell (via the overlay's click handler above) retries
+                        // instead of opening fullscreen, since there's nothing to expand yet.
+                        failed = true;
+                        chartDiv.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;color:#8b949e;font-size:11px;"><span>Failed to load</span><span style="text-decoration:underline;">Click to retry</span></div>';
+                        return;
+                    }
                     try {
                         var inst = renderLwMcCellChart(chartDiv, ohlcv);
                         rendered = true;
@@ -754,6 +768,12 @@
                 }).catch(function() {
                     chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
                 });
+            }
+
+            var obs = new IntersectionObserver(function(entries) {
+                if (!entries[0].isIntersecting || rendered) return;
+                obs.disconnect();
+                attemptLoad();
             // rootMargin gives a ~600px lookahead below the viewport so a
             // chart starts fetching just before it's scrolled into view,
             // instead of only once it's actually visible.
