@@ -763,6 +763,12 @@
                             // (transient rate limit) with no click required.
                             setTimeout(function() {
                                 if (_mcRenderTokens[contextKey] !== token) return; // grid moved on, abandon
+                                // Tab switches in this app hide the grid via display:none
+                                // rather than removing it, so the render token alone won't
+                                // catch "you navigated away." offsetParent is null whenever
+                                // an element (or an ancestor) is display:none, so this is
+                                // what actually stops retries once the tile's tab isn't visible.
+                                if (!document.body.contains(chartDiv) || chartDiv.offsetParent === null) return;
                                 attemptLoad(bgAttempt + 1);
                             }, MC_BG_RETRY_DELAYS[bgAttempt]);
                             return;
