@@ -176,24 +176,36 @@
     };
 
     function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
-    function _mcRange(tf)    { return tf === 'W' ? 'max' : tf === 'M' ? 'max' : '10y'; }
+    function _mcRange(tf, gridMode) {
+        // Grid tiles are small — 10y of daily bars is far more than a ~150px-wide
+        // cell can show, and it's the main thing making the first load slow. 2y
+        // still comfortably covers the longest MA shown on tiles (SMA200 needs
+        // 200 trading days ≈ 10 months; 2y leaves ~14 months of margin beyond
+        // that for the line to actually be visible, not just barely present).
+        // Fullscreen/watchlist views (gridMode omitted) are unchanged — full
+        // history, exactly as before.
+        if (gridMode && tf === 'D') return '2y';
+        return tf === 'W' ? 'max' : tf === 'M' ? 'max' : '10y';
+    }
 
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
-    function fetchMcOhlcv(sym, tf) {
-        var key = sym + '_' + tf;
+    function fetchMcOhlcv(sym, tf, gridMode) {
+        var key = sym + '_' + tf + (gridMode ? '_grid' : '');
         if (_mcOhlcvCache[key] !== undefined) return Promise.resolve(_mcOhlcvCache[key]);
         return new Promise(function(resolve) {
-            if (!_mcFetchQueue[tf]) _mcFetchQueue[tf] = { pending: [], active: 0, resolvers: {} };
-            var q = _mcFetchQueue[tf];
+            var qKey = tf + (gridMode ? '_grid' : '');
+            if (!_mcFetchQueue[qKey]) _mcFetchQueue[qKey] = { pending: [], active: 0, resolvers: {} };
+            var q = _mcFetchQueue[qKey];
             if (!q.resolvers[sym]) q.resolvers[sym] = [];
             q.resolvers[sym].push(resolve);
             if (q.pending.indexOf(sym) === -1) q.pending.push(sym);
-            _drainMcQueue(tf);
+            _drainMcQueue(tf, gridMode);
         });
     }
 
-    function _drainMcQueue(tf) {
-        var q = _mcFetchQueue[tf];
+    function _drainMcQueue(tf, gridMode) {
+        var qKey = tf + (gridMode ? '_grid' : '');
+        var q = _mcFetchQueue[qKey];
         if (!q) return;
 
         if (Date.now() < _mcPace.cooldownUntil) {
@@ -201,7 +213,7 @@
                 var waitMs = _mcPace.cooldownUntil - Date.now() + 25;
                 q._resumeTimer = setTimeout(function() {
                     q._resumeTimer = null;
-                    _drainMcQueue(tf);
+                    _drainMcQueue(tf, gridMode);
                 }, waitMs);
             }
             return;
@@ -209,7 +221,7 @@
 
         while (q.pending.length > 0 && q.active < MC_FETCH_LIMIT) {
             var sym = q.pending[0];
-            var key = sym + '_' + tf;
+            var key = sym + '_' + tf + (gridMode ? '_grid' : '');
             if (_mcOhlcvCache[key] !== undefined) {
                 q.pending.shift();
                 var res0 = (q.resolvers[sym] || []).splice(0);
@@ -223,7 +235,7 @@
                 if (!q._paceTimer) {
                     q._paceTimer = setTimeout(function() {
                         q._paceTimer = null;
-                        _drainMcQueue(tf);
+                        _drainMcQueue(tf, gridMode);
                     }, MC_LAUNCH_MIN_SPACING - sinceLast);
                 }
                 break;
@@ -233,7 +245,7 @@
             q.active++;
             (function doFetch(s, attempt) {
                 _mcPace.lastLaunchAt = Date.now();
-                var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf);
+                var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf, gridMode);
                 fetch(url).then(function(resp) {
                         if (resp.ok) return resp.json();
                         // Drain the body before treating this as an error —
@@ -284,12 +296,12 @@
                                 if (lastDate >= lastMon) ohlcv.pop();
                             }
                         }
-                        _mcOhlcvCache[s + '_' + tf] = ohlcv;
+                        _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')] = ohlcv;
                         var res = (q.resolvers[s] || []).splice(0);
                         delete q.resolvers[s];
                         res.forEach(function(r) { r(ohlcv); });
                         q.active = Math.max(0, q.active - 1);
-                        _drainMcQueue(tf);
+                        _drainMcQueue(tf, gridMode);
                     })
                     .catch(function(err) {
                         var MAX_RETRIES = 3;
@@ -313,7 +325,7 @@
                             delete q.resolvers[s];
                             res.forEach(function(r) { r(null); }); // null = failed, distinct from [] = genuinely no data
                             q.active = Math.max(0, q.active - 1);
-                            _drainMcQueue(tf);
+                            _drainMcQueue(tf, gridMode);
                         }
                     });
             })(sym, 0);
@@ -755,7 +767,7 @@
                 bgAttempt = bgAttempt || 0;
                 failed = false;
                 chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
-                fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+                fetchMcOhlcv(sym, tf, true).then(function(ohlcv) {
                     if (_mcRenderTokens[contextKey] !== token) return;
                     if (ohlcv === null) {
                         if (bgAttempt < MC_BG_RETRY_DELAYS.length) {
