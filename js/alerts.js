@@ -256,6 +256,35 @@
     // the high/low bounds). If today's bar isn't in the cache yet at all
     // (first run, or first poll after a day rollover), force a real refetch
     // via fetchMcOhlcv so the AVWAP calc has a same-day bar to work with.
+    // A failed fetchMcOhlcv() call resolves with null and leaves the cache key
+    // unset (see multichart.js), so without this, a ticker whose refetch fails
+    // would get retried on literally every single 60s poll forever, with no
+    // memory that it just failed — pure noise against an upstream that isn't
+    // cooperating, and it doesn't make the alert work any better in the
+    // meantime (see the empty-cache guards in alCheckTriggers below — a
+    // ticker with no cached data isn't being checked either way). This cools
+    // a specific ticker down for a few minutes after a failure instead of
+    // hammering it every cycle; alCheckTriggers itself still runs every poll,
+    // unaffected — this only throttles the underlying data refetch.
+    var _alFetchFailedAt = {};
+    var AL_REFETCH_COOLDOWN_MS = 5 * 60 * 1000;
+
+    function _alShouldSkipRefetch(ticker) {
+        var failedAt = _alFetchFailedAt[ticker];
+        return !!failedAt && (Date.now() - failedAt) < AL_REFETCH_COOLDOWN_MS;
+    }
+
+    function _alTrackedRefetch(ticker) {
+        return fetchMcOhlcv(ticker, 'D').then(function(ohlcv) {
+            if (ohlcv === null) {
+                _alFetchFailedAt[ticker] = Date.now();
+            } else {
+                delete _alFetchFailedAt[ticker];
+            }
+            return ohlcv;
+        });
+    }
+
     function alSyncAvwapCache(tickers, prices) {
         if (!tickers.length) return Promise.resolve();
         var nowSec    = Math.floor(Date.now() / 1000);
@@ -266,8 +295,9 @@
             var arr  = _mcOhlcvCache[key];
             var live = prices[ticker];
             if (!arr || !arr.length || arr[arr.length - 1].time !== todayNoon) {
+                if (_alShouldSkipRefetch(ticker)) return;
                 delete _mcOhlcvCache[key];
-                pending.push(fetchMcOhlcv(ticker, 'D'));
+                pending.push(_alTrackedRefetch(ticker));
             } else if (live != null) {
                 var bar = arr[arr.length - 1];
                 bar.close = live;
@@ -295,8 +325,9 @@
             var arr = _mcOhlcvCache[key];
             var lastDay = (arr && arr.length) ? Math.floor(arr[arr.length - 1].time / 86400) : null;
             if (!arr || !arr.length || (todayDay - lastDay) > 4) {
+                if (_alShouldSkipRefetch(ticker)) return;
                 delete _mcOhlcvCache[key];
-                pending.push(fetchMcOhlcv(ticker, 'D'));
+                pending.push(_alTrackedRefetch(ticker));
             }
         });
         return pending.length ? Promise.all(pending) : Promise.resolve();
