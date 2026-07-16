@@ -1097,17 +1097,26 @@
     };
 
     window.alHistDelete = function(idx) {
+        var removed = alertFiredList[idx];
         alertFiredList.splice(idx, 1);
+        // The "Fired" pill on the main table and this history entry were only
+        // ever kept in sync at the moment of firing — deleting the history
+        // entry without this would leave the alert stuck showing "Fired"
+        // with nothing backing it.
+        if (removed) delete _alertFiredSess[_alFiredHistKey(removed)];
         alSaveFired();
         alUpdateBadge();
         renderHistory();
+        if (currentView === 'alerts') renderAlerts();
     };
 
     window.alHistClearAll = function() {
+        alertFiredList.forEach(function(f) { delete _alertFiredSess[_alFiredHistKey(f)]; });
         alertFiredList = [];
         alSaveFired();
         alUpdateBadge();
         renderHistory();
+        if (currentView === 'alerts') renderAlerts();
     };
 
     window.alFormTypeChange = function() {
