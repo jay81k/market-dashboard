@@ -18,7 +18,6 @@
             b.classList.toggle('active', b === btn);
         });
         marketFetchAll();
-        marketFetchMacro();
     };
 
     function marketFetchOne(symbol) {
@@ -329,6 +328,11 @@
                     }, 5 * 60 * 1000);
                 }
             }
+        }).catch(function() {
+            // If anything upstream (rendering, etc.) threw before reaching the
+            // marketFetchMacro() call above, make sure macro cards still get
+            // a chance to refresh instead of silently going stale.
+            marketFetchMacro();
         });
     }
 
