@@ -186,7 +186,13 @@
         }
 
         var price     = parsed.price;
-        var prevClose = parsed.prevClose;
+        var is1D      = marketTf === '1d';
+        // meta.previousClose is always "prior trading day", regardless of the
+        // selected range — using it unconditionally was why every tab showed
+        // the 1D change. For anything longer than 1D, compare against the
+        // close of the first bar actually returned for that range instead.
+        var rangeStartClose = (parsed.ohlcv && parsed.ohlcv.length) ? parsed.ohlcv[0].close : null;
+        var prevClose = is1D ? parsed.prevClose : (rangeStartClose != null ? rangeStartClose : parsed.prevClose);
         var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
         var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
         var direction = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
@@ -201,7 +207,6 @@
         var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
 
         var isOpen   = wlIsMarketOpen();
-        var is1D     = marketTf === '1d';
 
         // Futures pill — 1D only, outside market hours
         var futuresPillHtml = '';
