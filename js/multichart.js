@@ -44,10 +44,15 @@
     // and backs off hard (shared across D/W/M queues — same upstream proxy)
     // if 429s start clustering.
     var _mcPace = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
-    var MC_LAUNCH_MIN_SPACING = 100;  // was 350 — that was the main cause of visible slowdown; the 429 cooldown below is the real backstop, this just prevents a same-tick stampede
+    var MC_LAUNCH_MIN_SPACING = 150;  // was 100, before that 350 — small bump to make 429 storms slightly less likely; the cooldown below is still the real backstop
     var MC_429_WINDOW         = 3000; // ms window for counting consecutive 429s
     var MC_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
     var MC_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
+
+    function _mcFsIsOpen() {
+        var overlay = document.getElementById('mc-fullscreen-overlay');
+        return !!overlay && overlay.classList.contains('open');
+    }
 
     function _mcRegister429() {
         var now = Date.now();
@@ -765,6 +770,19 @@
 
             function attemptLoad(bgAttempt) {
                 bgAttempt = bgAttempt || 0;
+                // Grid tiles are hidden behind the fullscreen overlay when it's
+                // open, and every fetch shares one global pacer/429-cooldown
+                // (_mcPace) — so a background retry here can eat the budget a
+                // deliberate single-chart open needs. Stand down and recheck
+                // shortly instead of spending this retry attempt while it's up.
+                if (_mcFsIsOpen()) {
+                    setTimeout(function() {
+                        if (_mcRenderTokens[contextKey] !== token) return;
+                        if (!document.body.contains(chartDiv) || chartDiv.offsetParent === null) return;
+                        attemptLoad(bgAttempt);
+                    }, 1000);
+                    return;
+                }
                 failed = false;
                 chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
                 fetchMcOhlcv(sym, tf, true).then(function(ohlcv) {
@@ -2027,13 +2045,19 @@
         _mcFsSelectedVwapIdx = -1;
         _mcFsDismissCtx();
 
-        _mcFsOhlcv = ohlcv;
+        _mcFsOhlcv = ohlcv || [];
         _mcFsSym   = sym;
         _mcFsTf    = tf;
         _mcFsLastCrosshairPrice = null;
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
+            var _mcFsMsg = ohlcv === null ? 'Failed to load — click to retry' : 'No data';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _mcFsMsg + '</div>';
+            if (ohlcv === null) {
+                container.querySelector('div').addEventListener('click', function() {
+                    fetchMcOhlcv(sym, tf).then(function(retryOhlcv) { _buildFsChart(sym, retryOhlcv, tf); });
+                });
+            }
             return;
         }
 
@@ -3540,13 +3564,19 @@
         container.innerHTML = '';
         _destroyWlChart();
 
-        _wlOhlcv = ohlcv;
+        _wlOhlcv = ohlcv || [];
         _wlSym   = sym;
         _wlTf    = tf;
         _wlLastCrosshairPrice = null;
 
         if (!window.LightweightCharts || !_wlOhlcv.length) {
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
+            var _wlMsg = ohlcv === null ? 'Failed to load — click to retry' : 'No data';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _wlMsg + '</div>';
+            if (ohlcv === null) {
+                container.querySelector('div').addEventListener('click', function() {
+                    fetchMcOhlcv(sym, tf).then(function(retryOhlcv) { _buildWlChart(sym, retryOhlcv, tf); });
+                });
+            }
             return;
         }
 
