@@ -11,6 +11,75 @@
     var marketInterval = '5m';
     var marketTimer    = null;
 
+    // ── Shared request pacer for WL_PROXY ──────────────────────────────────
+    // market.js fires 9-20 proxy requests in one burst on every load/tab
+    // switch (index+futures, plus 11 macro tickers). multichart.js already
+    // paces its own requests to this same proxy (launch spacing + 429
+    // cooldown), but has no idea this file exists — so an unpaced burst here
+    // can still trip the shared upstream limit for both scripts. This gives
+    // market.js the same kind of pacing, kept self-contained rather than
+    // reaching into multichart.js's state, in case the two aren't always
+    // loaded together. Constants mirror multichart.js's tuned values since
+    // they're throttling the same endpoint.
+    var _mktPace              = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
+    var MKT_LAUNCH_MIN_SPACING = 120;  // ms between successive request launches
+    var MKT_429_WINDOW         = 3000; // ms window for counting recent 429s
+    var MKT_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
+    var MKT_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
+    var _mktLaunchQueue        = [];
+    var _mktDraining           = false;
+
+    function _mktRegister429() {
+        var now = Date.now();
+        _mktPace.recent429s.push(now);
+        while (_mktPace.recent429s.length && now - _mktPace.recent429s[0] > MKT_429_WINDOW) {
+            _mktPace.recent429s.shift();
+        }
+        if (_mktPace.recent429s.length >= MKT_429_THRESHOLD) {
+            _mktPace.cooldownUntil = now + MKT_COOLDOWN_MS;
+            _mktPace.recent429s = [];
+        }
+    }
+
+    function _mktDrainQueue() {
+        if (_mktDraining) return;
+        _mktDraining = true;
+
+        function step() {
+            if (_mktLaunchQueue.length === 0) { _mktDraining = false; return; }
+
+            var wait      = Math.max(0, _mktPace.cooldownUntil - Date.now());
+            var sinceLast = Date.now() - _mktPace.lastLaunchAt;
+            if (sinceLast < MKT_LAUNCH_MIN_SPACING) wait = Math.max(wait, MKT_LAUNCH_MIN_SPACING - sinceLast);
+
+            if (wait > 0) { setTimeout(step, wait + 5); return; }
+
+            var task = _mktLaunchQueue.shift();
+            _mktPace.lastLaunchAt = Date.now();
+            fetch(task.url)
+                .then(function(r) {
+                    if (r.status === 429) _mktRegister429();
+                    return r.ok ? r.json() : null;
+                })
+                .catch(function() { return null; })
+                .then(task.resolve);
+
+            step(); // launch the next one too — its own turn re-checks spacing/cooldown
+        }
+
+        step();
+    }
+
+    // Queues a fetch through the shared pacer. Resolves to parsed JSON, or
+    // null on any failure (non-ok status, network error, bad JSON) — same
+    // contract as a plain fetch().then(r => r.ok ? r.json() : null).catch(...).
+    function _mktPacedFetch(url) {
+        return new Promise(function(resolve) {
+            _mktLaunchQueue.push({ url: url, resolve: resolve });
+            _mktDrainQueue();
+        });
+    }
+
     window.setMarketTf = function(btn) {
         marketTf       = btn.getAttribute('data-tf');
         marketInterval = btn.getAttribute('data-interval');
@@ -23,9 +92,7 @@
     function marketFetchOne(symbol) {
         var url = WL_PROXY + '?symbol=' + encodeURIComponent(symbol) +
                   '&interval=' + marketInterval + '&range=' + marketTf;
-        return fetch(url)
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .catch(function() { return null; });
+        return _mktPacedFetch(url);
     }
 
     function marketParseResult(data) {
@@ -277,9 +344,9 @@
                 marketFetchOne(idx.symbol).then(function(data) { return marketParseResult(data); }),
                 marketFetchOne(idx.futures).then(function(data) { return marketParseResult(data); }),
                 idx.symbol === '^RUT'
-                    ? fetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
-                        .then(function(r) { return r.json(); })
+                    ? _mktPacedFetch(WL_PROXY + '?symbol=%5ERUT&interval=1d&range=5d')
                         .then(function(d) {
+                            if (!d || !d.chart || !d.chart.result || !d.chart.result[0]) return null;
                             var bars         = d.chart.result[0];
                             var closes       = bars.indicators.quote[0].close;
                             var currentPrice = bars.meta.regularMarketPrice;
@@ -292,7 +359,6 @@
                             }
                             return prevClose;
                         })
-                        .catch(function() { return null; })
                     : Promise.resolve(null),
             ]);
         })).then(function(results) {
@@ -360,9 +426,7 @@
         var range    = (marketTf === '1d') ? '2d'      : marketTf;
         var interval = (marketTf === '1d') ? '1d'      : marketInterval;
         Promise.all(MACRO_TICKERS.map(function(t) {
-            return fetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=' + interval + '&range=' + range)
-                .then(function(r) { return r.ok ? r.json() : null; })
-                .catch(function() { return null; });
+            return _mktPacedFetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=' + interval + '&range=' + range);
         })).then(function(results) {
             MACRO_TICKERS.forEach(function(t, i) {
                 var el = document.getElementById('mm-' + t.id);
