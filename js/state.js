@@ -41,33 +41,42 @@
         var acc = {};
         industriesData.industries.forEach(function(ind) { acc[ind.industry] = { sum: 0, count: 0 }; });
 
-        // Batch into 50s
+        // Batch into 30s — matches the Worker's cap (a 50-ticker batch measurably
+        // exceeded its 10ms CPU budget). Fewer per batch means more batches for
+        // the same ticker list, so they're staggered below instead of all firing
+        // in the same instant.
         var batches = [];
-        for (var i = 0; i < allTickers.length; i += 50) batches.push(allTickers.slice(i, i + 50));
+        for (var i = 0; i < allTickers.length; i += 30) batches.push(allTickers.slice(i, i + 30));
 
         var pending = batches.length;
         if (!pending) return;
 
-        batches.forEach(function(batch) {
-            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
-            fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-                if (data && data.quotes) {
-                    data.quotes.forEach(function(q) {
-                        if (!q || !q.ticker || !q.price || !q.prevClose || q.prevClose <= 0) return;
-                        var indName = tickerToInd[q.ticker];
-                        if (!indName || !acc[indName]) return;
-                        var pct = ((q.price - q.prevClose) / q.prevClose) * 100;
-                        acc[indName].sum   += pct;
-                        acc[indName].count += 1;
-                        // Write live price & daily % back so renderMarketMovers() sees fresh data
-                        var row = tickerMap[q.ticker];
-                        if (row) { row.price = q.price; row.daily = pct; }
-                    });
-                }
-            }).catch(function() {}).finally(function() {
-                pending--;
-                if (pending === 0) _applyLiveIndustryDay(acc);
-            });
+        // Staggered, not simultaneous — firing all batches in one tick is what
+        // produced a burst of ~9-10 concurrent quotes_batch calls, each already
+        // sized close to the Worker's CPU limit. 400ms apart spreads that load
+        // out instead of hammering Yahoo (and the Worker) all at once.
+        batches.forEach(function(batch, idx) {
+            setTimeout(function() {
+                var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+                fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                    if (data && data.quotes) {
+                        data.quotes.forEach(function(q) {
+                            if (!q || !q.ticker || !q.price || !q.prevClose || q.prevClose <= 0) return;
+                            var indName = tickerToInd[q.ticker];
+                            if (!indName || !acc[indName]) return;
+                            var pct = ((q.price - q.prevClose) / q.prevClose) * 100;
+                            acc[indName].sum   += pct;
+                            acc[indName].count += 1;
+                            // Write live price & daily % back so renderMarketMovers() sees fresh data
+                            var row = tickerMap[q.ticker];
+                            if (row) { row.price = q.price; row.daily = pct; }
+                        });
+                    }
+                }).catch(function() {}).finally(function() {
+                    pending--;
+                    if (pending === 0) _applyLiveIndustryDay(acc);
+                });
+            }, idx * 400);
         });
     }
 
