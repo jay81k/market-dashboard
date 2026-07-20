@@ -13,33 +13,15 @@
 
     // ── Shared request pacer for WL_PROXY ──────────────────────────────────
     // market.js fires 9-20 proxy requests in one burst on every load/tab
-    // switch (index+futures, plus 11 macro tickers). multichart.js already
-    // paces its own requests to this same proxy (launch spacing + 429
-    // cooldown), but has no idea this file exists — so an unpaced burst here
-    // can still trip the shared upstream limit for both scripts. This gives
-    // market.js the same kind of pacing, kept self-contained rather than
-    // reaching into multichart.js's state, in case the two aren't always
-    // loaded together. Constants mirror multichart.js's tuned values since
-    // they're throttling the same endpoint.
-    var _mktPace              = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
+    // switch (index+futures, plus 11 macro tickers). The launch clock and 429
+    // cooldown now live in yahoo-proxy-pace.js, shared with multichart.js
+    // (and state.js's batch firing) — a burst here can trip the same
+    // upstream Yahoo limit those scripts are also hitting, so all three back
+    // off together instead of three pacers that can't see each other.
+    // yahoo-proxy-pace.js must load before this file.
     var MKT_LAUNCH_MIN_SPACING = 120;  // ms between successive request launches
-    var MKT_429_WINDOW         = 3000; // ms window for counting recent 429s
-    var MKT_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
-    var MKT_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
     var _mktLaunchQueue        = [];
     var _mktDraining           = false;
-
-    function _mktRegister429() {
-        var now = Date.now();
-        _mktPace.recent429s.push(now);
-        while (_mktPace.recent429s.length && now - _mktPace.recent429s[0] > MKT_429_WINDOW) {
-            _mktPace.recent429s.shift();
-        }
-        if (_mktPace.recent429s.length >= MKT_429_THRESHOLD) {
-            _mktPace.cooldownUntil = now + MKT_COOLDOWN_MS;
-            _mktPace.recent429s = [];
-        }
-    }
 
     function _mktDrainQueue() {
         if (_mktDraining) return;
@@ -48,17 +30,17 @@
         function step() {
             if (_mktLaunchQueue.length === 0) { _mktDraining = false; return; }
 
-            var wait      = Math.max(0, _mktPace.cooldownUntil - Date.now());
-            var sinceLast = Date.now() - _mktPace.lastLaunchAt;
+            var wait      = Math.max(0, window.yahooProxyPace.cooldownUntil() - Date.now());
+            var sinceLast = Date.now() - window.yahooProxyPace.lastLaunchAt();
             if (sinceLast < MKT_LAUNCH_MIN_SPACING) wait = Math.max(wait, MKT_LAUNCH_MIN_SPACING - sinceLast);
 
             if (wait > 0) { setTimeout(step, wait + 5); return; }
 
             var task = _mktLaunchQueue.shift();
-            _mktPace.lastLaunchAt = Date.now();
+            window.yahooProxyPace.markLaunched();
             fetch(task.url)
                 .then(function(r) {
-                    if (r.status === 429) _mktRegister429();
+                    if (r.status === 429) window.yahooProxyPace.register429();
                     return r.ok ? r.json() : null;
                 })
                 .catch(function() { return null; })
