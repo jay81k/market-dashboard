@@ -40,30 +40,16 @@
     // once, but a 429 rejection comes back fast, so a freed slot can get
     // refilled almost instantly. That turns "12 concurrent" into a much
     // higher effective launch rate once the proxy starts rejecting. This
-    // state throttles how often a *new* request is allowed to launch,
-    // and backs off hard (shared across D/W/M queues — same upstream proxy)
-    // if 429s start clustering.
-    var _mcPace = { lastLaunchAt: 0, recent429s: [], cooldownUntil: 0 };
-    var MC_LAUNCH_MIN_SPACING = 150;  // was 100, before that 350 — small bump to make 429 storms slightly less likely; the cooldown below is still the real backstop
-    var MC_429_WINDOW         = 3000; // ms window for counting consecutive 429s
-    var MC_429_THRESHOLD      = 3;    // this many 429s inside the window trips the cooldown
-    var MC_COOLDOWN_MS        = 6000; // pause all new launches this long once tripped
+    // throttles how often a *new* request is allowed to launch. The clock
+    // and 429 cooldown live in yahoo-proxy-pace.js now, shared with
+    // market.js/state.js — same upstream proxy, one shared backstop instead
+    // of three independent ones that can't see each other's traffic. That
+    // file must load before this one.
+    var MC_LAUNCH_MIN_SPACING = 150;  // was 100, before that 350 — small bump to make 429 storms slightly less likely; the shared cooldown is still the real backstop
 
     function _mcFsIsOpen() {
         var overlay = document.getElementById('mc-fullscreen-overlay');
         return !!overlay && overlay.classList.contains('open');
-    }
-
-    function _mcRegister429() {
-        var now = Date.now();
-        _mcPace.recent429s.push(now);
-        while (_mcPace.recent429s.length && now - _mcPace.recent429s[0] > MC_429_WINDOW) {
-            _mcPace.recent429s.shift();
-        }
-        if (_mcPace.recent429s.length >= MC_429_THRESHOLD) {
-            _mcPace.cooldownUntil = now + MC_COOLDOWN_MS;
-            _mcPace.recent429s = [];
-        }
     }
 
     // Fullscreen state
@@ -213,9 +199,9 @@
         var q = _mcFetchQueue[qKey];
         if (!q) return;
 
-        if (Date.now() < _mcPace.cooldownUntil) {
+        if (Date.now() < window.yahooProxyPace.cooldownUntil()) {
             if (!q._resumeTimer) {
-                var waitMs = _mcPace.cooldownUntil - Date.now() + 25;
+                var waitMs = window.yahooProxyPace.cooldownUntil() - Date.now() + 25;
                 q._resumeTimer = setTimeout(function() {
                     q._resumeTimer = null;
                     _drainMcQueue(tf, gridMode);
@@ -235,7 +221,7 @@
                 continue;
             }
 
-            var sinceLast = Date.now() - _mcPace.lastLaunchAt;
+            var sinceLast = Date.now() - window.yahooProxyPace.lastLaunchAt();
             if (sinceLast < MC_LAUNCH_MIN_SPACING) {
                 if (!q._paceTimer) {
                     q._paceTimer = setTimeout(function() {
@@ -249,7 +235,7 @@
             q.pending.shift();
             q.active++;
             (function doFetch(s, attempt) {
-                _mcPace.lastLaunchAt = Date.now();
+                window.yahooProxyPace.markLaunched();
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf, gridMode);
                 fetch(url).then(function(resp) {
                         if (resp.ok) return resp.json();
@@ -257,7 +243,7 @@
                         // an unread body on a non-ok response is what makes
                         // Cloudflare Workers cancel stalled in-flight requests.
                         var retryAfter = resp.headers.get('Retry-After');
-                        if (resp.status === 429) _mcRegister429();
+                        if (resp.status === 429) window.yahooProxyPace.register429();
                         return resp.text().catch(function() {}).then(function() {
                             var err = new Error('http_' + resp.status);
                             err.status = resp.status;
@@ -772,9 +758,9 @@
                 bgAttempt = bgAttempt || 0;
                 // Grid tiles are hidden behind the fullscreen overlay when it's
                 // open, and every fetch shares one global pacer/429-cooldown
-                // (_mcPace) — so a background retry here can eat the budget a
-                // deliberate single-chart open needs. Stand down and recheck
-                // shortly instead of spending this retry attempt while it's up.
+                // (yahoo-proxy-pace.js) — so a background retry here can eat the
+                // budget a deliberate single-chart open needs. Stand down and
+                // recheck shortly instead of spending this retry attempt while it's up.
                 if (_mcFsIsOpen()) {
                     setTimeout(function() {
                         if (_mcRenderTokens[contextKey] !== token) return;
