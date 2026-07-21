@@ -18,10 +18,19 @@
 
         document.getElementById('loading-msg').style.display = 'none';
 
-        // Kick off live intraday Day% fetch and refresh every 60s
+        // Kick off live intraday Day% fetch and refresh every 60s — but only
+        // queue the actual batch requests while on a view that uses this data
+        // (industries/sector/market). Otherwise this was firing every 60s
+        // regardless of page, competing with multichart's grid loads for the
+        // shared yahoo-proxy-pace.js clock even while nobody was looking at
+        // the industry heatmap at all. Mirrors the currentView check market.js
+        // already does for its own timer (see market.js, marketTimer).
         fetchLiveIndustryDay();
         if (!_indLiveDayInterval) {
-            _indLiveDayInterval = setInterval(fetchLiveIndustryDay, 60000);
+            _indLiveDayInterval = setInterval(function() {
+                if (currentView !== 'industries' && currentView !== 'sector' && currentView !== 'market') return;
+                fetchLiveIndustryDay();
+            }, 60000);
         }
 
         // Sync DistMA buttons
