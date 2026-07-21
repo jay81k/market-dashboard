@@ -418,6 +418,7 @@
     function alCheckTriggers() {
         var anyFired = false;
         var toRemove = [];
+        var anyBaselineChanged = false;
         alertsList.forEach(function(a) {
             var key;
             if (a.alertType === 'macross')
@@ -537,7 +538,7 @@
                     if (a.baselineDayHigh == null && dHigh != null) { a.baselineDayHigh = dHigh; baselineChanged = true; }
                     if (a.baselineDayLow  == null && dLow  != null) { a.baselineDayLow  = dLow;  baselineChanged = true; }
                 }
-                if (baselineChanged) alSave();
+                if (baselineChanged) anyBaselineChanged = true;
                 // Compare against the day's high/low, not just the last-polled price.
                 // A 60s poll can otherwise completely miss a spike that prints and
                 // reverts faster than the poll interval (e.g. high $313.33, alert at
@@ -607,6 +608,17 @@
                 else k = a.ticker + '_' + a.price + '_' + a.condition;
                 return !removeSet[k];
             });
+            alSave();
+        } else if (anyBaselineChanged) {
+            // Collapses what used to be up to one kv_set write per alert
+            // (fired inline inside the loop above, whenever that alert's
+            // baseline reset for a new day) into at most one write per
+            // alCheckTriggers() run. Multiple alerts resetting their
+            // baseline in the same synchronous pass — which happens on the
+            // first check of any new day, page load or not — used to fire
+            // that many back-to-back kv_set calls to the same 'price_alerts'
+            // key, tripping Workers KV's 1-write-per-second-per-key limit
+            // and crashing the Worker before it could attach CORS headers.
             alSave();
         }
         if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); renderHistory(); }
