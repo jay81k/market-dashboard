@@ -152,6 +152,28 @@
         return '<span class="industry-perf-num ' + cl + '">' + (val >= 0 ? '+' : '') + val.toFixed(2) + '%</span>';
     }
 
+    function sparkSvg(series) {
+        if (!series || series.length < 2) return '<span class="industry-spark-empty">—</span>';
+        var w = 100, h = 24, pad = 2;
+        var min = Math.min.apply(null, series), max = Math.max.apply(null, series);
+        var range = (max - min) || 1;
+        var stepX = (w - pad * 2) / (series.length - 1);
+        var pts = series.map(function(v, i) {
+            var x = pad + i * stepX;
+            var y = pad + (1 - (v - min) / range) * (h - pad * 2);
+            return [x.toFixed(1), y.toFixed(1)];
+        });
+        var cl = series[series.length - 1] >= series[0] ? 'up' : 'down';
+        var line = 'M' + pts.map(function(p){ return p[0] + ',' + p[1]; }).join(' L');
+        var area = line + ' L' + pts[pts.length - 1][0] + ',' + (h - pad) + ' L' + pts[0][0] + ',' + (h - pad) + ' Z';
+        var last = pts[pts.length - 1];
+        return '<svg class="industry-spark ' + cl + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+            '<path class="industry-spark-area" d="' + area + '"></path>' +
+            '<path class="industry-spark-path" d="' + line + '"></path>' +
+            '<circle class="industry-spark-dot" cx="' + last[0] + '" cy="' + last[1] + '" r="2"></circle>' +
+            '</svg>';
+    }
+
 
     // ── Industry heatmap ──────────────────────────────────────────────────
     var indView    = 'list';
@@ -299,6 +321,7 @@
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
+            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             // Perf columns
