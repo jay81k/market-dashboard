@@ -322,8 +322,8 @@
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
             html += '<span class="industry-flex-fill"></span>';
-            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
+            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             // Perf columns
             html += '<div class="industry-perf-cols">';
