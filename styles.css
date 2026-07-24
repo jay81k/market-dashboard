@@ -117,6 +117,20 @@
         .sector-communication-services { color: #ce93d8; }
         .industry-count  { font-size: 0.858em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
 
+        /* Industry row trend sparkline — same visual language as .mic-sparkline */
+        .industry-spark-col  { width: 110px; flex-shrink: 0; display: flex; align-items: center; padding-right: 12px; }
+        .industry-spark      { display: block; width: 100%; height: 24px; overflow: visible; }
+        .industry-spark-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .industry-spark-area { stroke: none; opacity: 0.14; }
+        .industry-spark-dot  { stroke-width: 0; }
+        .industry-spark.up   .industry-spark-path { stroke: #3fb950; }
+        .industry-spark.up   .industry-spark-area { fill: #3fb950; }
+        .industry-spark.up   .industry-spark-dot  { fill: #3fb950; }
+        .industry-spark.down .industry-spark-path { stroke: #f85149; }
+        .industry-spark.down .industry-spark-area { fill: #f85149; }
+        .industry-spark.down .industry-spark-dot  { fill: #f85149; }
+        .industry-spark-empty { color: #484f58; font-size: 0.85em; }
+
         /* Industries column headers */
         .ind-hdr-row {
             border-bottom: 1px solid #21262d; padding: 7px 16px;
@@ -127,6 +141,11 @@
         .ind-hdr-name   { flex: 1; min-width: 0; padding-right: 16px; }
         .ind-hdr-sector { width: 160px; flex-shrink: 0; padding-right: 12px; }
         .ind-hdr-count  { width: 36px; flex-shrink: 0; padding-right: 16px; }
+        .ind-hdr-spark {
+            width: 110px; flex-shrink: 0; text-align: center; padding-right: 12px;
+            font-size: 0.825em; font-weight: 600; color: #6e7681;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
         .ind-col-hdr {
             width: 76px; flex-shrink: 0; text-align: right;
             font-size: 0.825em; font-weight: 600; color: #6e7681;
