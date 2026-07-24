@@ -42,6 +42,10 @@ MIN_AVG_VOLUME  = 90_000     # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
 
+# Industry trend sparkline — trailing window + sample count
+SPARK_WINDOW = 63   # trading days ≈ 3 months, matches the existing `3m` field
+SPARK_POINTS = 13   # evenly-spaced samples across the window (~weekly cadence)
+
 # Ticker suffixes that indicate ETFs/funds — drop these
 ETF_SUFFIXES = ()  # yfinance universe shouldn't have ETFs, but just in case
 
@@ -250,6 +254,26 @@ def calculate_rsi14(close: pd.Series, period: int = 14) -> float | None:
         return None
 
 
+def calculate_spark_series(close: pd.Series, window: int = SPARK_WINDOW, points: int = SPARK_POINTS) -> list[float] | None:
+    """Cumulative % return over the trailing `window` trading days, sampled at
+    `points` evenly-spaced steps (~weekly). First point is always 0.0 (the
+    rebase anchor); the last point lines up closely with the existing `3m`
+    field for the same stock, since both use the same window."""
+    if len(close) < window + 1:
+        return None
+    try:
+        idxs = [int(round(x)) for x in np.linspace(-window, -1, points)]
+        prices = [close.iloc[i] for i in idxs]
+        if any(pd.isna(p) for p in prices):
+            return None
+        base = prices[0]
+        if base == 0:
+            return None
+        return [round(((p / base) - 1) * 100, 2) for p in prices]
+    except Exception:
+        return None
+
+
 def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> dict | None:
     """Compute all price-derived metrics for a single ticker."""
     try:
@@ -268,6 +292,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         one_week    = (current / close.iloc[-6]  - 1) * 100 if len(close) >= 6  else None
         one_month   = (current / close.iloc[-22] - 1) * 100 if len(close) >= 22 else None
         three_month = (current / close.iloc[-63] - 1) * 100 if len(close) >= 63 else None
+        spark_3m    = calculate_spark_series(close)
 
         # YTD: first close of current calendar year
         year_rows = hist[hist.index.year == hist.index[-1].year]
@@ -685,6 +710,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
             "3m":        round(three_month, 2) if three_month is not None else None,
+            "spark_3m":  spark_3m,
             "6m":        round(six_month, 2)   if six_month   is not None else None,
             "1y":         round(twelve_month, 2) if twelve_month is not None else None,
             "ytd":       round(ytd, 2)         if ytd         is not None else None,
@@ -869,6 +895,7 @@ def main():
 
     by_industry:  dict[str, list]  = defaultdict(list)
     industry_to_sector: dict[str, str] = {}
+    industry_spark_series: dict[str, list] = defaultdict(list)  # per-industry list of per-stock spark_3m arrays
     skipped = 0
     supplemental_set = {t["Ticker"] for t in SUPPLEMENTAL_TICKERS}
 
@@ -958,6 +985,14 @@ def main():
                         row["PctFrom52WkHigh"] = round((current / high_52w - 1) * 100, 2)
                 except Exception:
                     pass
+        # Pull the per-stock spark series out before persisting the row — we only
+        # ever want the industry-level average in the output, not one array per
+        # stock (that would add 13 floats x every stock x every industry for no
+        # reason, since this view never renders a per-stock sparkline).
+        spark = row.pop("spark_3m", None)
+        if spark is not None:
+            industry_spark_series[industry].append(spark)
+
         by_industry[industry].append(row)
         industry_to_sector[industry] = sector
 
@@ -1044,6 +1079,17 @@ def main():
         vals = [float(r["Percentile"]) for r in rows if r.get("Percentile") is not None]
         return round(float(np.median(vals)), 1) if vals else None
 
+    def avg_spark_series(series_list):
+        """Elementwise average of one industry's per-stock spark_3m arrays."""
+        if not series_list:
+            return None
+        length = len(series_list[0])
+        out = []
+        for i in range(length):
+            vals = [s[i] for s in series_list if i < len(s) and s[i] is not None]
+            out.append(round(sum(vals) / len(vals), 2) if vals else None)
+        return out
+
     industry_summary = {
         industry: {
             "sector":          industry_to_sector[industry],
@@ -1061,6 +1107,7 @@ def main():
             "avg_vs_spy_6m":   avg(rows, "vs_spy_6m"),
             "avg_vs_spy_12m":  avg(rows, "vs_spy_12m"),
             "avg_dist_ma50":   avg_dist_ma50(rows),
+            "spark_3m":        avg_spark_series(industry_spark_series.get(industry, [])),
         }
         for industry, rows in by_industry.items()
     }
