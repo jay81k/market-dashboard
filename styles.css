@@ -103,7 +103,7 @@
         .ind-rank-delta { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .ind-rank-delta.up   { color: #3fb950; }
         .ind-rank-delta.down { color: #f85149; }
-        .industry-sector { font-size: 0.858em; color: #8b949e; width: 200px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
+        .industry-sector { font-size: 0.858em; color: #8b949e; width: 200px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 6px; }
         .sector-basic-materials        { color: #c8922a; }
         .sector-technology             { color: #58a6ff; }
         .sector-energy                 { color: #e8854a; }
@@ -118,7 +118,7 @@
         .industry-count  { font-size: 0.858em; color: #6e7681; width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 20px; }
 
         /* Industry row trend sparkline — same visual language as .mic-sparkline */
-        .industry-spark-col  { width: 130px; flex-shrink: 0; display: flex; align-items: center; padding-right: 16px; }
+        .industry-spark-col  { width: 130px; flex-shrink: 0; display: flex; align-items: center; padding-right: 28px; }
         .industry-flex-fill  { flex: 1 1 0; min-width: 0; }
         .industry-spark      { display: block; width: 100%; height: 24px; overflow: visible; }
         .industry-spark-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -141,7 +141,7 @@
         .ind-hdr-rank   { width: 36px; flex-shrink: 0; padding-right: 12px; }
         .ind-hdr-name   { flex: 1; min-width: 0; padding-right: 16px; }
         .ind-hdr-sector {
-            width: 200px; flex-shrink: 0; padding-right: 16px;
+            width: 200px; flex-shrink: 0; padding-right: 6px;
             font-size: 0.825em; font-weight: 600; color: #6e7681;
             text-transform: uppercase; letter-spacing: 0.05em;
         }
@@ -151,7 +151,7 @@
             text-transform: uppercase; letter-spacing: 0.05em;
         }
         .ind-hdr-spark {
-            width: 130px; flex-shrink: 0; text-align: center; padding-right: 16px;
+            width: 130px; flex-shrink: 0; text-align: center; padding-right: 28px;
             font-size: 0.825em; font-weight: 600; color: #6e7681;
             text-transform: uppercase; letter-spacing: 0.05em;
         }
