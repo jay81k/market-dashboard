@@ -1163,7 +1163,7 @@ def main():
     }
 
     # 9. Build industries list with self-computed rank/percentile
-    # Blend score: 40% 3m / 20% 6m / 20% 12m / 20% 1m vs SPX
+    # Blend score: 50% 3m / 25% 1m / 15% 6m / 10% 12m vs SPX
     def blend_score(s):
         v3  = s.get("avg_vs_spy_3m")
         v1  = s.get("avg_vs_spy")
@@ -1172,10 +1172,10 @@ def main():
         if v3 is None and v1 is None and v6 is None and v12 is None:
             return None
         return round(
-            (v3  or 0) * 0.40 +
-            (v1  or 0) * 0.20 +
-            (v6  or 0) * 0.20 +
-            (v12 or 0) * 0.20,
+            (v3  or 0) * 0.50 +
+            (v1  or 0) * 0.25 +
+            (v6  or 0) * 0.15 +
+            (v12 or 0) * 0.10,
             4
         )
 
@@ -1197,7 +1197,7 @@ def main():
             "blend_score": score,
         })
 
-    print(f"Computed ranks for {len(industries_list)} industries (45% 3M / 25% 6M / 20% 12M / 10% 1M vs SPX)")
+    print(f"Computed ranks for {len(industries_list)} industries (50% 3M / 25% 1M / 15% 6M / 10% 12M vs SPX)")
 
     def write_json(filename, obj):
         path = os.path.join(args.out_dir, filename)
