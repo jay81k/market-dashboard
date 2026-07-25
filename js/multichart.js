@@ -199,6 +199,23 @@
         var q = _mcFetchQueue[qKey];
         if (!q) return;
 
+        // Grid tiles stand down entirely while fullscreen is open. The gate in
+        // attemptLoad() only stops *new* attemptLoad calls from adding to this
+        // queue — it does nothing about requests already sitting in q.pending
+        // from before the overlay opened, which would otherwise keep draining
+        // on their own timers, keep resetting the shared launch clock, and
+        // could still trip the shared 429 cooldown that then blocks the
+        // fullscreen chart's own request. This closes that gap.
+        if (gridMode && _mcFsIsOpen()) {
+            if (!q._fsGateTimer) {
+                q._fsGateTimer = setTimeout(function() {
+                    q._fsGateTimer = null;
+                    _drainMcQueue(tf, gridMode);
+                }, 1000); // same poll cadence as the attemptLoad() gate
+            }
+            return;
+        }
+
         if (Date.now() < window.yahooProxyPace.cooldownUntil()) {
             if (!q._resumeTimer) {
                 var waitMs = window.yahooProxyPace.cooldownUntil() - Date.now() + 25;
@@ -2618,8 +2635,12 @@
         if (maChevron) maChevron.style.transform = '';
         // Default viewport per TF
         _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
-        // Clear cache so every open fetches fresh data (including Daily)
-        delete _mcOhlcvCache[_mcFsSym + '_' + tf];
+        // No forced cache-clear here anymore — if this TF was already fetched
+        // this session, fetchMcOhlcv's cache-hit path serves it instantly with
+        // no network round-trip. Today's price still lands via the separate
+        // _injectChartLiveBar call inside _buildFsChart either way, so this
+        // isn't trading away freshness, just an unconditional re-fetch that
+        // wasn't buying anything on top of that.
         // Fetch + rebuild
         var sym = _mcFsSym;
         var container = document.getElementById('mc-fullscreen-chart');
@@ -3248,7 +3269,9 @@
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
         var openSym = sym;
-        delete _mcOhlcvCache[sym + '_' + tf];
+        // No forced cache-clear here anymore — see the matching note in
+        // mcFsSetTf. Reopening a symbol/TF already fetched this session now
+        // renders instantly from cache instead of re-entering the queue.
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (_mcFsSym === openSym && _mcFsTf === tf && _mcFsChart) return; // already rendered
@@ -3282,6 +3305,11 @@
         if (maChevron) maChevron.style.transform = '';
         // Always clear the scan-nav-panel state so stale preset data never persists
         if (typeof snpHide === 'function') snpHide();
+        // Grid queues gated in _drainMcQueue while this overlay was open can
+        // resume now rather than waiting out their next 1s poll timer.
+        Object.keys(_mcFetchQueue).forEach(function(qKey) {
+            if (qKey.slice(-5) === '_grid') _drainMcQueue(qKey.slice(0, -5), true);
+        });
     };
 
     // ══════════════════════════════════════════════════════════════════════
