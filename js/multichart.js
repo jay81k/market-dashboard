@@ -32,6 +32,14 @@
     // ── LW Multichart Infrastructure ─────────────────────────────────────────
 
     var _mcOhlcvCache   = {};   // { "AAPL_D": [...ohlcv] }
+    var _mcOhlcvCacheAt = {};   // { "AAPL_D": <Date.now() of last successful fetch> }
+    var MC_CACHE_TTL_MS = 30 * 60 * 1000; // how long a cached OHLCV entry is served without a
+    // fresh fetch. Bounds exposure to stale data (a split/dividend adjustment or a same-day
+    // close revision from Yahoo) to at most this long, instead of either "always refetch on
+    // every open" (slow, was the actual bug) or "never refetch once cached" (fast, but wrong
+    // forever if a correction lands mid-session). _injectChartLiveBar still separately keeps
+    // today's price current in real time regardless of this — this only governs the historical
+    // series underneath it.
     var _mcMetaCache    = {};   // { "AAPL": { marketState, preMarketPrice, postMarketPrice, ... } }
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
     var MC_FETCH_LIMIT  = 12; // was 6, originally 50 — pre-warm-all is gone and this cap plus the cooldown below are now the real safety net, so this can sit closer to what's actually visible (~12 tiles) instead of being deliberately conservative
@@ -182,7 +190,9 @@
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
     function fetchMcOhlcv(sym, tf, gridMode) {
         var key = sym + '_' + tf + (gridMode ? '_grid' : '');
-        if (_mcOhlcvCache[key] !== undefined) return Promise.resolve(_mcOhlcvCache[key]);
+        var isFresh = _mcOhlcvCache[key] !== undefined &&
+            (Date.now() - (_mcOhlcvCacheAt[key] || 0)) < MC_CACHE_TTL_MS;
+        if (isFresh) return Promise.resolve(_mcOhlcvCache[key]);
         return new Promise(function(resolve) {
             var qKey = tf + (gridMode ? '_grid' : '');
             if (!_mcFetchQueue[qKey]) _mcFetchQueue[qKey] = { pending: [], active: 0, resolvers: {} };
@@ -305,6 +315,7 @@
                             }
                         }
                         _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')] = ohlcv;
+                        _mcOhlcvCacheAt[s + '_' + tf + (gridMode ? '_grid' : '')] = Date.now();
                         var res = (q.resolvers[s] || []).splice(0);
                         delete q.resolvers[s];
                         res.forEach(function(r) { r(ohlcv); });
@@ -4084,7 +4095,10 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
         _wlVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
-        delete _mcOhlcvCache[_wlSym + '_' + tf];
+        // No forced cache-clear — fetchMcOhlcv now enforces a 30-min freshness
+        // window centrally (see MC_CACHE_TTL_MS), so switching back to a TF
+        // already fetched recently serves instantly instead of re-entering
+        // the queue, and still gets a real refetch periodically.
         var sym = _wlSym;
         var container = document.getElementById('wl-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
