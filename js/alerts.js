@@ -350,30 +350,11 @@
         for (var i = 0; i < tickers.length; i += AL_QUOTE_BATCH_SIZE) batches.push(tickers.slice(i, i + AL_QUOTE_BATCH_SIZE));
         return Promise.all(batches.map(function(batch) {
             var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
-            return fetch(url).then(function(r) {
-                if (!r.ok) {
-                    console.warn('[AL-DEBUG] quotes_batch HTTP ' + r.status + ' for batch:', batch);
-                    return null;
-                }
-                return r.json();
-            }).catch(function(err) {
-                console.warn('[AL-DEBUG] quotes_batch fetch threw for batch:', batch, err);
-                return null;
-            });
+            return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
         })).then(function(results) {
-            // TEMP DIAGNOSTIC — remove once we've root-caused the blank CHG/CHG%/AWAY columns.
-            var _alReceivedTickers = {};
-            var _alFalsyPriceTickers = [];
-            results.forEach(function(data, batchIdx) {
-                if (!data || !data.quotes) {
-                    console.warn('[AL-DEBUG] batch ' + batchIdx + ' had no usable quotes array, raw response was:', data);
-                    return;
-                }
+            results.forEach(function(data) {
+                if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
-                    if (q && q.ticker) {
-                        _alReceivedTickers[q.ticker] = true;
-                        if (!q.price) _alFalsyPriceTickers.push(q.ticker + ' (price=' + q.price + ')');
-                    }
                     if (q && q.ticker && q.price) {
                         alertPrices[q.ticker]    = q.price;
                         alertPrevClose[q.ticker] = q.prevClose || null;
@@ -382,10 +363,6 @@
                     }
                 });
             });
-            var _alMissingTickers = tickers.filter(function(t) { return !_alReceivedTickers[t]; });
-            if (_alMissingTickers.length) console.warn('[AL-DEBUG] backend returned no quote object at all for:', _alMissingTickers);
-            if (_alFalsyPriceTickers.length) console.warn('[AL-DEBUG] quote object returned but price was falsy for:', _alFalsyPriceTickers);
-            // END TEMP DIAGNOSTIC
             alUpdateEstimatedMAs();
             var avwapTickers = alertsList
                 .filter(function(a) { return a.alertType === 'avwap'; })
@@ -2845,15 +2822,67 @@
 
     document.addEventListener('keydown', function(e) {
         if (e.key !== 'Enter') return;
+        // Confirm an open delete dialog first, if any — lets Delete → Enter
+        // chain through the list with no mouse, while still requiring an
+        // explicit confirm on every single deletion.
+        if (document.getElementById('al-confirm-overlay').classList.contains('open')) {
+            e.preventDefault();
+            alConfirmClear();
+            return;
+        }
         if (document.getElementById('al-modal-overlay').classList.contains('open')) alSubmitForm();
     });
     var _alConfirmCallback = null;
+    var _alSkipDeleteConfirm = false; // session-only — plain in-memory flag, resets on reload/next visit. Set via the "don't ask again" checkbox, delete-only and opt-in per call site (see showSkipOption below) so it can't silently show up on some future non-delete confirmation.
 
-    window.alConfirmOpen = function(title, msg, callback, okLabel) {
+    // Shared re-sync so the keyboard cursor lands on the correct row whether
+    // a delete went through the confirm dialog or skipped it entirely.
+    function _alResyncKbAfterDelete() {
+        if (_alKbFocus !== 'history' && _alKbIdx >= 0) {
+            var rows = alKbGetAlertRows();
+            if (rows.length) {
+                _alKbIdx = Math.min(_alKbIdx, rows.length - 1);
+                alKbSetAlertActive(rows, _alKbIdx);
+            } else {
+                _alKbIdx = -1;
+            }
+        }
+    }
+
+    // Lazily creates (once) the "don't ask again" row right after the confirm
+    // message, since that markup isn't in this file to add directly. Visibility
+    // is toggled per-call by alConfirmOpen's showSkipOption argument.
+    function _alEnsureSkipCheckboxRow() {
+        var existing = document.getElementById('al-confirm-skip-row');
+        if (existing) return existing;
+        var msgEl = document.getElementById('al-confirm-msg');
+        if (!msgEl) return null;
+        var row = document.createElement('label');
+        row.id = 'al-confirm-skip-row';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#8b949e;cursor:pointer;user-select:none;';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = 'al-confirm-skip-checkbox';
+        box.style.cssText = 'margin:0;cursor:pointer;';
+        var span = document.createElement('span');
+        span.textContent = "Don't ask again this session";
+        row.appendChild(box);
+        row.appendChild(span);
+        msgEl.insertAdjacentElement('afterend', row);
+        return row;
+    }
+
+    window.alConfirmOpen = function(title, msg, callback, okLabel, showSkipOption) {
         document.getElementById('al-confirm-title').textContent = title;
         document.getElementById('al-confirm-msg').textContent   = msg;
         document.getElementById('al-confirm-ok').textContent    = okLabel || 'Clear all';
         _alConfirmCallback = callback;
+        var skipRow = _alEnsureSkipCheckboxRow();
+        if (skipRow) {
+            skipRow.style.display = showSkipOption ? 'flex' : 'none';
+            var box = document.getElementById('al-confirm-skip-checkbox');
+            if (box) box.checked = false;
+        }
         document.getElementById('al-confirm-overlay').classList.add('open');
     };
     window.alConfirmClose = function() {
@@ -2861,15 +2890,24 @@
         _alConfirmCallback = null;
     };
     window.alConfirmClear = function() {
+        var skipBox = document.getElementById('al-confirm-skip-checkbox');
+        if (skipBox && skipBox.checked) _alSkipDeleteConfirm = true;
         if (_alConfirmCallback) _alConfirmCallback();
         alConfirmClose();
+        _alResyncKbAfterDelete();
     };
     window.alDeleteConfirm = function(idx, ticker) {
+        if (_alSkipDeleteConfirm) {
+            alDelete(idx);
+            _alResyncKbAfterDelete();
+            return;
+        }
         alConfirmOpen(
             'Remove alert?',
             'The price alert for ' + ticker + ' will be permanently removed.',
             function() { alDelete(idx); },
-            'Delete'
+            'Delete',
+            true
         );
     };
     document.addEventListener('keydown', function(e) {
@@ -2937,6 +2975,7 @@
 
     document.addEventListener('keydown', function(e) {
         if (currentView !== 'alerts') return;
+        if (document.getElementById('al-confirm-overlay').classList.contains('open')) return; // handled by the confirm-modal listeners above
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Delete') return;
         var tag = document.activeElement && document.activeElement.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
