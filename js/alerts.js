@@ -339,9 +339,15 @@
         var tickers = activeTickers.concat(historyTickers)
             .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
         if (!tickers.length) return Promise.resolve();
-        // Batch into chunks of 50 to avoid URL length limits
+        // Batch size MUST match the cap in the yahoo-proxy Worker's quotes_batch
+        // handler (currently tickersParam...slice(0, 30)). The Worker silently
+        // drops anything past its cap with no error and a normal 200 response,
+        // so a mismatch here doesn't fail loudly — it just quietly returns fewer
+        // quotes than requested. If that Worker-side cap ever changes, this
+        // number needs to change with it.
+        var AL_QUOTE_BATCH_SIZE = 30;
         var batches = [];
-        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        for (var i = 0; i < tickers.length; i += AL_QUOTE_BATCH_SIZE) batches.push(tickers.slice(i, i + AL_QUOTE_BATCH_SIZE));
         return Promise.all(batches.map(function(batch) {
             var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
             return fetch(url).then(function(r) {
