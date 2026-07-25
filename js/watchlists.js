@@ -198,6 +198,7 @@
     var wlChartTicker  = null;
     var wlChartWidget  = null;
     var wlMcActive     = false;
+    var _wlSelectFetchTimer = null; // debounces the OHLCV fetch in wlSelectTicker
     var wlMcTimeframe  = 'D';
     var wlMcCols       = parseInt(localStorage.getItem('mcSharedCols') || '4');
     var wlMcWidgets    = {};
@@ -905,12 +906,23 @@
 
         _wlVisibleBars = wlChartTf === 'D' ? 252 : wlChartTf === 'W' ? 104 : 60;
         widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
-        var loadTicker = ticker;
-        fetchMcOhlcv(ticker, wlChartTf).then(function(ohlcv) {
-            // Guard: a newer ticker was already selected
-            if (wlChartTicker !== loadTicker) return;
-            _buildWlChart(loadTicker, ohlcv, wlChartTf);
-        });
+        // Debounce the fetch itself, not the UI update above. Arrow-keying or
+        // click-scrolling through several rows quickly used to fire one real
+        // fetchMcOhlcv call per row — all landing in the same shared queue as
+        // fullscreen — even though every result but the last got thrown away
+        // by the loadTicker guard below. This waits for the selection to
+        // settle for 150ms before the fetch is even made, so passing through
+        // rows costs nothing and only the row you stop on hits the network.
+        clearTimeout(_wlSelectFetchTimer);
+        _wlSelectFetchTimer = setTimeout(function() {
+            if (wlChartTicker !== ticker) return; // superseded before the pause elapsed
+            var loadTicker = ticker;
+            fetchMcOhlcv(ticker, wlChartTf).then(function(ohlcv) {
+                // Guard: a newer ticker was already selected
+                if (wlChartTicker !== loadTicker) return;
+                _buildWlChart(loadTicker, ohlcv, wlChartTf);
+            });
+        }, 150);
         // Update active row highlight
         document.querySelectorAll('.wl-ticker-row').forEach(function(r){
             r.classList.toggle('active', r.getAttribute('data-wl-ticker') === ticker);
