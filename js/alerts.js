@@ -2859,7 +2859,7 @@
         if (!msgEl) return null;
         var row = document.createElement('label');
         row.id = 'al-confirm-skip-row';
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#8b949e;cursor:pointer;user-select:none;';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:12px 0 18px;font-size:12px;color:#8b949e;cursor:pointer;user-select:none;';
         var box = document.createElement('input');
         box.type = 'checkbox';
         box.id = 'al-confirm-skip-checkbox';
