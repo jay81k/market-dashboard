@@ -344,11 +344,27 @@
         for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
         return Promise.all(batches.map(function(batch) {
             var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
-            return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+            return fetch(url).then(function(r) {
+                if (!r.ok) {
+                    console.warn('[AL-DEBUG] quotes_batch HTTP ' + r.status + ' for batch:', batch);
+                    return null;
+                }
+                return r.json();
+            }).catch(function(err) {
+                console.warn('[AL-DEBUG] quotes_batch fetch threw for batch:', batch, err);
+                return null;
+            });
         })).then(function(results) {
+            // TEMP DIAGNOSTIC — remove once we've root-caused the blank CHG/CHG%/AWAY columns.
+            var _alReceivedTickers = {};
+            var _alFalsyPriceTickers = [];
             results.forEach(function(data) {
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
+                    if (q && q.ticker) {
+                        _alReceivedTickers[q.ticker] = true;
+                        if (!q.price) _alFalsyPriceTickers.push(q.ticker + ' (price=' + q.price + ')');
+                    }
                     if (q && q.ticker && q.price) {
                         alertPrices[q.ticker]    = q.price;
                         alertPrevClose[q.ticker] = q.prevClose || null;
@@ -357,6 +373,10 @@
                     }
                 });
             });
+            var _alMissingTickers = tickers.filter(function(t) { return !_alReceivedTickers[t]; });
+            if (_alMissingTickers.length) console.warn('[AL-DEBUG] backend returned no quote object at all for:', _alMissingTickers);
+            if (_alFalsyPriceTickers.length) console.warn('[AL-DEBUG] quote object returned but price was falsy for:', _alFalsyPriceTickers);
+            // END TEMP DIAGNOSTIC
             alUpdateEstimatedMAs();
             var avwapTickers = alertsList
                 .filter(function(a) { return a.alertType === 'avwap'; })
