@@ -358,8 +358,11 @@
             // TEMP DIAGNOSTIC — remove once we've root-caused the blank CHG/CHG%/AWAY columns.
             var _alReceivedTickers = {};
             var _alFalsyPriceTickers = [];
-            results.forEach(function(data) {
-                if (!data || !data.quotes) return;
+            results.forEach(function(data, batchIdx) {
+                if (!data || !data.quotes) {
+                    console.warn('[AL-DEBUG] batch ' + batchIdx + ' had no usable quotes array, raw response was:', data);
+                    return;
+                }
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker) {
                         _alReceivedTickers[q.ticker] = true;
