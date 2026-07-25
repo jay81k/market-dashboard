@@ -893,6 +893,8 @@ def main():
     print("Fetching ^GSPC history...")
     spy_hist  = yf.Ticker("^GSPC").history(period="14mo").dropna(subset=["Close"])
     spy_last_date = spy_hist.index[-1]  # freshness reference — SPY always has today's bar
+    if spy_last_date.tzinfo is not None:
+        spy_last_date = spy_last_date.tz_localize(None)  # yf.Ticker().history() is tz-aware; normalize for safe subtraction
 
     # 3. Batch-fetch price histories
     histories = fetch_history_batch(tickers, max_workers=args.workers)
@@ -920,6 +922,8 @@ def main():
         #  2. Last bar exists (feed still returns a stale cached row) but has
         #     zero volume, the classic signature of a halt day.
         last_date = hist.index[-1]
+        if last_date.tzinfo is not None:
+            last_date = last_date.tz_localize(None)  # yf.download() batch results are tz-naive; normalize either way
         lag_days  = (spy_last_date - last_date).days
         if lag_days > STALE_MAX_CALENDAR_DAYS:
             skipped += 1
