@@ -42,6 +42,13 @@ MIN_AVG_VOLUME  = 90_000     # AvgVol50 filter — anything below gets dropped
 MIN_PRICE       = 1.0        # last close must be >= $1
 MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets dropped
 
+# Stale / halted ticker detection — a ticker whose most recent bar is this many
+# calendar days older than SPY's most recent bar is treated as not currently
+# trading (halt, delisting, feed issue, etc.) and dropped. 4 calendar days
+# covers a normal weekend gap plus a 1-day feed delay without much risk of
+# false-flagging a ticker that's actually still trading normally.
+STALE_MAX_CALENDAR_DAYS = 4
+
 # Industry trend sparkline — trailing window + sample count
 SPARK_WINDOW = 63   # trading days ≈ 3 months, matches the existing `3m` field
 SPARK_POINTS = 13   # evenly-spaced samples across the window (~weekly cadence)
@@ -885,6 +892,7 @@ def main():
     # 2. SPX baseline
     print("Fetching ^GSPC history...")
     spy_hist  = yf.Ticker("^GSPC").history(period="14mo").dropna(subset=["Close"])
+    spy_last_date = spy_hist.index[-1]  # freshness reference — SPY always has today's bar
 
     # 3. Batch-fetch price histories
     histories = fetch_history_batch(tickers, max_workers=args.workers)
@@ -897,12 +905,34 @@ def main():
     industry_to_sector: dict[str, str] = {}
     industry_spark_series: dict[str, list] = defaultdict(list)  # per-industry list of per-stock spark_3m arrays
     skipped = 0
+    skipped_stale = 0
     supplemental_set = {t["Ticker"] for t in SUPPLEMENTAL_TICKERS}
 
     for ticker in tickers:
         hist = histories.get(ticker)
         if hist is None:
             skipped += 1
+            continue
+
+        # Skip tickers with no fresh data — halted, delisted, or otherwise not
+        # currently trading. Detected two ways:
+        #  1. Last bar is too many calendar days behind SPY's last bar.
+        #  2. Last bar exists (feed still returns a stale cached row) but has
+        #     zero volume, the classic signature of a halt day.
+        last_date = hist.index[-1]
+        lag_days  = (spy_last_date - last_date).days
+        if lag_days > STALE_MAX_CALENDAR_DAYS:
+            skipped += 1
+            skipped_stale += 1
+            print(f"  Skipping {ticker}: stale data, {lag_days}d behind SPY "
+                  f"(last bar {last_date.date()})")
+            continue
+        last_volume = hist["Volume"].iloc[-1] if "Volume" in hist.columns else None
+        if last_volume is not None and not pd.isna(last_volume) and last_volume == 0:
+            skipped += 1
+            skipped_stale += 1
+            print(f"  Skipping {ticker}: zero volume on last bar "
+                  f"({last_date.date()}) — likely halted")
             continue
 
         metrics = compute_metrics(ticker, hist, spy_hist)
@@ -996,7 +1026,8 @@ def main():
         by_industry[industry].append(row)
         industry_to_sector[industry] = sector
 
-    print(f"Done: {len(tickers) - skipped} computed, {skipped} skipped\n")
+    print(f"Done: {len(tickers) - skipped} computed, {skipped} skipped "
+          f"({skipped_stale} stale/halted)\n")
 
     # Assign Rank to supplemental tickers based on where their Percentile
     # falls relative to the full universe — CSV-sourced ranks are left untouched.
