@@ -65,11 +65,6 @@
     var _mcFsSym               = null;
     var _mcFsTf                = 'D';
     var _mcFsLastCrosshairPrice = null;
-    var _mcFsRequestKey  = null;   // "<sym>_<tf>" of the most recently *requested* open/TF-switch,
-    // set synchronously before the fetch starts. Used to detect a response that's been superseded
-    // by a newer request (same pattern as wlChartTicker/loadTicker in wlSelectTicker) — unlike
-    // _mcFsSym, which only updates after a build actually completes, so it can't tell "already
-    // showing this" apart from "DOM was just wiped and nothing has replaced it yet."
     var _mcFsChart       = null;
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
@@ -2661,14 +2656,8 @@
         var sym = _mcFsSym;
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
-        // Same request-key pattern as openMcFullscreen — without this, rapid
-        // TF switching (e.g. D → W → D quickly) had no protection against an
-        // earlier switch's response landing after a later one's and showing
-        // the wrong timeframe.
-        _mcFsRequestKey = sym + '_' + tf;
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
-            if (_mcFsRequestKey !== sym + '_' + tf) return; // superseded by a newer open/TF-switch
             _buildFsChart(sym, ohlcv, tf);
         });
     };
@@ -3291,16 +3280,12 @@
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
         var openSym = sym;
-        // Mark this as the current request *before* the fetch starts, so the
-        // callback below can tell whether it's still the most recent thing
-        // asked for by the time it resolves.
-        _mcFsRequestKey = openSym + '_' + tf;
         // No forced cache-clear here anymore — see the matching note in
         // mcFsSetTf. Reopening a symbol/TF already fetched this session now
         // renders instantly from cache instead of re-entering the queue.
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
-            if (_mcFsRequestKey !== openSym + '_' + tf) return; // superseded by a newer open/TF-switch
+            if (_mcFsSym === openSym && _mcFsTf === tf && _mcFsChart) return; // already rendered
             _buildFsChart(sym, ohlcv, tf);
         });
     };
@@ -3320,7 +3305,6 @@
         _mcFsVolSmaMap = null;
         if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
         _mcFsSym = null;
-        _mcFsRequestKey = null;
         var _mktEl = document.getElementById('mc-fs-mkt-info');
         if (_mktEl) _mktEl.style.display = 'none';
         if (_mcFsKeyHandler) { document.removeEventListener('keydown', _mcFsKeyHandler); _mcFsKeyHandler = null; }
