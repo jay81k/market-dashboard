@@ -263,6 +263,10 @@
             q.active++;
             (function doFetch(s, attempt) {
                 window.yahooProxyPace.markLaunched();
+                // TEMP PERF INSTRUMENTATION
+                if (attempt === 0 && window._mcPerf && window._mcPerf[s]) {
+                    window._mcPerf[s].t1 = performance.now();
+                }
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf, gridMode);
                 fetch(url).then(function(resp) {
                         if (resp.ok) return resp.json();
@@ -279,6 +283,10 @@
                         });
                     })
                     .then(function(data) {
+                        // TEMP PERF INSTRUMENTATION
+                        if (attempt === 0 && window._mcPerf && window._mcPerf[s]) {
+                            window._mcPerf[s].t2 = performance.now();
+                        }
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         if (result && result.meta) _mcMetaCache[s] = result.meta;
                         var ohlcv = [];
@@ -2613,6 +2621,21 @@
                 _addFsTrendline(a.p1, a.p2);
             });
         }
+
+        // TEMP PERF INSTRUMENTATION — logs the full click-to-rendered timeline
+        if (window._mcPerf && window._mcPerf[sym]) {
+            var _p = window._mcPerf[sym];
+            _p.t3 = performance.now();
+            var _fmt = function(ms) { return (ms == null || isNaN(ms)) ? 'n/a' : Math.round(ms) + 'ms'; };
+            console.log(
+                '[mc-perf] ' + sym + ' fullscreen load — ' +
+                'queue+pace wait: ' + _fmt(_p.t1 - _p.t0) + ' | ' +
+                'network+parse: '   + _fmt(_p.t2 - _p.t1) + ' | ' +
+                'chart build: '     + _fmt(_p.t3 - _p.t2) + ' | ' +
+                'TOTAL: '           + _fmt(_p.t3 - _p.t0)
+            );
+            delete window._mcPerf[sym];
+        }
     }
 
     // Fullscreen window-level controls
@@ -3203,6 +3226,9 @@
     }
 
     window.openMcFullscreen = function(sym, tf, displayName) {
+        // TEMP PERF INSTRUMENTATION — remove once fullscreen load timing is diagnosed
+        window._mcPerf = window._mcPerf || {};
+        window._mcPerf[sym] = { t0: performance.now() };
         tf = tf || mcTimeframe || 'D';
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = displayName || sym;
