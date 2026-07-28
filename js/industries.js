@@ -228,17 +228,6 @@
 
         document.getElementById('heatmap-result-count').textContent = industries.length + ' industries';
 
-        // Total is the full unfiltered set, so tiers stay stable even when the search box narrows the grid
-        var totalForRank = (industriesData && industriesData.industries) ? industriesData.industries.length : industries.length;
-
-        function rankTierColor(rank, total) {
-            if (rank == null || !total) return 'rgba(255,255,255,0.9)';
-            var pct = rank / total;
-            if (pct <= 1/3) return '#4ade80';   // top third
-            if (pct <= 2/3) return '#facc15';   // middle third
-            return '#f87171';                    // bottom third
-        }
-
         var html = '<div class="heatmap-grid">';
         industries.forEach(function(ind) {
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
@@ -247,17 +236,13 @@
             var valStr = val != null ? (val >= 0 ? '+' : '') + val.toFixed(2) + '%' : '—';
             var isNull = bg == null;
             var rankStr = (ind.rank != null) ? ('#' + ind.rank) : '#—';
-            var rankDotColor = rankTierColor(ind.rank, totalForRank);
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
                     ' style="background:' + (bg || '#161b22') + ';"' +
                     ' data-industry="' + esc(ind.industry) + '"' +
                     ' onclick="openIndustry(\'' + esc(ind.industry) + '\')">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">' +
                     '<div class="heatmap-card-name">' + esc(ind.industry) + '</div>' +
-                    '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:8px;flex-shrink:0;">' +
-                    '<span style="width:6px;height:6px;border-radius:50%;background:' + rankDotColor + ';display:inline-block;"></span>' +
-                    '<span style="color:rgba(255,255,255,0.9);font-size:10px;font-weight:500;">' + rankStr + '</span>' +
-                    '</span>' +
+                    '<span style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.9);font-size:10px;font-weight:500;padding:2px 6px;border-radius:8px;flex-shrink:0;">' + rankStr + '</span>' +
                     '</div>' +
                     '<div class="heatmap-card-val">' + valStr + '</div>' +
                     '</div>';
