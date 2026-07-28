@@ -235,11 +235,15 @@
             var bg  = heatmapColor(val);
             var valStr = val != null ? (val >= 0 ? '+' : '') + val.toFixed(2) + '%' : '—';
             var isNull = bg == null;
+            var rankStr = (ind.rank != null) ? ('#' + ind.rank) : '#—';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
                     ' style="background:' + (bg || '#161b22') + ';"' +
                     ' data-industry="' + esc(ind.industry) + '"' +
                     ' onclick="openIndustry(\'' + esc(ind.industry) + '\')">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">' +
                     '<div class="heatmap-card-name">' + esc(ind.industry) + '</div>' +
+                    '<span style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.9);font-size:10px;font-weight:500;padding:2px 6px;border-radius:8px;flex-shrink:0;">' + rankStr + '</span>' +
+                    '</div>' +
                     '<div class="heatmap-card-val">' + valStr + '</div>' +
                     '</div>';
         });
