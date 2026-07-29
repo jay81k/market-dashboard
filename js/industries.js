@@ -238,7 +238,7 @@
             var rankStr = (ind.rank != null) ? String(ind.rank) : '';
             var rankFontSize = rankStr.length >= 3 ? 28 : (rankStr.length === 2 ? 36 : 44);
             var rankWatermark = rankStr ? (
-                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:rgba(255,255,255,0.12);line-height:1;">' + rankStr + '</span>'
+                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:rgba(255,255,255,0.16);line-height:1;">' + rankStr + '</span>'
             ) : '';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
                     ' style="background:' + (bg || '#161b22') + ';position:relative;overflow:hidden;min-height:84px;"' +
