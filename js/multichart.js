@@ -354,8 +354,13 @@
                                 delayMs = 1000 * Math.pow(2, attempt);
                             }
                             delayMs = Math.min(delayMs, 10000); // don't let one stubborn ticker hold a slot forever
+                            // Don't retry into an active shared cooldown — a 429 here likely
+                            // means the cooldown is either already tripped or about to be, so
+                            // wait out whichever is longer: our own backoff, or the cooldown.
+                            var cooldownRemaining = window.yahooProxyPace.cooldownUntil() - Date.now();
+                            var waitMs = Math.max(delayMs, cooldownRemaining);
                             // q.active stays held during the wait so the slot isn't reused
-                            setTimeout(function() { doFetch(s, attempt + 1); }, delayMs);
+                            setTimeout(function() { doFetch(s, attempt + 1); }, waitMs);
                         } else {
                             // Don't cache this as confirmed-empty data — it's a failure, not
                             // "no data for this ticker." Leaving the cache key unset means a
