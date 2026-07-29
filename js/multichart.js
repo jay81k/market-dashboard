@@ -229,12 +229,6 @@
         if (Date.now() < window.yahooProxyPace.cooldownUntil()) {
             if (!q._resumeTimer) {
                 var waitMs = window.yahooProxyPace.cooldownUntil() - Date.now() + 25;
-                // TEMP PERF INSTRUMENTATION — credit this wait segment to whichever
-                // tracked symbol is at the head of the queue, if any
-                if (q.pending[0] && window._mcPerf && window._mcPerf[q.pending[0]]) {
-                    var _pc = window._mcPerf[q.pending[0]];
-                    _pc.cooldownMs = (_pc.cooldownMs || 0) + waitMs;
-                }
                 q._resumeTimer = setTimeout(function() {
                     q._resumeTimer = null;
                     _drainMcQueue(tf, gridMode);
@@ -258,12 +252,6 @@
             if (sinceLast < MC_LAUNCH_MIN_SPACING) {
                 if (!q._paceTimer) {
                     var _spaceWait = MC_LAUNCH_MIN_SPACING - sinceLast;
-                    // TEMP PERF INSTRUMENTATION
-                    if (window._mcPerf && window._mcPerf[sym]) {
-                        var _ps = window._mcPerf[sym];
-                        _ps.spacingMs   = (_ps.spacingMs   || 0) + _spaceWait;
-                        _ps.spacingHits = (_ps.spacingHits || 0) + 1;
-                    }
                     q._paceTimer = setTimeout(function() {
                         q._paceTimer = null;
                         _drainMcQueue(tf, gridMode);
@@ -272,14 +260,12 @@
                 break;
             }
 
+            var _retryAttempt = (q.retryAttempt && q.retryAttempt[sym]) || 0;
+            if (q.retryAttempt) delete q.retryAttempt[sym];
             q.pending.shift();
             q.active++;
             (function doFetch(s, attempt) {
                 window.yahooProxyPace.markLaunched();
-                // TEMP PERF INSTRUMENTATION
-                if (attempt === 0 && window._mcPerf && window._mcPerf[s]) {
-                    window._mcPerf[s].t1 = performance.now();
-                }
                 var url = WL_PROXY + '?symbol=' + encodeURIComponent(s) + '&interval=' + _mcInterval(tf) + '&range=' + _mcRange(tf, gridMode);
                 fetch(url).then(function(resp) {
                         if (resp.ok) return resp.json();
@@ -296,10 +282,6 @@
                         });
                     })
                     .then(function(data) {
-                        // TEMP PERF INSTRUMENTATION
-                        if (attempt === 0 && window._mcPerf && window._mcPerf[s]) {
-                            window._mcPerf[s].t2 = performance.now();
-                        }
                         var result = data && data.chart && data.chart.result && data.chart.result[0];
                         if (result && result.meta) _mcMetaCache[s] = result.meta;
                         var ohlcv = [];
@@ -354,13 +336,22 @@
                                 delayMs = 1000 * Math.pow(2, attempt);
                             }
                             delayMs = Math.min(delayMs, 10000); // don't let one stubborn ticker hold a slot forever
-                            // Don't retry into an active shared cooldown — a 429 here likely
-                            // means the cooldown is either already tripped or about to be, so
-                            // wait out whichever is longer: our own backoff, or the cooldown.
-                            var cooldownRemaining = window.yahooProxyPace.cooldownUntil() - Date.now();
-                            var waitMs = Math.max(delayMs, cooldownRemaining);
-                            // q.active stays held during the wait so the slot isn't reused
-                            setTimeout(function() { doFetch(s, attempt + 1); }, waitMs);
+                            // q.active stays held during the backoff so the slot isn't reused.
+                            // IMPORTANT: don't call doFetch directly here. Multiple symbols
+                            // retrying at once would each independently decide "the cooldown's
+                            // over" and fire in the same instant, re-tripping it together as a
+                            // group (a thundering herd) — that's what the checked-cooldownUntil
+                            // version of this still did. Routing back through _drainMcQueue means
+                            // every relaunch, retry or fresh, goes through the one gate that
+                            // already serializes on both cooldown and launch spacing, same as
+                            // every other consumer in the app.
+                            setTimeout(function() {
+                                q.retryAttempt = q.retryAttempt || {};
+                                q.retryAttempt[s] = attempt + 1;
+                                q.pending.unshift(s);
+                                q.active = Math.max(0, q.active - 1);
+                                _drainMcQueue(tf, gridMode);
+                            }, delayMs);
                         } else {
                             // Don't cache this as confirmed-empty data — it's a failure, not
                             // "no data for this ticker." Leaving the cache key unset means a
@@ -373,7 +364,7 @@
                             _drainMcQueue(tf, gridMode);
                         }
                     });
-            })(sym, 0);
+            })(sym, _retryAttempt);
         }
     }
 
@@ -2639,23 +2630,6 @@
                 _addFsTrendline(a.p1, a.p2);
             });
         }
-
-        // TEMP PERF INSTRUMENTATION — logs the full click-to-rendered timeline
-        if (window._mcPerf && window._mcPerf[sym]) {
-            var _p = window._mcPerf[sym];
-            _p.t3 = performance.now();
-            var _fmt = function(ms) { return (ms == null || isNaN(ms)) ? 'n/a' : Math.round(ms) + 'ms'; };
-            console.log(
-                '[mc-perf] ' + sym + ' fullscreen load — ' +
-                'queue+pace wait: ' + _fmt(_p.t1 - _p.t0) +
-                ' (429-cooldown: ' + _fmt(_p.cooldownMs || 0) +
-                ', launch-spacing: ' + _fmt(_p.spacingMs || 0) + ' across ' + (_p.spacingHits || 0) + ' retries)' +
-                ' | network+parse: ' + _fmt(_p.t2 - _p.t1) +
-                ' | chart build: '   + _fmt(_p.t3 - _p.t2) +
-                ' | TOTAL: '         + _fmt(_p.t3 - _p.t0)
-            );
-            delete window._mcPerf[sym];
-        }
     }
 
     // Fullscreen window-level controls
@@ -3246,9 +3220,6 @@
     }
 
     window.openMcFullscreen = function(sym, tf, displayName) {
-        // TEMP PERF INSTRUMENTATION — remove once fullscreen load timing is diagnosed
-        window._mcPerf = window._mcPerf || {};
-        window._mcPerf[sym] = { t0: performance.now() };
         tf = tf || mcTimeframe || 'D';
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = displayName || sym;
