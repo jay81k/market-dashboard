@@ -286,10 +286,17 @@ var _mmPopup = (function () {
     }
 
     function appendTodayCandle(sym, activeRef, todayTs) {
+        // Skip rather than pile onto an active shared cooldown — this is a
+        // background refresh, not user-visible loading state, so silently
+        // skipping this round is the safe default (it'll catch up next hover).
+        if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) return;
         var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
                   encodeURIComponent(sym) + '&interval=5m&range=1d';
         fetch(url)
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.status === 429 && window.yahooProxyPace) window.yahooProxyPace.register429();
+                return r.json();
+            })
             .then(function(data) {
                 if (activeRef !== activeCard || !candleSeries) return;
                 var result = data && data.chart && data.chart.result && data.chart.result[0];
@@ -366,11 +373,22 @@ var _mmPopup = (function () {
         popup.classList.add('visible');
         popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
 
+        // Skip rather than pile onto an active shared cooldown; show the
+        // existing "unavailable" state immediately instead of leaving the
+        // popup stuck on "Loading…" until it times out on its own.
+        if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) {
+            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            return;
+        }
+
         var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
                   encodeURIComponent(yfSym) + '&interval=1d&range=6mo';
 
         fetch(url)
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.status === 429 && window.yahooProxyPace) window.yahooProxyPace.register429();
+                return r.json();
+            })
             .then(function(data) {
                 if (card !== activeCard) return; // user moved away
                 var result = data && data.chart && data.chart.result && data.chart.result[0];
@@ -537,11 +555,19 @@ var _mmPopup = (function () {
         popup.classList.add('visible');
         popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
 
+        if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) {
+            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            return;
+        }
+
         var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
                   encodeURIComponent(ticker) + '&interval=1d&range=6mo';
 
         fetch(url)
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.status === 429 && window.yahooProxyPace) window.yahooProxyPace.register429();
+                return r.json();
+            })
             .then(function(data) {
                 if (el !== activeCard) return;
                 var result = data && data.chart && data.chart.result && data.chart.result[0];
