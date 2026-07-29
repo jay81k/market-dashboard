@@ -235,16 +235,20 @@
             var bg  = heatmapColor(val);
             var valStr = val != null ? (val >= 0 ? '+' : '') + val.toFixed(2) + '%' : '—';
             var isNull = bg == null;
-            var rankStr = (ind.rank != null) ? ('#' + ind.rank) : '#—';
+            var rankStr = (ind.rank != null) ? String(ind.rank) : '';
+            var rankFontSize = rankStr.length >= 3 ? 32 : (rankStr.length === 2 ? 40 : 50);
+            var rankWatermark = rankStr ? (
+                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:800;color:rgba(255,255,255,0.18);line-height:1;">' + rankStr + '</span>'
+            ) : '';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
-                    ' style="background:' + (bg || '#161b22') + ';"' +
+                    ' style="background:' + (bg || '#161b22') + ';position:relative;overflow:hidden;min-height:84px;"' +
                     ' data-industry="' + esc(ind.industry) + '"' +
                     ' onclick="openIndustry(\'' + esc(ind.industry) + '\')">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">' +
+                    rankWatermark +
+                    '<div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
                     '<div class="heatmap-card-name">' + esc(ind.industry) + '</div>' +
-                    '<span style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.9);font-size:10px;font-weight:500;padding:2px 6px;border-radius:8px;flex-shrink:0;">' + rankStr + '</span>' +
-                    '</div>' +
                     '<div class="heatmap-card-val">' + valStr + '</div>' +
+                    '</div>' +
                     '</div>';
         });
         html += '</div>';
