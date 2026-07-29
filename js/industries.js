@@ -204,6 +204,28 @@
         return map[tf] || tf;
     }
 
+    // Same channel math as heatmapColor, but reduced to a luminance figure so the
+    // rank watermark can pick black vs white tint (and how strong) per actual card color,
+    // instead of one flat opacity guessed to work "on average".
+    function rankTintStyle(val) {
+        if (val == null) return 'rgba(255,255,255,0.16)';
+        var maxVal = 5.0;
+        var t = Math.min(1, Math.abs(val) / maxVal);
+        var r, g, b;
+        if (val > 0) {
+            g = 60 + t * 100; r = 10 + t * 5; b = 20 + t * 10;
+        } else {
+            r = 60 + t * 100; g = 10 + t * 5; b = 10 + t * 5;
+        }
+        var luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (luminance > 90) {
+            var opBlack = Math.min(0.30, 0.18 + (luminance - 90) / 120 * 0.12);
+            return 'rgba(0,0,0,' + opBlack.toFixed(2) + ')';
+        }
+        var opWhite = Math.max(0.14, 0.22 - luminance / 90 * 0.06);
+        return 'rgba(255,255,255,' + opWhite.toFixed(2) + ')';
+    }
+
     function renderHeatmap() {
         var container = document.getElementById('industry-heatmap');
         if (!industriesData || !industriesData.industries) {
@@ -238,7 +260,7 @@
             var rankStr = (ind.rank != null) ? String(ind.rank) : '';
             var rankFontSize = rankStr.length >= 3 ? 28 : (rankStr.length === 2 ? 36 : 44);
             var rankWatermark = rankStr ? (
-                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:rgba(255,255,255,0.16);line-height:1;">' + rankStr + '</span>'
+                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:' + rankTintStyle(val) + ';line-height:1;">' + rankStr + '</span>'
             ) : '';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
                     ' style="background:' + (bg || '#161b22') + ';position:relative;overflow:hidden;min-height:84px;"' +
