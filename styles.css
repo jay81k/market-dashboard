@@ -179,6 +179,13 @@
         .industry-rs-col.negative { color: #f85149; }
         .industry-rs-col.neutral  { color: #484f58; }
 
+        /* Breadth columns (% of stocks above key MAs) — same sizing as RS columns */
+        .industry-breadth-cols { display: flex; align-items: center; flex-shrink: 0; }
+        .industry-breadth-col  { width: 76px; text-align: right; flex-shrink: 0; font-size: 0.968em; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .industry-breadth-col.positive { color: #3fb950; }
+        .industry-breadth-col.negative { color: #f85149; }
+        .industry-breadth-col.neutral  { color: #484f58; }
+
         /* ── Multichart ── */
         .multichart-toolbar {
             display: flex; align-items: center; gap: 6px;
