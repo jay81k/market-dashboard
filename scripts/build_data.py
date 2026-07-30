@@ -1110,6 +1110,26 @@ def main():
                 if r.get("dist_ma") and r["dist_ma"].get("SMA50") is not None]
         return round(sum(vals) / len(vals), 2) if vals else None
 
+    def pct_above_dist_ma(rows, key):
+        """% of stocks whose dist_ma[key] is positive (price above that MA)."""
+        vals = [r["dist_ma"][key] for r in rows
+                if r.get("dist_ma") and r["dist_ma"].get(key) is not None]
+        return round(sum(1 for v in vals if v > 0) / len(vals) * 100, 1) if vals else None
+
+    def pct_confirmed_uptrend(rows):
+        """% of stocks fully stacked in a stage-2 uptrend: Close > 50SMA > 150SMA > 200SMA."""
+        total = hits = 0
+        for r in rows:
+            mv = r.get("ma_val") or {}
+            price = r.get("price")
+            s50, s150, s200 = mv.get("SMA50"), mv.get("SMA150"), mv.get("SMA200")
+            if None in (price, s50, s150, s200):
+                continue
+            total += 1
+            if price > s50 > s150 > s200:
+                hits += 1
+        return round(hits / total * 100, 1) if total else None
+
     def median_rs(rows):
         vals = [float(r["Percentile"]) for r in rows if r.get("Percentile") is not None]
         return round(float(np.median(vals)), 1) if vals else None
@@ -1142,6 +1162,9 @@ def main():
             "avg_vs_spy_6m":   avg(rows, "vs_spy_6m"),
             "avg_vs_spy_12m":  avg(rows, "vs_spy_12m"),
             "avg_dist_ma50":   avg_dist_ma50(rows),
+            "pct_confirmed_uptrend": pct_confirmed_uptrend(rows),
+            "pct_above_50sma":       pct_above_dist_ma(rows, "SMA50"),
+            "pct_above_21ema":       pct_above_dist_ma(rows, "EMA21"),
             "spark_3m":        avg_spark_series(industry_spark_series.get(industry, [])),
         }
         for industry, rows in by_industry.items()
