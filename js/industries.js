@@ -412,6 +412,10 @@
         document.getElementById('multichart-toggle-btn').style.borderColor = '';
         document.getElementById('multichart-toggle-btn').style.color       = '';
         document.getElementById('multichart-grid').innerHTML = '';
+        // Drop any tickers still queued from whatever grid was on screen
+        // before this — otherwise that backlog keeps draining in the
+        // background into this industry's 12 tickers' worth of traffic.
+        if (window.mcClearGridQueue) mcClearGridQueue();
 
         currentStockSort = { by: 'weighted_rs_pct', dir: 1, count: 1 };
         selectedIndustryStocks.clear();
