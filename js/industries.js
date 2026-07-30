@@ -131,6 +131,9 @@
         if (col === 'rs')        { var s2 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s2 ? s2.rs_12m : null; }
         if (col === 'rs_3m')     { var s3 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s3 ? s3.rs_3m  : null; }
         if (col === 'rs_6m')     { var s4 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s4 ? s4.rs_6m  : null; }
+        if (col === 'pct_confirmed_uptrend') { var s5 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s5 ? s5.pct_confirmed_uptrend : null; }
+        if (col === 'pct_above_50sma')       { var s6 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s6 ? s6.pct_above_50sma : null; }
+        if (col === 'pct_above_21ema')       { var s7 = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]; return s7 ? s7.pct_above_21ema : null; }
         return null;
     }
 
@@ -370,6 +373,15 @@
             html += '<span class="industry-rs-col ' + rsColClass(rs1m) + '">' + (rs1m != null ? rs1m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs3m) + '">' + (rs3m != null ? rs3m : '—') + '</span>';
             html += '<span class="industry-rs-col ' + rsColClass(rs6m) + '">' + (rs6m != null ? rs6m : '—') + '</span>';
+            html += '</div>';
+            // Breadth columns
+            var pctUptrend = _indSum ? _indSum.pct_confirmed_uptrend : null;
+            var pctAbove50 = _indSum ? _indSum.pct_above_50sma       : null;
+            var pctAbove21 = _indSum ? _indSum.pct_above_21ema       : null;
+            html += '<div class="industry-breadth-cols">';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctUptrend) + '">' + (pctUptrend != null ? pctUptrend + '%' : '—') + '</span>';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove50) + '">' + (pctAbove50 != null ? pctAbove50 + '%' : '—') + '</span>';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove21) + '">' + (pctAbove21 != null ? pctAbove21 + '%' : '—') + '</span>';
             html += '</div>';
 
             html += '</div>';
