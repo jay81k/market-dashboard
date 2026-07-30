@@ -263,7 +263,7 @@
             var rankStr = (ind.rank != null) ? String(ind.rank) : '';
             var rankFontSize = rankStr.length >= 3 ? 28 : (rankStr.length === 2 ? 36 : 44);
             var rankWatermark = rankStr ? (
-                '<span style="position:absolute;left:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:' + rankTintStyle(val) + ';line-height:1;">' + rankStr + '</span>'
+                '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:' + rankTintStyle(val) + ';line-height:1;">' + rankStr + '</span>'
             ) : '';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
                     ' style="background:' + (bg || '#161b22') + ';position:relative;overflow:hidden;min-height:84px;"' +
@@ -272,7 +272,7 @@
                     rankWatermark +
                     '<div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
                     '<div class="heatmap-card-name">' + esc(ind.industry) + '</div>' +
-                    '<div class="heatmap-card-val" style="text-align:right;">' + valStr + '</div>' +
+                    '<div class="heatmap-card-val">' + valStr + '</div>' +
                     '</div>' +
                     '</div>';
         });
