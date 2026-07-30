@@ -44,6 +44,26 @@
     var _mcFetchQueue   = {};   // per-tf: { pending:[], active:0, resolvers:{} }
     var MC_FETCH_LIMIT  = 12; // was 6, originally 50 — pre-warm-all is gone and this cap plus the cooldown below are now the real safety net, so this can sit closer to what's actually visible (~12 tiles) instead of being deliberately conservative
 
+    // _mcFetchQueue is never torn down on its own — it only ever gets added
+    // to (via fetchMcOhlcv) or drained. A grid view (Market/Industries/Scans/
+    // Watchlists, whichever's currently reusing #multichart-grid) can leave
+    // tickers sitting in a *_grid queue's `pending` array — either mid-drain
+    // when you navigate away, or pre-queued ahead of scroll position by the
+    // grid's IntersectionObserver lookahead. Without this, that backlog just
+    // keeps draining in the background into whatever view loads next, firing
+    // fetches for tickers that have nothing to do with what's on screen.
+    // Call this whenever a grid view is torn down. It only drops PENDING
+    // (not yet launched) items — anything already in flight can't be
+    // cancelled from here (no AbortController in use) and will just resolve
+    // into a widget/DOM that's already gone, which is harmless.
+    window.mcClearGridQueue = function() {
+        Object.keys(_mcFetchQueue).forEach(function(qKey) {
+            if (qKey.slice(-5) === '_grid') {
+                _mcFetchQueue[qKey].pending = [];
+            }
+        });
+    };
+
     // Launch pacing — MC_FETCH_LIMIT caps how many requests can be *open* at
     // once, but a 429 rejection comes back fast, so a freed slot can get
     // refilled almost instantly. That turns "12 concurrent" into a much
