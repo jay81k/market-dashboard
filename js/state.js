@@ -231,6 +231,11 @@
         }
         if (view !== 'scans')           scanStopPricePolling();
         if (view !== 'industry-stocks') indStopPricePolling();
+        // Drops any tickers still queued from whatever grid view we're
+        // leaving — every view transition runs through here, so this covers
+        // Market/Industries/Scans/Watchlists in one place instead of each
+        // view's own entry point having to remember to do it.
+        if (window.mcClearGridQueue) mcClearGridQueue();
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
