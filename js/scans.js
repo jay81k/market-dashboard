@@ -1983,7 +1983,7 @@
     // regardless, since user-driven changes should take priority.
     var _scanFetchGen = 0;
     var _scanFetchActive = false;
-    var SCAN_FETCH_CONCURRENCY = 2; // max simultaneous 50-ticker batches in flight
+    var SCAN_FETCH_CONCURRENCY = 2; // max simultaneous 30-ticker batches in flight
 
     function scanFetchPrices() {
         var tickers = _vsData.map(function(r) { return r.ticker; });
@@ -1993,7 +1993,11 @@
         _scanFetchActive = true;
 
         var batches = [];
-        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        // 30, not 50 — matches state.js/alerts.js and the Worker's actual cap
+        // (see state.js's fetchLiveIndustryDay comment: a 50-ticker batch
+        // measurably exceeded its 10ms CPU budget). This file was missed
+        // when the other two got updated to match.
+        for (var i = 0; i < tickers.length; i += 30) batches.push(tickers.slice(i, i + 30));
 
         var idx = 0;
 
@@ -2112,6 +2116,12 @@
 
     function scanStopPricePolling() {
         if (scanPriceTimer) { clearInterval(scanPriceTimer); scanPriceTimer = null; }
+        // runRound() already checks (myGen !== _scanFetchGen) before each
+        // round, but nothing was bumping _scanFetchGen when leaving the view
+        // — so a drain in progress just kept running to completion regardless.
+        // Bumping it here means that guard actually fires on the next round.
+        _scanFetchGen++;
+        _scanFetchActive = false;
     }
 
     // ── Scans search filter ───────────────────────────────────────────────
