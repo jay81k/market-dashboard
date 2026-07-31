@@ -66,6 +66,13 @@
 
         function launchNextBatch() {
             if (queue.length === 0) return;
+            // The 60s interval already checks currentView before starting a
+            // round, but once started this recursed with no exit condition —
+            // navigate away mid-drain and the remaining batches (there can be
+            // dozens) kept firing anyway on whatever view you'd moved to.
+            // This can't cancel a request already in flight (no
+            // AbortController in use here), but it stops queuing the next one.
+            if (currentView !== 'industries' && currentView !== 'sector' && currentView !== 'market') return;
 
             var wait      = Math.max(0, window.yahooProxyPace.cooldownUntil() - Date.now());
             var sinceLast = Date.now() - window.yahooProxyPace.lastLaunchAt();
