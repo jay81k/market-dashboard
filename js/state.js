@@ -243,6 +243,10 @@
         // Market/Industries/Scans/Watchlists in one place instead of each
         // view's own entry point having to remember to do it.
         if (window.mcClearGridQueue) mcClearGridQueue();
+        // Same reasoning for the hover popup — it's a floating element with
+        // no idea a view transition just happened, so it just stays put
+        // over whatever loaded underneath it unless something tells it to go.
+        if (window._mmPopup) _mmPopup.hide();
         if (view !== 'watchlists' && wlMcActive) {
             wlMcActive = false;
             var btn = document.getElementById('wl-multichart-toggle-btn');
