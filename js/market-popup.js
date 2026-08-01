@@ -455,7 +455,7 @@ var _mmPopup = (function () {
                 clearTimeout(hideTimer);
             } else {
                 clearTimeout(hideTimer);
-                hideTimer = setTimeout(hidePopup, 120);
+                hideTimer = setTimeout(hidePopup, 60);
             }
         });
     }
@@ -621,7 +621,7 @@ var _mmPopup = (function () {
         });
         el.addEventListener('mouseleave', function() {
             clearTimeout(hoverTimer);
-            hideTimer = setTimeout(hidePopup, 120);
+            hideTimer = setTimeout(hidePopup, 60);
         });
     }
 
