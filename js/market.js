@@ -321,6 +321,8 @@
         });
         document.getElementById('market-updated').textContent = '';
 
+        marketFetchMacro(); // fires independently — no actual dependency on index card data, waiting for it first was just how this was originally written
+
         Promise.all(MARKET_INDEXES.map(function(idx) {
             return Promise.all([
                 marketFetchOne(idx.symbol).then(function(data) { return marketParseResult(data); }),
@@ -359,7 +361,6 @@
             renderSectorPerf();
             renderIndBreadth();
             renderRSDist();
-            marketFetchMacro();
             var now = new Date();
             var isOpen = wlIsMarketOpen();
             document.getElementById('market-updated').textContent =
@@ -377,10 +378,9 @@
                 }
             }
         }).catch(function() {
-            // If anything upstream (rendering, etc.) threw before reaching the
-            // marketFetchMacro() call above, make sure macro cards still get
-            // a chance to refresh instead of silently going stale.
-            marketFetchMacro();
+            // marketFetchMacro() now fires independently up-front, so it no
+            // longer needs rescuing from here — this just keeps the index
+            // fetch's own errors from becoming an unhandled rejection.
         });
     }
 
@@ -403,30 +403,36 @@
     ];
 
     function marketFetchMacro() {
-        // Macro cards always use daily interval — 1D locks to range=2d,
-        // other timeframes use the active range with daily candles
-        var range    = (marketTf === '1d') ? '2d'      : marketTf;
-        var interval = (marketTf === '1d') ? '1d'      : marketInterval;
-        Promise.all(MACRO_TICKERS.map(function(t) {
-            return _mktPacedFetch(WL_PROXY + '?symbol=' + encodeURIComponent(t.symbol) + '&interval=' + interval + '&range=' + range);
-        })).then(function(results) {
-            MACRO_TICKERS.forEach(function(t, i) {
+        // Was 11 separate paced single-ticker fetches (symbol=X&interval=...
+        // &range=...) — but this function only ever reads meta fields
+        // (price/prevClose/dayHigh/dayLow), never the time-series data those
+        // params were fetching. quotes_batch already returns exactly those
+        // four fields (confirmed via scans.js's own parsing of the same
+        // endpoint) — one request instead of eleven queued-and-spaced ones.
+        var symbols = MACRO_TICKERS.map(function(t) { return t.symbol; });
+        var url = WL_PROXY + '?action=quotes_batch&tickers=' + symbols.map(encodeURIComponent).join(',');
+
+        _mktPacedFetch(url).then(function(data) {
+            var byTicker = {};
+            if (data && data.quotes) {
+                data.quotes.forEach(function(q) { if (q && q.ticker) byTicker[q.ticker] = q; });
+            }
+
+            MACRO_TICKERS.forEach(function(t) {
                 var el = document.getElementById('mm-' + t.id);
                 if (!el) return;
 
-                var data   = results[i];
-                var result = data && data.chart && data.chart.result && data.chart.result[0];
-                if (!result) {
+                var q = byTicker[t.symbol];
+                if (!q || q.price == null) {
                     el.className = 'market-macro-card flat';
                     el.innerHTML = '<div class="mm-label">' + t.label + '</div><div class="mm-name">' + t.name + '</div><div class="mm-price">—</div>';
                     return;
                 }
 
-                var meta      = result.meta || {};
-                var price     = meta.regularMarketPrice;
-                var prevClose = meta.previousClose || meta.chartPreviousClose;
-                var dayHigh   = meta.regularMarketDayHigh;
-                var dayLow    = meta.regularMarketDayLow;
+                var price     = q.price;
+                var prevClose = q.prevClose;
+                var dayHigh   = q.dayHigh;
+                var dayLow    = q.dayLow;
                 var chgAbs    = (price != null && prevClose != null) ? price - prevClose : null;
                 var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
                 var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
