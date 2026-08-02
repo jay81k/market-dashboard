@@ -2179,8 +2179,8 @@
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: 'rgba(255,255,255,0.14)', fontSize: 35 },
-                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.14)', fontSize: 17 } : null,
+                { text: sym, color: 'rgba(255,255,255,0.14)', fontSize: 30 },
+                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.14)', fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
