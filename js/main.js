@@ -29,6 +29,7 @@
         if (!_indLiveDayInterval) {
             _indLiveDayInterval = setInterval(function() {
                 if (currentView !== 'industries' && currentView !== 'sector' && currentView !== 'market') return;
+                if (_mcFsIsOpen()) return; // fullscreen chart open — don't kick off a fresh burst
                 fetchLiveIndustryDay();
             }, 60000);
         }
