@@ -2179,8 +2179,8 @@
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: 'rgba(255,255,255,0.18)', fontSize: 30 },
-                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.18)', fontSize: 14 } : null,
+                { text: sym, color: 'rgba(255,255,255,0.22)', fontSize: 30 },
+                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.22)', fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
@@ -3720,8 +3720,8 @@
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: 'rgba(255,255,255,0.18)', fontSize: 30 },
-                _wlCompanyName ? { text: _wlCompanyName, color: 'rgba(255,255,255,0.18)', fontSize: 14 } : null,
+                { text: sym, color: 'rgba(255,255,255,0.22)', fontSize: 30 },
+                _wlCompanyName ? { text: _wlCompanyName, color: 'rgba(255,255,255,0.22)', fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
