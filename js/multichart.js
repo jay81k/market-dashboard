@@ -2159,7 +2159,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 12 },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 18 },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
@@ -3705,10 +3705,25 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 12 },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 18 },
             handleScroll: true, handleScale: true,
         });
         _wlAttachCtxMenu();
+
+        // Watermark — same as fullscreen: ticker + company name, bottom-right
+        // (top corners here are also taken, by the legend and pre/post badge
+        // just below). Meta comes from the same cache fetchMcOhlcv already
+        // populates, no extra request.
+        var _wlMeta        = _mcMetaCache[sym] || {};
+        var _wlCompanyName = _wlMeta.longName || _wlMeta.shortName || '';
+        LightweightCharts.createTextWatermark(_wlChart.panes()[0], {
+            horzAlign: 'right',
+            vertAlign: 'bottom',
+            lines: [
+                { text: sym, color: 'rgba(255,255,255,0.14)', fontSize: 30 },
+                _wlCompanyName ? { text: _wlCompanyName, color: 'rgba(255,255,255,0.14)', fontSize: 14 } : null,
+            ].filter(Boolean),
+        });
 
         // Candle series
         _wlCandle = _wlChart.addSeries(LightweightCharts.CandlestickSeries, {
