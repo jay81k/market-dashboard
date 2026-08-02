@@ -2164,6 +2164,26 @@
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
 
+        // Watermark — ticker + company name, bottom-right (top corners are
+        // already occupied by the OHLC/MA legend and the pre/post badge).
+        // Renders on the pane's background layer (candles draw on top of it
+        // by design — LWC's own primitive renderer docs describe
+        // drawBackground() as "usually watermarks"), so there's no fight
+        // with price action for visibility. Company name comes from the meta
+        // object already cached by fetchMcOhlcv for this exact symbol — no
+        // extra request needed. New chart instance each rebuild means the
+        // old watermark goes away with it; nothing to explicitly detach.
+        var _fsMeta        = _mcMetaCache[sym] || {};
+        var _fsCompanyName = _fsMeta.longName || _fsMeta.shortName || '';
+        LightweightCharts.createTextWatermark(_mcFsChart.panes()[0], {
+            horzAlign: 'right',
+            vertAlign: 'bottom',
+            lines: [
+                { text: sym, color: 'rgba(255,255,255,0.14)', fontSize: 26 },
+                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.14)', fontSize: 13 } : null,
+            ].filter(Boolean),
+        });
+
         _mcFsCandle = _mcFsChart.addSeries(LightweightCharts.CandlestickSeries, {
             upColor: '#089981', downColor: '#b22833', borderVisible: false,
             wickUpColor: '#089981', wickDownColor: '#b22833',
