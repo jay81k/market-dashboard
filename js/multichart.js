@@ -2159,7 +2159,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 18 },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 24 },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
@@ -3705,7 +3705,7 @@
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 18 },
+            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 24 },
             handleScroll: true, handleScale: true,
         });
         _wlAttachCtxMenu();
