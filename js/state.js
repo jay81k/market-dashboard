@@ -73,6 +73,7 @@
             // This can't cancel a request already in flight (no
             // AbortController in use here), but it stops queuing the next one.
             if (currentView !== 'industries' && currentView !== 'sector' && currentView !== 'market') return;
+            if (_mcFsIsOpen()) return; // fullscreen chart open — stand down mid-burst too
 
             var wait      = Math.max(0, window.yahooProxyPace.cooldownUntil() - Date.now());
             var sinceLast = Date.now() - window.yahooProxyPace.lastLaunchAt();
