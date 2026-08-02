@@ -2004,6 +2004,8 @@
         function runRound() {
             if (myGen !== _scanFetchGen) return; // superseded by a newer call; stop silently
 
+            if (_mcFsIsOpen()) { setTimeout(runRound, 1000); return; } // fullscreen chart open — pause the drain, recheck shortly
+
             if (idx >= batches.length) {
                 if (myGen === _scanFetchGen) _scanFetchActive = false;
                 var _refreshBtn = document.getElementById('scans-refresh-btn');
