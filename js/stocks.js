@@ -5,7 +5,10 @@
     function indFetchPrices(tickers) {
         if (!tickers || !tickers.length) return;
         var batches = [];
-        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
+        // 30, not 50 — matches state.js/alerts.js/scans.js and the Worker's
+        // actual cap (see state.js's fetchLiveIndustryDay comment: a
+        // 50-ticker batch measurably exceeded its 10ms CPU budget).
+        for (var i = 0; i < tickers.length; i += 30) batches.push(tickers.slice(i, i + 30));
         batches.forEach(function(batch) {
             var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
             fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
