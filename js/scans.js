@@ -2023,13 +2023,18 @@
                     if (!data || !data.quotes) return;
                     data.quotes.forEach(function(q) {
                         if (q && q.ticker && q.price) {
-                            scanLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
+                            // prevClose now comes from the daily snapshot's preserved
+                            // close (tickerMap[ticker]._snapPrice), not the Worker
+                            // response — Questrade quotes don't include one.
+                            var snapRow   = tickerMap && tickerMap[q.ticker];
+                            var prevClose = snapRow ? snapRow._snapPrice : null;
+                            scanLivePrices[q.ticker] = { price: q.price, prevClose: prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
                             var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
                             if (dataRow) {
                                 if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
                                     dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
-                                if (q.prevClose && q.prevClose > 0)
-                                    dataRow.daily = ((q.price - q.prevClose) / q.prevClose) * 100;
+                                if (prevClose && prevClose > 0)
+                                    dataRow.daily = ((q.price - prevClose) / prevClose) * 100;
                             }
                         }
                     });
