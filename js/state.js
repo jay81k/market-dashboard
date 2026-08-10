@@ -90,15 +90,21 @@
             }).then(function(data) {
                 if (data && data.quotes) {
                     data.quotes.forEach(function(q) {
-                        if (!q || !q.ticker || !q.price || !q.prevClose || q.prevClose <= 0) return;
+                        if (!q || !q.ticker || !q.price) return;
+                        // prevClose now comes from the daily snapshot's preserved close
+                        // (set once in main.js, never overwritten by live updates), not
+                        // from the Worker response — Questrade's quote data doesn't
+                        // include a previous-close field the way Yahoo's did.
+                        var row = tickerMap[q.ticker];
+                        var prevClose = row && row._snapPrice;
+                        if (!prevClose || prevClose <= 0) return;
                         var indName = tickerToInd[q.ticker];
                         if (!indName || !acc[indName]) return;
-                        var pct = ((q.price - q.prevClose) / q.prevClose) * 100;
+                        var pct = ((q.price - prevClose) / prevClose) * 100;
                         acc[indName].sum   += pct;
                         acc[indName].count += 1;
                         // Write live price & daily % back so renderMarketMovers() sees fresh data
-                        var row = tickerMap[q.ticker];
-                        if (row) { row.price = q.price; row.daily = pct; }
+                        row.price = q.price; row.daily = pct;
                     });
                 }
             }).catch(function() {}).finally(function() {
