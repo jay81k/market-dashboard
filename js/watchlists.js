@@ -46,9 +46,14 @@
             if (!data || !data.quotes) return;
             data.quotes.forEach(function(q) {
                 if (q && q.ticker && q.price) {
+                    // prevClose now comes from the daily snapshot's preserved close
+                    // (tickerMap[ticker]._snapPrice), not the Worker response —
+                    // Questrade quotes don't include one. wlUpdatePriceRows already
+                    // falls back to the snapshot's own daily% if this is ever null.
+                    var snapRow = tickerMap && tickerMap[q.ticker];
                     wlLivePrices[q.ticker] = {
                         price:     q.price,
-                        prevClose: q.prevClose || null,
+                        prevClose: (snapRow && snapRow._snapPrice) || null,
                         updatedAt: new Date()
                     };
                 }
