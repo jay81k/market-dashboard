@@ -406,11 +406,13 @@
         // Was 11 separate paced single-ticker fetches (symbol=X&interval=...
         // &range=...) — but this function only ever reads meta fields
         // (price/prevClose/dayHigh/dayLow), never the time-series data those
-        // params were fetching. quotes_batch already returns exactly those
-        // four fields (confirmed via scans.js's own parsing of the same
-        // endpoint) — one request instead of eleven queued-and-spaced ones.
+        // params were fetching. quotes_batch_yahoo returns exactly those
+        // four fields — one request instead of eleven queued-and-spaced ones.
+        // Uses quotes_batch_yahoo specifically, not quotes_batch — these are
+        // Yahoo-only instrument formats (futures, index, crypto) Questrade's
+        // symbol lookup was never going to resolve.
         var symbols = MACRO_TICKERS.map(function(t) { return t.symbol; });
-        var url = WL_PROXY + '?action=quotes_batch&tickers=' + symbols.map(encodeURIComponent).join(',');
+        var url = WL_PROXY + '?action=quotes_batch_yahoo&tickers=' + symbols.map(encodeURIComponent).join(',');
 
         _mktPacedFetch(url).then(function(data) {
             var byTicker = {};
