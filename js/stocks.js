@@ -15,7 +15,12 @@
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker && q.price) {
-                        indLivePrices[q.ticker] = { price: q.price, prevClose: q.prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
+                        // prevClose now comes from the daily snapshot's preserved close
+                        // (tickerMap[ticker]._snapPrice), not the Worker response —
+                        // same source already used below for the live Dist/MA calc.
+                        var snapRow   = tickerMap && tickerMap[q.ticker];
+                        var prevClose = snapRow ? snapRow._snapPrice : null;
+                        indLivePrices[q.ticker] = { price: q.price, prevClose: prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
                     }
                 });
                 indUpdatePriceRows();
