@@ -357,7 +357,11 @@
                 data.quotes.forEach(function(q) {
                     if (q && q.ticker && q.price) {
                         alertPrices[q.ticker]    = q.price;
-                        alertPrevClose[q.ticker] = q.prevClose || null;
+                        // prevClose now comes from the daily snapshot's preserved
+                        // close (tickerMap[ticker]._snapPrice), not the Worker
+                        // response — Questrade quotes don't include one.
+                        var snapRow = tickerMap && tickerMap[q.ticker];
+                        alertPrevClose[q.ticker] = (snapRow && snapRow._snapPrice) || null;
                         alertDayHigh[q.ticker]   = (q.dayHigh != null) ? q.dayHigh : null;
                         alertDayLow[q.ticker]    = (q.dayLow  != null) ? q.dayLow  : null;
                     }
