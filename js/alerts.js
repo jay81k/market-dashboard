@@ -240,7 +240,7 @@
                 return;
             }
             alFetchPrices();
-        }, 60 * 1000);
+        }, 10 * 1000);
     }
 
     // _mcOhlcvCache (multichart.js) caches daily OHLCV permanently for the
