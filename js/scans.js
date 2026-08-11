@@ -2118,7 +2118,7 @@
             if (!wlIsMarketOpen()) { scanStopPricePolling(); return; }
             if (_scanFetchActive) return; // previous cycle still running; skip this tick rather than stacking another wave
             scanFetchPrices();
-        }, 60 * 1000);
+        }, 10 * 1000);
     }
 
     function scanStopPricePolling() {
