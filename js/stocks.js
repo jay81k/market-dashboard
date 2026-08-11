@@ -93,7 +93,7 @@
             if (currentView !== 'industry-stocks') { indStopPricePolling(); return; }
             if (!wlIsMarketOpen()) { indStopPricePolling(); return; }
             indFetchPrices(tickers);
-        }, 60 * 1000);
+        }, 10 * 1000);
     }
 
     function indStopPricePolling() {
