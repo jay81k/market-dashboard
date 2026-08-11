@@ -39,24 +39,35 @@
         var tickers = active && all[active] ? all[active] : [];
         if (!tickers.length) return;
 
-        var url = WL_PROXY + '?action=quotes_batch&tickers=' + tickers.map(encodeURIComponent).join(',');
-        fetch(url).then(function(r) {
-            return r.ok ? r.json() : null;
-        }).then(function(data) {
-            if (!data || !data.quotes) return;
-            data.quotes.forEach(function(q) {
-                if (q && q.ticker && q.price) {
-                    // prevClose now comes from the daily snapshot's preserved close
-                    // (tickerMap[ticker]._snapPrice), not the Worker response —
-                    // Questrade quotes don't include one. wlUpdatePriceRows already
-                    // falls back to the snapshot's own daily% if this is ever null.
-                    var snapRow = tickerMap && tickerMap[q.ticker];
-                    wlLivePrices[q.ticker] = {
-                        price:     q.price,
-                        prevClose: (snapRow && snapRow._snapPrice) || null,
-                        updatedAt: new Date()
-                    };
-                }
+        // Batch size MUST match the cap in the Worker's quotes_batch handler
+        // (currently tickersParam...slice(0, 30)). The Worker silently drops
+        // anything past its cap with no error and a normal 200 response, so a
+        // mismatch here doesn't fail loudly — it just quietly returns fewer
+        // quotes than requested. Same constant as alerts.js's AL_QUOTE_BATCH_SIZE.
+        var WL_QUOTE_BATCH_SIZE = 30;
+        var batches = [];
+        for (var i = 0; i < tickers.length; i += WL_QUOTE_BATCH_SIZE) batches.push(tickers.slice(i, i + WL_QUOTE_BATCH_SIZE));
+
+        Promise.all(batches.map(function(batch) {
+            var url = WL_PROXY + '?action=quotes_batch&tickers=' + batch.map(encodeURIComponent).join(',');
+            return fetch(url).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+        })).then(function(results) {
+            results.forEach(function(data) {
+                if (!data || !data.quotes) return;
+                data.quotes.forEach(function(q) {
+                    if (q && q.ticker && q.price) {
+                        // prevClose now comes from the daily snapshot's preserved close
+                        // (tickerMap[ticker]._snapPrice), not the Worker response —
+                        // Questrade quotes don't include one. wlUpdatePriceRows already
+                        // falls back to the snapshot's own daily% if this is ever null.
+                        var snapRow = tickerMap && tickerMap[q.ticker];
+                        wlLivePrices[q.ticker] = {
+                            price:     q.price,
+                            prevClose: (snapRow && snapRow._snapPrice) || null,
+                            updatedAt: new Date()
+                        };
+                    }
+                });
             });
             wlUpdatePriceRows();
         }).catch(function() {});
@@ -98,7 +109,7 @@
             if (currentView !== 'watchlists') return;
             if (!wlIsMarketOpen()) { wlStopPricePolling(); return; }
             wlFetchPrices();
-        }, 60 * 1000);
+        }, 10 * 1000);
     }
 
     function wlStopPricePolling() {
