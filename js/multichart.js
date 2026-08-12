@@ -99,6 +99,7 @@
     var _AVWAP_COLOR     = '#4caf50';
     var _mcFsActiveMas   = { SMA5: true, EMA8: true, EMA21: true, SMA50: true, SMA150: true, SMA200: true };
     var _mcFsKeyHandler  = null;
+    var _mcFsLiveTimer   = null;   // repeating single-ticker fetch while fullscreen stays open
 
     // ── Candle hover tooltip ──────────────────────────────────────────────────
     var _mcFsTooltipEnabled = false;
@@ -1999,6 +2000,43 @@
         }
     }
 
+    // ── Fullscreen live tick ─────────────────────────────────────────────────
+    // _injectChartLiveBar above fires once, on open, sourcing from indLivePrices
+    // / wlLivePrices — but every one of those caches' own pollers explicitly
+    // stands down while _mcFsIsOpen() is true, so they go stale for as long as
+    // fullscreen stays open. Re-reading them on a timer would just keep
+    // reapplying the same one price. This does a direct, single-ticker fetch
+    // each tick instead — cheap (one ticker, not a 30-ticker batch) since it's
+    // replacing the paused pollers' budget, not competing with it.
+    function _mcFsStartLiveTick(sym, tf) {
+        _mcFsStopLiveTick();
+        if (tf !== 'D') return; // W/M bars are always closed, nothing to tick
+        if (!wlIsMarketOpen()) return;
+        _mcFsLiveTimer = setInterval(function() {
+            if (!_mcFsIsOpen() || _mcFsSym !== sym || !_mcFsCandle) { _mcFsStopLiveTick(); return; }
+            if (!wlIsMarketOpen()) { _mcFsStopLiveTick(); return; }
+            fetch(WL_PROXY + '?action=quotes_batch&tickers=' + encodeURIComponent(sym))
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    var q = data && data.quotes && data.quotes[0];
+                    if (!q || !q.price || _mcFsSym !== sym || !_mcFsCandle || !_mcFsOhlcv.length) return;
+                    var now = new Date();
+                    var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
+                    var last = _mcFsOhlcv[_mcFsOhlcv.length - 1];
+                    var lastDayTs = Math.floor(last.time / 86400) * 86400 + 43200;
+                    if (lastDayTs !== todayTs) return; // new trading day — let the next open/reload pick it up
+                    var high = q.dayHigh != null ? Math.max(last.high, q.dayHigh, q.price) : Math.max(last.high, q.price);
+                    var low  = q.dayLow  != null ? Math.min(last.low,  q.dayLow,  q.price) : Math.min(last.low,  q.price);
+                    last.high = high; last.low = low; last.close = q.price;
+                    try { _mcFsCandle.update({ time: todayTs, open: last.open, high: high, low: low, close: q.price, volume: last.volume }); } catch(e) {}
+                }).catch(function() {});
+        }, 10 * 1000);
+    }
+
+    function _mcFsStopLiveTick() {
+        if (_mcFsLiveTimer) { clearInterval(_mcFsLiveTimer); _mcFsLiveTimer = null; }
+    }
+
     // ── Pre/post-market badge (fullscreen chart) ────────────────────────────
     // Yahoo's chart-endpoint meta (what _mcMetaCache holds) never includes
     // marketState/extended-hours prices — those only exist on Yahoo's quote
@@ -2663,6 +2701,10 @@
         // returned a stale or missing current-day bar.
         _injectChartLiveBar(sym, tf, _mcFsCandle, _mcFsVol, _mcFsOhlcv,
             function() { return _mcFsSym !== sym || !_mcFsCandle; });
+
+        // Keep it updating for as long as this chart stays open — see
+        // _mcFsStartLiveTick for why this can't just reuse the caches above.
+        _mcFsStartLiveTick(sym, tf);
 
         // Restore trendlines from alert store so they're visible when reviewing the chart
         if (window.alGetTrendlineAlerts) {
@@ -3350,6 +3392,7 @@
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
         _mcFsDismissCtx();
+        _mcFsStopLiveTick();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
