@@ -58,6 +58,8 @@ def read_current_token():
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"Cloudflare KV read failed: HTTP {e.code} {body}", file=sys.stderr)
         raise
     except (json.JSONDecodeError, ValueError):
         return None
@@ -71,8 +73,13 @@ def write_new_token(token_state):
     # set one here at all.
     body = json.dumps(token_state).encode("utf-8")
     req = urllib.request.Request(KV_URL, headers=cf_headers(), data=body, method="PUT")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        print(f"Cloudflare KV write failed: HTTP {e.code} {err_body}", file=sys.stderr)
+        raise
 
 
 def refresh_questrade(refresh_token):
