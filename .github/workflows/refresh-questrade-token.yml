@@ -1,0 +1,26 @@
+name: Refresh Questrade Token
+
+on:
+  schedule:
+    # Every 20 minutes — comfortably inside the 30-minute access token
+    # lifetime, with real margin even if a run lands a few minutes late
+    # (GitHub's cron isn't perfectly punctual under load).
+    - cron: '*/20 * * * *'
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab, for testing
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Refresh Questrade token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          QUESTRADE_REFRESH_TOKEN_BOOTSTRAP: ${{ secrets.QUESTRADE_REFRESH_TOKEN_BOOTSTRAP }}
+        run: python scripts/refresh_questrade_token.py
