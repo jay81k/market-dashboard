@@ -116,7 +116,22 @@ def refresh_questrade(refresh_token):
         "https://login.questrade.com/oauth2/token"
         f"?grant_type=refresh_token&refresh_token={refresh_token}"
     )
-    req = urllib.request.Request(url, method="GET")
+    # login.questrade.com sits behind Cloudflare's Browser Integrity Check.
+    # urllib sends no User-Agent by default (or an obvious "Python-urllib/x.y"
+    # one), which that check flags as a bot and blocks with Cloudflare error
+    # 1010 — before the request ever reaches Questrade's own OAuth logic.
+    # A normal-looking User-Agent avoids tripping it.
+    req = urllib.request.Request(
+        url,
+        method="GET",
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
