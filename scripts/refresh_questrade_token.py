@@ -34,8 +34,8 @@ CF_ACCOUNT_ID = "09dacb4ab7050bedff69c9434e206816"
 CF_KV_NAMESPACE_ID = "ca292c3fdaf847a68b03424e4ea8e0cc"
 CF_KV_KEY = "qt_token"
 
-CF_API_TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
-BOOTSTRAP_REFRESH_TOKEN = os.environ.get("QUESTRADE_REFRESH_TOKEN_BOOTSTRAP", "")
+CF_API_TOKEN = os.environ["CLOUDFLARE_API_TOKEN"].strip()
+BOOTSTRAP_REFRESH_TOKEN = os.environ.get("QUESTRADE_REFRESH_TOKEN_BOOTSTRAP", "").strip()
 
 KV_URL = (
     f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
@@ -58,8 +58,6 @@ def read_current_token():
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
-        body = e.read().decode("utf-8", errors="replace")
-        print(f"Cloudflare KV read failed: HTTP {e.code} {body}", file=sys.stderr)
         raise
     except (json.JSONDecodeError, ValueError):
         return None
@@ -73,13 +71,8 @@ def write_new_token(token_state):
     # set one here at all.
     body = json.dumps(token_state).encode("utf-8")
     req = urllib.request.Request(KV_URL, headers=cf_headers(), data=body, method="PUT")
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            resp.read()
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace")
-        print(f"Cloudflare KV write failed: HTTP {e.code} {err_body}", file=sys.stderr)
-        raise
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        resp.read()
 
 
 def refresh_questrade(refresh_token):
