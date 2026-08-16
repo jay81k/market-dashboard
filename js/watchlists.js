@@ -75,15 +75,23 @@
 
     function wlUpdatePriceRows() {
         if (_wlSortCol === 'chgp') { wlRender(); return; }
+        var marketOpen = wlIsMarketOpen();
         document.querySelectorAll('.wl-ticker-row').forEach(function(row) {
             var t    = row.getAttribute('data-wl-ticker');
             var live = wlLivePrices[t];
             if (!live || !live.price) return;
             var price     = live.price;
             var prevClose = live.prevClose;
-            var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
-            var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
-            // Fall back to snapshot daily if no prevClose from live
+            // Only trust a live-vs-snapshot delta while the market's open.
+            // When it's closed, "live" just returns the last traded price —
+            // the same value already baked into prevClose (_snapPrice) — so
+            // this would compute a real but meaningless 0 rather than null,
+            // which skipped the snapshot-daily fallback below entirely.
+            var chgAbs    = (marketOpen && prevClose && prevClose > 0) ? price - prevClose : null;
+            var chgPct    = (marketOpen && prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            // Fall back to the last real session's change (snapshot daily)
+            // whenever there's no trustworthy live delta — no prevClose, or
+            // market closed.
             if (chgPct == null) {
                 var sd = wlLookupStock(t);
                 if (sd && sd.daily != null) {
@@ -362,18 +370,24 @@
         var html = '';
 
         // Build per-ticker data map for sorting
+        var marketOpen = wlIsMarketOpen();
         var tickerData = {};
         tickers.forEach(function(t) {
             var sd   = wlLookupStock(t);
             var live = wlLivePrices[t];
             var price, dayVal, chgAbs;
-            if (live && live.price && live.prevClose) {
+            if (marketOpen && live && live.price && live.prevClose) {
                 price  = live.price;
                 chgAbs = price - live.prevClose;
                 dayVal = (chgAbs / live.prevClose) * 100;
             } else {
+                // Market closed (or no live prevClose yet): show the last
+                // real session's change instead of a same-price, always-zero
+                // delta against the snapshot's own baseline price. Still
+                // prefer the live price for "Last" if we have one — only
+                // the change figures fall back.
                 price  = sd && sd.price != null ? sd.price : null;
-                if (live && live.price && !price) price = live.price;
+                if (live && live.price) price = live.price;
                 dayVal = sd ? sd.daily : null;
                 chgAbs = (price != null && dayVal != null) ? (price / (1 + dayVal / 100)) * (dayVal / 100) : null;
             }
