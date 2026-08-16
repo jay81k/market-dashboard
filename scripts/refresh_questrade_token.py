@@ -25,6 +25,7 @@ Required environment variables:
 """
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -36,6 +37,32 @@ CF_KV_KEY = "qt_token"
 
 CF_API_TOKEN = os.environ["CLOUDFLARE_API_TOKEN"].strip()
 BOOTSTRAP_REFRESH_TOKEN = os.environ.get("QUESTRADE_REFRESH_TOKEN_BOOTSTRAP", "").strip()
+
+if not CF_API_TOKEN:
+    print(
+        "CLOUDFLARE_API_TOKEN is empty. The GitHub secret exists but has no "
+        "value (or is whitespace-only) — set it to a real Cloudflare API Token.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# Cloudflare API Tokens (the scoped kind this script needs) are ~40-char
+# URL-safe base64 strings. A Global API Key is a 37-char lowercase hex
+# string and will NOT work with `Authorization: Bearer` — it needs
+# X-Auth-Email/X-Auth-Key instead. Pasting a Global Key here is a common,
+# hard-to-see-from-the-outside cause of a bare Cloudflare "Authentication
+# error" with no further detail, so flag it explicitly if it looks like one.
+if re.fullmatch(r"[0-9a-f]{37}", CF_API_TOKEN):
+    print(
+        "WARNING: CLOUDFLARE_API_TOKEN looks like a Global API Key "
+        "(37-char hex), not a scoped API Token. Global API Keys will not "
+        "authenticate via Bearer auth and will fail with a generic "
+        "'Authentication error'. Create a Custom Token instead (My Profile "
+        "> API Tokens > Create Token) and use that value.",
+        file=sys.stderr,
+    )
+
+print(f"CLOUDFLARE_API_TOKEN loaded, length={len(CF_API_TOKEN)}")
 
 KV_URL = (
     f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
@@ -58,6 +85,8 @@ def read_current_token():
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"Cloudflare KV read failed: HTTP {e.code} {body}", file=sys.stderr)
         raise
     except (json.JSONDecodeError, ValueError):
         return None
@@ -71,8 +100,13 @@ def write_new_token(token_state):
     # set one here at all.
     body = json.dumps(token_state).encode("utf-8")
     req = urllib.request.Request(KV_URL, headers=cf_headers(), data=body, method="PUT")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        print(f"Cloudflare KV write failed: HTTP {e.code} {err_body}", file=sys.stderr)
+        raise
 
 
 def refresh_questrade(refresh_token):
