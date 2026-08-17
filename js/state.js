@@ -103,8 +103,16 @@
                         var pct = ((q.price - prevClose) / prevClose) * 100;
                         acc[indName].sum   += pct;
                         acc[indName].count += 1;
-                        // Write live price & daily % back so renderMarketMovers() sees fresh data
-                        row.price = q.price; row.daily = pct;
+                        // Write live price & daily % back so renderMarketMovers() sees
+                        // fresh data — but ONLY while the market's actually open. row is
+                        // the SAME object referenced by snapshot.by_industry (see main.js's
+                        // tickerMap assignment), so writing here leaks into every other
+                        // feature that reads that ticker's .daily — including the
+                        // watchlist via wlLookupStock(). Outside market hours, "live"
+                        // price equals _snapPrice, which would silently clobber the real
+                        // last-session daily change with a spurious 0 for every ticker
+                        // this loop happens to touch.
+                        if (wlIsMarketOpen()) { row.price = q.price; row.daily = pct; }
                     });
                 }
             }).catch(function() {}).finally(function() {
