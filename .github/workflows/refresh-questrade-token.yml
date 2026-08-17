@@ -2,10 +2,20 @@ name: Refresh Questrade Token
 
 on:
   schedule:
-    # Every 20 minutes — comfortably inside the 30-minute access token
-    # lifetime, with real margin even if a run lands a few minutes late
-    # (GitHub's cron isn't perfectly punctual under load).
-    - cron: '*/20 * * * *'
+    # Weekdays only, 13:00-21:00 UTC, every 20 minutes.
+    # GitHub Actions cron is UTC-only with no timezone/DST awareness, so this
+    # window is deliberately sized to cover US market hours (9:30am-4pm ET)
+    # in BOTH Eastern Daylight Time and Eastern Standard Time without needing
+    # seasonal adjustment twice a year:
+    #   EDT (Mar-Nov): 13:00-21:00 UTC = 9:00am-5:00pm ET
+    #   EST (Nov-Mar): 13:00-21:00 UTC = 8:00am-4:00pm ET
+    # Either way that's a real buffer before open and through close. Montreal
+    # (America/Toronto) runs the same DST schedule as the US, so this also
+    # lines up with local time with no separate offset to account for.
+    # Runs on US market holidays too (Questrade will still hand out a token
+    # regardless) — a handful of harmless extra refreshes a few times a year
+    # beats adding holiday-calendar logic for a purely cosmetic saving.
+    - cron: '*/20 13-21 * * 1-5'
   workflow_dispatch: {}   # lets you trigger it manually from the Actions tab, for testing
 
 jobs:
