@@ -2,20 +2,36 @@ name: Refresh Questrade Token
 
 on:
   schedule:
-    # Weekdays only, 13:00-21:00 UTC, every 20 minutes.
-    # GitHub Actions cron is UTC-only with no timezone/DST awareness, so this
-    # window is deliberately sized to cover US market hours (9:30am-4pm ET)
-    # in BOTH Eastern Daylight Time and Eastern Standard Time without needing
-    # seasonal adjustment twice a year:
-    #   EDT (Mar-Nov): 13:00-21:00 UTC = 9:00am-5:00pm ET
-    #   EST (Nov-Mar): 13:00-21:00 UTC = 8:00am-4:00pm ET
-    # Either way that's a real buffer before open and through close. Montreal
-    # (America/Toronto) runs the same DST schedule as the US, so this also
-    # lines up with local time with no separate offset to account for.
-    # Runs on US market holidays too (Questrade will still hand out a token
-    # regardless) — a handful of harmless extra refreshes a few times a year
-    # beats adding holiday-calendar logic for a purely cosmetic saving.
-    - cron: '*/20 13-21 * * 1-5'
+    # Dense pre-market window: every 10 minutes from 12:03-13:53 UTC,
+    # all landing on non-round minutes. GitHub Actions scheduling is
+    # best-effort -- GitHub's own docs say scheduled runs can be delayed
+    # or even dropped during high load, and the start of every hour is
+    # the worst window for that
+    # (https://docs.github.com/en/actions/how-tos/troubleshoot-workflows).
+    # A single 13:00 UTC slot isn't enough margin against that: on
+    # 2026-08-17 both the 13:00 and 13:20 UTC slots failed to fire, and
+    # a manual run was needed at 9:30am ET. This block gives at least 9
+    # separate chances (more under EST) to land a fresh token before the
+    # 9:30am ET market open, instead of 2.
+    - cron: '3,13,23,33,43,53 12-13 * * 1-5'
+    # Regular cadence through the trading day, still offset off the hour
+    # boundary (:03/:23/:43 instead of :00/:20/:40) for the same reason.
+    - cron: '3,23,43 14-20 * * 1-5'
+    # Single closing-time run, deliberately trimmed to one slot instead
+    # of three. A fixed UTC time can't land exactly at 4pm ET in both
+    # EDT and EST (a full hour of seasonal drift), so this is a tradeoff:
+    #   EDT (Mar-Nov): 21:03 UTC = 5:03pm ET -- 1h03 after the 4pm close
+    #   EST (Nov-Mar): 21:03 UTC = 4:03pm ET -- 3 min after the 4pm close
+    # EST close is covered almost exactly. EDT still carries a trailing
+    # refresh that isn't strictly needed, but it's the accepted cost of
+    # not losing the last hour of EST trading and not tracking DST
+    # changeover dates by hand. Montreal (America/Toronto) follows the
+    # same DST schedule as the US markets throughout.
+    # Runs on US market holidays too (Questrade will still hand out a
+    # token regardless) -- a handful of harmless extra refreshes a few
+    # times a year beats adding holiday-calendar logic for a purely
+    # cosmetic saving.
+    - cron: '3 21 * * 1-5'
   workflow_dispatch: {}   # lets you trigger it manually from the Actions tab, for testing
 
 jobs:
