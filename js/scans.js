@@ -1552,7 +1552,7 @@
                     var pv;
                     if (perfTf === '1d') {
                         var _livePerf = scanLivePrices[r.ticker];
-                        pv = (_livePerf && _livePerf.price && _livePerf.prevClose)
+                        pv = (wlIsMarketOpen() && _livePerf && _livePerf.price && _livePerf.prevClose)
                             ? ((_livePerf.price - _livePerf.prevClose) / _livePerf.prevClose) * 100
                             : r[perfField];
                     } else {
@@ -1740,7 +1740,7 @@
         var _scanLive = scanLivePrices[row.ticker];
         var _usePrice = (_scanLive && _scanLive.price) ? _scanLive.price : row.price;
         var chgAbs, _dailyPct;
-        if (_scanLive && _scanLive.price && _scanLive.prevClose) {
+        if (wlIsMarketOpen() && _scanLive && _scanLive.price && _scanLive.prevClose) {
             chgAbs    = _scanLive.price - _scanLive.prevClose;
             _dailyPct = (chgAbs / _scanLive.prevClose) * 100;
         } else {
@@ -1866,6 +1866,7 @@
             industriesData.industries.forEach(function(i){ _indRankMap[i.industry] = i.rank || 9999; });
         }
 
+        var _mOpen = wlIsMarketOpen();
         filtered.sort(function(a, b) {
             var key = scansSortState.by;
             var av, bv;
@@ -1874,9 +1875,9 @@
             if (key === 'industry') { av = _indRankMap[a.industry] || 9999; bv = _indRankMap[b.industry] || 9999; return (av - bv) * scansSortState.dir; }
             if (key === 'rs')                   { av = a.Percentile;          bv = b.Percentile; }
             else if (key === 'weighted_rs_pct') { av = a.weighted_rs_pct;     bv = b.weighted_rs_pct; }
-            else if (key === 'chg')      { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price&&la.prevClose)?la.price-la.prevClose:(a.price!=null&&a.daily!=null?(a.price/(1+a.daily/100))*(a.daily/100):null); bv=(lb&&lb.price&&lb.prevClose)?lb.price-lb.prevClose:(b.price!=null&&b.daily!=null?(b.price/(1+b.daily/100))*(b.daily/100):null); }
+            else if (key === 'chg')      { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(_mOpen&&la&&la.price&&la.prevClose)?la.price-la.prevClose:(a.price!=null&&a.daily!=null?(a.price/(1+a.daily/100))*(a.daily/100):null); bv=(_mOpen&&lb&&lb.price&&lb.prevClose)?lb.price-lb.prevClose:(b.price!=null&&b.daily!=null?(b.price/(1+b.daily/100))*(b.daily/100):null); }
             else if (key === 'price')    { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price)?la.price:a.price; bv=(lb&&lb.price)?lb.price:b.price; }
-            else if (key === 'daily')    { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(la&&la.price&&la.prevClose)?((la.price-la.prevClose)/la.prevClose)*100:a.daily; bv=(lb&&lb.price&&lb.prevClose)?((lb.price-lb.prevClose)/lb.prevClose)*100:b.daily; }
+            else if (key === 'daily')    { var la=scanLivePrices[a.ticker],lb=scanLivePrices[b.ticker]; av=(_mOpen&&la&&la.price&&la.prevClose)?((la.price-la.prevClose)/la.prevClose)*100:a.daily; bv=(_mOpen&&lb&&lb.price&&lb.prevClose)?((lb.price-lb.prevClose)/lb.prevClose)*100:b.daily; }
             else if (key === '1w')       { av = a['1w'];     bv = b['1w']; }
             else if (key === '1m')       { av = a['1m'];     bv = b['1m']; }
             else if (key === '3m')       { av = a['3m'];     bv = b['3m']; }
@@ -1993,11 +1994,14 @@
         _scanFetchActive = true;
 
         var batches = [];
-        // 30, not 50 — matches state.js/alerts.js and the Worker's actual cap
-        // (see state.js's fetchLiveIndustryDay comment: a 50-ticker batch
-        // measurably exceeded its 10ms CPU budget). This file was missed
-        // when the other two got updated to match.
-        for (var i = 0; i < tickers.length; i += 30) batches.push(tickers.slice(i, i + 30));
+        // 50 — matches the Worker's cap (raised from 30, the Yahoo-era
+        // CPU-budget limit, but deliberately stopped short of the confirmed
+        // 20 req/sec ceiling's full headroom since Questrade doesn't document
+        // a max ids-per-call limit and this hasn't been verified live). MUST
+        // stay in sync with the Worker's cap and state.js/watchlists.js/
+        // alerts.js's own constants — a mismatch doesn't error, it just
+        // silently returns fewer quotes.
+        for (var i = 0; i < tickers.length; i += 50) batches.push(tickers.slice(i, i + 50));
 
         var idx = 0;
 
@@ -2033,7 +2037,14 @@
                             if (dataRow) {
                                 if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
                                     dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
-                                if (prevClose && prevClose > 0)
+                                // Only overwrite the real daily-change value
+                                // (from build_data.py) with a live delta while
+                                // the market is actually open. Outside market
+                                // hours the "live" price is just the last
+                                // traded price — identical to prevClose — which
+                                // would silently clobber the correct stored
+                                // value with a spurious 0.
+                                if (wlIsMarketOpen() && prevClose && prevClose > 0)
                                     dataRow.daily = ((q.price - prevClose) / prevClose) * 100;
                             }
                         }
@@ -2067,14 +2078,25 @@
     }
 
     function scanUpdatePriceRows() {
+        var marketOpen = wlIsMarketOpen();
         document.querySelectorAll('#scans-tbody .stock-row').forEach(function(tr) {
             var ticker = tr.getAttribute('data-symbol');
             var live   = scanLivePrices[ticker];
             if (!live || !live.price) return;
             var price     = live.price;
             var prevClose = live.prevClose;
-            var chgAbs    = (prevClose && prevClose > 0) ? price - prevClose : null;
-            var chgPct    = (prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            var chgAbs    = (marketOpen && prevClose && prevClose > 0) ? price - prevClose : null;
+            var chgPct    = (marketOpen && prevClose && prevClose > 0) ? ((price - prevClose) / prevClose) * 100 : null;
+            // Outside market hours (or no live prevClose), fall back to the
+            // row's real daily-change value instead of showing blank/zero —
+            // this function previously had no fallback at all.
+            if (chgPct == null) {
+                var dataRow = _vsData.find(function(r) { return r.ticker === ticker; });
+                if (dataRow && dataRow.daily != null) {
+                    chgPct = dataRow.daily;
+                    chgAbs = dataRow.price ? (dataRow.price / (1 + dataRow.daily / 100)) * (dataRow.daily / 100) : null;
+                }
+            }
             var cl        = chgPct == null ? '' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : '';
             var tds       = tr.querySelectorAll('td');
             if (tds[2]) tds[2].textContent = '$' + price.toFixed(2);
@@ -2202,13 +2224,14 @@
         html += '<span style="flex:1;font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.04em;">List</span>';
         html += '</div>';
 
+        var marketOpen = wlIsMarketOpen();
         matches.forEach(function(m) {
             var live = wlLivePrices[m.ticker];
             var sd   = wlLookupStock(m.ticker);
             var price, dayVal;
             if (live) {
                 price  = live.price;
-                dayVal = live.prevClose ? ((live.price - live.prevClose) / live.prevClose) * 100 : null;
+                dayVal = (marketOpen && live.prevClose) ? ((live.price - live.prevClose) / live.prevClose) * 100 : (sd ? sd.daily : null);
             } else {
                 price  = sd && sd.price != null ? sd.price : null;
                 dayVal = sd ? sd.daily : null;
