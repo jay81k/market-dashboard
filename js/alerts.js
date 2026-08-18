@@ -340,12 +340,16 @@
             .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
         if (!tickers.length) return Promise.resolve();
         // Batch size MUST match the cap in the yahoo-proxy Worker's quotes_batch
-        // handler (currently tickersParam...slice(0, 30)). The Worker silently
+        // handler (currently tickersParam...slice(0, 50)). The Worker silently
         // drops anything past its cap with no error and a normal 200 response,
         // so a mismatch here doesn't fail loudly — it just quietly returns fewer
         // quotes than requested. If that Worker-side cap ever changes, this
-        // number needs to change with it.
-        var AL_QUOTE_BATCH_SIZE = 30;
+        // number needs to change with it. Raised from 30 — that was the
+        // Yahoo-era CPU-budget limit — but deliberately stopped at 50 rather
+        // than the confirmed 20 req/sec ceiling's full headroom, since
+        // Questrade doesn't document a max ids-per-call limit and this
+        // hasn't been verified against the live API yet.
+        var AL_QUOTE_BATCH_SIZE = 50;
         var batches = [];
         for (var i = 0; i < tickers.length; i += AL_QUOTE_BATCH_SIZE) batches.push(tickers.slice(i, i + AL_QUOTE_BATCH_SIZE));
         return Promise.all(batches.map(function(batch) {
