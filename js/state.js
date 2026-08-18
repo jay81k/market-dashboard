@@ -41,26 +41,33 @@
         var acc = {};
         industriesData.industries.forEach(function(ind) { acc[ind.industry] = { sum: 0, count: 0 }; });
 
-        // Batch into 30s — matches the Worker's cap (a 50-ticker batch measurably
-        // exceeded its 10ms CPU budget).
+        // Batch into 50s — matches the Worker's cap. Raised from the old 30
+        // (Yahoo-era, one parallel fetch per ticker, genuinely CPU-bound) but
+        // deliberately stopped at 50 rather than pushing toward the confirmed
+        // 20 req/sec ceiling's full headroom — Questrade doesn't document a
+        // max ids-per-call limit, and this hasn't been verified live yet.
+        // This MUST stay in sync with the Worker's own cap and every other
+        // caller's batch-size constant (scans.js, watchlists.js's
+        // WL_QUOTE_BATCH_SIZE, alerts.js's AL_QUOTE_BATCH_SIZE) — a mismatch
+        // doesn't error, it just silently returns fewer quotes than requested.
         var batches = [];
-        for (var i = 0; i < allTickers.length; i += 30) batches.push(allTickers.slice(i, i + 30));
+        for (var i = 0; i < allTickers.length; i += 50) batches.push(allTickers.slice(i, i + 50));
 
         var pending = batches.length;
         if (!pending) return;
 
         // Fires through the same shared clock as multichart.js/market.js
         // (yahoo-proxy-pace.js) instead of a fixed timer — a burst here can
-        // trip the same upstream Yahoo limit those scripts are also hitting,
-        // so all three now back off together.
+        // still trip Questrade's 20 req/sec limit (or Yahoo's, on whatever
+        // fraction of requests land on the fallback path), so all three now
+        // back off together.
         //
         // Caveat: this only paces WHEN each batch *request* fires. It can't
         // smooth out what happens inside the Worker during that request —
-        // quotes_batch fetches all ~30 of a batch's tickers from Yahoo
-        // concurrently, server-side, invisible to any client-side pacer. If
-        // 429s persist after this, that's a separate, Worker-side fix
-        // (capping concurrency inside quotes_batch itself), not something
-        // fixable from here.
+        // quotes_batch tries Questrade first (one batched call server-side,
+        // not per-ticker), falling back to Yahoo only if Questrade itself
+        // fails. If 429s persist after this, check which path is actually
+        // answering before assuming it's the same bottleneck as before.
         var STATE_LAUNCH_MIN_SPACING = 120;
         var queue = batches.slice();
 
