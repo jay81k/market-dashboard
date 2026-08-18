@@ -40,11 +40,16 @@
         if (!tickers.length) return;
 
         // Batch size MUST match the cap in the Worker's quotes_batch handler
-        // (currently tickersParam...slice(0, 30)). The Worker silently drops
+        // (currently tickersParam...slice(0, 50)). The Worker silently drops
         // anything past its cap with no error and a normal 200 response, so a
         // mismatch here doesn't fail loudly — it just quietly returns fewer
         // quotes than requested. Same constant as alerts.js's AL_QUOTE_BATCH_SIZE.
-        var WL_QUOTE_BATCH_SIZE = 30;
+        // Raised from 30 — that was the Yahoo-era CPU-budget limit — but
+        // deliberately stopped at 50 rather than the confirmed 20 req/sec
+        // ceiling's full headroom, since Questrade doesn't document a max
+        // ids-per-call limit and this hasn't been verified against the live
+        // API yet.
+        var WL_QUOTE_BATCH_SIZE = 50;
         var batches = [];
         for (var i = 0; i < tickers.length; i += WL_QUOTE_BATCH_SIZE) batches.push(tickers.slice(i, i + WL_QUOTE_BATCH_SIZE));
 
