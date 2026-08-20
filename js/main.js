@@ -435,20 +435,27 @@
         var row = tickerMap ? tickerMap[ticker] : null;
         var name = (row && row.name) ? row.name : '';
         var price = null, prevClose = null;
-        var slp = scanLivePrices[ticker];
-        if (slp && slp.price) { price = slp.price; prevClose = slp.prevClose || null; }
-        if (!price) {
-            var wlp = wlLivePrices[ticker];
-            if (wlp && wlp.price) { price = wlp.price; prevClose = wlp.prevClose || null; }
-        }
-        if (!price && alertPrices[ticker]) {
-            price = alertPrices[ticker];
-            prevClose = alertPrevClose[ticker] || null;
-        }
-        // If we resolved a price from scan/wl but prevClose is still null,
-        // fall back to alertPrevClose so the popup chg matches the alerts table.
-        if (price && !prevClose && alertPrevClose[ticker]) {
-            prevClose = alertPrevClose[ticker];
+        // Only trust the live caches (scans/watchlist/alerts) while the market's
+        // open. Each one is populated unconditionally by its owning file — outside
+        // market hours "live" price equals the snapshot close, so trusting it here
+        // would show a spurious 0 instead of falling through to the real last-
+        // session change below.
+        if (wlIsMarketOpen()) {
+            var slp = scanLivePrices[ticker];
+            if (slp && slp.price) { price = slp.price; prevClose = slp.prevClose || null; }
+            if (!price) {
+                var wlp = wlLivePrices[ticker];
+                if (wlp && wlp.price) { price = wlp.price; prevClose = wlp.prevClose || null; }
+            }
+            if (!price && alertPrices[ticker]) {
+                price = alertPrices[ticker];
+                prevClose = alertPrevClose[ticker] || null;
+            }
+            // If we resolved a price from scan/wl but prevClose is still null,
+            // fall back to alertPrevClose so the popup chg matches the alerts table.
+            if (price && !prevClose && alertPrevClose[ticker]) {
+                prevClose = alertPrevClose[ticker];
+            }
         }
         if (!price && row && row.price != null) { price = row.price; }
         if (!prevClose && row && row.price != null && row.daily != null) {
