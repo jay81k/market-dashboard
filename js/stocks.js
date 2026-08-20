@@ -87,8 +87,8 @@
     function indStartPricePolling(tickers) {
         if (indPriceTimer) clearInterval(indPriceTimer);
         indLivePrices = {};
+        if (!wlIsMarketOpen()) return; // market closed — leave the EOD snapshot values alone, don't fetch at all
         indFetchPrices(tickers);
-        if (!wlIsMarketOpen()) return;
         indPriceTimer = setInterval(function() {
             if (currentView !== 'industry-stocks') { indStopPricePolling(); return; }
             if (!wlIsMarketOpen()) { indStopPricePolling(); return; }
