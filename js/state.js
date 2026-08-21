@@ -135,17 +135,25 @@
 
     function _applyLiveIndustryDay(acc) {
         // Patch avg_daily in both industriesData and snapshot.industry_summary
-        // (renderers read from snapshot.industry_summary, so that must be updated)
-        industriesData.industries.forEach(function(ind) {
-            var a = acc[ind.industry];
-            if (a && a.count > 0) {
-                var liveVal = parseFloat((a.sum / a.count).toFixed(4));
-                ind.avg_daily = liveVal; // keep in sync for sort paths
-                if (snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]) {
-                    snapshot.industry_summary[ind.industry].avg_daily = liveVal;
+        // (renderers read from snapshot.industry_summary, so that must be
+        // updated). Gated on market hours for the same reason as the
+        // per-stock row.daily write above: outside market hours every
+        // stock's live price equals its snapshot baseline, so a.sum/a.count
+        // computes to a spurious ~0 for every industry and would silently
+        // clobber the real last-session average with a fake "nothing moved"
+        // value — this is what was producing a uniformly flat heatmap.
+        if (wlIsMarketOpen()) {
+            industriesData.industries.forEach(function(ind) {
+                var a = acc[ind.industry];
+                if (a && a.count > 0) {
+                    var liveVal = parseFloat((a.sum / a.count).toFixed(4));
+                    ind.avg_daily = liveVal; // keep in sync for sort paths
+                    if (snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry]) {
+                        snapshot.industry_summary[ind.industry].avg_daily = liveVal;
+                    }
                 }
-            }
-        });
+            });
+        }
         // Re-render only if user is on the industry or market view
         if (currentView === 'market') { renderMarketMovers(); renderMarketBreadth(); }
         if (currentView !== 'industries' && currentView !== 'sector') return;
