@@ -386,7 +386,15 @@
             ]);
         }).then(function() {
             alCheckTriggers();
-            if (currentView === 'alerts') renderAlerts();
+            // Not gated on currentView, unlike the other renderAlerts() call
+            // sites in this file — this is the repeating price-poll path,
+            // and after-hours it may be the ONLY fetch that runs all night
+            // (polling stops once the market closes). Gating it here meant
+            // correctly-fetched prices could sit in memory with nothing
+            // ever telling the table to redraw. renderAlerts() already
+            // no-ops immediately if the alerts DOM isn't present, so this
+            // is safe to call unconditionally.
+            renderAlerts();
         }).catch(function() {});
     }
 
@@ -914,8 +922,26 @@
                 awayHtml = '<div class="al-col-away' + awayCls + '">' + pct.toFixed(1) + '%</div>';
             }
             var prevClose = alertPrevClose[a.ticker] || null;
-            var chgAbs    = (curr != null && prevClose && prevClose > 0) ? curr - prevClose : null;
+            var chgAbs    = (wlIsMarketOpen() && curr != null && prevClose && prevClose > 0) ? curr - prevClose : null;
             var chgPct    = (chgAbs != null) ? (chgAbs / prevClose * 100) : null;
+            // Outside market hours (or no live prevClose), fall back to the
+            // ticker's real last-session change instead of a same-price,
+            // always-zero delta against the snapshot's own baseline price.
+            if (chgPct == null) {
+                var alChgSd = null;
+                if (snapshot && snapshot.by_industry) {
+                    outerAlChg: for (var indAlChg in snapshot.by_industry) {
+                        var stAlChg = snapshot.by_industry[indAlChg];
+                        for (var siAlChg = 0; siAlChg < stAlChg.length; siAlChg++) {
+                            if (stAlChg[siAlChg].ticker === a.ticker) { alChgSd = stAlChg[siAlChg]; break outerAlChg; }
+                        }
+                    }
+                }
+                if (alChgSd && alChgSd.daily != null) {
+                    chgPct = alChgSd.daily;
+                    chgAbs = alChgSd.price ? (alChgSd.price / (1 + alChgSd.daily / 100)) * (alChgSd.daily / 100) : null;
+                }
+            }
             var chgCls    = chgAbs == null ? 'flat' : chgAbs > 0 ? 'up' : chgAbs < 0 ? 'dn' : 'flat';
             var chgHtml    = '<div class="al-col-chg '    + chgCls + '">' + (chgAbs  != null ? (chgAbs  >= 0 ? '+' : '') + chgAbs.toFixed(2)  : '—') + '</div>';
             var chgPctHtml = '<div class="al-col-chgpct ' + chgCls + '">' + (chgPct  != null ? (chgPct  >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—') + '</div>';
