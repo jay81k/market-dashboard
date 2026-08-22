@@ -1615,6 +1615,7 @@
     var _alSym                = null;
     var _alChartTf            = 'D';
     var _alLastCrosshairPrice = null;
+    var _alLiveTimer          = null; // drives the live-tick candle update, mirrors _mcFsLiveTimer
     var _alChart              = null;
     var _alCandle             = null;
     var _alVol                = null;
@@ -2060,6 +2061,7 @@
 
     // ── Core chart destroy / build ────────────────────────────────────────
     function _destroyAlChart() {
+        _alStopLiveTick();
         if (_alChart) { try { _alChart.remove(); } catch(e) {} _alChart = null; }
         _alCandle = null; _alVol = null; _alVolMa = null; _alVolData = null; _alVolSmaMap = null;
         _alMaSeries = {}; _alMaDataMap = {};
@@ -2083,6 +2085,47 @@
         var maChevron = document.getElementById('al-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
+    }
+
+    // ── Alerts chart live tick ───────────────────────────────────────────
+    // alFetchPrices() already runs every 10s during market hours, but only
+    // for trigger-checking and the AVWAP cache — it never touches the
+    // visible chart candle. That gap is why an open alerts chart sat frozen
+    // at whatever price it had on open while the fullscreen chart (which has
+    // its own _mcFsStartLiveTick) kept updating. This is a direct mirror of
+    // that function, targeting _alCandle/_alOhlcv/_alSym instead of the
+    // _mcFs* equivalents — an independent fetch rather than reusing
+    // alFetchPrices()'s data, since this chart can be opened for a ticker
+    // that isn't necessarily in alertsList/alertFiredList yet (e.g. while
+    // still building a new alert), so alertPrices[ticker] isn't guaranteed
+    // to exist.
+    function _alStartLiveTick(sym, tf) {
+        _alStopLiveTick();
+        if (tf !== 'D') return; // W/M bars are always closed, nothing to tick
+        if (!wlIsMarketOpen()) return;
+        _alLiveTimer = setInterval(function() {
+            if (_alSym !== sym || !_alCandle) { _alStopLiveTick(); return; }
+            if (!wlIsMarketOpen()) { _alStopLiveTick(); return; }
+            fetch(WL_PROXY + '?action=quotes_batch&tickers=' + encodeURIComponent(sym))
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    var q = data && data.quotes && data.quotes[0];
+                    if (!q || !q.price || _alSym !== sym || !_alCandle || !_alOhlcv.length) return;
+                    var now = new Date();
+                    var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
+                    var last = _alOhlcv[_alOhlcv.length - 1];
+                    var lastDayTs = Math.floor(last.time / 86400) * 86400 + 43200;
+                    if (lastDayTs !== todayTs) return; // new trading day — let the next open/reload pick it up
+                    var high = q.dayHigh != null ? Math.max(last.high, q.dayHigh, q.price) : Math.max(last.high, q.price);
+                    var low  = q.dayLow  != null ? Math.min(last.low,  q.dayLow,  q.price) : Math.min(last.low,  q.price);
+                    last.high = high; last.low = low; last.close = q.price;
+                    try { _alCandle.update({ time: todayTs, open: last.open, high: high, low: low, close: q.price, volume: last.volume }); } catch(e) {}
+                }).catch(function() {});
+        }, 10 * 1000);
+    }
+
+    function _alStopLiveTick() {
+        if (_alLiveTimer) { clearInterval(_alLiveTimer); _alLiveTimer = null; }
     }
 
     function _alRenderPrePostBadge(sym) {
@@ -2556,6 +2599,7 @@
         // Inject live bar
         _injectChartLiveBar(sym, tf, _alCandle, _alVol, _alOhlcv,
             function() { return _alSym !== sym || !_alCandle; });
+        _alStartLiveTick(sym, tf);
 
         // Restore trendlines from alert store so they're visible when reviewing the chart
         alertsList.forEach(function(a) {
