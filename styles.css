@@ -571,7 +571,7 @@
         }
         .snp-row:hover:not(.snp-active) { background: #161b22; }
         .snp-row.snp-active { background: #1f2d3d; border-right: 2px solid #388bfd; padding-right: 2px; }
-        .snp-rank   { font-size: 9px; color: #484f58; width: 14px; flex-shrink: 0; text-align: right; padding-right: 4px; }
+        .snp-rank   { font-size: 9px; color: #484f58; width: 18px; flex-shrink: 0; text-align: right; padding-right: 4px; overflow: hidden; }
         .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: #c8d0dc; overflow: hidden; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
         /* ── END SCAN NAV PANEL ── */
         .chart-modal-sym { font-size: 0.99em; font-weight: 700; color: #58a6ff; }
