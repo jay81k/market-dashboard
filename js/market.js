@@ -314,16 +314,29 @@
     }
 
     function marketFetchAll() {
-        // Reset to skeleton while loading
+        // Only skeleton cards that don't already have real content — a
+        // stale-but-real card surviving a failed refresh beats blanking it
+        // before we even know whether the new fetch will succeed. This is
+        // the first-load case only; a card that already rendered
+        // successfully keeps showing its last good data until it's
+        // actually replaced by a fresh successful render below.
         MARKET_INDEXES.forEach(function(idx) {
             var card = document.getElementById('mc-' + idx.id);
-            if (card) { card.className = 'market-index-card skeleton'; card.innerHTML = ''; }
+            if (card && !card.innerHTML) { card.className = 'market-index-card skeleton'; }
         });
         document.getElementById('market-updated').textContent = '';
 
         marketFetchMacro(); // fires independently — no actual dependency on index card data, waiting for it first was just how this was originally written
 
-        Promise.all(MARKET_INDEXES.map(function(idx) {
+        // allSettled, not all — this used to be Promise.all, which meant a
+        // single failed request out of the ~9 involved here (4 indexes + 4
+        // futures + RUT's extra prevClose fetch) rejected the WHOLE batch,
+        // silently blanking all four cards at once via the empty .catch()
+        // below, with no retry until the user left and came back to this
+        // tab. allSettled never rejects — each card's own result is
+        // inspected individually below, so one bad fetch only affects that
+        // one card.
+        Promise.allSettled(MARKET_INDEXES.map(function(idx) {
             return Promise.all([
                 marketFetchOne(idx.symbol).then(function(data) { return marketParseResult(data); }),
                 marketFetchOne(idx.futures).then(function(data) { return marketParseResult(data); }),
@@ -345,14 +358,16 @@
                         })
                     : Promise.resolve(null),
             ]);
-        })).then(function(results) {
+        })).then(function(settled) {
             MARKET_INDEXES.forEach(function(idx, i) {
-                var parsed       = results[i][0];
-                var rutPrevClose = results[i][2];
+                var outcome = settled[i];
+                if (outcome.status !== 'fulfilled') return; // leave this one card as-is, whatever it was showing before
+                var parsed       = outcome.value[0];
+                var rutPrevClose = outcome.value[2];
                 if (idx.symbol === '^RUT' && rutPrevClose != null && parsed) {
                     parsed.prevClose = rutPrevClose;
                 }
-                marketRenderCard(idx, parsed, results[i][1]);
+                marketRenderCard(idx, parsed, outcome.value[1]);
             });
             renderMarketBreadth();
             renderMarketHL();
@@ -378,9 +393,10 @@
                 }
             }
         }).catch(function() {
-            // marketFetchMacro() now fires independently up-front, so it no
-            // longer needs rescuing from here — this just keeps the index
-            // fetch's own errors from becoming an unhandled rejection.
+            // allSettled itself never rejects, so this is effectively
+            // unreachable now — kept only as a final safety net in case
+            // something inside the .then() callback above throws
+            // synchronously for an unrelated reason.
         });
     }
 
