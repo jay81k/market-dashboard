@@ -2,7 +2,8 @@ name: Build Dashboard Data
 
 on:
   schedule:
-    - cron: '55 23 * * 1-5' # 11:55 PM UTC = 7:55 PM EDT (Mon-Fri)
+    - cron: '30 21 * * 1-5' # 9:30 PM America/Toronto, Mon-Fri (DST-aware via timezone field)
+      timezone: "America/Toronto"
   workflow_dispatch:
 
 permissions:
