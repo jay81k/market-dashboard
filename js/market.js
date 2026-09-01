@@ -414,6 +414,7 @@
         { id: 'ETH',  symbol: 'ETH-USD', label: 'ETH',    name: 'Ethereum' },
         { id: 'XRP',  symbol: 'XRP-USD', label: 'XRP',    name: 'XRP' },
         { id: 'SOL',  symbol: 'SOL-USD', label: 'SOL',    name: 'Solana' },
+        { id: 'ZEC',  symbol: 'ZEC-USD', label: 'ZEC',    name: 'Zcash' },
         { id: 'HYPE', symbol: 'HYPE32196-USD', label: 'HYPE',   name: 'Hyperliquid' },
         { id: 'BTC',  symbol: 'BTC-USD', label: 'BTC',    name: 'Bitcoin' },
     ];
@@ -455,7 +456,7 @@
                 var chgPct    = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
                 var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
-                var isCrypto  = ['BTC','ETH','XRP','SOL','HYPE'].indexOf(t.id) !== -1;
+                var isCrypto  = ['BTC','ETH','XRP','SOL','HYPE','ZEC'].indexOf(t.id) !== -1;
                 var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: isCrypto ? 0 : 2, maximumFractionDigits: isCrypto ? (price >= 100 ? 0 : 2) : 2 }) : '—';
                 var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
