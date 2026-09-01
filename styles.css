@@ -1277,7 +1277,7 @@
         /* ── Macro cards ── */
         .market-macro-grid {
             display: grid;
-            grid-template-columns: repeat(10, minmax(0, 1fr)) 1.2fr;
+            grid-template-columns: repeat(11, minmax(0, 1fr)) 1.2fr;
             gap: 8px; padding: 0 16px 12px;
         }
         .market-macro-card {
