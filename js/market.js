@@ -801,34 +801,47 @@
     }
 
     // ── Sector Performance ────────────────────────────────────────────────
-    function renderSectorPerf() {
-        var el = document.getElementById('market-sector-perf');
-        if (!el || !snapshot || !snapshot.industry_summary) return;
+    // sectorPerfTf lives at module scope (not inside renderSectorPerf) so the
+    // selected tab survives the periodic re-render triggered by each market
+    // data refresh instead of snapping back to "Day" every time.
+    var sectorPerfTf = 'avg_daily';
+    var SP_TF_FIELDS = [
+        { key: 'avg_daily', label: 'Day' },
+        { key: 'avg_1m',    label: '1M'  },
+        { key: 'avg_3m',    label: '3M'  },
+        { key: 'avg_6m',    label: '6M'  },
+        { key: 'avg_1y',    label: '1Y'  }
+    ];
+    var spToggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;margin-left:8px;';
+    var spBtnBase     = 'padding:1px 7px;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;border:none;letter-spacing:0.03em;transition:background 0.1s,color 0.1s;';
+    var spBtnActive   = spBtnBase + 'background:#1f6feb;color:#fff;';
+    var spBtnInactive = spBtnBase + 'background:transparent;color:#6e7681;';
 
-        // Aggregate avg_daily by sector
+    function spComputeDataset(field) {
         var sectorMap = {};
         Object.values(snapshot.industry_summary).forEach(function(s) {
-            if (!s.sector || s.avg_daily == null) return;
+            var v = s[field];
+            if (!s.sector || v == null) return;
             if (!sectorMap[s.sector]) sectorMap[s.sector] = { sum: 0, count: 0 };
-            sectorMap[s.sector].sum   += s.avg_daily;
+            sectorMap[s.sector].sum   += v;
             sectorMap[s.sector].count += 1;
         });
-
         var sectors = Object.keys(sectorMap).map(function(name) {
             return { name: name, avg: sectorMap[name].sum / sectorMap[name].count };
         });
         sectors.sort(function(a, b) { return b.avg - a.avg; });
-
         var maxAbs = Math.max.apply(null, sectors.map(function(s) { return Math.abs(s.avg); })) || 1;
+        return { sectors: sectors, maxAbs: maxAbs };
+    }
 
-        var rows = sectors.map(function(s) {
+    function spBuildRows(ds) {
+        return ds.sectors.map(function(s) {
             var pct    = s.avg;
             var dir    = pct > 0 ? 'up' : pct < 0 ? 'down' : '';
             var clr    = pct > 0 ? '#3fb950' : '#f85149';
-            var barPct = Math.abs(pct) / maxAbs * 48; // max 48% each side from center
-            var barStyle, barLeft;
+            var barPct = Math.abs(pct) / ds.maxAbs * 48; // max 48% each side from center
+            var barStyle;
             if (pct >= 0) {
-                barLeft  = '50%';
                 barStyle = 'left:50%;width:' + barPct + '%;border-radius:0 3px 3px 0;';
             } else {
                 barStyle = 'right:50%;width:' + barPct + '%;border-radius:3px 0 0 3px;';
@@ -843,12 +856,42 @@
                 '<div class="sp-pct ' + dir + '">' + sign + pct.toFixed(2) + '%</div>' +
             '</div>';
         }).join('');
+    }
+
+    function spBuildTabs() {
+        return SP_TF_FIELDS.map(function(f) {
+            var active = f.key === sectorPerfTf;
+            return '<button id="sp-btn-' + f.key + '" style="' + (active ? spBtnActive : spBtnInactive) + '" onclick="sectorPerfSwitch(\'' + f.key + '\')">' + f.label + '</button>';
+        }).join('');
+    }
+
+    function renderSectorPerf() {
+        var el = document.getElementById('market-sector-perf');
+        if (!el || !snapshot || !snapshot.industry_summary) return;
+
+        var ds = spComputeDataset(sectorPerfTf);
 
         el.innerHTML =
-            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">' +
-                '<div class="analytics-title">Sector Performance</div>' +
-            '</div>' + rows;
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                '<div style="display:flex;align-items:center;">' +
+                    '<div class="analytics-title">Sector Performance</div>' +
+                    '<div style="' + spToggleStyle + '">' + spBuildTabs() + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="sp-rows">' + spBuildRows(ds) + '</div>';
     }
+
+    window.sectorPerfSwitch = function(field) {
+        if (field === sectorPerfTf) return;
+        sectorPerfTf = field;
+        if (!snapshot || !snapshot.industry_summary) return;
+        var rowsEl = document.getElementById('sp-rows');
+        if (rowsEl) rowsEl.innerHTML = spBuildRows(spComputeDataset(sectorPerfTf));
+        SP_TF_FIELDS.forEach(function(f) {
+            var btn = document.getElementById('sp-btn-' + f.key);
+            if (btn) btn.style.cssText = (f.key === sectorPerfTf ? spBtnActive : spBtnInactive);
+        });
+    };
 
     // ── Industry Breadth ──────────────────────────────────────────────────
     function renderIndBreadth() {
