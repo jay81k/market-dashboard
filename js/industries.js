@@ -54,9 +54,20 @@
             var summary = snapshot && snapshot.industry_summary && snapshot.industry_summary[ind.industry];
             var stockCount = (snapshot && snapshot.by_industry && snapshot.by_industry[ind.industry])
                 ? snapshot.by_industry[ind.industry].length : 0;
+            var rs1m  = summary ? summary.rs_1m  : null;
+            var rs3m  = summary ? summary.rs_3m  : null;
+            var rs6m  = summary ? summary.rs_6m  : null;
+            var rs12m = summary ? summary.rs_12m : null;
+            var rsCurr = rs12m;
+            var pctUptrend = summary ? summary.pct_confirmed_uptrend : null;
+            var pctAbove50 = summary ? summary.pct_above_50sma       : null;
+            var pctAbove21 = summary ? summary.pct_above_21ema       : null;
+
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '" onclick="openIndustry(\'' + esc(ind.industry) + '\')">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
+            html += '<span class="industry-flex-fill"></span>';
+            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             html += '<div class="industry-perf-cols">';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_daily : null) + '</span>';
@@ -65,6 +76,17 @@
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_3m    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_6m    : null) + '</span>';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_1y    : null) + '</span>';
+            html += '</div>';
+            html += '<div class="industry-rs-cols">';
+            html += '<span class="industry-rs-col ' + rsColClass(rsCurr) + '">' + (rsCurr != null ? rsCurr : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs1m)  + '">' + (rs1m  != null ? rs1m  : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs3m)  + '">' + (rs3m  != null ? rs3m  : '—') + '</span>';
+            html += '<span class="industry-rs-col ' + rsColClass(rs6m)  + '">' + (rs6m  != null ? rs6m  : '—') + '</span>';
+            html += '</div>';
+            html += '<div class="industry-breadth-cols">';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctUptrend) + '">' + (pctUptrend != null ? pctUptrend + '%' : '—') + '</span>';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove50) + '">' + (pctAbove50 != null ? pctAbove50 + '%' : '—') + '</span>';
+            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove21) + '">' + (pctAbove21 != null ? pctAbove21 + '%' : '—') + '</span>';
             html += '</div>';
             html += '</div>';
         });
