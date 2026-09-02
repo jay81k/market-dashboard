@@ -170,14 +170,22 @@
         </div>
         <div class="main" style="flex:1;overflow-y:auto;">
             <div class="industry-list ind-hdr-row" id="sector-list-header">
-                <span style="flex:1;min-width:0;"></span>
-                <span style="width:36px;flex-shrink:0;"></span>
+                <span class="industry-flex-fill"></span>
+                <span class="ind-hdr-spark">Trend</span>
+                <span class="ind-hdr-count" title="Number of stocks in this industry">#</span>
                 <span class="ind-col-hdr" data-col="avg_daily" onclick="setSectorSort('avg_daily')">Day</span>
                 <span class="ind-col-hdr" data-col="avg_1w"    onclick="setSectorSort('avg_1w')">1W</span>
                 <span class="ind-col-hdr" data-col="avg_1m"    onclick="setSectorSort('avg_1m')">1M</span>
                 <span class="ind-col-hdr" data-col="avg_3m"    onclick="setSectorSort('avg_3m')">3M</span>
                 <span class="ind-col-hdr" data-col="avg_6m"    onclick="setSectorSort('avg_6m')">6M</span>
                 <span class="ind-col-hdr" data-col="avg_1y"    onclick="setSectorSort('avg_1y')">1Y</span>
+                <span class="ind-col-hdr" data-col="rs"        onclick="setSectorSort('rs')">RS</span>
+                <span class="ind-col-hdr" data-col="rs_1m"     onclick="setSectorSort('rs_1m')">1M RS</span>
+                <span class="ind-col-hdr" data-col="rs_3m"     onclick="setSectorSort('rs_3m')">3M RS</span>
+                <span class="ind-col-hdr" data-col="rs_6m"     onclick="setSectorSort('rs_6m')">6M RS</span>
+                <span class="ind-col-hdr" data-col="pct_confirmed_uptrend" onclick="setSectorSort('pct_confirmed_uptrend')" title="% of stocks with Close > 50 SMA > 150 SMA > 200 SMA (fully stacked stage-2 uptrend)">Uptr%</span>
+                <span class="ind-col-hdr" data-col="pct_above_50sma"       onclick="setSectorSort('pct_above_50sma')" title="% of stocks trading above their 50-day SMA">50MA%</span>
+                <span class="ind-col-hdr" data-col="pct_above_21ema"       onclick="setSectorSort('pct_above_21ema')" title="% of stocks trading above their 21-day EMA">21EMA%</span>
             </div>
             <div class="industry-list" id="sector-industry-list"></div>
         </div>
