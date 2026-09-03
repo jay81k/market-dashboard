@@ -812,7 +812,7 @@
         { key: 'avg_6m',    label: '6M'  },
         { key: 'avg_1y',    label: '1Y'  }
     ];
-    var spToggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;margin-left:8px;';
+    var spToggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;';
     var spBtnBase     = 'padding:1px 7px;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;border:none;letter-spacing:0.03em;transition:background 0.1s,color 0.1s;';
     var spBtnActive   = spBtnBase + 'background:#1f6feb;color:#fff;';
     var spBtnInactive = spBtnBase + 'background:transparent;color:#6e7681;';
@@ -821,10 +821,11 @@
         var sectorMap = {};
         Object.values(snapshot.industry_summary).forEach(function(s) {
             var v = s[field];
-            if (!s.sector || v == null) return;
+            var n = s.stock_count; // weight by stock count so every stock counts, not one vote per industry
+            if (!s.sector || v == null || !n) return;
             if (!sectorMap[s.sector]) sectorMap[s.sector] = { sum: 0, count: 0 };
-            sectorMap[s.sector].sum   += v;
-            sectorMap[s.sector].count += 1;
+            sectorMap[s.sector].sum   += v * n;
+            sectorMap[s.sector].count += n;
         });
         var sectors = Object.keys(sectorMap).map(function(name) {
             return { name: name, avg: sectorMap[name].sum / sectorMap[name].count };
@@ -871,12 +872,13 @@
 
         var ds = spComputeDataset(sectorPerfTf);
 
+        // 160px = .sp-name width (152px) + .sp-row gap (8px) — keeps the toggle
+        // lined up with where .sp-bar-wrap starts on every row below. Update
+        // this if those CSS values change.
         el.innerHTML =
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-                '<div style="display:flex;align-items:center;">' +
-                    '<div class="analytics-title">Sector Performance</div>' +
-                    '<div style="' + spToggleStyle + '">' + spBuildTabs() + '</div>' +
-                '</div>' +
+            '<div style="position:relative;height:18px;margin-bottom:12px;">' +
+                '<div class="analytics-title" style="position:absolute;left:0;top:50%;transform:translateY(-50%);white-space:nowrap;">Sector Performance</div>' +
+                '<div style="position:absolute;left:160px;top:50%;transform:translateY(-50%);' + spToggleStyle + '">' + spBuildTabs() + '</div>' +
             '</div>' +
             '<div id="sp-rows">' + spBuildRows(ds) + '</div>';
     }
