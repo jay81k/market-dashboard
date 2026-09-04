@@ -155,7 +155,7 @@
             });
         }
         // Re-render only if user is on the industry or market view
-        if (currentView === 'market') { renderMarketMovers(); renderMarketBreadth(); }
+        if (currentView === 'market') { renderMarketMovers(); renderMarketBreadth(); renderSectorPerf(); }
         if (currentView !== 'industries' && currentView !== 'sector') return;
         if (indView === 'heatmap') renderHeatmap();
         else renderIndustries();
