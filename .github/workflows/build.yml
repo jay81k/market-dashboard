@@ -2,7 +2,7 @@ name: Build Dashboard Data
 
 on:
   schedule:
-    - cron: '15 19 * * 1-5' # 7:15 PM America/Toronto, Mon-Fri (DST-aware via timezone field)
+    - cron: '55 19 * * 1-5' # 7:55 PM America/Toronto, Mon-Fri (DST-aware via timezone field)
       timezone: "America/Toronto"
   workflow_dispatch:
 
