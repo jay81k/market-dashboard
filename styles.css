@@ -395,6 +395,9 @@
             background: #1f6feb22; color: #388bfd; border: 1px solid #1f6feb44;
             padding: 4px 12px; border-radius: 5px;
         }
+        .stocks-rs-badge.rs-high { background: #0d2b0d; color: #3fb950; border: 1px solid #2ea04322; }
+        .stocks-rs-badge.rs-mid  { background: #2b1d0a; color: #e3852b; border: 1px solid #e3852b22; }
+        .stocks-rs-badge.rs-low  { background: #2b0d0d; color: #f85149; border: 1px solid #f8514922; }
 
         /* Stocks table */
         .stocks-table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; }
