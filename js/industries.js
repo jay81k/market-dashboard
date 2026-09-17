@@ -422,9 +422,17 @@
 
         var totalIndustries = (industriesData && industriesData.industries) ? industriesData.industries.length : 0;
         var rank = ind ? (ind.rank || '—') : '—';
+        // Rank 1 is best, rank totalIndustries is worst — convert to a
+        // 0-100 scale (100 = best) so the same 75/40 thresholds used for
+        // every RS percentile in this app apply here too.
+        var rankColor = '#484f58';
+        if (ind && ind.rank && totalIndustries > 1) {
+            var rankPct = ((totalIndustries - ind.rank) / (totalIndustries - 1)) * 100;
+            rankColor = rankPct >= 75 ? '#3fb950' : rankPct >= 40 ? '#e3852b' : '#f85149';
+        }
         document.getElementById('si-name').innerHTML =
             esc(industryName) +
-            '<span style="font-size:0.78em;font-weight:400;color:#6e7681;margin-left:10px;">' +
+            '<span style="font-size:0.78em;font-weight:400;color:' + rankColor + ';margin-left:10px;">' +
             '(' + rank + '/' + totalIndustries + ')</span>';
         var sector = ind ? ind.sector : '';
         var secCl  = sectorClass(sector);
@@ -435,7 +443,10 @@
         } else {
             metaEl.innerHTML = '';
         }
-        document.getElementById('si-rs').textContent = ind ? 'RS ' + (ind.percentile || '—') : '';
+        var rsPct = ind ? ind.percentile : null;
+        var rsEl  = document.getElementById('si-rs');
+        rsEl.textContent = 'RS ' + (rsPct != null ? Math.round(rsPct) : '—');
+        rsEl.className   = 'stocks-rs-badge' + (rsPct != null ? (rsPct >= 75 ? ' rs-high' : rsPct >= 40 ? ' rs-mid' : ' rs-low') : '');
 
         // Reset multichart state
         multichartActive = false;
