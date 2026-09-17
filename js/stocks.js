@@ -159,6 +159,9 @@
             var distAll = row.dist_ma || {};
             var distVal = distAll[maKey];
             var rsVal   = row.Percentile != null ? Math.round(row.Percentile) : '—';
+            // Same 75/40 thresholds and colors as rsBadge()/.chart-rs-badge,
+            // so a stock's RS reads the same color everywhere in the app.
+            var rsColor = row.Percentile != null ? (row.Percentile >= 75 ? '#3fb950' : row.Percentile >= 40 ? '#e3852b' : '#f85149') : '#484f58';
             var crVal   = row.cr  != null ? row.cr.toFixed(0)  + '%' : '—';
             var adrVal  = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
 
@@ -201,9 +204,10 @@
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
             html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
-            html += '<td style="color:#c8d0dc;font-weight:600;">' + rsVal + '</td>';
-            var wrsVal = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '—';
-            html += '<td style="color:#c8d0dc;font-weight:600;">' + wrsVal + '</td>';
+            html += '<td style="color:' + rsColor + ';font-weight:600;">' + rsVal + '</td>';
+            var wrsVal   = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '—';
+            var wrsColor = row.weighted_rs_pct != null ? (row.weighted_rs_pct >= 75 ? '#3fb950' : row.weighted_rs_pct >= 40 ? '#e3852b' : '#f85149') : '#484f58';
+            html += '<td style="color:' + wrsColor + ';font-weight:600;">' + wrsVal + '</td>';
             // Chg ($) and Chg%
             var chgAbs = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
             var chgStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
