@@ -290,7 +290,7 @@ var _mmPopup = (function () {
         // background refresh, not user-visible loading state, so silently
         // skipping this round is the safe default (it'll catch up next hover).
         if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) return;
-        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+        var url = WL_PROXY + '?symbol=' +
                   encodeURIComponent(sym) + '&interval=5m&range=1d';
         fetch(url)
             .then(function(r) {
@@ -304,18 +304,24 @@ var _mmPopup = (function () {
                 var ts = result.timestamp;
                 var q  = result.indicators.quote[0];
                 if (!ts || !ts.length) return;
-                var now2 = new Date();
-                var todayDateStr = now2.getUTCFullYear() + '-' +
-                    String(now2.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                    String(now2.getUTCDate()).padStart(2, '0');
+                // Anchor "today" to the most recent bar the API actually
+                // returned, not the client's UTC clock. The market runs on
+                // ET, and UTC's calendar day rolls over ~4-5 hours before
+                // ET's does — comparing against new Date() was filtering out
+                // every bar (blank candle) every evening between market
+                // close and UTC midnight. Deriving the date from the data
+                // itself removes the timezone dependency entirely.
+                function utcDateStr(t) {
+                    var d = new Date(t * 1000);
+                    return d.getUTCFullYear() + '-' +
+                        String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                        String(d.getUTCDate()).padStart(2, '0');
+                }
+                var todayDateStr = utcDateStr(ts[ts.length - 1]);
                 var open = null, high = null, low = null, close = null, vol = 0;
                 for (var i = 0; i < ts.length; i++) {
                     if (q.open[i] == null || q.close[i] == null) continue;
-                    var bd = new Date(ts[i] * 1000);
-                    var bds = bd.getUTCFullYear() + '-' +
-                        String(bd.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                        String(bd.getUTCDate()).padStart(2, '0');
-                    if (bds !== todayDateStr) continue;
+                    if (utcDateStr(ts[i]) !== todayDateStr) continue;
                     if (open === null) open = q.open[i];
                     high  = high === null ? q.high[i]  : Math.max(high,  q.high[i]);
                     low   = low  === null ? q.low[i]   : Math.min(low,   q.low[i]);
@@ -323,10 +329,7 @@ var _mmPopup = (function () {
                     vol  += (q.volume[i] || 0);
                 }
                 if (open === null) return;
-                if (!todayTs) {
-                    var now = new Date();
-                    todayTs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-                }
+                if (!todayTs) todayTs = ts[ts.length - 1] - (ts[ts.length - 1] % 86400);
                 candleSeries.update({ time: todayTs, open: open, high: high, low: low, close: close, volume: vol });
             })
             .catch(function() {});
@@ -381,7 +384,7 @@ var _mmPopup = (function () {
             return;
         }
 
-        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+        var url = WL_PROXY + '?symbol=' +
                   encodeURIComponent(yfSym) + '&interval=1d&range=6mo';
 
         fetch(url)
@@ -408,21 +411,12 @@ var _mmPopup = (function () {
                         volume: q.volume[i] || 0,
                     });
                 }
-                var now = new Date();
-                var todayStr = now.getUTCFullYear() + '-' +
-                    String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                    String(now.getUTCDate()).padStart(2, '0');
-                var capturedTodayTs = null;
-                if (ohlcv.length) {
-                    var last = ohlcv[ohlcv.length - 1];
-                    var lastD = new Date(last.time * 1000);
-                    var lastDs = lastD.getUTCFullYear() + '-' +
-                        String(lastD.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                        String(lastD.getUTCDate()).padStart(2, '0');
-                    if (lastDs === todayStr) {
-                        capturedTodayTs = ohlcv.pop().time;
-                    }
-                }
+                // The last entry is always the most recent trading day's
+                // daily bar (ohlcv is chronological, oldest first) — no need
+                // to compare it against the clock at all. Just pull it out
+                // so appendTodayCandle can replace it with a more accurate
+                // candle built from intraday bars.
+                var capturedTodayTs = ohlcv.length ? ohlcv.pop().time : null;
                 renderChart(ohlcv);
                 appendTodayCandle(yfSym, card, capturedTodayTs);
             })
@@ -560,7 +554,7 @@ var _mmPopup = (function () {
             return;
         }
 
-        var url = 'https://yahoo-proxy.jay69k.workers.dev?symbol=' +
+        var url = WL_PROXY + '?symbol=' +
                   encodeURIComponent(ticker) + '&interval=1d&range=6mo';
 
         fetch(url)
@@ -589,21 +583,12 @@ var _mmPopup = (function () {
                         volume: q.volume[i] || 0,
                     });
                 }
-                var now = new Date();
-                var todayStr = now.getUTCFullYear() + '-' +
-                    String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                    String(now.getUTCDate()).padStart(2, '0');
-                var capturedTodayTs = null;
-                if (ohlcv.length) {
-                    var last = ohlcv[ohlcv.length - 1];
-                    var lastD = new Date(last.time * 1000);
-                    var lastDs = lastD.getUTCFullYear() + '-' +
-                        String(lastD.getUTCMonth() + 1).padStart(2, '0') + '-' +
-                        String(lastD.getUTCDate()).padStart(2, '0');
-                    if (lastDs === todayStr) {
-                        capturedTodayTs = ohlcv.pop().time;
-                    }
-                }
+                // The last entry is always the most recent trading day's
+                // daily bar (ohlcv is chronological, oldest first) — no need
+                // to compare it against the clock at all. Just pull it out
+                // so appendTodayCandle can replace it with a more accurate
+                // candle built from intraday bars.
+                var capturedTodayTs = ohlcv.length ? ohlcv.pop().time : null;
                 renderChart(ohlcv);
                 appendTodayCandle(ticker, el, capturedTodayTs);
             })
