@@ -3314,7 +3314,8 @@ return '10y';
 
     window.openMcFullscreen = function(sym, tf, displayName) {
         tf = tf || mcTimeframe || 'D';
-        _mcFsTf = tf;
+        _mcFsTf  = tf;
+        _mcFsSym = sym;
         var overlay = document.getElementById('mc-fullscreen-overlay');
         document.getElementById('mc-fullscreen-sym').textContent = displayName || sym;
         var mcFBtn = document.getElementById('mc-fullscreen-details-btn');
