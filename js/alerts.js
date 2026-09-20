@@ -2719,14 +2719,15 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
 
-        _alVisibleBars = _alChartTf === 'D' ? 252 : _alChartTf === 'W' ? 104 : 60;
+        var tf = _alChartTf;
+        _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
         _alSym = ticker;
         var widgetDiv = document.getElementById('al-chart-widget');
         widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         var loadTicker = ticker;
-        fetchMcOhlcv(ticker, _alChartTf).then(function(ohlcv) {
-            if (_alSym !== loadTicker) return;
-            _buildAlChart(loadTicker, ohlcv, _alChartTf);
+        fetchMcOhlcv(ticker, tf).then(function(ohlcv) {
+            if (_alSym !== loadTicker || _alChartTf !== tf) return;
+            _buildAlChart(loadTicker, ohlcv, tf);
         });
     };
 
