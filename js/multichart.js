@@ -205,7 +205,16 @@
         // Fullscreen/watchlist views (gridMode omitted) are unchanged — full
         // history, exactly as before.
         if (gridMode && tf === 'D') return '2y';
-        return tf === 'W' ? 'max' : tf === 'M' ? 'max' : '10y';
+// NOTE: Yahoo silently coerces interval=1wk/1mo + range=max into 3-month
+// (quarterly) bars — the response comes back stamped dataGranularity:'3mo'
+// no matter what interval was requested, which is why Weekly and Monthly
+// rendered identically. Use explicit ranges Yahoo actually honors:
+// 10y of weekly bars (~523, covers SMA200) and 20y of monthly bars
+// (~241, covers SMA200). Verified against the live proxy 2026-09-20.
+if (tf === 'W') return '10y';
+if (tf === 'M') return '20y';
+return '10y';
+
     }
 
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
