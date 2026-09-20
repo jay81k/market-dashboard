@@ -953,8 +953,8 @@
             var loadTicker = ticker;
             var tf = _wlTf;
             fetchMcOhlcv(ticker, tf).then(function(ohlcv) {
-                // Guard: a newer ticker was already selected
-                if (wlChartTicker !== loadTicker) return;
+                // Guard: a newer ticker was selected, or the timeframe changed, before this landed
+                if (wlChartTicker !== loadTicker || _wlTf !== tf) return;
                 _buildWlChart(loadTicker, ohlcv, tf);
             });
         }, 150);
