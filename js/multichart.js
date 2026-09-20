@@ -84,6 +84,7 @@
     var _mcFsOhlcv              = [];
     var _mcFsSym               = null;
     var _mcFsTf                = 'D';
+    var _mcFsRequestedTf       = 'D'; // what the user last clicked, set synchronously — separate from _mcFsTf, which only updates once a render actually completes
     var _mcFsLastCrosshairPrice = null;
     var _mcFsChart       = null;
     var _mcFsCandle      = null;
@@ -2717,6 +2718,7 @@
     // Fullscreen window-level controls
     window.mcFsSetTf = function(tf) {
         if (!_mcFsSym) return;
+        _mcFsRequestedTf = tf;
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
@@ -2757,6 +2759,7 @@
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
+            if (_mcFsSym !== sym || _mcFsRequestedTf !== tf) return;
             _buildFsChart(sym, ohlcv, tf);
         });
     };
@@ -4218,7 +4221,7 @@
         var container = document.getElementById('wl-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
-            if (_wlSym !== sym) return;
+            if (_wlSym !== sym || _wlTf !== tf) return;
             _buildWlChart(sym, ohlcv, tf);
         });
     };
