@@ -2769,12 +2769,11 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
         _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
-        delete _mcOhlcvCache[_alSym + '_' + tf];
         var sym = _alSym;
         var container = document.getElementById('al-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
-            if (_alSym !== sym) return;
+            if (_alSym !== sym || _alChartTf !== tf) return;
             _buildAlChart(sym, ohlcv, tf);
         });
     };
