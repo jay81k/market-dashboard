@@ -2717,6 +2717,7 @@
     // Fullscreen window-level controls
     window.mcFsSetTf = function(tf) {
         if (!_mcFsSym) return;
+        _mcFsTf = tf;
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
@@ -2757,6 +2758,7 @@
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
+            if (_mcFsSym !== sym || _mcFsTf !== tf) return;
             _buildFsChart(sym, ohlcv, tf);
         });
     };
@@ -4218,7 +4220,7 @@
         var container = document.getElementById('wl-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
-            if (_wlSym !== sym) return;
+            if (_wlSym !== sym || _wlTf !== tf) return;
             _buildWlChart(sym, ohlcv, tf);
         });
     };
