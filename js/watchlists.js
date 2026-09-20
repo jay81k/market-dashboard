@@ -223,7 +223,6 @@
     var LS_WL_KEY      = 'dashboard-watchlists';
     var LS_WL_ORD_KEY  = 'dashboard-watchlists-order';
     var LS_WL_LAST_KEY = 'dashboard-watchlists-last';
-    var wlChartTf      = 'D';
     var wlChartTicker  = null;
     var wlChartWidget  = null;
     var wlMcActive     = false;
@@ -920,11 +919,11 @@
         var widgetDiv = document.getElementById('wl-chart-widget');
         widgetDiv.style.display = 'block';
 
-        // Show settings bar and sync TF buttons to current wlChartTf
+        // Show settings bar and sync TF buttons to current timeframe
         var settingsBar = document.getElementById('wl-chart-settings');
         if (settingsBar) settingsBar.style.display = 'flex';
         document.querySelectorAll('.wl-chart-fs-tf-btn').forEach(function(b) {
-            b.classList.toggle('active', b.getAttribute('data-tf') === wlChartTf);
+            b.classList.toggle('active', b.getAttribute('data-tf') === _wlTf);
         });
 
         // Reset per-symbol tool state
@@ -939,7 +938,7 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
 
-        _wlVisibleBars = wlChartTf === 'D' ? 252 : wlChartTf === 'W' ? 104 : 60;
+        _wlVisibleBars = _wlTf === 'D' ? 252 : _wlTf === 'W' ? 104 : 60;
         widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
         // Debounce the fetch itself, not the UI update above. Arrow-keying or
         // click-scrolling through several rows quickly used to fire one real
@@ -952,10 +951,11 @@
         _wlSelectFetchTimer = setTimeout(function() {
             if (wlChartTicker !== ticker) return; // superseded before the pause elapsed
             var loadTicker = ticker;
-            fetchMcOhlcv(ticker, wlChartTf).then(function(ohlcv) {
+            var tf = _wlTf;
+            fetchMcOhlcv(ticker, tf).then(function(ohlcv) {
                 // Guard: a newer ticker was already selected
                 if (wlChartTicker !== loadTicker) return;
-                _buildWlChart(loadTicker, ohlcv, wlChartTf);
+                _buildWlChart(loadTicker, ohlcv, tf);
             });
         }, 150);
         // Update active row highlight
