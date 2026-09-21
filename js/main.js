@@ -387,21 +387,29 @@
             }
             return;
         }
-        // WL side panel
-        if (document.getElementById('wl-chart-panel').classList.contains('open')) {
-            if (_wlChart && _wlOhlcv.length) {
-                var n = _wlOhlcv.length;
-                _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+        // WL side panel — gated on currentView too, since wl-chart-widget's
+        // display isn't reset when you tab away without explicitly closing the chart.
+        if (currentView === 'watchlists') {
+            var wlWidget = document.getElementById('wl-chart-widget');
+            if (wlWidget && wlWidget.style.display === 'block') {
+                if (_wlChart && _wlOhlcv.length) {
+                    var n = _wlOhlcv.length;
+                    _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+                }
+                return;
             }
-            return;
         }
-        // AL side panel
-        if (document.getElementById('al-chart-panel').classList.contains('open')) {
-            if (_alChart && _alOhlcv.length) {
-                var n = _alOhlcv.length;
-                _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+        // AL side panel — same reasoning: alChartPanelClose() only runs on an
+        // explicit close, not on tab-switch, so gate on currentView as well.
+        if (currentView === 'alerts') {
+            var alPanel = document.getElementById('al-chart-panel');
+            if (alPanel && alPanel.classList.contains('open')) {
+                if (_alChart && _alOhlcv.length) {
+                    var n = _alOhlcv.length;
+                    _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+                }
+                return;
             }
-            return;
         }
     });
     // ── END SCAN NAV PANEL ───────────────────────────────────────────────
