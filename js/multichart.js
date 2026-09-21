@@ -86,6 +86,8 @@
     var _mcFsTf                = 'D';
     var _mcFsLastCrosshairPrice = null;
     var _mcFsChart       = null;
+    var _mcFsBuiltSym    = null;   // symbol _mcFsChart is currently built for (distinct from _mcFsSym, which is the symbol last requested)
+    var _mcFsBuiltTf     = null;   // timeframe _mcFsChart is currently built for
     var _mcFsCandle      = null;
     var _mcFsVol         = null;
     var _mcFsVolMa       = null;   // 50 SMA on volume
@@ -2143,9 +2145,11 @@ return '10y';
         _mcFsSelectedVwapIdx = -1;
         _mcFsDismissCtx();
 
-        _mcFsOhlcv = ohlcv || [];
-        _mcFsSym   = sym;
-        _mcFsTf    = tf;
+        _mcFsOhlcv    = ohlcv || [];
+        _mcFsSym      = sym;
+        _mcFsTf       = tf;
+        _mcFsBuiltSym = sym;
+        _mcFsBuiltTf  = tf;
         _mcFsLastCrosshairPrice = null;
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
@@ -3398,7 +3402,7 @@ return '10y';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (_mcFsSym !== openSym || _mcFsTf !== tf) return; // a newer symbol or timeframe has since superseded this fetch
-            if (_mcFsChart) return; // already rendered
+            if (_mcFsChart && _mcFsBuiltSym === sym && _mcFsBuiltTf === tf) return; // truly already rendered for this exact symbol/tf
             _buildFsChart(sym, ohlcv, tf);
         });
     };
@@ -3408,6 +3412,7 @@ return '10y';
         _mcFsDismissCtx();
         _mcFsStopLiveTick();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
+        _mcFsBuiltSym = null; _mcFsBuiltTf = null;
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsMaSeries = {}; _mcFsVwapSeries = [];
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // removed with chart container
