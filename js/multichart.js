@@ -3204,7 +3204,7 @@ return '10y';
         var wrs  = sd && sd.weighted_rs_pct != null ? Math.round(sd.weighted_rs_pct) : null;
         var live = scanLivePrices && scanLivePrices[sym];
         var dayPct = null;
-        if (live && live.price && live.prevClose) {
+        if (wlIsMarketOpen() && live && live.price && live.prevClose) {
             dayPct = (live.price - live.prevClose) / live.prevClose * 100;
         } else if (sd && sd.daily != null) {
             dayPct = sd.daily;
@@ -3243,7 +3243,7 @@ return '10y';
             var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
             var chgStyle = 'color:' + chgColor + ';font-size:0.748em;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap;';
             var absDelta = null;
-            if (live && live.price && live.prevClose) {
+            if (wlIsMarketOpen() && live && live.price && live.prevClose) {
                 absDelta = live.price - live.prevClose;
             } else if (sd && sd.price != null && dayPct != null) {
                 absDelta = sd.price / (1 + dayPct / 100) * (dayPct / 100);
