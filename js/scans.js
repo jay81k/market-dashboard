@@ -338,11 +338,11 @@
                 html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="The longer, slower-moving average used as the trend baseline.">Slow MA</span><select class="sf-select" style="width:70px;" onchange="sfPopChange('+id+',\'maType2\',this.value)">'+mt2+'</select><select class="sf-select" style="width:70px;margin-left:4px;" onchange="sfPopChange('+id+',\'maPeriod2\',this.value)">'+mp2+'</select></div>';
             }
             if (usesPct) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum % distance between price and the moving average.">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum % distance between price and the moving average.">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
             }
             if (usesBetween) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Lower bound: minimum % the price must be below the MA.">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Upper bound: maximum % the price can be above the MA.">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Lower bound: minimum % the price must be below the MA.">Min</span><input class="sf-input" type="number" step="0.1" value="'+(row.val||0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Upper bound: maximum % the price can be above the MA.">Max</span><input class="sf-input" type="number" step="0.1" value="'+(row.val2!=null?row.val2:10)+'" oninput="sfPopChange('+id+',\'val2\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
             }
             if (cond === 'slope') {
                 var slopeDir = row.slopeDir || 'rising';
@@ -351,9 +351,9 @@
                 }).join('');
                 html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Whether the MA is angling up, down, or staying flat.">Direction</span><div class="sf-seg">'+slopeBtns+'</div></div>';
                 if (slopeDir === 'flat') {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % change per day for the slope to still qualify as flat.">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % change per day for the slope to still qualify as flat.">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
                 } else {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum slope steepness required, as % change per day.">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum slope steepness required, as % change per day.">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
                 }
             }
             if (cond === 'ma_cluster') {
@@ -368,7 +368,7 @@
                     return '<span class="sf-cluster-chip' + (on ? ' on' : '') + '" data-key="' + key + '" data-id="' + id + '" onclick="event.stopPropagation();sfToggleClusterMA(this)">' + m[0] + ' ' + m[1] + '</span>';
                 }).join('');
                 html += '<div class="sf-popover-row" style="flex-wrap:wrap;gap:3px;"><span class="sf-popover-label" style="width:100%;margin-bottom:2px;" data-rs-tip="Select which moving averages must be grouped tightly together.">MAs</span>'+checks+'</div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % spread allowed between the highest and lowest selected MA.">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % spread allowed between the highest and lowest selected MA.">Max spread</span><input class="sf-input" type="number" step="0.1" min="0.1" value="'+(row.clusterSpread!=null?row.clusterSpread:1)+'" oninput="sfPopChange('+id+',\'clusterSpread\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'pattern') {
             var patOpts = [
@@ -395,7 +395,7 @@
             var dirOpts3 = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" style="max-width:160px;" onchange="sfPopChange('+id+',\'fundMetric\',this.value)">'+metricOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+dirOpts3+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:0)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
         } else if (row.type === 'valuation') {
             var valMetricOpts = VAL_METRICS.map(function(m){
                 return '<option value="'+m.value+'"'+(row.valMetric===m.value?' selected':'')+'>'+m.label+'</option>';
@@ -407,7 +407,7 @@
         } else if (row.type === 'gap') {
             var gapDirOpts = '<option value="up"'+(row.dir==='up'?' selected':'')+'>Gap Up</option><option value="down"'+(row.dir==='down'?' selected':'')+'>Gap Down</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+gapDirOpts+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" min="0" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" min="0" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
         } else if (row.type === 'perf') {
             var perfTf = row.perfTf || '1d';
             var perfDir = row.perfDir || 'up';
@@ -420,15 +420,15 @@
                 '<button class="sf-seg-btn'+(perfDir==='down'?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'perfDir\',\'down\')">↓ Down</button>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><div class="sf-seg">'+dirBtns+'</div></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+tfBtns+'</div></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
         } else if (row.type === 'range') {
             var rc = row.rangeCondition || 'relative';
             var rcOpts = '<option value="relative"'+(rc==='relative'?' selected':'')+'>Relative Range</option><option value="nr"'+(rc==='nr'?' selected':'')+'>Narrow Range (NR)</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'rangeCondition\',this.value)">'+rcOpts+'</select></div>';
             if (rc === 'relative') {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max %</span><input class="sf-input" type="number" min="1" max="200" step="1" value="'+(row.val!=null?row.val:'')+'" placeholder="e.g. 50" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">% of ADR</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Max %</span><input class="sf-input" type="number" min="1" max="200" step="1" value="'+(row.val!=null?row.val:'')+'" placeholder="e.g. 50" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">% of ADR</span></div>';
             } else {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">Days</span><input class="sf-input" type="number" min="2" max="60" step="1" value="'+(row.val!=null?row.val:'')+'" placeholder="e.g. 7" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">days</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">Days</span><input class="sf-input" type="number" min="2" max="60" step="1" value="'+(row.val!=null?row.val:'')+'" placeholder="e.g. 7" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">days</span></div>';
             }
         } else if (row.type === 'cr') {
             var crTf = row.crTf || 'd';
@@ -437,7 +437,7 @@
             }).join('');
             var crDirOpts = '<option value="gt"'+(row.dir==='gt'?' selected':'')+'>Greater than</option><option value="lt"'+(row.dir==='lt'?' selected':'')+'>Less than</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+crDirOpts+'</select></div>';
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="0" max="100" step="1" value="'+(row.val!=null?row.val:50)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" min="0" max="100" step="1" value="'+(row.val!=null?row.val:50)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Timeframe</span><div class="sf-seg">'+crTfBtns+'</div></div>';
         } else if (row.type === 'rs') {
             var rsMetric = row.rsMetric || 'Percentile';
@@ -466,8 +466,8 @@
                 '</div></div>';
             // Distance rows only shown when New Only = No
             if (!wk52NewOnly) {
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">From %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 5" value="'+wk52DistMin+'" oninput="sfPopChange('+id+',\'wk52DistMin\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
-                html += '<div class="sf-popover-row"><span class="sf-popover-label">To %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 10" value="'+wk52DistMax+'" oninput="sfPopChange('+id+',\'wk52DistMax\',this.value)"><span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">From %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 5" value="'+wk52DistMin+'" oninput="sfPopChange('+id+',\'wk52DistMin\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
+                html += '<div class="sf-popover-row"><span class="sf-popover-label">To %</span><input class="sf-input" type="number" min="0" step="0.1" placeholder="e.g. 10" value="'+wk52DistMax+'" oninput="sfPopChange('+id+',\'wk52DistMax\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
             }
         } else if (row.type === 'sector') {
             var allSectors = [];
@@ -502,7 +502,7 @@
                 return '<span class="sf-cluster-chip'+(on?' on':'')+'" data-val="'+esc(ind)+'" data-id="'+id+'" onclick="event.stopPropagation();sfToggleIndustryChip(this)">'+esc(ind)+'</span>';
             }).join('');
             html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Sector</span><div style="display:flex;flex-wrap:wrap;gap:3px;">'+sectorChips+'</div></div>';
-            html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Industry</span><div style="display:flex;flex-wrap:wrap;gap:3px;max-height:160px;overflow-y:auto;padding-right:2px;">'+(industryChips||'<span style="color:#484f58;font-size:0.748em;">No industry data</span>')+'</div></div>';
+            html += '<div class="sf-popover-row" style="flex-direction:column;align-items:flex-start;margin-top:4px;"><span class="sf-popover-label" style="width:100%;margin-bottom:4px;">Industry</span><div style="display:flex;flex-wrap:wrap;gap:3px;max-height:160px;overflow-y:auto;padding-right:2px;">'+(industryChips||'<span style="color:var(--border-muted);font-size:0.748em;">No industry data</span>')+'</div></div>';
         } else if (row.type === 'indrank') {
             var irMode = row.indrankMode || 'top';
             var irBtns = [['top','Top'],['below','Below']].map(function(m){
@@ -525,7 +525,7 @@
             }
             var inputType = (row.type === 'vol' || row.type === 'mcap') ? 'text' : 'number';
             var minMax = row.type === 'rvol' ? ' min="0.1" max="20" step="0.1"' : row.type === 'udv' ? ' min="0.1" max="20" step="0.1"' : row.type === 'adr' ? ' min="0" step="0.1"' : row.type === 'price' ? ' min="0" step="0.01"' : '';
-            var suffix = row.type === 'adr' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:#6e7681;font-size:0.748em;margin-left:2px;">x</span>' : '';
+            var suffix = row.type === 'adr' ? '<span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span>' : row.type === 'rvol' ? '<span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">x</span>' : '';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="'+inputType+'"'+minMax+' value="'+row.val+'" oninput="sfPopChange('+id+',\'val\',this.value)">'+suffix+'</div>';
         }
         return html;
@@ -853,7 +853,7 @@
 
         var picker = document.createElement('div');
         picker.id = 'sf-add-picker';
-        picker.style.cssText = 'position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:4px 0;';
+        picker.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-subtle);border:1px solid var(--border);border-radius:7px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:4px 0;';
 
         var PICKER_TOOLTIPS = {
             ma:      'Moving Average — filter by price position relative to a moving average.',
@@ -878,7 +878,7 @@
         };
         picker.innerHTML = TYPES.map(function(t) {
             var tip = PICKER_TOOLTIPS[t.value] || '';
-            return '<div class="sf-add-picker-item" data-rs-tip="' + tip + '" onclick="sfAddPickerSelect(\'' + t.value + '\')" style="padding:7px 14px;font-size:0.825em;color:#c8d0dc;cursor:pointer;" onmouseover="this.style.background=\'#21262d\'" onmouseout="this.style.background=\'\'">' + t.label + '</div>';
+            return '<div class="sf-add-picker-item" data-rs-tip="' + tip + '" onclick="sfAddPickerSelect(\'' + t.value + '\')" style="padding:7px 14px;font-size:0.825em;color:var(--text-primary);cursor:pointer;" onmouseover="this.style.background=\'var(--bg-surface)\'" onmouseout="this.style.background=\'\'">' + t.label + '</div>';
         }).join('');
 
         document.body.appendChild(picker);
@@ -952,8 +952,8 @@
     // ── Industry stocks selection & export ───────────────────────────────
     var selectedIndustryStocks = new Set();
 
-    var SVG_IND_PLUS  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
-    var SVG_IND_CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
+    var SVG_IND_PLUS  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--border-muted)" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
+    var SVG_IND_CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--success)" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
 
     function indUpdateExportBtn() {
         var btn = document.getElementById('ind-export-btn');
@@ -1047,8 +1047,8 @@
         if (btn) btn.disabled = selectedScans.size === 0;
     }
 
-    var SVG_PLUS  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
-    var SVG_CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
+    var SVG_PLUS  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--border-muted)" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
+    var SVG_CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--success)" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
 
     window.sfToggleAdd = function(btn) {
         var ticker = btn.getAttribute('data-ticker');
@@ -1207,7 +1207,7 @@
         var presets = sfGetAllPresets();
         var names = Object.keys(presets).sort();
         var scrollHtml = '<div class="sf-preset-dropdown-scroll">';
-        scrollHtml += '<div style="padding:8px 12px 4px;border-bottom:1px solid #21262d;display:flex;gap:6px;">' +
+        scrollHtml += '<div style="padding:8px 12px 4px;border-bottom:1px solid var(--bg-surface);display:flex;gap:6px;">' +
             '<button class="sf-preset-btn save" style="flex:1;font-size:0.792em;padding:3px 0;" data-sf-action="export-all">Export all</button>' +
             '<label class="sf-preset-btn" style="flex:1;font-size:0.792em;padding:3px 0;text-align:center;cursor:pointer;">Import file<input type="file" accept=".json" style="display:none" onchange="sfImportFile(this)"></label>' +
             '</div>';
@@ -1220,18 +1220,18 @@
                 var isActive = (_activePresetName === name) ? ' sf-preset-active' : '';
                 html += '<div class="sf-preset-item' + isActive + '">' +
                     '<span class="sf-preset-item-name" data-sf-apply="' + n + '">' + n + '</span>' +
-                    '<button class="sf-preset-delete" data-sf-export="' + n + '" title="Export" style="font-size:0.75em;color:#6e7681;padding:0 5px;">↓</button>' +
+                    '<button class="sf-preset-delete" data-sf-export="' + n + '" title="Export" style="font-size:0.75em;color:var(--text-muted);padding:0 5px;">↓</button>' +
                     '<button class="sf-preset-delete" data-sf-delete="' + n + '" title="Delete">×</button>' +
                     '</div>';
             });
         }
         html += '</div>'; // close sf-preset-dropdown-scroll
         var footer = '<div class="sf-preset-dropdown-footer">' +
-            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:#58a6ff;cursor:pointer;flex:1;border-bottom:none;">' +
+            '<div class="sf-preset-item" data-sf-action="copy-results" style="color:var(--accent-strong);cursor:pointer;flex:1;border-bottom:none;">' +
             '<span style="flex:1;">Copy results</span>' +
-            '<span style="font-size:10px;color:#484f58;" id="sf-copy-feedback"></span>' +
+            '<span style="font-size:10px;color:var(--border-muted);" id="sf-copy-feedback"></span>' +
             '</div>' +
-            '<div class="sf-preset-item" data-sf-action="reset-filters" style="color:#f85149;cursor:pointer;border-left:1px solid #21262d;padding:0 12px;border-bottom:none;">' +
+            '<div class="sf-preset-item" data-sf-action="reset-filters" style="color:var(--danger);cursor:pointer;border-left:1px solid var(--bg-surface);padding:0 12px;border-bottom:none;">' +
             'Reset' +
             '</div></div>';
         dd.innerHTML = html + footer;
@@ -1669,7 +1669,7 @@
         ];
         var html = '<tr>';
         html += '<th style="text-align:left;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
-            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;opacity:0.35;">' +
+            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:var(--accent);color-scheme:dark;opacity:0.35;">' +
             '</th>';
         cols.slice(1).forEach(function(c) {
             var sorted = scansSortState.by === c.key;
@@ -1719,11 +1719,11 @@
             var v = row.AvgVol50;
             volVal = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0);
         }
-        var adrColor = '#484f58';
+        var adrColor = 'var(--border-muted)';
         if (row.adr_pct != null) {
-            if (row.adr_pct < 4) adrColor = '#3fb950';
-            else if (row.adr_pct < 8) adrColor = '#e3852b';
-            else adrColor = '#f85149';
+            if (row.adr_pct < 4) adrColor = 'var(--success)';
+            else if (row.adr_pct < 8) adrColor = 'var(--warning-alt)';
+            else adrColor = 'var(--danger)';
         }
         var _scanLiveForCr = scanLivePrices[row.ticker];
         var _liveCrVal = null;
@@ -1734,8 +1734,8 @@
         var crVal   = _crDisplay != null ? Math.round(_crDisplay)+'%' : '\u2014';
         var isAdded = selectedScans.has(row.ticker);
         var addIcon = isAdded
-            ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#3fb950" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
-            : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#484f58" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
+            ? '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--success)" stroke-width="2.2"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>'
+            : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--border-muted)" stroke-width="2"><line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/></svg>';
         var wrsVal2 = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '\u2014';
         var _scanLive = scanLivePrices[row.ticker];
         var _usePrice = (_scanLive && _scanLive.price) ? _scanLive.price : row.price;
@@ -1762,14 +1762,14 @@
         }
         var _distHtml = _distDisplay != null
             ? '<span class="' + (_distDisplay > 0 ? 'up' : _distDisplay < 0 ? 'down' : '') + '">' + fmt(_distDisplay, 2, '%') + '</span>'
-            : '<span style="color:#30363d">\u2014</span>';
-        var pct52Val = '\u2014', pct52Color = '#484f58';
+            : '<span style="color:var(--border)">\u2014</span>';
+        var pct52Val = '\u2014', pct52Color = 'var(--border-muted)';
         if (row.PctFrom52WkHigh != null) {
             pct52Val   = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
-            pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
+            pct52Color = row.PctFrom52WkHigh >= -5 ? 'var(--success)' : row.PctFrom52WkHigh >= -15 ? 'var(--warning-alt)' : 'var(--danger)';
         }
-        var crColor = '#484f58';
-        if (_crDisplay != null) { if (_crDisplay >= 60) crColor = '#3fb950'; else if (_crDisplay >= 30) crColor = '#e3852b'; else crColor = '#f85149'; }
+        var crColor = 'var(--border-muted)';
+        if (_crDisplay != null) { if (_crDisplay >= 60) crColor = 'var(--success)'; else if (_crDisplay >= 30) crColor = 'var(--warning-alt)'; else crColor = 'var(--danger)'; }
 
         var h = '<tr class="stock-row" data-symbol="' + esc(row.ticker) + '" data-sector="' + esc(row.sector||'') + '" data-industry="' + esc(row.industry||'') + '">';
         h += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">' +
@@ -1781,12 +1781,12 @@
         var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:rgba(56,139,253,0.75);font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
         var _indName = row.industry || '';
         var _indSpan = _indName
-            ? '<span class="scan-ind-link" data-ind="' + esc(_indName) + '" onclick="event.stopPropagation();openIndustry(this.dataset.ind);" style="font-size:0.858em;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(_indName) + '</span>'
-            : '<span style="font-size:0.858em;color:#8b949e;">\u2014</span>';
+            ? '<span class="scan-ind-link" data-ind="' + esc(_indName) + '" onclick="event.stopPropagation();openIndustry(this.dataset.ind);" style="font-size:0.858em;color:var(--text-muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(_indName) + '</span>'
+            : '<span style="font-size:0.858em;color:var(--text-muted-2);">\u2014</span>';
         h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;">' + _indSpan + _indRkHtml + '</div></td>';
-        h += '<td style="color:#c8d0dc;font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
-        h += '<td style="color:#c8d0dc;font-weight:600;">'  + rsVal    + '</td>';
-        h += '<td style="color:#c8d0dc;font-weight:600;">'  + wrsVal2  + '</td>';
+        h += '<td style="color:var(--text-primary);font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
+        h += '<td style="color:var(--text-primary);font-weight:600;">'  + rsVal    + '</td>';
+        h += '<td style="color:var(--text-primary);font-weight:600;">'  + wrsVal2  + '</td>';
         h += '<td class="' + cc(_dailyPct)     + '">' + chgStr + '</td>';
         h += '<td class="' + cc(_dailyPct)     + '">' + (_dailyPct     != null ? fmt(_dailyPct,2,'%')     : '\u2014') + '</td>';
         h += '<td class="' + cc(row['1w'])     + '">' + (row['1w']     != null ? fmt(row['1w'],2,'%')     : '\u2014') + '</td>';
@@ -1796,7 +1796,7 @@
         h += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '\u2014') + '</td>';
         h += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '\u2014') + '</td>';
         h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '">' + _distHtml + '</td>';
-        h += '<td style="color:#8b949e;">' + volVal + '</td>';
+        h += '<td style="color:var(--text-muted-2);">' + volVal + '</td>';
         h += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
         h += '<td><span style="color:' + adrColor   + ';font-weight:600;">' + adrVal   + '</span></td>';
         h += '<td><span style="color:' + crColor    + ';font-weight:600;">' + crVal    + '</span></td>';
@@ -1909,7 +1909,7 @@
 
         if (!filtered.length) {
             document.getElementById('scans-tbody').innerHTML =
-                '<tr><td colspan="24" style="padding:40px;text-align:center;color:#484f58;font-size:0.935em;">No results</td></tr>';
+                '<tr><td colspan="24" style="padding:40px;text-align:center;color:var(--border-muted);font-size:0.935em;">No results</td></tr>';
             allStockRows = [];
             currentStockIndex = -1;
             return;
@@ -2104,7 +2104,7 @@
             if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
             if (tds[17] && live.dayHigh != null && live.dayLow != null && live.dayHigh > live.dayLow) {
                 var liveCr = ((price - live.dayLow) / (live.dayHigh - live.dayLow)) * 100;
-                var liveCrColor = liveCr >= 60 ? '#3fb950' : liveCr >= 30 ? '#e3852b' : '#f85149';
+                var liveCrColor = liveCr >= 60 ? 'var(--success)' : liveCr >= 30 ? 'var(--warning-alt)' : 'var(--danger)';
                 tds[17].innerHTML = '<span style="color:' + liveCrColor + ';font-weight:600;">' + Math.round(liveCr) + '%</span>';
                 tr.setAttribute('data-cr', liveCr);
             }
@@ -2166,9 +2166,9 @@
         document.getElementById('scans-table-view').style.display      = scansMultichartActive ? 'none' : 'flex';
         document.getElementById('scans-multichart-view').style.display = scansMultichartActive ? 'flex' : 'none';
         var btn = document.getElementById('scans-multichart-toggle-btn');
-        btn.style.background  = scansMultichartActive ? '#1f3a5c' : '';
-        btn.style.borderColor = scansMultichartActive ? '#388bfd' : '';
-        btn.style.color       = scansMultichartActive ? '#58a6ff' : '';
+        btn.style.background  = scansMultichartActive ? 'var(--bg-accent-active-2)' : '';
+        btn.style.borderColor = scansMultichartActive ? 'var(--accent)' : '';
+        btn.style.color       = scansMultichartActive ? 'var(--accent-strong)' : '';
         if (scansMultichartActive) renderScansMc();
     };
 
@@ -2221,7 +2221,7 @@
 
         var html = '<div class="wl-col-hdr">';
         html += '<span class="wl-c-sym">Symbol</span>';
-        html += '<span style="flex:1;font-size:0.792em;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.04em;">List</span>';
+        html += '<span style="flex:1;font-size:0.792em;font-weight:600;color:var(--border-muted);text-transform:uppercase;letter-spacing:0.04em;">List</span>';
         html += '</div>';
 
         var marketOpen = wlIsMarketOpen();
@@ -2242,7 +2242,7 @@
 
             html += '<div class="wl-ticker-row" data-wl-ticker="' + esc(m.ticker) + '" data-wl-list="' + esc(m.list) + '" style="cursor:pointer;">';
             html += '<span class="wl-c-sym">' + esc(m.ticker) + '</span>';
-            html += '<span style="flex:1;font-size:0.858em;color:#6e7681;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.list) + '</span>';
+            html += '<span style="flex:1;font-size:0.858em;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.list) + '</span>';
             html += '<span class="wl-c-last" style="margin-left:auto;">' + priceStr + '</span>';
             html += '<span class="wl-c-chgp ' + cl + '" style="width:52px;text-align:right;font-size:0.858em;">' + chgpStr + '</span>';
             html += '</div>';
