@@ -6,6 +6,14 @@
     <title>Stock Dashboard</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="styles.css">
+    <script>
+        (function() {
+            try {
+                var t = localStorage.getItem('dashboard-theme');
+                if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            } catch (e) {}
+        })();
+    </script>
     <style>
         @keyframes sf-refresh-spin { to { transform: rotate(360deg); } }
         #scans-refresh-btn.spinning svg { animation: sf-refresh-spin 0.7s linear infinite; transform-origin: center; }
@@ -37,6 +45,18 @@
             Alerts<span class="al-nav-badge" id="al-nav-badge"></span>
         </div>
     </div>
+    <div class="theme-toggle-wrap">
+        <div class="theme-toggle-switch" id="theme-toggle-switch" onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}" role="button" aria-label="Switch to light mode" tabindex="0">
+            <svg class="theme-toggle-icon theme-toggle-icon-sun" width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M7 0.6V2.3M7 11.7V13.4M13.4 7H11.7M2.3 7H0.6M11.4 2.6L10.2 3.8M3.8 10.2L2.6 11.4M11.4 11.4L10.2 10.2M3.8 3.8L2.6 2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-icon-moon" width="11" height="11" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12.6 8.7A5.6 5.6 0 1 1 5.3 1.4A4.5 4.5 0 0 0 12.6 8.7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            </svg>
+            <div class="theme-toggle-knob"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Toolbar -->
@@ -62,7 +82,7 @@
                     <button class="sort-btn" data-sort="name" onclick="setSort('name')">A–Z</button>
                     <button class="sort-btn" data-sort="sector" onclick="setSort('sector')">Sector</button>
                 </div>
-                <div style="display:flex;align-items:center;gap:4px;margin-left:16px;flex-shrink:0;"><div style="width:1px;height:14px;background:#21262d;margin-right:2px;"></div>
+                <div style="display:flex;align-items:center;gap:4px;margin-left:16px;flex-shrink:0;"><div style="width:1px;height:14px;background:var(--bg-surface);margin-right:2px;"></div>
                     <button class="ind-view-btn active" id="ind-view-list-btn" onclick="setIndView('list')" title="List view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg></button>
                     <button class="ind-view-btn" id="ind-view-heat-btn" onclick="setIndView('heatmap')" title="Heatmap view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="10" width="3" height="3" rx="0.5" fill="currentColor"/></svg></button>
                 </div>
@@ -86,12 +106,12 @@
             <span class="ind-col-hdr sortable-ind" data-col="pct_above_21ema"       onclick="setIndSort('pct_above_21ema')" title="% of stocks trading above their 21-day EMA">21EMA%</span>
         </div>
         <!-- Heatmap toolbar (hidden in list mode) -->
-        <div id="heatmap-toolbar" style="display:none;align-items:center;gap:6px;padding:6px 16px;border-bottom:1px solid #21262d;flex-shrink:0;">
+        <div id="heatmap-toolbar" style="display:none;align-items:center;gap:6px;padding:6px 16px;border-bottom:1px solid var(--bg-surface);flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
                 <button class="ind-view-btn active" id="ind-view-list-btn2" onclick="setIndView('list')" title="List view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="1" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg></button>
                 <button class="ind-view-btn" id="ind-view-heat-btn2" onclick="setIndView('heatmap')" title="Heatmap view"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="1" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="5.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="1" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="5.5" y="10" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="10" y="10" width="3" height="3" rx="0.5" fill="currentColor"/></svg></button>
             </div>
-            <div style="width:1px;height:16px;background:#21262d;"></div>
+            <div style="width:1px;height:16px;background:var(--bg-surface);"></div>
             <div class="heatmap-tf-group">
                 <button class="heatmap-tf-btn active" data-htf="avg_daily" onclick="setHeatmapTf('avg_daily')">Day</button>
                 <button class="heatmap-tf-btn" data-htf="avg_1w"    onclick="setHeatmapTf('avg_1w')">1W</button>
@@ -113,7 +133,7 @@
             <textarea class="sf-export-textarea" id="ind-export-textarea" readonly></textarea>
             <div style="display:flex;align-items:center;gap:8px;">
                 <span class="sf-export-copied" id="ind-export-copied">Copied!</span>
-                <button class="sf-add-btn" onclick="indClearExport()" style="color:#f85149;border-color:#f8514944;">Clear All</button>
+                <button class="sf-add-btn" onclick="indClearExport()" style="color:var(--danger);border-color:var(--danger-alpha-3);">Clear All</button>
                 <button class="sf-export-btn" onclick="indCopyExport()">Copy</button>
                 <button class="sf-add-btn" onclick="indCloseExport()">Close</button>
             </div>
@@ -196,7 +216,7 @@
     <div id="view-scans" style="display:none;flex-direction:column;height:100%;">
         <div class="stocks-header" id="scans-header" style="flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span style="font-size:0.78em;font-weight:600;color:#6e7681;text-transform:uppercase;letter-spacing:0.05em;">Scan</span>
+                <span style="font-size:0.78em;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Scan</span>
 
             </div>
             <span class="result-count" id="scans-result-count" style="margin-left:4px;"></span>
@@ -212,7 +232,7 @@
                 <textarea class="sf-export-textarea" id="sf-export-textarea" readonly></textarea>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span class="sf-export-copied" id="sf-export-copied">Copied!</span>
-                    <button class="sf-add-btn" onclick="sfClearExport()" style="color:#f85149;border-color:#f8514944;" title="Deselect all tickers">Clear All</button>
+                    <button class="sf-add-btn" onclick="sfClearExport()" style="color:var(--danger);border-color:var(--danger-alpha-3);" title="Deselect all tickers">Clear All</button>
                     <button class="sf-export-btn" onclick="sfCopyExport()">Copy</button>
                     <button class="sf-add-btn" onclick="sfCloseExport()">Close</button>
                 </div>
@@ -240,15 +260,15 @@
             </div>
         </div>
         <!-- Filter dropdown -->
-        <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:7px;padding:0;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px;border-bottom:1px solid #21262d;">
-                <span id="sf-popover-title" style="font-size:0.825em;font-weight:700;color:#c8d0dc;"></span>
-                <button onclick="sfCancelPill()" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>
+        <div id="sf-popover" style="display:none;position:fixed;z-index:9999;background:var(--bg-subtle);border:1px solid var(--border);border-radius:7px;padding:0;min-width:240px;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px;border-bottom:1px solid var(--bg-surface);">
+                <span id="sf-popover-title" style="font-size:0.825em;font-weight:700;color:var(--text-primary);"></span>
+                <button onclick="sfCancelPill()" style="background:none;border:none;color:var(--border-muted);cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>
             </div>
             <div id="sf-popover-content" style="padding:10px 12px;"></div>
             <div style="padding:0 12px 10px;display:flex;gap:6px;">
-                <button onclick="sfClosePopover()" style="flex:1;padding:5px;border-radius:4px;background:#1f6feb;border:none;color:#fff;font-size:0.825em;font-weight:600;cursor:pointer;font-family:inherit;">Apply</button>
-                <button onclick="sfResetPill()" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid #21262d;color:#6e7681;font-size:0.825em;cursor:pointer;font-family:inherit;">Reset</button>
+                <button onclick="sfClosePopover()" style="flex:1;padding:5px;border-radius:4px;background:var(--accent-fill);border:none;color:var(--text-on-accent);font-size:0.825em;font-weight:600;cursor:pointer;font-family:inherit;">Apply</button>
+                <button onclick="sfResetPill()" style="padding:5px 10px;border-radius:4px;background:transparent;border:1px solid var(--bg-surface);color:var(--text-muted);font-size:0.825em;cursor:pointer;font-family:inherit;">Reset</button>
             </div>
         </div>
         <div id="scans-table-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
@@ -285,7 +305,7 @@
                 <span class="chart-rs-badge" id="wl-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <span id="wl-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
-                    <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
+                    <span style="display:inline-block;width:1px;height:16px;background:var(--bg-surface);flex-shrink:0;margin-left:1.6em;"></span>
                     <a id="wl-chart-details-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg>
                         Stock Details
@@ -297,7 +317,7 @@
                 </div>
             </div>
             <!-- WL LW Chart Settings Bar — hidden until a ticker is selected -->
-            <div id="wl-chart-settings" style="display:none;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
+            <div id="wl-chart-settings" style="display:none;align-items:center;gap:6px;padding:4px 14px;background:var(--bg-page);border-bottom:1px solid var(--bg-surface);flex-shrink:0;flex-wrap:wrap;">
                 <div style="display:flex;gap:3px;">
                     <button class="mc-tf-btn wl-chart-fs-tf-btn active" data-tf="D" onclick="wlChartSetTf('D')">D</button>
                     <button class="mc-tf-btn wl-chart-fs-tf-btn"        data-tf="W" onclick="wlChartSetTf('W')">W</button>
@@ -309,7 +329,7 @@
                         MA
                         <svg id="wl-chart-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
                     </button>
-                    <div id="wl-chart-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
+                    <div id="wl-chart-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--bg-page);border:1px solid var(--bg-surface);border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
                         <button class="mc-ma-item active" id="wl-chart-ma-SMA5"   onclick="wlChartToggleMa('SMA5')">  <span class="mc-ma-swatch" style="background:#673ab7;"></span>SMA 5  <span class="mc-ma-check">✓</span></button>
                         <button class="mc-ma-item active" id="wl-chart-ma-EMA8"   onclick="wlChartToggleMa('EMA8')">  <span class="mc-ma-swatch" style="background:#f48fb1;"></span>EMA 8  <span class="mc-ma-check">✓</span></button>
                         <button class="mc-ma-item active" id="wl-chart-ma-EMA21"  onclick="wlChartToggleMa('EMA21')"> <span class="mc-ma-swatch" style="background:#1848cc;"></span>EMA 21 <span class="mc-ma-check">✓</span></button>
@@ -350,13 +370,13 @@
                 </button>
                 <div id="wl-chart-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
                     <span id="wl-chart-mkt-adr" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-mcap" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-52w"  style="display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="wl-chart-mkt-price" style="flex-shrink:0;"></span>
                 </div>
             </div>
@@ -389,10 +409,10 @@
                 <button class="wl-new-btn" onclick="wlCreateNew()">+ New</button>
                 <div style="position:relative;">
                     <button class="wl-new-btn" onclick="wlToggleExport(event)">Export ▾</button>
-                    <div id="wl-export-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:140px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
+                    <div id="wl-export-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;min-width:140px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.5);overflow:hidden;">
                         <div class="wl-export-item" onclick="wlExport('csv')">CSV file</div>
                         <div class="wl-export-item" onclick="wlExport('tickers')">Comma separated</div>
-                        <div style="height:1px;background:#21262d;margin:3px 0;"></div>
+                        <div style="height:1px;background:var(--bg-surface);margin:3px 0;"></div>
                         <div class="wl-export-item" onclick="wlImportCSV()">Import CSV…</div>
                     </div>
                 </div>
@@ -510,7 +530,7 @@
 
 <!-- Alerts view -->
 <div id="view-alerts" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
-    <div id="al-search-wrap" style="display:flex;align-items:center;padding:6px 16px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;">
+    <div id="al-search-wrap" style="display:flex;align-items:center;padding:6px 16px;background:var(--bg-page);border-bottom:1px solid var(--bg-surface);flex-shrink:0;">
         <div class="search-wrap" style="position:relative;display:inline-flex;align-items:center;">
             <input type="text" class="search-input" id="al-search-input" placeholder="Search alerts…" autocomplete="new-password" spellcheck="false" style="width:220px;">
             <button class="search-clear-btn" id="al-search-clear-btn" title="Clear">×</button>
@@ -518,13 +538,13 @@
     </div>
     <div class="al-toolbar">
         <button class="al-add-open-btn" id="al-add-open-btn" onclick="alShowForm()">+ Add alert</button>
-        <div style="width:1px;height:16px;background:#21262d;"></div>
+        <div style="width:1px;height:16px;background:var(--bg-surface);"></div>
         <span class="al-count-label" id="al-count-label"></span>
-        <div style="width:1px;height:16px;background:#21262d;"></div>
+        <div style="width:1px;height:16px;background:var(--bg-surface);"></div>
         <button class="back-btn" id="al-multichart-toggle-btn" onclick="toggleAlMultichart()" title="Multichart view"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><rect x="0.5" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="0.5" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="0.5" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.3" y="7.3" width="5.2" height="5.2" rx="1" stroke="currentColor" stroke-width="1.3"/></svg></button>
     </div>
     <div id="al-missed-banner" class="al-missed-banner" style="display:none;">
-        <div class="al-missed-icon"><svg width="10" height="10" viewBox="0 0 16 16" fill="#fff"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2h-13L3 10V7a5 5 0 0 1 5-5zm-1.5 11a1.5 1.5 0 0 0 3 0z"/></svg></div>
+        <div class="al-missed-icon"><svg width="10" height="10" viewBox="0 0 16 16" fill="var(--text-on-accent)"><path d="M8 2a5 5 0 0 1 5 5v3l1.5 2h-13L3 10V7a5 5 0 0 1 5-5zm-1.5 11a1.5 1.5 0 0 0 3 0z"/></svg></div>
         <span class="al-missed-text" id="al-missed-text"></span>
         <button class="al-missed-dismiss" onclick="alDismissMissed()">Dismiss</button>
     </div>
@@ -588,7 +608,7 @@
                 <span class="chart-rs-badge" id="al-chart-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
                     <span id="al-chart-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
-                    <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
+                    <span style="display:inline-block;width:1px;height:16px;background:var(--bg-surface);flex-shrink:0;margin-left:1.6em;"></span>
                     <a id="al-chart-details-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener" style="display:none;">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg>
                         Stock Details
@@ -597,7 +617,7 @@
                 </div>
             </div>
             <!-- AL LW Chart Settings Bar — hidden until a ticker is selected -->
-            <div id="al-chart-settings" style="display:none;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
+            <div id="al-chart-settings" style="display:none;align-items:center;gap:6px;padding:4px 14px;background:var(--bg-page);border-bottom:1px solid var(--bg-surface);flex-shrink:0;flex-wrap:wrap;">
                 <div style="display:flex;gap:3px;">
                     <button class="mc-tf-btn al-chart-tf-btn active" data-tf="D" onclick="alChartSetTf('D')">D</button>
                     <button class="mc-tf-btn al-chart-tf-btn"        data-tf="W" onclick="alChartSetTf('W')">W</button>
@@ -609,7 +629,7 @@
                         MA
                         <svg id="al-chart-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
                     </button>
-                    <div id="al-chart-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
+                    <div id="al-chart-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--bg-page);border:1px solid var(--bg-surface);border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
                         <button class="mc-ma-item active" id="al-chart-ma-SMA5"   onclick="alChartToggleMa('SMA5')">  <span class="mc-ma-swatch" style="background:#673ab7;"></span>SMA 5  <span class="mc-ma-check">✓</span></button>
                         <button class="mc-ma-item active" id="al-chart-ma-EMA8"   onclick="alChartToggleMa('EMA8')">  <span class="mc-ma-swatch" style="background:#f48fb1;"></span>EMA 8  <span class="mc-ma-check">✓</span></button>
                         <button class="mc-ma-item active" id="al-chart-ma-EMA21"  onclick="alChartToggleMa('EMA21')"> <span class="mc-ma-swatch" style="background:#1848cc;"></span>EMA 21 <span class="mc-ma-check">✓</span></button>
@@ -650,13 +670,13 @@
                 </button>
                 <div id="al-chart-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
                     <span id="al-chart-mkt-adr"   style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="al-chart-mkt-mcap"  style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="al-chart-mkt-day"   style="display:inline-flex;align-items:center;gap:7px;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="al-chart-mkt-52w"   style="display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"></span>
-                    <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+                    <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
                     <span id="al-chart-mkt-price" style="flex-shrink:0;"></span>
                 </div>
             </div>
@@ -697,7 +717,7 @@
         <span class="chart-rs-badge" id="mc-fullscreen-3mrs-badge" style="display:none;" data-rs-tip="3M RS"></span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <span id="mc-fullscreen-fund-stats" style="display:inline-flex;align-items:center;flex-wrap:nowrap;overflow:hidden;"></span>
-            <span style="display:inline-block;width:1px;height:16px;background:#21262d;flex-shrink:0;margin-left:1.6em;"></span>
+            <span style="display:inline-block;width:1px;height:16px;background:var(--bg-surface);flex-shrink:0;margin-left:1.6em;"></span>
             <a id="mc-fullscreen-details-btn" class="chart-modal-ext-btn" href="#" target="_blank" rel="noopener">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg>
                 Stock Details
@@ -710,7 +730,7 @@
         </div>
     </div>
     <!-- LW Fullscreen Settings Bar -->
-    <div id="mc-fullscreen-settings" style="display:flex;align-items:center;gap:6px;padding:4px 14px;background:#0d1117;border-bottom:1px solid #21262d;flex-shrink:0;flex-wrap:wrap;">
+    <div id="mc-fullscreen-settings" style="display:flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg-page);border-bottom:1px solid var(--bg-surface);flex-shrink:0;flex-wrap:wrap;">
         <div style="display:flex;gap:3px;">
             <button class="mc-tf-btn mc-fs-tf-btn active" data-tf="D" onclick="mcFsSetTf('D')">D</button>
             <button class="mc-tf-btn mc-fs-tf-btn"        data-tf="W" onclick="mcFsSetTf('W')">W</button>
@@ -723,7 +743,7 @@
                 MA
                 <svg id="mc-fs-ma-chevron" style="opacity:0.45;transition:transform 0.15s;" width="7" height="5" viewBox="0 0 8 6"><path d="M0 1l4 4 4-4z" fill="currentColor"/></svg>
             </button>
-            <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
+            <div id="mc-fs-ma-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--bg-page);border:1px solid var(--bg-surface);border-radius:8px;padding:5px;z-index:10000;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.7);">
                 <button class="mc-ma-item active" id="mc-fs-ma-SMA5"   onclick="mcFsToggleMa('SMA5')">  <span class="mc-ma-swatch" style="background:#673ab7;"></span>SMA 5  <span class="mc-ma-check">✓</span></button>
                 <button class="mc-ma-item active" id="mc-fs-ma-EMA8"   onclick="mcFsToggleMa('EMA8')">  <span class="mc-ma-swatch" style="background:#f48fb1;"></span>EMA 8  <span class="mc-ma-check">✓</span></button>
                 <button class="mc-ma-item active" id="mc-fs-ma-EMA21"  onclick="mcFsToggleMa('EMA21')"> <span class="mc-ma-swatch" style="background:#1848cc;"></span>EMA 21 <span class="mc-ma-check">✓</span></button>
@@ -766,13 +786,13 @@
         <!-- Market info: day range bar + 52W range bar + price/change -->
         <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
             <span id="mc-fs-mkt-adr" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
             <span id="mc-fs-mkt-mcap" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
-            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
             <span id="mc-fs-mkt-day"  style="display:inline-flex;align-items:center;gap:7px;"></span>
-            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
             <span id="mc-fs-mkt-52w"  style="display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"></span>
-            <span style="display:inline-block;width:1px;height:14px;background:#21262d;flex-shrink:0;"></span>
+            <span style="display:inline-block;width:1px;height:14px;background:var(--bg-surface);flex-shrink:0;"></span>
             <span id="mc-fs-mkt-price" style="flex-shrink:0;"></span>
         </div>
     </div>
@@ -797,11 +817,11 @@
     <div id="mc-fs-ctx-menu">
         <div class="ctx-label" id="mc-fs-ctx-label">Set alert</div>
         <button class="ctx-item" id="mc-fs-ctx-above" onclick="mcFsCtxAlert('above')">
-            <span class="ctx-dot" style="background:#3fb950;"></span>
+            <span class="ctx-dot" style="background:var(--success);"></span>
             <span id="mc-fs-ctx-above-txt">Alert above …</span>
         </button>
         <button class="ctx-item" id="mc-fs-ctx-below" onclick="mcFsCtxAlert('below')">
-            <span class="ctx-dot" style="background:#f85149;"></span>
+            <span class="ctx-dot" style="background:var(--danger);"></span>
             <span id="mc-fs-ctx-below-txt">Alert below …</span>
         </button>
     </div>
@@ -811,11 +831,11 @@
 <div id="al-chart-ctx-menu">
     <div class="ctx-label" id="al-chart-ctx-label">Set alert</div>
     <button class="ctx-item" id="al-chart-ctx-above" onclick="alChartCtxAlert('above')">
-        <span class="ctx-dot" style="background:#3fb950;"></span>
+        <span class="ctx-dot" style="background:var(--success);"></span>
         <span id="al-chart-ctx-above-txt">Alert above …</span>
     </button>
     <button class="ctx-item" id="al-chart-ctx-below" onclick="alChartCtxAlert('below')">
-        <span class="ctx-dot" style="background:#f85149;"></span>
+        <span class="ctx-dot" style="background:var(--danger);"></span>
         <span id="al-chart-ctx-below-txt">Alert below …</span>
     </button>
 </div>
@@ -824,11 +844,11 @@
 <div id="wl-chart-ctx-menu">
     <div class="ctx-label" id="wl-chart-ctx-label">Set alert</div>
     <button class="ctx-item" id="wl-chart-ctx-above" onclick="wlCtxAlert('above')">
-        <span class="ctx-dot" style="background:#3fb950;"></span>
+        <span class="ctx-dot" style="background:var(--success);"></span>
         <span id="wl-chart-ctx-above-txt">Alert above …</span>
     </button>
     <button class="ctx-item" id="wl-chart-ctx-below" onclick="wlCtxAlert('below')">
-        <span class="ctx-dot" style="background:#f85149;"></span>
+        <span class="ctx-dot" style="background:var(--danger);"></span>
         <span id="wl-chart-ctx-below-txt">Alert below …</span>
     </button>
 </div>
@@ -836,6 +856,7 @@
 <div id="col-tooltip"></div>
 
 <script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/yahoo-proxy-pace.js"></script>
 <script src="js/state.js"></script>
 <script src="js/industries.js"></script>
@@ -877,7 +898,7 @@
             </div>
             <div class="al-modal-row" id="al-row-candle" style="display:none;">
                 <span class="al-form-label">Candle</span>
-                <div style="display:flex;border:1px solid #21262d;border-radius:5px;overflow:hidden;">
+                <div style="display:flex;border:1px solid var(--bg-surface);border-radius:5px;overflow:hidden;">
                     <button type="button" id="al-candle-1" class="sf-seg-btn active" onclick="alCandleSelect(1)">-1</button>
                     <button type="button" id="al-candle-2" class="sf-seg-btn" onclick="alCandleSelect(2)">-2</button>
                     <button type="button" id="al-candle-3" class="sf-seg-btn" onclick="alCandleSelect(3)">-3</button>
@@ -921,10 +942,10 @@
             <div class="al-modal-row" id="al-row-value">
                 <span class="al-form-label">Value</span>
                 <input type="number" id="al-input-price" placeholder="Price" step="0.01" min="0" />
-                <span id="al-rsi-note" style="display:none;font-size:0.748em;color:#484f58;font-style:italic;">snapshot-based</span>
+                <span id="al-rsi-note" style="display:none;font-size:0.748em;color:var(--border-muted);font-style:italic;">snapshot-based</span>
             </div>
             <div id="al-row-pattern" class="al-pattern-row" style="display:none;">
-                <span class="al-form-label">Patterns <span id="al-pat-hint" style="color:#484f58;font-style:italic;font-size:0.9em;">(pick one or more)</span></span>
+                <span class="al-form-label">Patterns <span id="al-pat-hint" style="color:var(--border-muted);font-style:italic;font-size:0.9em;">(pick one or more)</span></span>
                 <div class="al-pattern-grid" id="al-pattern-grid">
                     <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="inside_day">Inside Day</label>
                     <label class="al-pat-chip" onclick="alPatChipToggle(this)"><input type="checkbox" value="double_inside_day">Double Inside Day</label>
@@ -939,7 +960,7 @@
             </div>
             <div class="al-modal-row" id="al-row-pattern-tf" style="display:none;">
                 <span class="al-form-label">Timeframe</span>
-                <div style="display:flex;border:1px solid #21262d;border-radius:5px;overflow:hidden;">
+                <div style="display:flex;border:1px solid var(--bg-surface);border-radius:5px;overflow:hidden;">
                     <button type="button" id="al-ptf-d" class="sf-seg-btn active" onclick="alPatternTfSelect('d')">D</button>
                     <button type="button" id="al-ptf-w" class="sf-seg-btn" onclick="alPatternTfSelect('w')">W</button>
                     <button type="button" id="al-ptf-m" class="sf-seg-btn" onclick="alPatternTfSelect('m')">M</button>
@@ -971,7 +992,7 @@
         <span class="mm-popup-sym" id="mm-popup-sym"></span>
         <span class="mm-popup-sep" id="mm-popup-ind-sep" style="display:none;">·</span>
         <span class="mm-popup-ind" id="mm-popup-ind-name"></span>
-        <span id="mm-popup-ind-rank" style="font-size:11px;color:#484f58;flex-shrink:0;display:none;"></span>
+        <span id="mm-popup-ind-rank" style="font-size:11px;color:var(--border-muted);flex-shrink:0;display:none;"></span>
         <span id="mm-popup-rs-badge" class="chart-rs-badge" style="display:none;flex-shrink:0;"></span>
         <span id="mm-popup-3mrs-badge" class="chart-rs-badge" style="display:none;flex-shrink:0;"></span>
     </div>
