@@ -177,6 +177,7 @@
             lastValueVisible:      true,
         });
         candleSeries.setData(ohlcv);
+        container._lwCandle = candleSeries;
 
         lwChart.timeScale().fitContent();
 
@@ -212,6 +213,32 @@
                 '<span style="color:var(--text-muted)"> | ' + barTime + '</span>';
         });
     }
+
+    // Re-theme every currently-rendered index chart live if the toggle is
+    // flipped. Without this, a chart whose colors were last resolved under
+    // the other theme (e.g. a data refresh that landed while that theme was
+    // active) stays stuck in those colors until its next data refresh
+    // happens to redraw it — which is why it can look "stuck white" after
+    // going light then back to dark.
+    window.addEventListener('themechange', function() {
+        MARKET_INDEXES.forEach(function(idx) {
+            var container = document.getElementById('mic-lwchart-' + idx.id);
+            if (!container || !container._lwChart) return;
+            try {
+                container._lwChart.applyOptions({
+                    layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
+                    grid:   { horzLines: { color: themeColor('bg-surface') } },
+                    rightPriceScale: { textColor: themeColor('text-muted') },
+                });
+                if (container._lwCandle) {
+                    container._lwCandle.applyOptions({
+                        upColor: themeColor('success'), downColor: themeColor('danger'),
+                        wickUpColor: themeColor('success'), wickDownColor: themeColor('danger'),
+                    });
+                }
+            } catch (e) {}
+        });
+    });
 
     function marketRenderCard(idx, parsed, futuresParsed) {
         var card = document.getElementById('mc-' + idx.id);
