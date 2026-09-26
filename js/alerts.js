@@ -359,15 +359,23 @@
             results.forEach(function(data) {
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
-                    if (q && q.ticker && q.price) {
-                        alertPrices[q.ticker]    = q.price;
+                    if (!q) return;
+                    // quotes_batch falls back to Yahoo when Questrade has nothing
+                    // live (market closed). Yahoo's shape is {symbol, price: null,
+                    // regularMarketPrice} instead of {ticker, price} — without this
+                    // fallback the quote gets silently dropped and the price never
+                    // updates for any ticker that only ever got fetched while closed.
+                    var qTicker = q.ticker || q.symbol;
+                    var qPrice  = q.price != null ? q.price : q.regularMarketPrice;
+                    if (qTicker && qPrice != null) {
+                        alertPrices[qTicker]    = qPrice;
                         // prevClose now comes from the daily snapshot's preserved
                         // close (tickerMap[ticker]._snapPrice), not the Worker
                         // response — Questrade quotes don't include one.
-                        var snapRow = tickerMap && tickerMap[q.ticker];
-                        alertPrevClose[q.ticker] = (snapRow && snapRow._snapPrice) || null;
-                        alertDayHigh[q.ticker]   = (q.dayHigh != null) ? q.dayHigh : null;
-                        alertDayLow[q.ticker]    = (q.dayLow  != null) ? q.dayLow  : null;
+                        var snapRow = tickerMap && tickerMap[qTicker];
+                        alertPrevClose[qTicker] = (snapRow && snapRow._snapPrice) || null;
+                        alertDayHigh[qTicker]   = (q.dayHigh != null) ? q.dayHigh : null;
+                        alertDayLow[qTicker]    = (q.dayLow  != null) ? q.dayLow  : null;
                     }
                 });
             });
