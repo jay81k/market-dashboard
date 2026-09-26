@@ -93,8 +93,8 @@
             --al-chart-up: #089981;
             --al-chart-down: #b22833;
             --al-chart-volume: #63a0f8;
-            --al-chart-vol-up-alpha: rgba(24,72,204,0.5);
-            --al-chart-vol-down-alpha: rgba(248,81,73,0.35);
+            --al-chart-vol-up-alpha: rgba(24,72,204,0.7);
+            --al-chart-vol-down-alpha: rgba(248,81,73,0.55);
             --bg-surface-alpha: rgba(33,38,45,0.5);
             --al-watermark: rgba(255,255,255,0.22);
             --al-measure-fill-up: rgba(8,153,129,0.15);
@@ -196,8 +196,8 @@
             --al-chart-up: #2962ff;
             --al-chart-down: #a4222d;
             --al-chart-volume: #2f6fd6;
-            --al-chart-vol-up-alpha: rgba(9,105,218,0.5);
-            --al-chart-vol-down-alpha: rgba(207,34,46,0.35);
+            --al-chart-vol-up-alpha: rgba(9,105,218,0.7);
+            --al-chart-vol-down-alpha: rgba(207,34,46,0.55);
             --bg-surface-alpha: rgba(175,184,193,0.5);
             --al-watermark: rgba(31,35,40,0.16);
             --al-measure-fill-up: rgba(6,122,102,0.15);
