@@ -122,7 +122,7 @@
         alStampBadges();
     }
 
-    var _AL_BELL_SVG = '<svg width="8" height="9" viewBox="0 0 8 9" fill="none" style="flex-shrink:0;display:block;"><path d="M4 1a2 2 0 0 1 2 2v1.5l.8 1H1.2L2 4.5V3A2 2 0 0 1 4 1zm-1 5.5h2" stroke="#e3852b" stroke-width="1.1" stroke-linecap="round"/></svg>';
+    var _AL_BELL_SVG = '<svg width="8" height="9" viewBox="0 0 8 9" fill="none" style="flex-shrink:0;display:block;"><path d="M4 1a2 2 0 0 1 2 2v1.5l.8 1H1.2L2 4.5V3A2 2 0 0 1 4 1zm-1 5.5h2" stroke="var(--warning-alt)" stroke-width="1.1" stroke-linecap="round"/></svg>';
     function _alMakePill(ticker, count) {
         var pill = document.createElement('span');
         pill.className = 'al-ticker-pill';
@@ -793,29 +793,29 @@
             var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
             var condHtml = a.alertType === 'macross'
                 ? (a.condition === 'above'
-                    ? '<span style="color:#3fb950;">▲ MA above</span>'
-                    : '<span style="color:#f85149;">▼ MA below</span>')
+                    ? '<span style="color:var(--success);">▲ MA above</span>'
+                    : '<span style="color:var(--danger);">▼ MA below</span>')
                 : a.alertType === 'pattern'
-                    ? '<span style="color:#8b949e;">⬡ Pattern</span>'
+                    ? '<span style="color:var(--text-muted-2);">⬡ Pattern</span>'
                     : a.alertType === 'trendline'
                         ? (a.condition === 'above'
-                            ? '<span style="color:#3fb950;">▲ trendline</span>'
-                            : '<span style="color:#f85149;">▼ trendline</span>')
+                            ? '<span style="color:var(--success);">▲ trendline</span>'
+                            : '<span style="color:var(--danger);">▼ trendline</span>')
                         : a.alertType === 'avwap'
                             ? (a.condition === 'above'
-                                ? '<span style="color:#3fb950;">▲ AVWAP</span>'
-                                : '<span style="color:#f85149;">▼ AVWAP</span>')
+                                ? '<span style="color:var(--success);">▲ AVWAP</span>'
+                                : '<span style="color:var(--danger);">▼ AVWAP</span>')
                         : a.isPrevDay === 'high'
-                        ? '<span style="color:#3fb950;">▲ PDH</span>'
+                        ? '<span style="color:var(--success);">▲ PDH</span>'
                         : a.isPrevDay === 'low'
-                            ? '<span style="color:#f85149;">▼ PDL</span>'
+                            ? '<span style="color:var(--danger);">▼ PDL</span>'
                             : a.isPrevDay === '52wk-high'
-                                ? '<span style="color:#3fb950;">▲ 52WH</span>'
+                                ? '<span style="color:var(--success);">▲ 52WH</span>'
                                 : a.isPrevDay === '52wk-low'
-                                    ? '<span style="color:#f85149;">▼ 52WL</span>'
+                                    ? '<span style="color:var(--danger);">▼ 52WL</span>'
                                     : a.condition === 'above'
-                                ? '<span style="color:#3fb950;">▲ above</span>'
-                                : '<span style="color:#f85149;">▼ below</span>';
+                                ? '<span style="color:var(--success);">▲ above</span>'
+                                : '<span style="color:var(--danger);">▼ below</span>';
             var awayHtml;
             if (a.alertType === 'macross') {
                 var mcStockData = null;
@@ -957,7 +957,7 @@
                 '<div class="al-col-ticker al-col-ticker-link" onclick="alTickerClick(\'' + a.ticker + '\')">' + esc(a.ticker) + '</div>' +
                 '<div class="al-col-name">' + esc(name) + '</div>' +
                 '<div class="al-col-cond">' + condHtml + '</div>' +
-                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : a.alertType === 'trendline' ? '<span style="display:inline-flex;align-items:center;"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><line x1="1" y1="11" x2="15" y2="1" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="10.5" r="1.8" fill="#8b949e"/><circle cx="14" cy="1.5" r="1.8" fill="#8b949e"/></svg></span>' : a.alertType === 'avwap' ? '<span style="display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#8b949e;letter-spacing:.5px;">AVWAP</span>' : '$' + a.price.toFixed(2)) + '</div>' +
+                '<div class="al-col-target ' + a.condition + ((a.alertType === 'macross' || a.alertType === 'ma') ? ' ma-label' : '') + '"' + (a.alertType === 'pattern' ? ' data-al-tip="' + window.alGetPatternKeys(a).map(function(k){return AL_PATTERN_LABELS[k]||k;}).join('\n') + '"' : '') + '>' + (a.alertType === 'rsi14' ? 'RSI ' + a.price : a.alertType === 'macross' ? a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'ma' ? a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') : a.alertType === 'pattern' ? (function(){ var pk = window.alGetPatternKeys(a); var tf = (a.patternTf||'d').toUpperCase(); if (pk.length === 1) { return '<span class="al-pat-single"><span>' + (AL_PATTERN_LABELS[pk[0]]||pk[0]) + '</span><span class="al-pat-single-tf">' + tf + '</span></span>'; } return '<span class="al-pat-multi"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="var(--purple)" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pk.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>'; })() : a.alertType === 'trendline' ? '<span style="display:inline-flex;align-items:center;"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0"><line x1="1" y1="11" x2="15" y2="1" stroke="var(--text-muted-2)" stroke-width="1.5" stroke-linecap="round"/><circle cx="2" cy="10.5" r="1.8" fill="var(--text-muted-2)"/><circle cx="14" cy="1.5" r="1.8" fill="var(--text-muted-2)"/></svg></span>' : a.alertType === 'avwap' ? '<span style="display:inline-flex;align-items:center;gap:2px;font-size:10px;color:var(--text-muted-2);letter-spacing:.5px;">AVWAP</span>' : '$' + a.price.toFixed(2)) + '</div>' +
                 '<div class="al-col-curr">' + (a.alertType === 'rsi14' ? (function() { var r = null; if (snapshot && snapshot.by_industry) { outer3: for (var i3 in snapshot.by_industry) { var s3 = snapshot.by_industry[i3]; for (var j3=0;j3<s3.length;j3++) { if(s3[j3].ticker===a.ticker){r=s3[j3].rsi14;break outer3;} } } } return r != null ? r.toFixed(1) : '—'; })() : (curr != null ? '$' + curr.toFixed(2) : '—')) + '</div>' +
                 chgHtml +
                 chgPctHtml +
@@ -1055,16 +1055,16 @@
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             var AL_HIST_PAT_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', bullish_outside: 'Bullish Outside', bearish_outside: 'Bearish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
             var condHtml = f.alertType === 'macross'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' +
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' +
                   (f.condition === 'above' ? '▲' : '▼') + ' ' +
                   (f.ma1Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' +
                   (f.ma2Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'ma'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'trendline'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline</span>'
                 : f.alertType === 'avwap'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? '#3fb950' : '#f85149') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' AVWAP</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' AVWAP</span>'
                 : f.alertType === 'pattern'
                 ? (function() {
                     var pKeys = (f.triggeredPatternKeys && f.triggeredPatternKeys.length)
@@ -1073,13 +1073,13 @@
                     var tf = (f.patternTf||'d').toUpperCase();
                     var tipText = pKeys.map(function(k){ return AL_HIST_PAT_LABELS[k] || k.replace(/_/g,' '); }).join('\n');
                     if (pKeys.length === 1) {
-                        return '<span class="al-hist-cond al-pat-single" style="color:#a78bfa;" data-al-tip="' + tipText + '">' + (AL_HIST_PAT_LABELS[pKeys[0]] || pKeys[0].replace(/_/g,' ')) + ' <span class="al-pat-single-tf">' + tf + '</span></span>';
+                        return '<span class="al-hist-cond al-pat-single" style="color:var(--purple);" data-al-tip="' + tipText + '">' + (AL_HIST_PAT_LABELS[pKeys[0]] || pKeys[0].replace(/_/g,' ')) + ' <span class="al-pat-single-tf">' + tf + '</span></span>';
                     }
-                    return '<span class="al-hist-cond al-pat-multi" data-al-tip="' + tipText + '"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0;vertical-align:middle;margin-right:2px"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="#a78bfa" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pKeys.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>';
+                    return '<span class="al-hist-cond al-pat-multi" data-al-tip="' + tipText + '"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0;vertical-align:middle;margin-right:2px"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="var(--purple)" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pKeys.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>';
                 })()
                 : f.condition === 'above'
-                    ? '<span class="al-hist-cond" style="color:#3fb950;">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
-                    : '<span class="al-hist-cond" style="color:#f85149;">▼ $' + (f.alertPrice||0).toFixed(2) + '</span>';
+                    ? '<span class="al-hist-cond" style="color:var(--success);">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
+                    : '<span class="al-hist-cond" style="color:var(--danger);">▼ $' + (f.alertPrice||0).toFixed(2) + '</span>';
             var hitCls = f.condition === 'above' ? 'up' : 'dn';
             var name = esc(f.name || '');
             var curPrice = alertPrices[f.ticker];
@@ -1424,7 +1424,7 @@
         if (!ticker) { document.getElementById('al-input-ticker').focus(); return; }
         if (alertType === 'pattern' && !patternKeys.length) {
             var grid = document.getElementById('al-pattern-grid');
-            if (grid) grid.style.outline = '1px solid #f85149';
+            if (grid) grid.style.outline = '1px solid var(--danger)';
             setTimeout(function(){ if (grid) grid.style.outline = ''; }, 1200);
             return;
         }
@@ -1669,6 +1669,32 @@
     var _alCtxPrice             = null;
     var _alCtxMa                = null;
     var _alCtxAttached          = false;
+
+    // Re-theme the LW chart live if it's open when the toggle is flipped —
+    // otherwise it'd only pick up the new theme the next time it's reopened.
+    window.addEventListener('themechange', function() {
+        if (!_alChart || !_alCandle) return;
+        try {
+            _alChart.applyOptions({
+                layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
+                rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
+                timeScale: { borderColor: themeColor('bg-surface') },
+            });
+            _alCandle.applyOptions({
+                upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+            });
+            if (_alVol) {
+                _alVol.applyOptions({ color: themeColor('al-chart-volume') });
+                _alVol.priceScale().applyOptions({ borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') });
+                if (_alOhlcv && _alOhlcv.length) {
+                    _alVol.setData(_alOhlcv.map(function(d) {
+                        return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
+                    }));
+                }
+            }
+        } catch (e) {}
+    });
 
     // Measure tool state (al)
     var _alMeasureMode       = false;
@@ -2180,7 +2206,7 @@
         _alLastCrosshairPrice = null;
 
         if (!window.LightweightCharts || !_alOhlcv.length) {
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">No data</div>';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">No data</div>';
             return;
         }
 
@@ -2223,32 +2249,32 @@
         // Create LW chart
         _alChart = LightweightCharts.createChart(container, {
             autoSize: true,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681', panes: { separatorColor: '#161b22', separatorHoverColor: 'rgba(33,38,45,0.5)' } },
+            layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 12 },
+            rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
+            timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 12 },
             handleScroll: true, handleScale: true,
         });
         _alAttachCtxMenu();
 
         // Candle series
         _alCandle = _alChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: '#089981', downColor: '#b22833', borderVisible: false,
-            wickUpColor: '#089981', wickDownColor: '#b22833',
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
             priceLineVisible: false, lastValueVisible: true,
         });
         _alCandle.setData(_alOhlcv);
 
         // Volume pane
         _alVol = _alChart.addSeries(LightweightCharts.HistogramSeries, {
-            color: '#63a0f8', priceFormat: { type: 'volume' },
+            color: themeColor('al-chart-volume'), priceFormat: { type: 'volume' },
             priceLineVisible: false, lastValueVisible: true,
         }, 1);
         _alVol.setData(_alOhlcv.map(function(d) {
-            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
         }));
-        _alVol.priceScale().applyOptions({ visible: true, borderColor: '#21262d', textColor: '#6e7681', minimumWidth: 60 });
+        _alVol.priceScale().applyOptions({ visible: true, borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), minimumWidth: 60 });
 
         // 50 SMA on volume
         (function() {
@@ -2303,11 +2329,11 @@
             var projectedVol = lastVol * timeratio;
             var volDiffPct   = (projectedVol / sma50 - 1) * 100;
             var sign  = volDiffPct >= 0 ? '+' : '';
-            var color = volDiffPct >= 0 ? '#3fb950' : '#f85149';
+            var color = volDiffPct >= 0 ? 'var(--success)' : 'var(--danger)';
             var lbl = document.createElement('div');
             lbl.id = 'al-chart-vol-pct-label';
             lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
-            lbl.innerHTML = '<span style="color:#484f58;">›</span>'
+            lbl.innerHTML = '<span style="color:var(--border-muted);">›</span>'
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
             setTimeout(function() {
@@ -2406,7 +2432,7 @@
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'al-chart-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
@@ -2441,7 +2467,7 @@
                 if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
                 return;
             }
-            var cl = d.close >= d.open ? '#089981' : '#b22833';
+            var cl = d.close >= d.open ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             var vd = p.seriesData.get(_alVol);
             var chgHtml = '';
             var barIdx = _barIdxByTime(_alOhlcv, p.time);
@@ -2449,19 +2475,19 @@
                 var prevClose = _alOhlcv[barIdx - 1].close;
                 var delta = d.close - prevClose;
                 var pct = (delta / prevClose) * 100;
-                var chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+                var chgClr = delta >= 0 ? 'var(--success)' : 'var(--danger)';
                 chgHtml = '&nbsp;&nbsp;<span style="color:' + chgClr + '">'
                         + (delta >= 0 ? '+' : '') + delta.toFixed(2)
                         + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
                         + '</span>';
             }
             leg.innerHTML =
-                '<span style="color:#8b949e">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                '<span style="color:var(--text-muted-2)">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
-                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">Vol</span> <span style="color:#8b949e">' + fv(vd.value) + '</span>' : '');
+                (vd ? '&nbsp;&nbsp;<span style="color:var(--text-muted)">Vol</span> <span style="color:var(--text-muted-2)">' + fv(vd.value) + '</span>' : '');
             // Floating tooltip
             if (_alTooltipEnabled) {
                 var ttDiv = _getLwTooltipDiv();
@@ -2490,30 +2516,30 @@
             var slice   = _alOhlcv.slice(Math.max(0, _alOhlcv.length - sliceLen));
             var yrLow   = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
             var yrHigh  = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
-            var chgColor = chg >= 0 ? '#3fb950' : '#f85149';
+            var chgColor = chg >= 0 ? 'var(--success)' : 'var(--danger)';
             var chgSign  = chg >= 0 ? '+' : '';
             var barLabel = tf === 'W' ? 'WK' : tf === 'M' ? 'MO' : 'DAY';
-            var barColor = chg >= 0 ? '#089981' : '#b22833';
+            var barColor = chg >= 0 ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             function mkBar(low, high, curr, width, crLabel) {
                 var pos = (high > low) ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100)) : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
                     ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-150%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
                     : '';
-                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">'
+                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">'
                     + '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>'
-                    + '<span style="position:absolute;top:50%;left:' + p + '%;transform:translate(-50%,-50%);width:8px;height:8px;background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>'
+                    + '<span style="position:absolute;top:50%;left:' + p + '%;transform:translate(-50%,-50%);width:8px;height:8px;background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>'
                     + crSpan + '</span>';
             }
             var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
-            var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149' } : null;
+            var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? 'var(--success)' : crRaw >= 30 ? 'var(--warning-alt)' : 'var(--danger)' } : null;
             var adrEl = document.getElementById('al-chart-mkt-adr');
             if (adrEl) {
                 var adrSd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
                 var adrRaw = adrSd ? adrSd.adr_pct : null;
                 if (adrRaw != null) {
-                    adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
-                                    + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
                     adrEl.style.display = 'inline-flex';
                 } else { adrEl.style.display = 'none'; }
             }
@@ -2523,28 +2549,28 @@
                 var mcapRaw = sd ? sd.MarketCap : null;
                 if (mcapRaw != null) {
                     var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T' : mcapRaw >= 1e9 ? (mcapRaw/1e9).toFixed(2)+'B' : mcapRaw >= 1e6 ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
-                    mcapEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span><span style="color:#c9d1d9;font-size:12px;">' + mc + '</span>';
+                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span><span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
                     mcapEl.style.display = 'inline-flex';
                 } else { mcapEl.style.display = 'none'; }
             }
             document.getElementById('al-chart-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:var(--text-emphasis-2);font-size:17px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' + chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
             document.getElementById('al-chart-mkt-day').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
             var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
                 text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
-                color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
+                color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
             } : null;
             document.getElementById('al-chart-mkt-52w').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
             document.getElementById('al-chart-mkt-info').style.display = 'flex';
         })();
 
@@ -2679,7 +2705,7 @@
                 var total   = industriesData.industries.length;
                 if (indData && indData.rank != null) {
                     var rankPct   = indData.percentile != null ? indData.percentile : null;
-                    var rankColor = rankPct != null ? (rankPct >= 75 ? '#3fb950' : rankPct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    var rankColor = rankPct != null ? (rankPct >= 75 ? 'var(--success)' : rankPct >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
                     indRankHtml = '<span class="meta-sep">·</span>' +
                         '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
                 }
@@ -2723,7 +2749,7 @@
         _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
         _alSym = ticker;
         var widgetDiv = document.getElementById('al-chart-widget');
-        widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         var loadTicker = ticker;
         fetchMcOhlcv(ticker, tf).then(function(ohlcv) {
             if (_alSym !== loadTicker || _alChartTf !== tf) return;
@@ -2773,7 +2799,7 @@
         delete _mcOhlcvCache[_alSym + '_' + tf];
         var sym = _alSym;
         var container = document.getElementById('al-chart-widget');
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (_alSym !== sym || _alChartTf !== tf) return;
             _buildAlChart(sym, ohlcv, tf);
@@ -2938,7 +2964,7 @@
         if (!msgEl) return null;
         var row = document.createElement('label');
         row.id = 'al-confirm-skip-row';
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:12px 0 18px;font-size:12px;color:#8b949e;cursor:pointer;user-select:none;';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:12px 0 18px;font-size:12px;color:var(--text-muted-2);cursor:pointer;user-select:none;';
         var box = document.createElement('input');
         box.type = 'checkbox';
         box.id = 'al-confirm-skip-checkbox';
@@ -3145,9 +3171,9 @@
         var btn    = document.getElementById('al-multichart-toggle-btn');
         var mcView = document.getElementById('al-multichart-view');
         var body   = document.querySelector('#view-alerts .al-body-wrap');
-        btn.style.background  = alMcActive ? '#1f3a5c' : '';
-        btn.style.borderColor = alMcActive ? '#388bfd' : '';
-        btn.style.color       = alMcActive ? '#58a6ff' : '';
+        btn.style.background  = alMcActive ? 'var(--bg-accent-active-2)' : '';
+        btn.style.borderColor = alMcActive ? 'var(--accent)' : '';
+        btn.style.color       = alMcActive ? 'var(--accent-strong)' : '';
         if (mcView)  { mcView.style.display  = alMcActive ? 'flex' : 'none'; }
         if (body)    { body.style.display    = alMcActive ? 'none' : 'flex'; }
         if (alMcActive) renderAlMc();
