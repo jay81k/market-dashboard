@@ -288,7 +288,7 @@
                 '<span style="position:absolute;right:8px;bottom:4px;font-size:' + rankFontSize + 'px;font-weight:500;color:' + rankTintStyle(val) + ';line-height:1;">' + rankStr + '</span>'
             ) : '';
             html += '<div class="heatmap-card' + (isNull ? ' heatmap-card-null' : '') + '"' +
-                    ' style="background:' + (bg || '#161b22') + ';position:relative;overflow:hidden;min-height:84px;"' +
+                    ' style="background:' + (bg || 'var(--bg-subtle)') + ';position:relative;overflow:hidden;min-height:84px;"' +
                     ' data-industry="' + esc(ind.industry) + '"' +
                     ' onclick="openIndustry(\'' + esc(ind.industry) + '\')">' +
                     rankWatermark +
@@ -425,10 +425,10 @@
         // Rank 1 is best, rank totalIndustries is worst — convert to a
         // 0-100 scale (100 = best) so the same 75/40 thresholds used for
         // every RS percentile in this app apply here too.
-        var rankColor = '#484f58';
+        var rankColor = 'var(--border-muted)';
         if (ind && ind.rank && totalIndustries > 1) {
             var rankPct = ((totalIndustries - ind.rank) / (totalIndustries - 1)) * 100;
-            rankColor = rankPct >= 75 ? '#3fb950' : rankPct >= 40 ? '#e3852b' : '#f85149';
+            rankColor = rankPct >= 75 ? 'var(--success)' : rankPct >= 40 ? 'var(--warning-alt)' : 'var(--danger)';
         }
         document.getElementById('si-name').innerHTML =
             esc(industryName) +
@@ -474,7 +474,7 @@
         if (!rows || rows.length === 0) {
             document.getElementById('stocks-thead').innerHTML = '';
             document.getElementById('stocks-tbody').innerHTML =
-                '<tr><td colspan="12" style="padding:30px;text-align:center;color:#484f58;">' +
+                '<tr><td colspan="12" style="padding:30px;text-align:center;color:var(--border-muted);">' +
                 'No stock data for this industry yet — run the build script to populate.</td></tr>';
         } else {
             renderStocksTable(rows, industryName, 'stocks-thead', 'stocks-tbody');
