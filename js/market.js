@@ -144,18 +144,18 @@
             width:  container.clientWidth  || 400,
             height: container.clientHeight || 230,
             layout: { 
-                background: { color: '#0d1117' }, 
-                textColor: '#6e7681',
+                background: { color: themeColor('bg-page') }, 
+                textColor: themeColor('text-muted'),
                 padding: { top: 0, bottom: 0, left: 0, right: 0 }
             },
             grid: { 
                 vertLines: { visible: false }, 
-                horzLines: { color: '#21262d' } 
+                horzLines: { color: themeColor('bg-surface') } 
             },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
             rightPriceScale: { 
                 borderVisible: false,
-                textColor: '#6e7681',
+                textColor: themeColor('text-muted'),
                 scaleMargins: { top: 0.32, bottom: 0.02 },
             },
             timeScale: { 
@@ -168,11 +168,11 @@
 
         // Candlestick series
         var candleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor:               '#3fb950',
-            downColor:             '#f85149',
+            upColor:               themeColor('success'),
+            downColor:             themeColor('danger'),
             borderVisible:         false,
-            wickUpColor:           '#3fb950',
-            wickDownColor:         '#f85149',
+            wickUpColor:           themeColor('success'),
+            wickDownColor:         themeColor('danger'),
             priceLineVisible:      false,
             lastValueVisible:      true,
         });
@@ -185,8 +185,8 @@
         ohlcLegend.style.cssText = [
             'position:absolute', 'top:6px', 'left:6px', 'z-index:20',
             'font-size:10px', 'font-weight:600', 'font-variant-numeric:tabular-nums',
-            'color:#8b949e', 'pointer-events:none', 'line-height:1.5',
-            'background:rgba(13,17,23,0.88)', 'padding:2px 6px', 'border-radius:3px',
+            'color:var(--text-muted-2)', 'pointer-events:none', 'line-height:1.5',
+            'background:var(--bg-page-alpha-3)', 'padding:2px 6px', 'border-radius:3px',
             'display:none',
         ].join(';');
         container.appendChild(ohlcLegend);
@@ -201,15 +201,15 @@
             var d = param.seriesData.get(candleSeries);
             if (!d) { ohlcLegend.style.display = 'none'; return; }
             ohlcLegend.style.display = '';
-            var cl = d.close >= d.open ? '#3fb950' : '#f85149';
+            var cl = d.close >= d.open ? 'var(--success)' : 'var(--danger)';
             var barDate = new Date(param.time * 1000);
             var barTime = barDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             ohlcLegend.innerHTML =
-                '<span style="color:#6e7681">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
-                '<span style="color:#6e7681"> | ' + barTime + '</span>';
+                '<span style="color:var(--text-muted)">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
+                '<span style="color:var(--text-muted)"> | ' + barTime + '</span>';
         });
     }
 
@@ -223,12 +223,12 @@
         if (!parsed) {
             card.className = 'market-index-card';
             card.innerHTML =
-                '<div style="height:230px;position:relative;background:#0d1117;">' +
+                '<div style="height:230px;position:relative;background:var(--bg-page);">' +
                     '<div style="position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;">' +
-                        '<div style="font-size:12px;font-weight:700;color:#484f58;letter-spacing:0.06em;">' + idx.label + '</div>' +
-                        '<div style="font-size:10px;color:#484f58;">' + idx.name + '</div>' +
+                        '<div style="font-size:12px;font-weight:700;color:var(--border-muted);letter-spacing:0.06em;">' + idx.label + '</div>' +
+                        '<div style="font-size:10px;color:var(--border-muted);">' + idx.name + '</div>' +
                     '</div>' +
-                    '<div style="position:absolute;bottom:10px;left:10px;font-size:18px;font-weight:700;color:#484f58;font-variant-numeric:tabular-nums;z-index:5;">—</div>' +
+                    '<div style="position:absolute;bottom:10px;left:10px;font-size:18px;font-weight:700;color:var(--border-muted);font-variant-numeric:tabular-nums;z-index:5;">—</div>' +
                 '</div>';
             return;
         }
@@ -282,21 +282,21 @@
         marketRenderIndexChart(chartContainer, parsed, direction);
 
         // ── Overlay: top-left — name, price/change, from open (with backdrop so candles don't bleed through) ──
-        var dirColor = direction === 'up' ? '#3fb950' : direction === 'down' ? '#f85149' : '#8b949e';
+        var dirColor = direction === 'up' ? 'var(--success)' : direction === 'down' ? 'var(--danger)' : 'var(--text-muted-2)';
         var topLeft = document.createElement('div');
         topLeft.style.cssText = 'position:absolute;top:8px;left:10px;z-index:5;pointer-events:none;';
 
-        var foColor  = fromOpenDir === 'up' ? '#3fb950' : fromOpenDir === 'down' ? '#f85149' : '#8b949e';
+        var foColor  = fromOpenDir === 'up' ? 'var(--success)' : fromOpenDir === 'down' ? 'var(--danger)' : 'var(--text-muted-2)';
         var fromOpenRowHtml = (is1D && fromOpenStr != null)
-            ? '<div style="font-size:11px;color:#8b949e;margin-top:2px;">from open <span style="font-size:12px;color:' + foColor + ';">' + fromOpenStr + '</span></div>'
+            ? '<div style="font-size:11px;color:var(--text-muted-2);margin-top:2px;">from open <span style="font-size:12px;color:' + foColor + ';">' + fromOpenStr + '</span></div>'
             : '';
 
         topLeft.innerHTML =
             // Row 1: index name only
-            '<div style="font-size:12px;font-weight:700;color:#e6edf3;line-height:1.3;">' + idx.name + '</div>' +
+            '<div style="font-size:12px;font-weight:700;color:var(--text-emphasis-2);line-height:1.3;">' + idx.name + '</div>' +
             // Row 2: price + change
             '<div style="display:flex;align-items:baseline;gap:5px;margin-top:3px;">' +
-                '<span style="font-size:18px;font-weight:700;color:#e6edf3;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
+                '<span style="font-size:18px;font-weight:700;color:var(--text-emphasis-2);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">' + priceStr + '</span>' +
                 '<span style="font-size:13px;font-weight:600;color:' + dirColor + ';font-variant-numeric:tabular-nums;">' + chgAbsStr + ' (' + chgPctStr + ')</span>' +
             '</div>' +
             // Row 3: from open
@@ -506,7 +506,7 @@
         });
 
         var total   = adv + dec + unch;
-        if (!total) { wrap.innerHTML = '<div style="color:#484f58;font-size:0.858em;">No data.</div>'; return; }
+        if (!total) { wrap.innerHTML = '<div style="color:var(--border-muted);font-size:0.858em;">No data.</div>'; return; }
 
         var advPct  = (adv  / total * 100).toFixed(1);
         var decPct  = (dec  / total * 100).toFixed(1);
@@ -558,7 +558,7 @@
             });
         });
 
-        if (!total) { wrap.innerHTML = '<div style="color:#484f58;font-size:0.858em;">No data.</div>'; return; }
+        if (!total) { wrap.innerHTML = '<div style="color:var(--border-muted);font-size:0.858em;">No data.</div>'; return; }
 
         var nhPct  = (nh / total * 100).toFixed(1);
         var nlPct  = (nl / total * 100).toFixed(1);
@@ -597,7 +597,7 @@
 
     function maZoneDir(pct)   { return pct >= 60 ? 'up' : pct <= 40 ? 'down' : 'flat'; }
     function maZoneLabel(pct) { return pct >= 60 ? 'Bullish' : pct <= 40 ? 'Bearish' : 'Neutral'; }
-    function maBarColor(dir)  { return dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58'; }
+    function maBarColor(dir)  { return dir === 'up' ? 'var(--success)' : dir === 'down' ? 'var(--danger)' : 'var(--border-muted)'; }
     function maFmtNet(n)      { return (n >= 0 ? '+' : '') + n.toLocaleString(); }
 
     function renderMarketMA() {
@@ -636,7 +636,7 @@
             var ddir = maZoneDir(Math.round(ab / stot * 100));
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
-            var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            var barClr = ddir === 'up' ? 'var(--success)' : 'var(--border-muted)';
             // Above is exactly reproducible (above short MA AND above 50 SMA, same
             // compound condition the card counts). Below isn't clickable — it would
             // need OR logic ("below either MA") that the Scans filter system doesn't
@@ -646,29 +646,29 @@
             el.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
                     '<div style="display:flex;flex-direction:column;gap:1px;cursor:pointer;"' + aboveClick + '>' +
-                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
-                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
-                        '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--success);">Above</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--success);">' + pctA + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:var(--success);opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
                     '<div class="ma-label" style="align-self:center;text-align:center;" data-tooltip="Also above 50 SMA">' + labels[i] + '</div>' +
                     '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
-                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
-                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:11px;">%</span></div>' +
-                        '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--danger);">Below</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--danger);">' + pctB + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:var(--danger);opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div>' +
                     '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
                         '<div' + aboveClick + ' style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';cursor:pointer;"></div>' +
-                        '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;"></div>' +
+                        '<div style="height:100%;flex:1;border-radius:0 3px 3px 0;background:var(--danger);"></div>' +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
                         '<div style="display:flex;flex-direction:column;gap:1px;">' +
-                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
+                            '<div style="font-size:9px;color:var(--border-muted);text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
                             '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
                         '</div>' +
                         '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
-                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
+                            '<div style="font-size:9px;color:var(--border-muted);text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
                             '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
                         '</div>' +
                     '</div>' +
@@ -693,36 +693,36 @@
             var ddir = maZoneDir(Math.round(ab / stot * 100));
             var net  = ab - bl;
             var ndir = net > 0 ? 'up' : net < 0 ? 'down' : 'flat';
-            var barClr = ddir === 'up' ? '#3fb950' : '#484f58';
+            var barClr = ddir === 'up' ? 'var(--success)' : 'var(--border-muted)';
             var period = splitPeriods[j];
             var aboveClick = ' onclick="goToMA(\'above_price\',\'SMA\',' + period + ')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"';
             var belowClick = ' onclick="goToMA(\'below_price\',\'SMA\',' + period + ')" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1"';
             sel.innerHTML =
                 '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
                     '<div style="display:flex;flex-direction:column;gap:1px;cursor:pointer;"' + aboveClick + '>' +
-                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#3fb950;">Above</div>' +
-                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#3fb950;">' + pctA + '<span style="font-size:11px;">%</span></div>' +
-                        '<div style="font-size:10px;color:#3fb950;opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--success);">Above</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--success);">' + pctA + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:var(--success);opacity:0.7;font-variant-numeric:tabular-nums;">' + ab.toLocaleString() + '</div>' +
                     '</div>' +
                     '<div class="ma-label" style="align-self:center;text-align:center;">' + splitLabels[j] + '</div>' +
                     '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;cursor:pointer;"' + belowClick + '>' +
-                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f85149;">Below</div>' +
-                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:#f85149;">' + pctB + '<span style="font-size:11px;">%</span></div>' +
-                        '<div style="font-size:10px;color:#f85149;opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
+                        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--danger);">Below</div>' +
+                        '<div style="font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--danger);">' + pctB + '<span style="font-size:11px;">%</span></div>' +
+                        '<div style="font-size:10px;color:var(--danger);opacity:0.7;font-variant-numeric:tabular-nums;">' + bl.toLocaleString() + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div>' +
                     '<div style="height:5px;border-radius:3px;overflow:hidden;display:flex;">' +
                         '<div' + aboveClick + ' style="height:100%;width:' + pctA + '%;border-radius:3px 0 0 3px;background:' + barClr + ';cursor:pointer;"></div>' +
-                        '<div' + belowClick + ' style="height:100%;flex:1;border-radius:0 3px 3px 0;background:#f85149;cursor:pointer;"></div>' +
+                        '<div' + belowClick + ' style="height:100%;flex:1;border-radius:0 3px 3px 0;background:var(--danger);cursor:pointer;"></div>' +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;margin-top:8px;">' +
                         '<div style="display:flex;flex-direction:column;gap:1px;">' +
-                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
+                            '<div style="font-size:9px;color:var(--border-muted);text-transform:uppercase;letter-spacing:0.05em;">Net</div>' +
                             '<div style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;" class="ma-net ' + ndir + '">' + maFmtNet(net) + '</div>' +
                         '</div>' +
                         '<div style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;">' +
-                            '<div style="font-size:9px;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
+                            '<div style="font-size:9px;color:var(--border-muted);text-transform:uppercase;letter-spacing:0.05em;">Zone</div>' +
                             '<div style="font-size:11px;font-weight:700;" class="ma-zone ' + ddir + '">' + maZoneLabel(Math.round(ab / stot * 100)) + '</div>' +
                         '</div>' +
                     '</div>' +
@@ -764,7 +764,7 @@
             var rvolStocks = all.filter(function(r) { return r.rel_vol != null; });
             rvolStocks.sort(function(a, b) { return b.rel_vol - a.rel_vol; });
             var topRvol = rvolStocks.slice(0, 8);
-            rvolEl.innerHTML = '<div class="gl-header"><div class="gl-title" style="color:#58a6ff;">Unusual Volume</div><div class="gl-subtitle">vs 50-day avg</div></div>' +
+            rvolEl.innerHTML = '<div class="gl-header"><div class="gl-title" style="color:var(--accent-strong);">Unusual Volume</div><div class="gl-subtitle">vs 50-day avg</div></div>' +
                 topRvol.map(function(r, i) {
                     var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                     var dirCl  = r.daily > 0 ? 'up' : r.daily < 0 ? 'down' : '';
@@ -773,7 +773,7 @@
                         '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                         '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
                         '<div class="gl-pct ' + dirCl + '">' + pctStr + '</div>' +
-                        '<div class="gl-vol" style="color:#58a6ff;font-weight:700;">' + r.rel_vol.toFixed(1) + 'x</div>' +
+                        '<div class="gl-vol" style="color:var(--accent-strong);font-weight:700;">' + r.rel_vol.toFixed(1) + 'x</div>' +
                     '</div>';
                 }).join('');
             tickerHoverBind(rvolEl, '.gl-ticker');
@@ -789,7 +789,7 @@
                     '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
                     '<div class="gl-price">$' + r.price.toFixed(2) + '</div>' +
                     '<div class="gl-pct ' + dir + '">' + pctStr + '</div>' +
-                    '<div class="gl-vol" style="color:#58a6ff;font-weight:700;">' + vol + '</div>' +
+                    '<div class="gl-vol" style="color:var(--accent-strong);font-weight:700;">' + vol + '</div>' +
                 '</div>';
             }).join('');
         }
@@ -812,10 +812,10 @@
         { key: 'avg_6m',    label: '6M'  },
         { key: 'avg_1y',    label: '1Y'  }
     ];
-    var spToggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;';
+    var spToggleStyle = 'display:inline-flex;border:1px solid var(--bg-surface);border-radius:4px;overflow:hidden;';
     var spBtnBase     = 'padding:1px 7px;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;border:none;letter-spacing:0.03em;transition:background 0.1s,color 0.1s;';
-    var spBtnActive   = spBtnBase + 'background:#1f6feb;color:#fff;';
-    var spBtnInactive = spBtnBase + 'background:transparent;color:#6e7681;';
+    var spBtnActive   = spBtnBase + 'background:var(--accent-fill);color:var(--text-on-accent);';
+    var spBtnInactive = spBtnBase + 'background:transparent;color:var(--text-muted);';
 
     function spComputeDataset(field) {
         var sectorMap = {};
@@ -839,7 +839,7 @@
         return ds.sectors.map(function(s) {
             var pct    = s.avg;
             var dir    = pct > 0 ? 'up' : pct < 0 ? 'down' : '';
-            var clr    = pct > 0 ? '#3fb950' : '#f85149';
+            var clr    = pct > 0 ? 'var(--success)' : 'var(--danger)';
             var barPct = Math.abs(pct) / ds.maxAbs * 48; // max 48% each side from center
             var barStyle;
             if (pct >= 0) {
@@ -936,7 +936,7 @@
                     '<div class="ib-sec-adv" style="width:' + advW + '%"></div>' +
                     '<div class="ib-sec-dec"></div>' +
                 '</div>' +
-                '<div class="ib-sec-cnt"><span style="color:#3fb950;">' + s.adv + '</span> / <span style="color:#f85149;">' + s.dec + '</span></div>' +
+                '<div class="ib-sec-cnt"><span style="color:var(--success);">' + s.adv + '</span> / <span style="color:var(--danger);">' + s.dec + '</span></div>' +
             '</div>';
         }).join('');
 
@@ -956,11 +956,11 @@
                 '<div class="ib-master-dec"></div>' +
             '</div>' +
             secRows +
-            '<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #21262d;">' +
+            '<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bg-surface);">' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">Net</div><div class="rs-foot-val ' + netDir + '">' + (net >= 0 ? '+' : '') + net + '</div></div>' +
                 '<div class="rs-foot-stat"><div class="rs-foot-label">A/D Ratio</div><div class="rs-foot-val ' + netDir + '">' + ratio + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Best</div><div class="rs-foot-val" style="font-size:11px;color:#3fb950;">' + esc(sectorList[0] ? sectorList[0].name.split(' ')[0] : '—') + '</div></div>' +
-                '<div class="rs-foot-stat"><div class="rs-foot-label">Worst</div><div class="rs-foot-val" style="font-size:11px;color:#f85149;">' + esc(sectorList[sectorList.length-1] ? sectorList[sectorList.length-1].name.split(' ')[0] : '—') + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Best</div><div class="rs-foot-val" style="font-size:11px;color:var(--success);">' + esc(sectorList[0] ? sectorList[0].name.split(' ')[0] : '—') + '</div></div>' +
+                '<div class="rs-foot-stat"><div class="rs-foot-label">Worst</div><div class="rs-foot-val" style="font-size:11px;color:var(--danger);">' + esc(sectorList[sectorList.length-1] ? sectorList[sectorList.length-1].name.split(' ')[0] : '—') + '</div></div>' +
             '</div>';
     }
 
@@ -969,7 +969,7 @@
         var el = document.getElementById('market-rs-dist');
         if (!el || !snapshot || !snapshot.by_industry) return;
 
-        var COLORS  = ['#f85149','#f85149','#e3852b','#e3852b','#484f58','#484f58','#8bc34a','#8bc34a','#3fb950','#3fb950'];
+        var COLORS  = ['var(--danger)','var(--danger)','var(--warning-alt)','var(--warning-alt)','var(--border-muted)','var(--border-muted)','var(--scale-lime)','var(--scale-lime)','var(--success)','var(--success)'];
         var XLABELS = ['0','10','20','30','40','50','60','70','80','90'];
         var W = 400, H = 160, padL = 36, padB = 22, padT = 8, padR = 4;
         var chartW = W - padL - padR;
@@ -1017,8 +1017,8 @@
             var gridHtml = '';
             yTicks.forEach(function(v) {
                 var y = padT + chartH - (v / yMax) * chartH;
-                gridHtml += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="#21262d" stroke-width="1"/>';
-                gridHtml += '<text x="' + (padL-4) + '" y="' + (y+3.5) + '" fill="#484f58" font-size="9" text-anchor="end" font-family="inherit">' + v + '</text>';
+                gridHtml += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="var(--bg-surface)" stroke-width="1"/>';
+                gridHtml += '<text x="' + (padL-4) + '" y="' + (y+3.5) + '" fill="var(--border-muted)" font-size="9" text-anchor="end" font-family="inherit">' + v + '</text>';
             });
 
             var barsHtml = '';
@@ -1036,7 +1036,7 @@
             var xlHtml = '';
             for (var j = 0; j < 10; j++) {
                 var lx = padL + j * barW + barW / 2;
-                xlHtml += '<text x="' + lx + '" y="' + (H-4) + '" fill="#484f58" font-size="9" text-anchor="middle" font-family="inherit">' + XLABELS[j] + '</text>';
+                xlHtml += '<text x="' + lx + '" y="' + (H-4) + '" fill="var(--border-muted)" font-size="9" text-anchor="middle" font-family="inherit">' + XLABELS[j] + '</text>';
             }
             return gridHtml + barsHtml + xlHtml;
         }
@@ -1054,15 +1054,15 @@
         // ── Initial render ─────────────────────────────────────────────────
         var legend =
             '<div style="display:flex;gap:12px;margin-top:6px;">' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#3fb950;flex-shrink:0;"></div>≥ 60</div>' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#484f58;flex-shrink:0;"></div>40–60</div>' +
-                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6e7681;"><div style="width:10px;height:10px;border-radius:2px;background:#f85149;flex-shrink:0;"></div>≤ 40</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--success);flex-shrink:0;"></div>≥ 60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--border-muted);flex-shrink:0;"></div>40–60</div>' +
+                '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--danger);flex-shrink:0;"></div>≤ 40</div>' +
             '</div>';
 
-        var toggleStyle = 'display:inline-flex;border:1px solid #21262d;border-radius:4px;overflow:hidden;margin-left:8px;';
+        var toggleStyle = 'display:inline-flex;border:1px solid var(--bg-surface);border-radius:4px;overflow:hidden;margin-left:8px;';
         var btnBase     = 'padding:1px 7px;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;border:none;letter-spacing:0.03em;transition:background 0.1s,color 0.1s;';
-        var btnActive   = btnBase + 'background:#1f6feb;color:#fff;';
-        var btnInactive = btnBase + 'background:transparent;color:#6e7681;';
+        var btnActive   = btnBase + 'background:var(--accent-fill);color:var(--text-on-accent);';
+        var btnInactive = btnBase + 'background:transparent;color:var(--text-muted);';
 
         el.innerHTML =
             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
