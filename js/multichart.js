@@ -203,8 +203,8 @@
         } catch (e) {}
 
         [
-            { chart: _mcFsChart, candle: _mcFsCandle, vol: _mcFsVol, watermark: _mcFsWatermark, ohlcv: _mcFsOhlcv },
-            { chart: _wlChart,   candle: _wlCandle,   vol: _wlVol,   watermark: _wlWatermark,   ohlcv: _wlOhlcv },
+            { chart: _mcFsChart, candle: _mcFsCandle, vol: _mcFsVol, watermark: _mcFsWatermark, ohlcv: _mcFsOhlcv, sym: _mcFsSym },
+            { chart: _wlChart,   candle: _wlCandle,   vol: _wlVol,   watermark: _wlWatermark,   ohlcv: _wlOhlcv,   sym: _wlSym },
         ].forEach(function(c) {
             if (!c.chart || !c.candle) return;
             try {
@@ -226,9 +226,14 @@
                         }));
                     }
                 }
-                if (c.watermark) {
+                if (c.watermark && c.sym) {
+                    var _wmMeta        = _mcMetaCache[c.sym] || {};
+                    var _wmCompanyName = _wmMeta.longName || _wmMeta.shortName || '';
                     c.watermark.applyOptions({
-                        lines: [{ color: themeColor('chart-watermark') }, { color: themeColor('chart-watermark') }],
+                        lines: [
+                            { text: c.sym, color: themeColor('chart-watermark'), fontSize: 30 },
+                            _wmCompanyName ? { text: _wmCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
+                        ].filter(Boolean),
                     });
                 }
             } catch (e) {}
