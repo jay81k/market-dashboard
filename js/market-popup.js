@@ -17,6 +17,22 @@ var _mmPopup = (function () {
     var liveRefreshTimer  = null;
     var lwChart     = null;
     var candleSeries = null;
+
+    window.addEventListener('themechange', function() {
+        if (!lwChart || !candleSeries) return;
+        try {
+            lwChart.applyOptions({
+                layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
+                grid:   { vertLines: { color: themeColor('bg-surface') }, horzLines: { color: themeColor('bg-surface') } },
+                rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
+                timeScale: { borderColor: themeColor('bg-surface') },
+            });
+            candleSeries.applyOptions({
+                upColor: themeColor('success'), downColor: themeColor('danger'),
+                wickUpColor: themeColor('success'), wickDownColor: themeColor('danger'),
+            });
+        } catch (e) {}
+    });
     var activeCard  = null;
     var activeYfSym = null;   // YF symbol for macro cards (e.g. 'CL=F'); null for regular tickers
     var POPUP_W     = 420;
@@ -175,21 +191,21 @@ var _mmPopup = (function () {
         lwChart = LightweightCharts.createChart(popupChart, {
             width:  popupChart.clientWidth  || POPUP_W,
             height: popupChart.clientHeight || 220,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
-            grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
+            grid:   { vertLines: { color: themeColor('bg-surface') }, horzLines: { color: themeColor('bg-surface') } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681' },
-            timeScale: { borderColor: '#21262d', timeVisible: false },
+            rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
+            timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false },
             handleScroll: false,
             handleScale:  false,
         });
 
         candleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor:          '#3fb950',
-            downColor:        '#f85149',
+            upColor:          themeColor('success'),
+            downColor:        themeColor('danger'),
             borderVisible:    false,
-            wickUpColor:      '#3fb950',
-            wickDownColor:    '#f85149',
+            wickUpColor:      themeColor('success'),
+            wickDownColor:    themeColor('danger'),
             priceLineVisible: false,
             lastValueVisible: true,
         });
@@ -214,7 +230,7 @@ var _mmPopup = (function () {
 
         // EMA 21
         var ema21 = lwChart.addSeries(LightweightCharts.LineSeries, {
-            color:           '#2979c8',
+            color:           themeColor('accent-alt'),
             lineWidth:       1,
             priceLineVisible: false,
             lastValueVisible: false,
@@ -241,7 +257,7 @@ var _mmPopup = (function () {
             return {
                 time:  d.time,
                 value: d.volume,
-                color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)',
+                color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha'),
             };
         }));
 
@@ -254,8 +270,8 @@ var _mmPopup = (function () {
         ohlcLegend.style.cssText = [
             'position:absolute', 'top:-10px', 'left:6px', 'z-index:10',
             'font-size:11px', 'font-weight:600', 'font-variant-numeric:tabular-nums',
-            'color:#8b949e', 'pointer-events:none', 'line-height:1.5',
-            'background:rgba(13,17,23,0.7)', 'padding:2px 6px', 'border-radius:3px',
+            'color:var(--text-muted-2)', 'pointer-events:none', 'line-height:1.5',
+            'background:var(--bg-page-alpha-2)', 'padding:2px 6px', 'border-radius:3px',
         ].join(';');
         popupChart.style.position = 'relative';
         popupChart.appendChild(ohlcLegend);
@@ -273,14 +289,14 @@ var _mmPopup = (function () {
             }
             var d = param.seriesData.get(candleSeries);
             if (!d) { ohlcLegend.innerHTML = ''; return; }
-            var cl   = d.close >= d.open ? '#3fb950' : '#f85149';
+            var cl   = d.close >= d.open ? 'var(--success)' : 'var(--danger)';
             var vd   = param.seriesData.get(volSeries);
-            var volStr = vd ? '&nbsp;&nbsp;<span style="color:#484f58">Vol</span> ' + fmtV(vd.value) : '';
+            var volStr = vd ? '&nbsp;&nbsp;<span style="color:var(--border-muted)">Vol</span> ' + fmtV(vd.value) : '';
             ohlcLegend.innerHTML =
-                '<span style="color:#6e7681">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
-                '<span style="color:#6e7681">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
+                '<span style="color:var(--text-muted)">O</span> <span style="color:' + cl + '">' + fmtP(d.open)  + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">H</span> <span style="color:' + cl + '">' + fmtP(d.high)  + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">L</span> <span style="color:' + cl + '">' + fmtP(d.low)   + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted)">C</span> <span style="color:' + cl + '">' + fmtP(d.close) + '</span>' +
                 volStr;
         });
     }
@@ -352,7 +368,7 @@ var _mmPopup = (function () {
         activeYfSym = yfSym;
         popupSym.textContent  = label;
         popupChg.textContent   = chgAbs + ' ' + chgPct;
-        popupChg.style.color   = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+        popupChg.style.color   = dir === 'up' ? 'var(--success)' : dir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
         if (popupName) popupName.textContent = name || '';
 
         clearInterval(liveRefreshTimer);
@@ -363,7 +379,7 @@ var _mmPopup = (function () {
             var liveDir    = activeCard.getAttribute('data-tv-dir');
             if (liveChgAbs != null && liveChgPct != null) {
                 popupChg.textContent = liveChgAbs + ' ' + liveChgPct;
-                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+                popupChg.style.color = liveDir === 'up' ? 'var(--success)' : liveDir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
             }
         }, 5000);
         if (popupIndName) { popupIndName.textContent = ''; }
@@ -374,13 +390,13 @@ var _mmPopup = (function () {
 
         positionPopup(card);
         popup.classList.add('visible');
-        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
+        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Loading…</div>';
 
         // Skip rather than pile onto an active shared cooldown; show the
         // existing "unavailable" state immediately instead of leaving the
         // popup stuck on "Loading…" until it times out on its own.
         if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) {
-            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Chart unavailable</div>';
             return;
         }
 
@@ -421,7 +437,7 @@ var _mmPopup = (function () {
                 appendTodayCandle(yfSym, card, capturedTodayTs);
             })
             .catch(function() {
-                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Chart unavailable</div>';
             });
     }
 
@@ -490,7 +506,7 @@ var _mmPopup = (function () {
         var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
         var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
         popupChg.textContent = chgAbsStr + chgPctStr;
-        popupChg.style.color = dir === 'up' ? '#3fb950' : dir === 'down' ? '#f85149' : '#484f58';
+        popupChg.style.color = dir === 'up' ? 'var(--success)' : dir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
 
         clearInterval(liveRefreshTimer);
         liveRefreshTimer = setInterval(function() {
@@ -504,14 +520,14 @@ var _mmPopup = (function () {
             var livePctStr = liveChgPct != null ? ' (' + (liveChgPct >= 0 ? '+' : '') + liveChgPct.toFixed(2) + '%)' : '';
             if (liveAbsStr || livePctStr) {
                 popupChg.textContent = liveAbsStr + livePctStr;
-                popupChg.style.color = liveDir === 'up' ? '#3fb950' : liveDir === 'down' ? '#f85149' : '#484f58';
+                popupChg.style.color = liveDir === 'up' ? 'var(--success)' : liveDir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
             }
         }, 5000);
 
         // Industry rank
         if (popupIndRank) {
             if (_td.indRank != null && _td.indTotal != null) {
-                var rankColor = _td.indPct != null ? (_td.indPct >= 75 ? '#3fb950' : _td.indPct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                var rankColor = _td.indPct != null ? (_td.indPct >= 75 ? 'var(--success)' : _td.indPct >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
                 popupIndRank.textContent   = '(' + _td.indRank + '/' + _td.indTotal + ')';
                 popupIndRank.style.color   = rankColor;
                 popupIndRank.style.display = '';
@@ -547,10 +563,10 @@ var _mmPopup = (function () {
 
         positionPopup(el);
         popup.classList.add('visible');
-        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Loading…</div>';
+        popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Loading…</div>';
 
         if (window.yahooProxyPace && Date.now() < window.yahooProxyPace.cooldownUntil()) {
-            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+            popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Chart unavailable</div>';
             return;
         }
 
@@ -593,7 +609,7 @@ var _mmPopup = (function () {
                 appendTodayCandle(ticker, el, capturedTodayTs);
             })
             .catch(function() {
-                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:#484f58;font-size:12px;">Chart unavailable</div>';
+                if (popupChart) popupChart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--border-muted);font-size:12px;">Chart unavailable</div>';
             });
     }
 
