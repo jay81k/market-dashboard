@@ -17,9 +17,9 @@
         multichartActive = !multichartActive;
         document.getElementById('stocks-table-view').style.display      = multichartActive ? 'none' : 'flex';
         document.getElementById('stocks-multichart-view').style.display = multichartActive ? 'flex' : 'none';
-        document.getElementById('multichart-toggle-btn').style.background = multichartActive ? '#1f3a5c' : '';
-        document.getElementById('multichart-toggle-btn').style.borderColor = multichartActive ? '#388bfd' : '';
-        document.getElementById('multichart-toggle-btn').style.color = multichartActive ? '#58a6ff' : '';
+        document.getElementById('multichart-toggle-btn').style.background = multichartActive ? 'var(--bg-accent-active-2)' : '';
+        document.getElementById('multichart-toggle-btn').style.borderColor = multichartActive ? 'var(--accent)' : '';
+        document.getElementById('multichart-toggle-btn').style.color = multichartActive ? 'var(--accent-strong)' : '';
         if (multichartActive) renderMulticharts();
     };
 
@@ -86,6 +86,7 @@
     var _mcFsTf                = 'D';
     var _mcFsLastCrosshairPrice = null;
     var _mcFsChart       = null;
+    var _mcFsWatermark   = null;
     var _mcFsBuiltSym    = null;   // symbol _mcFsChart is currently built for (distinct from _mcFsSym, which is the symbol last requested)
     var _mcFsBuiltTf     = null;   // timeframe _mcFsChart is currently built for
     var _mcFsCandle      = null;
@@ -116,7 +117,7 @@
     var _mcFsTrendlineFirst         = null;    // kept for compat (unused in new flow)
     var _mcFsTrendSvgOverlay        = null;    // SVG element overlaid on chart for preview
     var _mcFsTrendSvgLine           = null;    // <line> inside the SVG overlay
-    var _TRENDLINE_COLOR            = '#ffffff';
+    function _TRENDLINE_COLOR() { return themeColor('text-emphasis'); } // was a static 'var(--text-emphasis)' — pure white trendlines would vanish on a white light-mode background, so this now re-resolves live every time it's read
     var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
     var _mcFsTrendDraw              = { active: false, startTime: null, startPrice: null };
     var _mcFsTrendContRef           = null;    // reference to chart container div
@@ -143,6 +144,7 @@
     var _wlTf                 = 'D';
     var _wlLastCrosshairPrice = null;
     var _wlChart              = null;
+    var _wlWatermark          = null;
     var _wlCandle             = null;
     var _wlVol                = null;
     var _wlVolMa              = null;
@@ -171,6 +173,70 @@
     var _wlCtxTrendline         = null; // {p1, p2} when right-clicking on a trendline
     var _wlCtxAvwap             = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _wlCtxAttached          = false;
+
+    // Re-theme every currently-open chart live if the toggle is flipped —
+    // covers all three chart shapes this file renders: the multichart grid
+    // cells (mcWidgets, potentially several at once), the fullscreen chart,
+    // and the watchlist side-panel chart. Anything not currently open just
+    // picks up the new theme the next time it's (re)built, same as before.
+    window.addEventListener('themechange', function() {
+        try {
+            Object.keys(mcWidgets).forEach(function(sym) {
+                var inst = mcWidgets[sym];
+                if (!inst || !inst.chart || !inst.candle) return;
+                inst.chart.applyOptions({
+                    layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
+                    grid:    { vertLines: { color: themeColor('mc-cell-grid') }, horzLines: { color: themeColor('mc-cell-grid') } },
+                    rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
+                    timeScale: { borderColor: themeColor('bg-surface') },
+                });
+                inst.candle.applyOptions({
+                    upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                    wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+                });
+                if (inst.vol && inst.ohlcv && inst.ohlcv.length) {
+                    inst.vol.setData(inst.ohlcv.map(function(d) {
+                        return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
+                    }));
+                }
+            });
+        } catch (e) {}
+
+        [
+            { chart: _mcFsChart, candle: _mcFsCandle, vol: _mcFsVol, watermark: _mcFsWatermark, ohlcv: _mcFsOhlcv },
+            { chart: _wlChart,   candle: _wlCandle,   vol: _wlVol,   watermark: _wlWatermark,   ohlcv: _wlOhlcv },
+        ].forEach(function(c) {
+            if (!c.chart || !c.candle) return;
+            try {
+                c.chart.applyOptions({
+                    layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
+                    rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
+                    timeScale: { borderColor: themeColor('bg-surface') },
+                });
+                c.candle.applyOptions({
+                    upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                    wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+                });
+                if (c.vol) {
+                    c.vol.applyOptions({ color: themeColor('al-chart-volume') });
+                    c.vol.priceScale().applyOptions({ borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') });
+                    if (c.ohlcv && c.ohlcv.length) {
+                        c.vol.setData(c.ohlcv.map(function(d) {
+                            return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
+                        }));
+                    }
+                }
+                if (c.watermark) {
+                    c.watermark.applyOptions({
+                        lines: [{ color: themeColor('al-watermark') }, { color: themeColor('al-watermark') }],
+                    });
+                }
+            } catch (e) {}
+        });
+        // Canvas-drawn trendlines (_TRENDLINE_COLOR is now a live function, not a
+        // stale value) and the SVG drag-preview lines repaint on the applyOptions
+        // calls above; nothing further to do for them here.
+    });
 
     // Measure tool state (wl)
     var _wlMeasureMode       = false;
@@ -449,9 +515,9 @@ return '10y';
             _lwTooltipDiv = document.createElement('div');
             _lwTooltipDiv.id = 'lw-hover-tooltip';
             _lwTooltipDiv.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;display:none;' +
-                'background:rgba(13,17,23,0.96);border:1px solid #30363d;border-radius:5px;' +
+                'background:rgba(13,17,23,0.96);border:1px solid var(--border);border-radius:5px;' +
                 'padding:8px 12px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;' +
-                'font-family:inherit;color:#c9d1d9;line-height:1.75;white-space:nowrap;' +
+                'font-family:inherit;color:var(--text-primary-alt);line-height:1.75;white-space:nowrap;' +
                 'box-shadow:0 4px 20px rgba(0,0,0,0.6);';
             document.body.appendChild(_lwTooltipDiv);
         }
@@ -475,19 +541,19 @@ return '10y';
     function _buildTooltipHtml(d, barIdx, ohlcv, volSmaMap, maDataMap, activeMas, barTime) {
         function fp(v) { return v != null ? v.toFixed(2) : '\u2014'; }
         function fv(v) { return v == null ? '\u2014' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toFixed(0); }
-        var cl     = d.close >= d.open ? '#089981' : '#b22833';
-        var delta  = 0, pct = 0, chgClr = '#6e7681';
+        var cl     = d.close >= d.open ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
+        var delta  = 0, pct = 0, chgClr = 'var(--text-muted)';
         if (barIdx > 0) {
             var prevClose = ohlcv[barIdx - 1].close;
             delta  = d.close - prevClose;
             pct    = (delta / prevClose) * 100;
-            chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+            chgClr = delta >= 0 ? 'var(--success)' : 'var(--danger)';
         }
         var cr    = (d.high > d.low) ? Math.round((d.close - d.low) / (d.high - d.low) * 100) : null;
-        var crClr = cr != null ? (cr >= 60 ? '#3fb950' : cr >= 30 ? '#e3852b' : '#f85149') : '#6e7681';
+        var crClr = cr != null ? (cr >= 60 ? 'var(--success)' : cr >= 30 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
         var vol   = ohlcv[barIdx] ? ohlcv[barIdx].volume : null;
-        var L = '<span style="color:#6e7681">', V = '<span style="color:#c9d1d9">', E = '</span>';
-        var html = '<div style="color:#8b949e;margin-bottom:3px;">' + _fmtBarDate(barTime) + '</div>';
+        var L = '<span style="color:var(--text-muted)">', V = '<span style="color:var(--text-primary-alt)">', E = '</span>';
+        var html = '<div style="color:var(--text-muted-2);margin-bottom:3px;">' + _fmtBarDate(barTime) + '</div>';
         var lastVal = '<span>' + V + fp(d.close) + E;
         if (barIdx > 0) lastVal += ' <span style="color:' + chgClr + '">' + (delta >= 0 ? '+$' : '-$') + Math.abs(delta).toFixed(2) + E;
         lastVal += '</span>';
@@ -503,7 +569,7 @@ return '10y';
             var smaVal = volSmaMap.get(barTime);
             if (smaVal && smaVal > 0) {
                 var vp    = (vol / smaVal - 1) * 100;
-                var vpClr = vp >= 0 ? '#3fb950' : '#f85149';
+                var vpClr = vp >= 0 ? 'var(--success)' : 'var(--danger)';
                 ohlcvRows += L + 'Vol % Chg' + E + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E;
             }
         }
@@ -517,15 +583,15 @@ return '10y';
             var def   = _MC_MA_DEFS[key]; if (!def) return;
             var label = (def.ema ? 'EMA' : 'SMA') + '(' + def.period + ')';
             var dp    = (d.close - maVal) / maVal * 100;
-            var dpClr = dp >= 0 ? '#3fb950' : '#f85149';
+            var dpClr = dp >= 0 ? 'var(--success)' : 'var(--danger)';
             maRows.push(
                 '<span style="color:' + def.color + '">' + label + '</span>' +
-                '<span style="color:#c9d1d9;justify-self:end">' + fp(maVal) + '</span>' +
+                '<span style="color:var(--text-primary-alt);justify-self:end">' + fp(maVal) + '</span>' +
                 '<span style="color:' + dpClr + ';justify-self:end">' + (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%</span>'
             );
         });
         if (maRows.length) {
-            html += '<div style="border-top:1px solid #30363d;margin:5px 0 4px;"></div>';
+            html += '<div style="border-top:1px solid var(--border);margin:5px 0 4px;"></div>';
             html += '<div style="display:grid;grid-template-columns:auto auto auto;column-gap:10px;row-gap:2px;">' + maRows.join('') + '</div>';
         }
         return html;
@@ -552,7 +618,7 @@ return '10y';
         if (!info) {
             info = document.createElement('div');
             info.setAttribute('class', infoClass);
-            info.style.cssText = 'position:absolute;display:none;z-index:7;pointer-events:none;color:#fff;font-size:11.5px;font-weight:600;font-family:inherit;font-variant-numeric:tabular-nums;line-height:1.55;padding:5px 9px;border-radius:3px;white-space:nowrap;';
+            info.style.cssText = 'position:absolute;display:none;z-index:7;pointer-events:none;color:var(--text-on-accent);font-size:11.5px;font-weight:600;font-family:inherit;font-variant-numeric:tabular-nums;line-height:1.55;padding:5px 9px;border-radius:3px;white-space:nowrap;';
             container.appendChild(info);
         }
         return { svg: svg, rect: rect, hLine: hLine, info: info };
@@ -574,9 +640,9 @@ return '10y';
         var h = bottom - top;
         var isUp = result.endPrice >= result.startPrice;
 
-        var fillClr   = isUp ? 'rgba(8,153,129,0.15)'  : 'rgba(178,40,51,0.18)';
-        var strokeClr = isUp ? 'rgba(8,153,129,0.55)'  : 'rgba(178,40,51,0.6)';
-        var infoBg    = isUp ? 'rgba(8,153,129,0.88)'  : 'rgba(178,40,51,0.88)';
+        var fillClr   = isUp ? 'var(--al-measure-fill-up)'   : 'var(--al-measure-fill-down)';
+        var strokeClr = isUp ? 'var(--al-measure-stroke-up)' : 'var(--al-measure-stroke-down)';
+        var infoBg    = isUp ? 'var(--al-measure-bg-up)'     : 'var(--al-measure-bg-down)';
 
         rectEl.setAttribute('x', left);
         rectEl.setAttribute('y', top);
@@ -589,7 +655,7 @@ return '10y';
         var midY = (y1 + y2) / 2;
         hLineEl.setAttribute('x1', left);  hLineEl.setAttribute('y1', midY);
         hLineEl.setAttribute('x2', right); hLineEl.setAttribute('y2', midY);
-        hLineEl.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+        hLineEl.setAttribute('stroke', 'var(--al-watermark)');
         hLineEl.setAttribute('stroke-width', '0.5');
         hLineEl.setAttribute('stroke-dasharray', '3,3');
 
@@ -662,21 +728,21 @@ return '10y';
     function renderLwMcCellChart(container, ohlcv) {
         container.innerHTML = '';
         if (!window.LightweightCharts || !ohlcv || !ohlcv.length) {
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">No data</div>';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">No data</div>';
             return null;
         }
         var chart = LightweightCharts.createChart(container, {
             autoSize: true,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681' },
-            grid:    { vertLines: { color: '#171b22' }, horzLines: { color: '#171b22' } },
+            layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
+            grid:    { vertLines: { color: themeColor('mc-cell-grid') }, horzLines: { color: themeColor('mc-cell-grid') } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.06, bottom: 0.22 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, rightOffset: 1 },
+            rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.06, bottom: 0.22 } },
+            timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, rightOffset: 1 },
             handleScroll: false, handleScale: false,
         });
         var candle = chart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: '#089981', downColor: '#b22833', borderVisible: false,
-            wickUpColor: '#089981', wickDownColor: '#b22833',
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
             priceLineVisible: false, lastValueVisible: true,
         });
         candle.setData(ohlcv);
@@ -694,7 +760,7 @@ return '10y';
         var vol = chart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
         vol.setData(ohlcv.map(function(d) {
-            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
         }));
 
         // Volume 50-SMA — same scale as volume bars
@@ -717,7 +783,7 @@ return '10y';
 
         // OHLC legend
         var leg = document.createElement('div');
-        leg.style.cssText = 'position:absolute;top:0;left:6px;z-index:10;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.5;background:rgba(13,17,23,0.7);padding:2px 5px;border-radius:3px;';
+        leg.style.cssText = 'position:absolute;top:0;left:6px;z-index:10;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.5;background:var(--bg-page-alpha-2);padding:2px 5px;border-radius:3px;';
         container.style.position = 'relative';
         container.appendChild(leg);
         function fp(v) { return v != null ? v.toFixed(2) : '—'; }
@@ -725,9 +791,9 @@ return '10y';
         chart.subscribeCrosshairMove(function(p) {
             if (!p.time || !p.seriesData || !p.seriesData.size) { leg.innerHTML = ''; return; }
             var d = p.seriesData.get(candle); if (!d) { leg.innerHTML = ''; return; }
-            var cl = d.close >= d.open ? '#089981' : '#b22833';
+            var cl = d.close >= d.open ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             var vd = p.seriesData.get(vol);
-            leg.innerHTML = '<span style="color:#6e7681">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:#6e7681">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:#6e7681">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:#6e7681">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:#484f58">V</span><span style="color:#6e7681">'+fv(vd.value)+'</span>':'');
+            leg.innerHTML = '<span style="color:var(--text-muted)">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:var(--text-muted)">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:var(--text-muted)">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:var(--text-muted)">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:var(--border-muted)">V</span><span style="color:var(--text-muted)">'+fv(vd.value)+'</span>':'');
         });
         return { chart: chart, candle: candle, vol: vol, ohlcv: ohlcv };
     }
@@ -799,7 +865,7 @@ return '10y';
 
             var chartDiv = document.createElement('div');
             chartDiv.style.cssText = 'width:100%;flex:1;min-height:0;position:relative;overflow:hidden;';
-            chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
+            chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">Loading…</div>';
 
             var overlay = document.createElement('div');
             overlay.className = 'mc-cell-overlay';
@@ -847,7 +913,7 @@ return '10y';
                     return;
                 }
                 failed = false;
-                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Loading…</div>';
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">Loading…</div>';
                 fetchMcOhlcv(sym, tf, true).then(function(ohlcv) {
                     if (_mcRenderTokens[contextKey] !== token) return;
                     if (ohlcv === null) {
@@ -869,7 +935,7 @@ return '10y';
                         // ~2 minutes of retries exhausted — genuinely persistent
                         // failure. Manual retry is now the fallback, not the default.
                         failed = true;
-                        chartDiv.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;color:#8b949e;font-size:11px;"><span>Failed to load</span><span style="text-decoration:underline;">Click to retry</span></div>';
+                        chartDiv.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;color:var(--text-muted-2);font-size:11px;"><span>Failed to load</span><span style="text-decoration:underline;">Click to retry</span></div>';
                         return;
                     }
                     try {
@@ -877,10 +943,10 @@ return '10y';
                         rendered = true;
                         if (inst) widgetsObj[sym] = inst;
                     } catch(e) {
-                        chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
+                        chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">Error</div>';
                     }
                 }).catch(function() {
-                    chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:11px;">Error</div>';
+                    chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">Error</div>';
                 });
             }
 
@@ -977,7 +1043,7 @@ return '10y';
                                     ctx.beginPath();
                                     ctx.moveTo(bx1, by1);
                                     ctx.lineTo(bx2, by2);
-                                    ctx.strokeStyle = _TRENDLINE_COLOR;
+                                    ctx.strokeStyle = _TRENDLINE_COLOR();
                                     ctx.lineWidth   = 1.5 * rx;
                                     ctx.stroke();
                                     // Anchor dots only when selected
@@ -985,9 +1051,9 @@ return '10y';
                                         [[bx1, by1], [bx2, by2]].forEach(function(pt) {
                                             ctx.beginPath();
                                             ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
-                                            ctx.fillStyle   = _TRENDLINE_COLOR;
+                                            ctx.fillStyle   = _TRENDLINE_COLOR();
                                             ctx.fill();
-                                            ctx.strokeStyle = '#0d1117';
+                                            ctx.strokeStyle = themeColor('bg-page');
                                             ctx.lineWidth   = 1.5 * rx;
                                             ctx.stroke();
                                         });
@@ -2089,9 +2155,9 @@ return '10y';
             var sign  = up ? '+' : '';
             var label = isPre ? 'Pre-Mkt' : 'Post-Mkt';
 
-            badge.style.color = up ? '#3fb950' : '#f85149';
+            badge.style.color = up ? 'var(--success)' : 'var(--danger)';
             badge.innerHTML =
-                '<span style="color:#8b949e;font-weight:500;">' + label + '</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2);font-weight:500;">' + label + '</span>&nbsp; ' +
                 fp(price) +
                 (chg != null ? '&nbsp;' + sign + fp(chg) : '') +
                 (pct != null ? '&nbsp;(' + sign + pct.toFixed(2) + '%)' : '');
@@ -2154,7 +2220,7 @@ return '10y';
 
         if (!window.LightweightCharts || !_mcFsOhlcv.length) {
             var _mcFsMsg = ohlcv === null ? 'Failed to load — click to retry' : 'No data';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _mcFsMsg + '</div>';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _mcFsMsg + '</div>';
             if (ohlcv === null) {
                 container.querySelector('div').addEventListener('click', function() {
                     fetchMcOhlcv(sym, tf).then(function(retryOhlcv) { _buildFsChart(sym, retryOhlcv, tf); });
@@ -2181,7 +2247,7 @@ return '10y';
             _mcFsTrendSvgOverlay.setAttribute('class', 'mc-trend-svg-overlay');
             _mcFsTrendSvgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
             _mcFsTrendSvgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            _mcFsTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR);
+            _mcFsTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR());
             _mcFsTrendSvgLine.setAttribute('stroke-width', '1.5');
             _mcFsTrendSvgLine.setAttribute('x1', '0'); _mcFsTrendSvgLine.setAttribute('y1', '0');
             _mcFsTrendSvgLine.setAttribute('x2', '0'); _mcFsTrendSvgLine.setAttribute('y2', '0');
@@ -2206,11 +2272,11 @@ return '10y';
 
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681', panes: { separatorColor: '#161b22', separatorHoverColor: 'rgba(33,38,45,0.5)' } },
+            layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 24 },
+            rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
+            timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
@@ -2226,33 +2292,33 @@ return '10y';
         // old watermark goes away with it; nothing to explicitly detach.
         var _fsMeta        = _mcMetaCache[sym] || {};
         var _fsCompanyName = _fsMeta.longName || _fsMeta.shortName || '';
-        LightweightCharts.createTextWatermark(_mcFsChart.panes()[0], {
+        _mcFsWatermark = LightweightCharts.createTextWatermark(_mcFsChart.panes()[0], {
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: 'rgba(255,255,255,0.22)', fontSize: 30 },
-                _fsCompanyName ? { text: _fsCompanyName, color: 'rgba(255,255,255,0.22)', fontSize: 14 } : null,
+                { text: sym, color: themeColor('al-watermark'), fontSize: 30 },
+                _fsCompanyName ? { text: _fsCompanyName, color: themeColor('al-watermark'), fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
         _mcFsCandle = _mcFsChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: '#089981', downColor: '#b22833', borderVisible: false,
-            wickUpColor: '#089981', wickDownColor: '#b22833',
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
             priceLineVisible: false, lastValueVisible: true,
         });
         _mcFsCandle.setData(_mcFsOhlcv);
 
         _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
-            color: '#63a0f8', priceFormat: { type: 'volume' },
+            color: themeColor('al-chart-volume'), priceFormat: { type: 'volume' },
             priceLineVisible: false, lastValueVisible: true,
         }, 1);
         _mcFsVol.setData(_mcFsOhlcv.map(function(d) {
-            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
         }));
         _mcFsVol.priceScale().applyOptions({
             visible: true,
-            borderColor: '#21262d',
-            textColor: '#6e7681',
+            borderColor: themeColor('bg-surface'),
+            textColor: themeColor('text-muted'),
             minimumWidth: 60,
         });
 
@@ -2312,12 +2378,12 @@ return '10y';
             var volDiffPct   = (projectedVol / sma50 - 1) * 100;
 
             var sign  = volDiffPct >= 0 ? '+' : '';
-            var color = volDiffPct >= 0 ? '#3fb950' : '#f85149';
+            var color = volDiffPct >= 0 ? 'var(--success)' : 'var(--danger)';
 
             var lbl = document.createElement('div');
             lbl.id = 'mc-fs-vol-pct-label';
             lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
-            lbl.innerHTML = '<span style="color:#484f58;">›</span>'
+            lbl.innerHTML = '<span style="color:var(--border-muted);">›</span>'
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
 
@@ -2429,7 +2495,7 @@ return '10y';
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'mc-fs-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
@@ -2467,7 +2533,7 @@ return '10y';
                 if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
                 return;
             }
-            var cl = d.close >= d.open ? '#089981' : '#b22833';
+            var cl = d.close >= d.open ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             var vd = p.seriesData.get(_mcFsVol);
             // Price change from previous candle
             var chgHtml = '';
@@ -2476,19 +2542,19 @@ return '10y';
                 var prevClose = _mcFsOhlcv[barIdx - 1].close;
                 var delta = d.close - prevClose;
                 var pct = (delta / prevClose) * 100;
-                var chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+                var chgClr = delta >= 0 ? 'var(--success)' : 'var(--danger)';
                 chgHtml = '&nbsp;&nbsp;<span style="color:' + chgClr + '">'
                         + (delta >= 0 ? '+' : '') + delta.toFixed(2)
                         + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
                         + '</span>';
             }
             leg.innerHTML =
-                '<span style="color:#8b949e">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                '<span style="color:var(--text-muted-2)">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
-                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">V</span> <span style="color:#8b949e">'+fv(vd.value)+'</span>' : '');
+                (vd ? '&nbsp;&nbsp;<span style="color:var(--text-muted)">V</span> <span style="color:var(--text-muted-2)">'+fv(vd.value)+'</span>' : '');
             // Floating tooltip
             if (_mcFsTooltipEnabled) {
                 var ttDiv = _getLwTooltipDiv();
@@ -2520,13 +2586,13 @@ return '10y';
             var yrLow  = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
             var yrHigh = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
 
-            var chgColor = chg >= 0 ? '#3fb950' : '#f85149';
+            var chgColor = chg >= 0 ? 'var(--success)' : 'var(--danger)';
             var chgSign  = chg >= 0 ? '+' : '';
             var barLabel = _mcFsTf === 'W' ? 'WK' : _mcFsTf === 'M' ? 'MO' : 'DAY';
 
             // Gradient range bar: red→yellow→green track, dark overlay masks unfilled right,
             // white dot with dark ring marks current price position
-            var barColor = chg >= 0 ? '#089981' : '#b22833';
+            var barColor = chg >= 0 ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
 
             // Shared bar builder — 4px tall, matches 52W style
             function mkBar(low, high, curr, width, crLabel) {
@@ -2540,11 +2606,11 @@ return '10y';
                       crLabel.text + '</span>'
                     : '';
                 return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;' +
-                    'border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">' +
+                    'border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">' +
                     '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
                     '<span style="position:absolute;top:50%;left:' + p + '%;' +
                     'transform:translate(-50%,-50%);width:8px;height:8px;' +
-                    'background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>' +
+                    'background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>' +
                     crSpan +
                     '</span>';
             }
@@ -2553,7 +2619,7 @@ return '10y';
             var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
             var crLabel = crRaw != null ? {
                 text:  crRaw + '%',
-                color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149'
+                color: crRaw >= 60 ? 'var(--success)' : crRaw >= 30 ? 'var(--warning-alt)' : 'var(--danger)'
             } : null;
 
             var adrEl = document.getElementById('mc-fs-mkt-adr');
@@ -2561,8 +2627,8 @@ return '10y';
             if (adrEl) {
                 var adrRaw = sd ? sd.adr_pct : null;
                 if (adrRaw != null) {
-                    adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
-                                    + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
                     adrEl.style.display = 'inline-flex';
                 } else {
                     adrEl.style.display = 'none';
@@ -2576,8 +2642,8 @@ return '10y';
                     var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T'
                            : mcapRaw >= 1e9  ? (mcapRaw/1e9).toFixed(2)+'B'
                            : mcapRaw >= 1e6  ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
-                    mcapEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
-                                     + '<span style="color:#c9d1d9;font-size:12px;">' + mc + '</span>';
+                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
+                                     + '<span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
                     mcapEl.style.display = 'inline-flex';
                 } else {
                     mcapEl.style.display = 'none';
@@ -2585,26 +2651,26 @@ return '10y';
             }
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:var(--text-emphasis-2);font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
             document.getElementById('mc-fs-mkt-day').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
 
             var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
                 text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
-                color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
+                color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
             } : null;
             document.getElementById('mc-fs-mkt-52w').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
         })();
@@ -2768,7 +2834,7 @@ return '10y';
         // Fetch + rebuild
         var sym = _mcFsSym;
         var container = document.getElementById('mc-fullscreen-chart');
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (!document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (_mcFsSym !== sym || _mcFsTf !== tf) return;
@@ -2970,7 +3036,7 @@ return '10y';
                 el.className = 'mc-fs-dd-row' + (i === 0 ? ' active' : '');
                 el.innerHTML =
                     '<span class="mc-fs-dd-ticker">' + _escHtml(t) + '</span>' +
-                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:#484f58;font-style:italic;">—</span>') +
+                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:var(--border-muted);font-style:italic;">—</span>') +
                     (indStr  ? '<span class="mc-fs-dd-ind">'   + indStr  + '</span>' : '');
                 el.addEventListener('mousedown', function(e) {
                     e.preventDefault(); // prevent blur firing before click
@@ -3118,7 +3184,7 @@ return '10y';
                 el.className = 'mc-fs-dd-row' + (i === 0 ? ' active' : '');
                 el.innerHTML =
                     '<span class="mc-fs-dd-ticker">' + _escHtml(t) + '</span>' +
-                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:#484f58;font-style:italic;">—</span>') +
+                    (nameStr ? '<span class="mc-fs-dd-name">'  + nameStr + '</span>' : '<span class="mc-fs-dd-name" style="color:var(--border-muted);font-style:italic;">—</span>') +
                     (indStr  ? '<span class="mc-fs-dd-ind">'   + indStr  + '</span>' : '');
                 el.addEventListener('mousedown', function(e) {
                     e.preventDefault();
@@ -3217,11 +3283,11 @@ return '10y';
             var total   = industriesData.industries.length;
             if (indObj && indObj.rank != null) {
                 var pctile   = indObj.percentile != null ? indObj.percentile : null;
-                var rkColor  = pctile != null ? (pctile >= 75 ? '#3fb950' : pctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>'
+                var rkColor  = pctile != null ? (pctile >= 75 ? 'var(--success)' : pctile >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:var(--text-muted-2);font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>'
                              + '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
             } else if (ind) {
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:#8b949e;font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:var(--text-muted-2);font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>';
             }
         }
 
@@ -3240,7 +3306,7 @@ return '10y';
         var priceChgHtml = '';
         var chgHtml = '';
         if (dayPct != null) {
-            var chgColor = dayPct > 0 ? '#3fb950' : dayPct < 0 ? '#f85149' : '#484f58';
+            var chgColor = dayPct > 0 ? 'var(--success)' : dayPct < 0 ? 'var(--danger)' : 'var(--border-muted)';
             var chgStyle = 'color:' + chgColor + ';font-size:0.748em;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;white-space:nowrap;';
             var absDelta = null;
             if (wlIsMarketOpen() && live && live.price && live.prevClose) {
@@ -3294,8 +3360,8 @@ return '10y';
             var days = Math.round((ed - today) / 86400000);
             if (days >= 0 && days <= 30) {
                 var urgent = days <= 7;
-                var bg = urgent ? '#3a2008' : '#3a3008';
-                var fg = urgent ? '#f0883e' : '#e3c225';
+                var bg = urgent ? 'var(--bg-eps-urgent)' : 'var(--bg-eps-soon)';
+                var fg = urgent ? 'var(--text-eps-urgent)' : 'var(--text-eps-soon)';
                 var dateLabel = ed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 html = '<span id="mc-eps-badge" title="' + dateLabel + '" style="background:' + bg + ';color:' + fg
                      + ';font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;'
@@ -3358,7 +3424,7 @@ return '10y';
                 var mcTotal   = industriesData.industries.length;
                 if (mcIndData && mcIndData.rank != null) {
                     var mcPctile  = mcIndData.percentile != null ? mcIndData.percentile : null;
-                    var mcRankClr = mcPctile != null ? (mcPctile >= 75 ? '#3fb950' : mcPctile >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
+                    var mcRankClr = mcPctile != null ? (mcPctile >= 75 ? 'var(--success)' : mcPctile >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
                     mcIndRankHtml = '<span class="meta-sep">·</span><span class="meta-ind-rank" style="color:' + mcRankClr + '">(' + mcIndData.rank + '/' + mcTotal + ')</span>';
                 }
             }
@@ -3394,7 +3460,7 @@ return '10y';
 
         // Show loading state then fetch + render LW chart
         var container = document.getElementById('mc-fullscreen-chart');
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading…</div>';
         var openSym = sym;
         // No forced cache-clear here anymore — see the matching note in
         // mcFsSetTf. Reopening a symbol/TF already fetched this session now
@@ -3715,7 +3781,7 @@ return '10y';
 
         if (!window.LightweightCharts || !_wlOhlcv.length) {
             var _wlMsg = ohlcv === null ? 'Failed to load — click to retry' : 'No data';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _wlMsg + '</div>';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;' + (ohlcv === null ? 'cursor:pointer;text-decoration:underline;' : '') + '">' + _wlMsg + '</div>';
             if (ohlcv === null) {
                 container.querySelector('div').addEventListener('click', function() {
                     fetchMcOhlcv(sym, tf).then(function(retryOhlcv) { _buildWlChart(sym, retryOhlcv, tf); });
@@ -3738,7 +3804,7 @@ return '10y';
             _wlTrendSvgOverlay.setAttribute('class', 'wl-trend-svg-overlay');
             _wlTrendSvgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
             _wlTrendSvgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            _wlTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR);
+            _wlTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR());
             _wlTrendSvgLine.setAttribute('stroke-width', '1.5');
             _wlTrendSvgLine.setAttribute('x1', '0'); _wlTrendSvgLine.setAttribute('y1', '0');
             _wlTrendSvgLine.setAttribute('x2', '0'); _wlTrendSvgLine.setAttribute('y2', '0');
@@ -3763,11 +3829,11 @@ return '10y';
         // Create LW chart — identical options to fullscreen
         _wlChart = LightweightCharts.createChart(container, {
             autoSize: true,
-            layout: { background: { color: '#0d1117' }, textColor: '#6e7681', panes: { separatorColor: '#161b22', separatorHoverColor: 'rgba(33,38,45,0.5)' } },
+            layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
             grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#21262d', textColor: '#6e7681', scaleMargins: { top: 0.05, bottom: 0.02 } },
-            timeScale: { borderColor: '#21262d', timeVisible: false, secondsVisible: false, rightOffset: 24 },
+            rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
+            timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
             handleScroll: true, handleScale: true,
         });
         _wlAttachCtxMenu();
@@ -3778,32 +3844,32 @@ return '10y';
         // populates, no extra request.
         var _wlMeta        = _mcMetaCache[sym] || {};
         var _wlCompanyName = _wlMeta.longName || _wlMeta.shortName || '';
-        LightweightCharts.createTextWatermark(_wlChart.panes()[0], {
+        _wlWatermark = LightweightCharts.createTextWatermark(_wlChart.panes()[0], {
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: 'rgba(255,255,255,0.22)', fontSize: 30 },
-                _wlCompanyName ? { text: _wlCompanyName, color: 'rgba(255,255,255,0.22)', fontSize: 14 } : null,
+                { text: sym, color: themeColor('al-watermark'), fontSize: 30 },
+                _wlCompanyName ? { text: _wlCompanyName, color: themeColor('al-watermark'), fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
         // Candle series
         _wlCandle = _wlChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: '#089981', downColor: '#b22833', borderVisible: false,
-            wickUpColor: '#089981', wickDownColor: '#b22833',
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
             priceLineVisible: false, lastValueVisible: true,
         });
         _wlCandle.setData(_wlOhlcv);
 
         // Volume pane
         _wlVol = _wlChart.addSeries(LightweightCharts.HistogramSeries, {
-            color: '#63a0f8', priceFormat: { type: 'volume' },
+            color: themeColor('al-chart-volume'), priceFormat: { type: 'volume' },
             priceLineVisible: false, lastValueVisible: true,
         }, 1);
         _wlVol.setData(_wlOhlcv.map(function(d) {
-            return { time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' };
+            return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
         }));
-        _wlVol.priceScale().applyOptions({ visible: true, borderColor: '#21262d', textColor: '#6e7681', minimumWidth: 60 });
+        _wlVol.priceScale().applyOptions({ visible: true, borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), minimumWidth: 60 });
 
         // 50 SMA on volume
         (function() {
@@ -3858,11 +3924,11 @@ return '10y';
             var projectedVol = lastVol * timeratio;
             var volDiffPct   = (projectedVol / sma50 - 1) * 100;
             var sign  = volDiffPct >= 0 ? '+' : '';
-            var color = volDiffPct >= 0 ? '#3fb950' : '#f85149';
+            var color = volDiffPct >= 0 ? 'var(--success)' : 'var(--danger)';
             var lbl = document.createElement('div');
             lbl.id = 'wl-chart-vol-pct-label';
             lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
-            lbl.innerHTML = '<span style="color:#484f58;">›</span>'
+            lbl.innerHTML = '<span style="color:var(--border-muted);">›</span>'
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
             setTimeout(function() {
@@ -3961,7 +4027,7 @@ return '10y';
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'wl-chart-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#8b949e;pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
@@ -3996,7 +4062,7 @@ return '10y';
                 if (_lwTooltipDiv) _lwTooltipDiv.style.display = 'none';
                 return;
             }
-            var cl = d.close >= d.open ? '#089981' : '#b22833';
+            var cl = d.close >= d.open ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             var vd = p.seriesData.get(_wlVol);
             var chgHtml = '';
             var barIdx = _barIdxByTime(_wlOhlcv, p.time);
@@ -4004,19 +4070,19 @@ return '10y';
                 var prevClose = _wlOhlcv[barIdx - 1].close;
                 var delta = d.close - prevClose;
                 var pct = (delta / prevClose) * 100;
-                var chgClr = delta >= 0 ? '#3fb950' : '#f85149';
+                var chgClr = delta >= 0 ? 'var(--success)' : 'var(--danger)';
                 chgHtml = '&nbsp;&nbsp;<span style="color:' + chgClr + '">'
                         + (delta >= 0 ? '+' : '') + delta.toFixed(2)
                         + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)'
                         + '</span>';
             }
             leg.innerHTML =
-                '<span style="color:#8b949e">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
-                '<span style="color:#8b949e">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
+                '<span style="color:var(--text-muted-2)">O</span> <span style="color:'+cl+'">'+fp(d.open)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">H</span> <span style="color:'+cl+'">'+fp(d.high)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">L</span> <span style="color:'+cl+'">'+fp(d.low)+'</span>&nbsp; ' +
+                '<span style="color:var(--text-muted-2)">C</span> <span style="color:'+cl+'">'+fp(d.close)+'</span>' +
                 chgHtml +
-                (vd ? '&nbsp;&nbsp;<span style="color:#6e7681">Vol</span> <span style="color:#8b949e">' + fv(vd.value) + '</span>' : '');
+                (vd ? '&nbsp;&nbsp;<span style="color:var(--text-muted)">Vol</span> <span style="color:var(--text-muted-2)">' + fv(vd.value) + '</span>' : '');
             // Floating tooltip
             if (_wlTooltipEnabled) {
                 var ttDiv = _getLwTooltipDiv();
@@ -4045,30 +4111,30 @@ return '10y';
             var slice   = _wlOhlcv.slice(Math.max(0, _wlOhlcv.length - sliceLen));
             var yrLow   = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
             var yrHigh  = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
-            var chgColor = chg >= 0 ? '#3fb950' : '#f85149';
+            var chgColor = chg >= 0 ? 'var(--success)' : 'var(--danger)';
             var chgSign  = chg >= 0 ? '+' : '';
             var barLabel = tf === 'W' ? 'WK' : tf === 'M' ? 'MO' : 'DAY';
-            var barColor = chg >= 0 ? '#089981' : '#b22833';
+            var barColor = chg >= 0 ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
             function mkBar(low, high, curr, width, crLabel) {
                 var pos = (high > low) ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100)) : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
                     ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-150%);font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' + crLabel.text + '</span>'
                     : '';
-                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:#21262d;vertical-align:middle;flex-shrink:0;overflow:visible;">'
+                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">'
                     + '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>'
-                    + '<span style="position:absolute;top:50%;left:' + p + '%;transform:translate(-50%,-50%);width:8px;height:8px;background:#c9d1d9;border-radius:50%;box-shadow:0 0 0 1.5px #0d1117;"></span>'
+                    + '<span style="position:absolute;top:50%;left:' + p + '%;transform:translate(-50%,-50%);width:8px;height:8px;background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>'
                     + crSpan + '</span>';
             }
             var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
-            var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? '#3fb950' : crRaw >= 30 ? '#e3852b' : '#f85149' } : null;
+            var crLabel = crRaw != null ? { text: crRaw + '%', color: crRaw >= 60 ? 'var(--success)' : crRaw >= 30 ? 'var(--warning-alt)' : 'var(--danger)' } : null;
             var adrEl = document.getElementById('wl-chart-mkt-adr');
             if (adrEl) {
                 var adrSd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
                 var adrRaw = adrSd ? adrSd.adr_pct : null;
                 if (adrRaw != null) {
-                    adrEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
-                                    + '<span style="color:#c9d1d9;font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
                     adrEl.style.display = 'inline-flex';
                 } else {
                     adrEl.style.display = 'none';
@@ -4080,28 +4146,28 @@ return '10y';
                 var mcapRaw = sd ? sd.MarketCap : null;
                 if (mcapRaw != null) {
                     var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T' : mcapRaw >= 1e9 ? (mcapRaw/1e9).toFixed(2)+'B' : mcapRaw >= 1e6 ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
-                    mcapEl.innerHTML = '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span><span style="color:#c9d1d9;font-size:12px;">' + mc + '</span>';
+                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span><span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
                     mcapEl.style.display = 'inline-flex';
                 } else { mcapEl.style.display = 'none'; }
             }
             document.getElementById('wl-chart-mkt-price').innerHTML =
-                '<span style="color:#e6edf3;font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
+                '<span style="color:var(--text-emphasis-2);font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
                 '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' + chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
             document.getElementById('wl-chart-mkt-day').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
             var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
                 text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
-                color: w52HiPct <= 5 ? '#3fb950' : w52HiPct <= 15 ? '#e3852b' : '#f85149'
+                color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
             } : null;
             document.getElementById('wl-chart-mkt-52w').innerHTML =
-                '<span style="color:#6e7681;font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
-                '<span style="color:#c9d1d9;font-size:12px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
             document.getElementById('wl-chart-mkt-info').style.display = 'flex';
         })();
 
@@ -4235,7 +4301,7 @@ return '10y';
         // the queue, and still gets a real refetch periodically.
         var sym = _wlSym;
         var container = document.getElementById('wl-chart-widget');
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading\u2026</div>';
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
             if (_wlSym !== sym || _wlTf !== tf) return;
             _buildWlChart(sym, ohlcv, tf);
