@@ -44,7 +44,7 @@
             if (tds[6]) { tds[6].textContent = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '\u2014'; tds[6].className = cl; }
             if (tds[17] && live.dayHigh != null && live.dayLow != null && live.dayHigh > live.dayLow) {
                 var liveCr = ((price - live.dayLow) / (live.dayHigh - live.dayLow)) * 100;
-                var liveCrColor = liveCr >= 60 ? '#3fb950' : liveCr >= 30 ? '#e3852b' : '#f85149';
+                var liveCrColor = liveCr >= 60 ? 'var(--success)' : liveCr >= 30 ? 'var(--warning-alt)' : 'var(--danger)';
                 tds[17].innerHTML = '<span style="color:' + liveCrColor + ';font-weight:600;">' + Math.round(liveCr) + '%</span>';
                 tr.setAttribute('data-cr', liveCr);
             }
@@ -135,7 +135,7 @@
         ];
         var html = '<tr>';
         html += '<th style="width:28px;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="indToggleSelectAll()">' +
-            '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll()" style="cursor:pointer;accent-color:#388bfd;color-scheme:dark;opacity:0.35;">' +
+            '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll()" style="cursor:pointer;accent-color:var(--accent);color-scheme:dark;opacity:0.35;">' +
             '</th>';
         cols.forEach(function(c) {
             var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
@@ -161,7 +161,7 @@
             var rsVal   = row.Percentile != null ? Math.round(row.Percentile) : '—';
             // Same 75/40 thresholds and colors as rsBadge()/.chart-rs-badge,
             // so a stock's RS reads the same color everywhere in the app.
-            var rsColor = row.Percentile != null ? (row.Percentile >= 75 ? '#3fb950' : row.Percentile >= 40 ? '#e3852b' : '#f85149') : '#484f58';
+            var rsColor = row.Percentile != null ? (row.Percentile >= 75 ? 'var(--success)' : row.Percentile >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--border-muted)';
             var crVal   = row.cr  != null ? row.cr.toFixed(0)  + '%' : '—';
             var adrVal  = row.adr_pct != null ? row.adr_pct.toFixed(2) + '%' : '—';
 
@@ -203,10 +203,10 @@
             html += '<td style="white-space:nowrap;"><button class="wl-add-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlQuickToggle(this)" title="Add to watchlist">☆</button><button class="wl-pick-btn" data-ticker="' + esc(row.ticker) + '" onclick="event.stopPropagation();wlOpenPicker(this,event)" title="Choose watchlist">▾</button><span class="ticker-badge">' + esc(row.ticker) + '</span></td>';
             // Price
             var priceVal = row.price != null ? '$' + row.price.toFixed(2) : '—';
-            html += '<td style="color:#c8d0dc;font-weight:500;">' + priceVal + '</td>';
+            html += '<td style="color:var(--text-primary);font-weight:500;">' + priceVal + '</td>';
             html += '<td style="color:' + rsColor + ';font-weight:600;">' + rsVal + '</td>';
             var wrsVal   = row.weighted_rs_pct != null ? Math.round(row.weighted_rs_pct) : '—';
-            var wrsColor = row.weighted_rs_pct != null ? (row.weighted_rs_pct >= 75 ? '#3fb950' : row.weighted_rs_pct >= 40 ? '#e3852b' : '#f85149') : '#484f58';
+            var wrsColor = row.weighted_rs_pct != null ? (row.weighted_rs_pct >= 75 ? 'var(--success)' : row.weighted_rs_pct >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--border-muted)';
             html += '<td style="color:' + wrsColor + ';font-weight:600;">' + wrsVal + '</td>';
             // Chg ($) and Chg%
             var chgAbs = (row.price != null && row.daily != null) ? (row.price / (1 + row.daily / 100)) * (row.daily / 100) : null;
@@ -226,48 +226,48 @@
                 var v = row.AvgVol50;
                 volVal = v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : v.toFixed(0);
             }
-            html += '<td style="color:#8b949e;">' + volVal + '</td>';
+            html += '<td style="color:var(--text-muted-2);">' + volVal + '</td>';
             var pct52Val = '—';
-            var pct52Color = '#484f58';
+            var pct52Color = 'var(--border-muted)';
             if (row.PctFrom52WkHigh != null) {
                 pct52Val = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
-                pct52Color = row.PctFrom52WkHigh >= -5 ? '#3fb950' : row.PctFrom52WkHigh >= -15 ? '#e3852b' : '#f85149';
+                pct52Color = row.PctFrom52WkHigh >= -5 ? 'var(--success)' : row.PctFrom52WkHigh >= -15 ? 'var(--warning-alt)' : 'var(--danger)';
             }
             html += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
-            var adrColor = '#484f58';
+            var adrColor = 'var(--border-muted)';
             if (row.adr_pct != null) {
-                if (row.adr_pct < 4)      adrColor = '#3fb950';
-                else if (row.adr_pct < 8) adrColor = '#e3852b';
-                else                       adrColor = '#f85149';
+                if (row.adr_pct < 4)      adrColor = 'var(--success)';
+                else if (row.adr_pct < 8) adrColor = 'var(--warning-alt)';
+                else                       adrColor = 'var(--danger)';
             }
             html += '<td><span style="color:' + adrColor + ';font-weight:600;">' + adrVal + '</span></td>';
-            var crColor = '#484f58';
+            var crColor = 'var(--border-muted)';
             if (row.cr != null) {
-                if (row.cr >= 60) crColor = '#3fb950';
-                else if (row.cr >= 30) crColor = '#e3852b';
-                else crColor = '#f85149';
+                if (row.cr >= 60) crColor = 'var(--success)';
+                else if (row.cr >= 30) crColor = 'var(--warning-alt)';
+                else crColor = 'var(--danger)';
             }
             html += '<td><span style="color:' + crColor + ';font-weight:600;">' + crVal + '</span></td>';
             // Valuation columns (lower = better — color logic inverted)
-            var fwdPeColor = '#484f58';
+            var fwdPeColor = 'var(--border-muted)';
             if (row.fwd_pe != null && row.fwd_pe > 0) {
-                if (row.fwd_pe < 15)       fwdPeColor = '#3fb950';
-                else if (row.fwd_pe <= 25) fwdPeColor = '#8b949e';
-                else                       fwdPeColor = '#f85149';
+                if (row.fwd_pe < 15)       fwdPeColor = 'var(--success)';
+                else if (row.fwd_pe <= 25) fwdPeColor = 'var(--text-muted-2)';
+                else                       fwdPeColor = 'var(--danger)';
             }
             html += '<td><span style="color:' + fwdPeColor + ';font-weight:600;">' + (row.fwd_pe != null && row.fwd_pe > 0 ? row.fwd_pe.toFixed(2) : '—') + '</span></td>';
-            var psColor = '#484f58';
+            var psColor = 'var(--border-muted)';
             if (row.ps_ratio != null && row.ps_ratio >= 0) {
-                if (row.ps_ratio < 2)      psColor = '#3fb950';
-                else if (row.ps_ratio <= 5) psColor = '#8b949e';
-                else                        psColor = '#f85149';
+                if (row.ps_ratio < 2)      psColor = 'var(--success)';
+                else if (row.ps_ratio <= 5) psColor = 'var(--text-muted-2)';
+                else                        psColor = 'var(--danger)';
             }
             html += '<td><span style="color:' + psColor + ';font-weight:600;">' + (row.ps_ratio != null ? row.ps_ratio.toFixed(2) : '—') + '</span></td>';
-            var pegColor = '#484f58';
+            var pegColor = 'var(--border-muted)';
             if (row.peg_ratio != null && row.peg_ratio > 0) {
-                if (row.peg_ratio < 1)      pegColor = '#3fb950';
-                else if (row.peg_ratio <= 2) pegColor = '#8b949e';
-                else                         pegColor = '#f85149';
+                if (row.peg_ratio < 1)      pegColor = 'var(--success)';
+                else if (row.peg_ratio <= 2) pegColor = 'var(--text-muted-2)';
+                else                         pegColor = 'var(--danger)';
             }
             html += '<td><span style="color:' + pegColor + ';font-weight:600;">' + (row.peg_ratio != null && row.peg_ratio > 0 ? row.peg_ratio.toFixed(2) : '—') + '</span></td>';
             // Fundamental columns
@@ -372,13 +372,13 @@
         var cells = (container || document).querySelectorAll('.dist-ma-cell');
         cells.forEach(function(cell) {
             var raw = cell.getAttribute('data-dist-all');
-            if (!raw || raw.length < 3) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
+            if (!raw || raw.length < 3) { cell.innerHTML = '<span style="color:var(--border)">—</span>'; return; }
             var obj = null;
             try { obj = JSON.parse(raw); } catch(e) {
                 try { obj = JSON.parse(raw.replace(/&quot;/g, '"')); } catch(e2) {}
             }
             var val = obj ? obj[key] : null;
-            if (val == null) { cell.innerHTML = '<span style="color:#30363d">—</span>'; return; }
+            if (val == null) { cell.innerHTML = '<span style="color:var(--border)">—</span>'; return; }
             var cl = val > 0 ? 'up' : val < 0 ? 'down' : '';
             cell.innerHTML = '<span class="' + cl + '">' + fmt(val,2,'%') + '</span>';
             var row = cell.closest('tr');
@@ -448,7 +448,7 @@
     function industryLinkHtml(industry, closeFn) {
         if (!industry) return '';
         var escaped = esc(industry);
-        var style = 'color:#8b949e;cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
+        var style = 'color:var(--text-muted-2);cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
         var closeFnAttr = closeFn ? ' data-close-fn="' + closeFn + '"' : '';
         return '<span class="industry-nav-link" data-industry-name="' + escaped + '"' + closeFnAttr + ' style="' + style + '">' + escaped + '</span>';
     }
@@ -464,13 +464,13 @@
     document.addEventListener('mouseover', function(e) {
         var el = e.target.closest('.industry-nav-link');
         if (!el) return;
-        el.style.color = '#c8d0dc';
-        el.style.borderBottomColor = '#6e7681';
+        el.style.color = 'var(--text-primary)';
+        el.style.borderBottomColor = 'var(--text-muted)';
     });
     document.addEventListener('mouseout', function(e) {
         var el = e.target.closest('.industry-nav-link');
         if (!el) return;
-        el.style.color = '#8b949e';
+        el.style.color = 'var(--text-muted-2)';
         el.style.borderBottomColor = 'transparent';
     });
 
@@ -486,15 +486,15 @@
         ];
         var hasAny = stats.some(function(s){ return s.val != null; });
         if (!hasAny) return '';
-        var divider = '<span style="display:inline-block;width:1px;height:12px;background:#21262d;margin:0 4px;vertical-align:middle;flex-shrink:0;"></span>';
+        var divider = '<span style="display:inline-block;width:1px;height:12px;background:var(--bg-surface);margin:0 4px;vertical-align:middle;flex-shrink:0;"></span>';
         var html = divider;
         stats.forEach(function(s, i) {
             if (s.val == null) return;
             var v = parseFloat(s.val);
-            var color = !s.pct ? (v >= 5 ? '#3fb950' : v < 0 ? '#f85149' : '#8b949e') : (v >= 0 ? '#3fb950' : '#f85149');
+            var color = !s.pct ? (v >= 5 ? 'var(--success)' : v < 0 ? 'var(--danger)' : 'var(--text-muted-2)') : (v >= 0 ? 'var(--success)' : 'var(--danger)');
             var sign  = s.pct && v > 0 ? '+' : '';
             html += '<span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">' +
-                '<span title="' + s.tip + '" style="font-size:0.748em;color:#6e7681;text-transform:uppercase;letter-spacing:0.04em;cursor:default;">' + s.label + '</span>' +
+                '<span title="' + s.tip + '" style="font-size:0.748em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;cursor:default;">' + s.label + '</span>' +
                 '<span style="font-size:0.858em;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;">' + sign + v.toFixed(1) + '%</span>' +
             '</span>';
             if (i < stats.length - 1) html += divider;
@@ -553,13 +553,13 @@
                 e.preventDefault();
                 currentIndustryIndex = Math.min(currentIndustryIndex + 1, allIndustryRows.length - 1);
                 allIndustryRows.forEach(function(r){ r.style.background = ''; });
-                allIndustryRows[currentIndustryIndex].style.background = '#1c2128';
+                allIndustryRows[currentIndustryIndex].style.background = 'var(--bg-row-active)';
                 allIndustryRows[currentIndustryIndex].scrollIntoView({ block: 'nearest' });
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 currentIndustryIndex = Math.max(currentIndustryIndex - 1, 0);
                 allIndustryRows.forEach(function(r){ r.style.background = ''; });
-                allIndustryRows[currentIndustryIndex].style.background = '#1c2128';
+                allIndustryRows[currentIndustryIndex].style.background = 'var(--bg-row-active)';
                 allIndustryRows[currentIndustryIndex].scrollIntoView({ block: 'nearest' });
             } else if (e.key === 'Enter' && currentIndustryIndex >= 0) {
                 e.preventDefault();
