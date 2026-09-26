@@ -228,7 +228,7 @@
                 }
                 if (c.watermark) {
                     c.watermark.applyOptions({
-                        lines: [{ color: themeColor('al-watermark') }, { color: themeColor('al-watermark') }],
+                        lines: [{ color: themeColor('chart-watermark') }, { color: themeColor('chart-watermark') }],
                     });
                 }
             } catch (e) {}
@@ -971,6 +971,17 @@ return '10y';
     }
 
     // ── Fullscreen LW chart ────────────────────────────────────────────────────
+    // Crosshair date label — "Wed 22 Apr '26" (3-letter weekday, 3-letter month,
+    // apostrophe + 2-digit year). Bars are stored at UTC noon (see _noonTs above)
+    // specifically so reading UTC date parts here always lands on the right
+    // calendar day regardless of the viewer's local timezone.
+    function _mcLwCrosshairDateFmt(time) {
+        var d      = new Date(time * 1000);
+        var days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return days[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()] + ' \'' + String(d.getUTCFullYear()).slice(-2);
+    }
+
     function _addFsVwap(anchorIdx) {
         if (!_mcFsChart || !_mcFsOhlcv.length) return;
         var color = _AVWAP_COLOR;
@@ -2277,6 +2288,7 @@ return '10y';
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
+            localization: { timeFormatter: _mcLwCrosshairDateFmt },
             handleScroll: true, handleScale: true,
         });
         _mcFsAttachCtxMenu(); // attach once, capture phase, safe to call repeatedly
@@ -2296,8 +2308,8 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('al-watermark'), fontSize: 30 },
-                _fsCompanyName ? { text: _fsCompanyName, color: themeColor('al-watermark'), fontSize: 14 } : null,
+                { text: sym, color: themeColor('chart-watermark'), fontSize: 30 },
+                _fsCompanyName ? { text: _fsCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
@@ -3834,6 +3846,7 @@ return '10y';
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
+            localization: { timeFormatter: _mcLwCrosshairDateFmt },
             handleScroll: true, handleScale: true,
         });
         _wlAttachCtxMenu();
@@ -3848,8 +3861,8 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('al-watermark'), fontSize: 30 },
-                _wlCompanyName ? { text: _wlCompanyName, color: themeColor('al-watermark'), fontSize: 14 } : null,
+                { text: sym, color: themeColor('chart-watermark'), fontSize: 30 },
+                _wlCompanyName ? { text: _wlCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
             ].filter(Boolean),
         });
 
