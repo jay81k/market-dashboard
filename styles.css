@@ -114,10 +114,10 @@
         }
 
         [data-theme="light"] {
-            --bg-page: #ffffff;
-            --bg-page-alpha: rgba(255,255,255,0.8);
-            --bg-page-alpha-2: rgba(255,255,255,0.7);
-            --bg-page-alpha-3: rgba(255,255,255,0.88);
+            --bg-page: #f7f8fa;
+            --bg-page-alpha: rgba(247,248,250,0.8);
+            --bg-page-alpha-2: rgba(247,248,250,0.7);
+            --bg-page-alpha-3: rgba(247,248,250,0.88);
             --bg-subtle: #f6f8fa;
             --bg-surface: #eaeef2;
             --bg-row-active: #eaeef2;
