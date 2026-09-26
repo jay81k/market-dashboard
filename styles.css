@@ -20,6 +20,7 @@
             --text-muted: #6e7681;
             --text-muted-2: #8b949e;
             --text-muted-3: #7d8590;
+            --text-strong: #838b95;
             --text-on-accent: #fff;
 
             /* accent (blue) */
@@ -130,6 +131,7 @@
             --text-muted: #57606a;
             --text-muted-2: #6e7781;
             --text-muted-3: #656d76;
+            --text-strong: #3d434b;
             --text-on-accent: #fff;
 
             --accent: #0969da;
@@ -480,7 +482,7 @@
         .mc-cell-hdr-rank { font-size: 0.72em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
         .mc-cell-hdr-chg  { font-size: 0.748em; font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; padding-left: 4px; }
         .mc-cell-hdr-ind-name { color: var(--text-muted-2); }
-        [data-theme="light"] .mc-cell-hdr-ind-name { color: var(--text-muted); }
+        [data-theme="light"] .mc-cell-hdr-ind-name { color: var(--text-strong); }
         .mc-cell-flag {
             background: none; border: none; border-radius: 3px;
             color: var(--border-muted); font-size: 0.92em; padding: 1px 3px;
@@ -1551,6 +1553,7 @@
         .mm-popup-sym  { font-size: 13px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.05em; flex-shrink: 0; }
         .mm-popup-sep  { font-size: 11px; color: var(--border); flex-shrink: 0; }
         .mm-popup-ind  { font-size: 11px; color: var(--text-muted-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        [data-theme="light"] .mm-popup-ind { color: var(--text-strong); }
         .mm-popup-name { font-size: 12px; color: var(--text-emphasis); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
         .mm-popup-tf   { font-size: 10px; font-weight: 600; color: var(--accent-strong); background: var(--bg-accent-active); border: 1px solid var(--accent-fill-alpha-1); border-radius: 3px; padding: 2px 7px; letter-spacing: 0.04em; }
         .mm-popup-chart { width: 100%; height: 220px; }
