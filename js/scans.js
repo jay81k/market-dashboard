@@ -2026,17 +2026,25 @@
                     if (myGen !== _scanFetchGen) return; // stale; discard results
                     if (!data || !data.quotes) return;
                     data.quotes.forEach(function(q) {
-                        if (q && q.ticker && q.price) {
+                        if (!q) return;
+                        // quotes_batch falls back to Yahoo when Questrade has nothing
+                        // live (market closed). Yahoo's shape is {symbol, price: null,
+                        // regularMarketPrice} instead of {ticker, price} — without this
+                        // fallback the quote gets silently dropped and the price never
+                        // updates for any ticker that only ever got fetched while closed.
+                        var qTicker = q.ticker || q.symbol;
+                        var qPrice  = q.price != null ? q.price : q.regularMarketPrice;
+                        if (qTicker && qPrice != null) {
                             // prevClose now comes from the daily snapshot's preserved
                             // close (tickerMap[ticker]._snapPrice), not the Worker
                             // response — Questrade quotes don't include one.
-                            var snapRow   = tickerMap && tickerMap[q.ticker];
+                            var snapRow   = tickerMap && tickerMap[qTicker];
                             var prevClose = snapRow ? snapRow._snapPrice : null;
-                            scanLivePrices[q.ticker] = { price: q.price, prevClose: prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
-                            var dataRow = _vsData.find(function(r) { return r.ticker === q.ticker; });
+                            scanLivePrices[qTicker] = { price: qPrice, prevClose: prevClose || null, dayHigh: q.dayHigh || null, dayLow: q.dayLow || null };
+                            var dataRow = _vsData.find(function(r) { return r.ticker === qTicker; });
                             if (dataRow) {
                                 if (q.dayHigh && q.dayLow && q.dayHigh > q.dayLow)
-                                    dataRow.cr = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+                                    dataRow.cr = ((qPrice - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
                                 // Only overwrite the real daily-change value
                                 // (from build_data.py) with a live delta while
                                 // the market is actually open. Outside market
@@ -2045,7 +2053,7 @@
                                 // would silently clobber the correct stored
                                 // value with a spurious 0.
                                 if (wlIsMarketOpen() && prevClose && prevClose > 0)
-                                    dataRow.daily = ((q.price - prevClose) / prevClose) * 100;
+                                    dataRow.daily = ((qPrice - prevClose) / prevClose) * 100;
                             }
                         }
                     });
