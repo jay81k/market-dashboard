@@ -60,14 +60,22 @@
             results.forEach(function(data) {
                 if (!data || !data.quotes) return;
                 data.quotes.forEach(function(q) {
-                    if (q && q.ticker && q.price) {
+                    if (!q) return;
+                    // quotes_batch falls back to Yahoo when Questrade has nothing
+                    // live (market closed). Yahoo's shape is {symbol, price: null,
+                    // regularMarketPrice} instead of {ticker, price} — without this
+                    // fallback the quote gets silently dropped and the price never
+                    // updates for any ticker that only ever got fetched while closed.
+                    var qTicker = q.ticker || q.symbol;
+                    var qPrice  = q.price != null ? q.price : q.regularMarketPrice;
+                    if (qTicker && qPrice != null) {
                         // prevClose now comes from the daily snapshot's preserved close
                         // (tickerMap[ticker]._snapPrice), not the Worker response —
                         // Questrade quotes don't include one. wlUpdatePriceRows already
                         // falls back to the snapshot's own daily% if this is ever null.
-                        var snapRow = tickerMap && tickerMap[q.ticker];
-                        wlLivePrices[q.ticker] = {
-                            price:     q.price,
+                        var snapRow = tickerMap && tickerMap[qTicker];
+                        wlLivePrices[qTicker] = {
+                            price:     qPrice,
                             prevClose: (snapRow && snapRow._snapPrice) || null,
                             updatedAt: new Date()
                         };
