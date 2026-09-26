@@ -448,7 +448,7 @@
     function industryLinkHtml(industry, closeFn) {
         if (!industry) return '';
         var escaped = esc(industry);
-        var style = 'color:var(--text-muted-2);cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
+        var style = 'cursor:pointer;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s;';
         var closeFnAttr = closeFn ? ' data-close-fn="' + closeFn + '"' : '';
         return '<span class="industry-nav-link" data-industry-name="' + escaped + '"' + closeFnAttr + ' style="' + style + '">' + escaped + '</span>';
     }
@@ -470,7 +470,7 @@
     document.addEventListener('mouseout', function(e) {
         var el = e.target.closest('.industry-nav-link');
         if (!el) return;
-        el.style.color = 'var(--text-muted-2)';
+        el.style.color = '';
         el.style.borderBottomColor = 'transparent';
     });
 
