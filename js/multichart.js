@@ -3284,10 +3284,10 @@ return '10y';
             if (indObj && indObj.rank != null) {
                 var pctile   = indObj.percentile != null ? indObj.percentile : null;
                 var rkColor  = pctile != null ? (pctile >= 75 ? 'var(--success)' : pctile >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:var(--text-muted-2);font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>'
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>'
                              + '<span class="mc-cell-hdr-rank" style="color:' + rkColor + ';">(' + indObj.rank + '/' + total + ')</span>';
             } else if (ind) {
-                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="color:var(--text-muted-2);font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>';
+                indRankHtml  = '<span class="mc-cell-hdr-ind-name" style="font-size:0.7em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30%;margin-left:6px;flex-shrink:1;">' + esc(ind) + '</span>';
             }
         }
 
