@@ -28,8 +28,8 @@ var _mmPopup = (function () {
                 timeScale: { borderColor: themeColor('bg-surface') },
             });
             candleSeries.applyOptions({
-                upColor: themeColor('success'), downColor: themeColor('danger'),
-                wickUpColor: themeColor('success'), wickDownColor: themeColor('danger'),
+                upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
             });
         } catch (e) {}
     });
@@ -201,11 +201,11 @@ var _mmPopup = (function () {
         });
 
         candleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor:          themeColor('success'),
-            downColor:        themeColor('danger'),
+            upColor:          themeColor('al-chart-up'),
+            downColor:        themeColor('al-chart-down'),
             borderVisible:    false,
-            wickUpColor:      themeColor('success'),
-            wickDownColor:    themeColor('danger'),
+            wickUpColor:      themeColor('al-chart-up'),
+            wickDownColor:    themeColor('al-chart-down'),
             priceLineVisible: false,
             lastValueVisible: true,
         });
