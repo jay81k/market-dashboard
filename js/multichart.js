@@ -515,7 +515,7 @@ return '10y';
             _lwTooltipDiv = document.createElement('div');
             _lwTooltipDiv.id = 'lw-hover-tooltip';
             _lwTooltipDiv.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;display:none;' +
-                'background:rgba(13,17,23,0.96);border:1px solid var(--border);border-radius:5px;' +
+                'background:var(--bg-surface);border:1px solid var(--border);border-radius:5px;' +
                 'padding:8px 12px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;' +
                 'font-family:inherit;color:var(--text-primary-alt);line-height:1.75;white-space:nowrap;' +
                 'box-shadow:0 4px 20px rgba(0,0,0,0.6);';
@@ -2495,7 +2495,7 @@ return '10y';
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'mc-fs-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:var(--bg-page-alpha-3);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
@@ -4027,7 +4027,7 @@ return '10y';
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'wl-chart-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:var(--bg-page-alpha-3);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
