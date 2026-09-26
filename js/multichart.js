@@ -827,7 +827,7 @@ return '10y';
         }
         try { inst.candle.update({ time: todayTs, open: open, high: high, low: low, close: price, volume: volume }); } catch(e) {}
         if (inst.vol) {
-            try { inst.vol.update({ time: todayTs, value: volume, color: price >= open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' }); } catch(e) {}
+            try { inst.vol.update({ time: todayTs, value: volume, color: price >= open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
         }
     }
 
@@ -2056,7 +2056,7 @@ return '10y';
             }
             try { candle.update({ time: todayTs, open: open, high: high, low: low, close: p, volume: volume }); } catch(e) {}
             if (vol) {
-                try { vol.update({ time: todayTs, value: volume, color: p >= open ? 'rgba(24,72,204,0.5)' : 'rgba(248,81,73,0.35)' }); } catch(e) {}
+                try { vol.update({ time: todayTs, value: volume, color: p >= open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
             }
         }
 
