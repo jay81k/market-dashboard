@@ -133,9 +133,9 @@
     window.toggleWlMultichart = function() {
         wlMcActive = !wlMcActive;
         var btn = document.getElementById('wl-multichart-toggle-btn');
-        btn.style.background  = wlMcActive ? '#1f3a5c' : '';
-        btn.style.borderColor = wlMcActive ? '#388bfd' : '';
-        btn.style.color       = wlMcActive ? '#58a6ff' : '';
+        btn.style.background  = wlMcActive ? 'var(--bg-accent-active-2)' : '';
+        btn.style.borderColor = wlMcActive ? 'var(--accent)' : '';
+        btn.style.color       = wlMcActive ? 'var(--accent-strong)' : '';
         var settingsBar = document.getElementById('wl-chart-settings');
         document.getElementById('wl-chart-empty').style.display  = wlMcActive ? 'none' : (wlChartTicker ? 'none' : '');
         document.getElementById('wl-chart-widget').style.display = wlMcActive ? 'none' : (wlChartTicker ? 'block' : 'none');
@@ -173,7 +173,7 @@
         var all     = wlGetAll();
         var tickers = (active && all[active]) ? all[active].slice() : [];
         if (!tickers.length) {
-            grid.innerHTML = '<div style="color:#484f58;padding:20px;">No tickers in this watchlist.</div>';
+            grid.innerHTML = '<div style="color:var(--border-muted);padding:20px;">No tickers in this watchlist.</div>';
             return;
         }
         // Sort by chg% highest → lowest (mirrors watchlist default)
@@ -497,9 +497,9 @@
                 var name = clearBtn.getAttribute('data-wl-clear-list');
                 var rightEl = clearBtn.closest('.wl-selector-item-right');
                 rightEl.innerHTML =
-                    '<span style="font-size:0.78em;color:#8b949e;margin-right:4px;">Clear?</span>' +
-                    '<button class="wl-selector-item-confirm-yes" style="background:none;border:1px solid #3fb950;border-radius:3px;color:#3fb950;font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-clear="' + esc(name) + '">Yes</button>' +
-                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid #484f58;border-radius:3px;color:#6e7681;font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
+                    '<span style="font-size:0.78em;color:var(--text-muted-2);margin-right:4px;">Clear?</span>' +
+                    '<button class="wl-selector-item-confirm-yes" style="background:none;border:1px solid var(--success);border-radius:3px;color:var(--success);font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-clear="' + esc(name) + '">Yes</button>' +
+                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid var(--border-muted);border-radius:3px;color:var(--text-muted);font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
                 return;
             }
             var confirmYes = e.target.closest('[data-wl-confirm-clear]');
@@ -527,9 +527,9 @@
                 var name = delBtn.getAttribute('data-wl-del-list');
                 var rightEl = delBtn.closest('.wl-selector-item-right');
                 rightEl.innerHTML =
-                    '<span style="font-size:0.78em;color:#8b949e;margin-right:4px;">Delete?</span>' +
-                    '<button style="background:none;border:1px solid #f85149;border-radius:3px;color:#f85149;font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-del="' + esc(name) + '">Yes</button>' +
-                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid #484f58;border-radius:3px;color:#6e7681;font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
+                    '<span style="font-size:0.78em;color:var(--text-muted-2);margin-right:4px;">Delete?</span>' +
+                    '<button style="background:none;border:1px solid var(--danger);border-radius:3px;color:var(--danger);font-size:0.72em;padding:1px 6px;cursor:pointer;" data-wl-confirm-del="' + esc(name) + '">Yes</button>' +
+                    '<button class="wl-selector-item-confirm-no" style="background:none;border:1px solid var(--border-muted);border-radius:3px;color:var(--text-muted);font-size:0.72em;padding:1px 6px;cursor:pointer;">No</button>';
                 return;
             }
             var confirmDel = e.target.closest('[data-wl-confirm-del]');
@@ -760,9 +760,9 @@
         if (!name) { input.focus(); return; }
         var all = wlGetAll();
         if (all[name]) {
-            input.style.borderBottomColor = '#f85149';
+            input.style.borderBottomColor = 'var(--danger)';
             input.select();
-            setTimeout(function(){ input.style.borderBottomColor = '#388bfd'; }, 1200);
+            setTimeout(function(){ input.style.borderBottomColor = 'var(--accent)'; }, 1200);
             return;
         }
         all[name] = [];
@@ -903,8 +903,8 @@
                 var total   = industriesData.industries.length;
                 if (indData && indData.rank != null) {
                     var pct = indData.percentile != null ? indData.percentile : null;
-                    var rankColor = pct != null ? (pct >= 75 ? '#3fb950' : pct >= 40 ? '#e3852b' : '#f85149') : '#6e7681';
-                    indRankHtml = '<span style="margin:0 5px;color:#30363d;">·</span>' +
+                    var rankColor = pct != null ? (pct >= 75 ? 'var(--success)' : pct >= 40 ? 'var(--warning-alt)' : 'var(--danger)') : 'var(--text-muted)';
+                    indRankHtml = '<span style="margin:0 5px;color:var(--border);">·</span>' +
                         '<span style="color:' + rankColor + '">(' + indData.rank + '/' + total + ')</span>';
                 }
             }
@@ -939,7 +939,7 @@
         if (maChevron) maChevron.style.transform = '';
 
         _wlVisibleBars = _wlTf === 'D' ? 252 : _wlTf === 'W' ? 104 : 60;
-        widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#484f58;font-size:12px;">Loading…</div>';
+        widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading…</div>';
         // Debounce the fetch itself, not the UI update above. Arrow-keying or
         // click-scrolling through several rows quickly used to fire one real
         // fetchMcOhlcv call per row — all landing in the same shared queue as
@@ -1018,11 +1018,11 @@
         }
 
         html += '<div class="wl-picker-new" id="wl-picker-new-btn">';
-        html += '<span style="font-size:1em;color:#6e7681;">+</span> New watchlist…';
+        html += '<span style="font-size:1em;color:var(--text-muted);">+</span> New watchlist…';
         html += '</div>';
         html += '<div class="wl-picker-divider"></div>';
-        html += '<div class="wl-picker-new" id="wl-picker-alert-btn" style="color:#58a6ff;">';
-        html += '<span style="font-size:1em;color:#6e7681;">+</span> Add Alert';
+        html += '<div class="wl-picker-new" id="wl-picker-alert-btn" style="color:var(--accent-strong);">';
+        html += '<span style="font-size:1em;color:var(--text-muted);">+</span> Add Alert';
         html += '</div>';
 
         picker.innerHTML = html;
