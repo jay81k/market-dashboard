@@ -881,6 +881,17 @@
         .heatmap-tf-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
         .heatmap-tf-btn.active { background: var(--accent-fill); border-color: var(--accent); color: var(--text-on-accent); }
 
+        .heatmap-refresh-btn {
+            padding: 3px 7px; border-radius: 4px; border: 1px solid var(--bg-surface);
+            background: transparent; color: var(--text-muted);
+            font-family: inherit; cursor: pointer; transition: all 0.12s;
+            display: inline-flex; align-items: center; margin-left: 6px;
+        }
+        .heatmap-refresh-btn:hover:not(:disabled) { background: var(--bg-subtle); color: var(--text-primary); }
+        .heatmap-refresh-btn:disabled { cursor: default; opacity: 0.6; }
+        .heatmap-refresh-btn.spinning svg { animation: heatmap-refresh-spin 0.7s linear infinite; }
+        @keyframes heatmap-refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
         .heatmap-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
