@@ -193,6 +193,21 @@
             var industry = row.getAttribute('data-industry') || '';
             if (ticker) openChartModal(ticker);
         });
+        // Market movers — right-click to open the watchlist quick-picker
+        // (same pattern as stocks.js / scans.js / the scan-nav-panel below)
+        document.getElementById('view-market').addEventListener('contextmenu', function(e) {
+            var row = e.target.closest('.gl-clickable');
+            if (!row) return;
+            e.preventDefault();
+            var ticker = row.getAttribute('data-ticker');
+            if (!ticker) return;
+            var fakeBtn = {
+                getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+                getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+                _wlNoSwitch: true
+            };
+            wlOpenPicker(fakeBtn, e, false);
+        });
         document.getElementById('scans-table-view').addEventListener('dblclick', function(e) {
             var row = e.target.closest('.stock-row');
             if (!row) return;
