@@ -164,7 +164,7 @@ var _mmPopup = (function () {
             var chipsRect = chipsWrap.getBoundingClientRect();
             var rowRect   = card.getBoundingClientRect();
 
-            var left = Math.max(8, Math.min(chipsRect.right - POPUP_W, window.innerWidth - POPUP_W - 8));
+            var left = Math.max(8, Math.min(chipsRect.right - POPUP_W - 14, window.innerWidth - POPUP_W - 8));
             popup.style.left   = left + 'px';
             popup.style.right  = '';
 
