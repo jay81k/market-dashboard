@@ -91,6 +91,7 @@
             html += '</div>';
         });
         document.getElementById('sector-industry-list').innerHTML = html || '<div class="loading-msg">No industries.</div>';
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(document.getElementById('sector-industry-list'), '.industry-chip', null);
     }
 
     window.setSectorSort = function(col) {
@@ -453,6 +454,7 @@
             html += '</div>';
         });
         list.innerHTML = html || '<div class="loading-msg">No results.</div>';
+        if (typeof tickerHoverBind === 'function') tickerHoverBind(list, '.industry-chip', null);
     }
 
     // ── Open industry → stocks ────────────────────────────────────────────
