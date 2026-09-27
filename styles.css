@@ -362,12 +362,12 @@
         .industry-chip {
             display: inline-flex; align-items: center; flex-shrink: 0;
             padding: 3px 8px; border-radius: 4px;
-            background: var(--bg-subtle); color: var(--text-muted-2);
+            background: var(--bg-subtle); color: var(--accent-strong);
             border: 1px solid var(--bg-surface);
             font-size: 0.78em; font-weight: 600; font-variant-numeric: tabular-nums;
             cursor: pointer; user-select: none; transition: all 0.12s;
         }
-        .industry-chip:hover { border-color: var(--border-muted); color: var(--text-primary); }
+        .industry-chip:hover { border-color: var(--border-muted); }
         .industry-spark      { display: block; width: 100%; height: 24px; overflow: visible; }
         .industry-spark-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
         .industry-spark-area { stroke: none; opacity: 0.14; }
