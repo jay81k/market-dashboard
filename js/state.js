@@ -24,8 +24,8 @@
     // ── Live intraday Day% for industry list + heatmap ────────────────────
     var _indLiveDayInterval = null;
 
-    function fetchLiveIndustryDay() {
-        if (!snapshot || !snapshot.by_industry || !industriesData || !industriesData.industries) return;
+    function fetchLiveIndustryDay(onComplete) {
+        if (!snapshot || !snapshot.by_industry || !industriesData || !industriesData.industries) { if (onComplete) onComplete(); return; }
 
         // Build ticker → industry map and collect all tickers
         var tickerToInd = {};
@@ -35,7 +35,7 @@
             });
         });
         var allTickers = Object.keys(tickerToInd);
-        if (!allTickers.length) return;
+        if (!allTickers.length) { if (onComplete) onComplete(); return; }
 
         // Accumulator: { industryName: { sum: 0, count: 0 } }
         var acc = {};
@@ -54,7 +54,7 @@
         for (var i = 0; i < allTickers.length; i += 50) batches.push(allTickers.slice(i, i + 50));
 
         var pending = batches.length;
-        if (!pending) return;
+        if (!pending) { if (onComplete) onComplete(); return; }
 
         // Fires through the same shared clock as multichart.js/market.js
         // (yahoo-proxy-pace.js) instead of a fixed timer — a burst here can
@@ -124,7 +124,7 @@
                 }
             }).catch(function() {}).finally(function() {
                 pending--;
-                if (pending === 0) _applyLiveIndustryDay(acc);
+                if (pending === 0) { _applyLiveIndustryDay(acc); if (onComplete) onComplete(); }
             });
 
             launchNextBatch(); // launch the next one too — its own turn re-checks spacing/cooldown
