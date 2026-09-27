@@ -118,7 +118,7 @@
             return 'Perf ' + perfTf + ' ' + perfDir + ' ≥ ' + perfVal + '%';
         }
         if (row.type === 'pattern') {
-            var patLabels = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', bullish_outside: 'Bullish Outside', bearish_outside: 'Bearish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
+            var patLabels = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
             var ptfLabel = { d: 'D', w: 'W', m: 'M' }[row.patternTf || 'd'];
             return (patLabels[row.val] || row.val) + ' · ' + ptfLabel;
         }
@@ -374,8 +374,7 @@
             var patOpts = [
                 ['inside_day',          'Inside Day'],
                 ['double_inside_day',   'Double Inside Day'],
-                ['bullish_outside',     'Bullish Outside'],
-                ['bearish_outside',     'Bearish Outside'],
+                ['outside_day',         'Outside Day'],
                 ['hammer',              'Hammer'],
                 ['bullish_reversal_bar','Bullish Reversal Bar'],
                 ['upside_reversal',     'Upside Reversal'],
