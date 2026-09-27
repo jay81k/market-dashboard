@@ -119,6 +119,9 @@
                 <button class="heatmap-tf-btn" data-htf="avg_3m"    onclick="setHeatmapTf('avg_3m')">3M</button>
                 <button class="heatmap-tf-btn" data-htf="avg_ytd"   onclick="setHeatmapTf('avg_ytd')">YTD</button>
             </div>
+            <button class="heatmap-refresh-btn" id="heatmap-refresh-btn" onclick="refreshHeatmapData()" title="Refresh intraday data">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 7A5 5 0 1 1 10.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 2.5V6H8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
             <span class="result-count" id="heatmap-result-count" style="margin-left:4px;"></span>
         </div>
         <div class="industry-list" id="industry-list"></div>
