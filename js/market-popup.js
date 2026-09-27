@@ -106,6 +106,7 @@ var _mmPopup = (function () {
     function positionPopup(card) {
         var panelEl   = card.closest('#scan-nav-panel') || card.closest('.wl-side-panel');
         var tableWrap = card.closest('.stocks-table-wrap') || card.closest('#al-list');
+        var chipsWrap = card.closest('.industry-chips');
 
         popup.style.width = POPUP_W + 'px';
 
@@ -147,6 +148,32 @@ var _mmPopup = (function () {
             popup.style.bottom = '';
 
             // Left-pointing caret aligned to the hovered row
+            popupCaret.className       = 'mm-popup-caret left';
+            popupCaret.style.right     = '';
+            popupCaret.style.bottom    = '';
+            popupCaret.style.transform = '';
+            var caretTop = (centerY - top) - 8;
+            popupCaret.style.top = Math.max(16, Math.min(caretTop, POPUP_H - 16)) + 'px';
+            return;
+        }
+
+        if (chipsWrap) {
+            // ── Side placement: popup appears in the blank space at the
+            // right edge of the leader-chip row, instead of floating
+            // above/below and covering neighboring industry rows ──
+            var chipsRect = chipsWrap.getBoundingClientRect();
+            var rowRect   = card.getBoundingClientRect();
+
+            var left = Math.max(8, Math.min(chipsRect.right - POPUP_W, window.innerWidth - POPUP_W - 8));
+            popup.style.left   = left + 'px';
+            popup.style.right  = '';
+
+            var centerY = rowRect.top + rowRect.height / 2;
+            var top     = Math.max(8, Math.min(centerY - POPUP_H / 2, window.innerHeight - POPUP_H - 8));
+            popup.style.top    = top + 'px';
+            popup.style.bottom = '';
+
+            // Left-pointing caret aligned to the hovered chip
             popupCaret.className       = 'mm-popup-caret left';
             popupCaret.style.right     = '';
             popupCaret.style.bottom    = '';
