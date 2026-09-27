@@ -390,7 +390,7 @@
     };
 
     // ── Nav tab routing — captures scans state BEFORE modal closes ────────
-    window.navTo = function(view) {
+    window.navTo = function(view, fromHistory) {
         var _modalOpen = document.getElementById('mc-fullscreen-overlay').classList.contains('open');
         var _snpOpen   = document.getElementById('scan-nav-panel').classList.contains('snp-open');
         var _wasScans  = (currentView === 'scans');
@@ -406,6 +406,26 @@
             var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
             _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _snpOpen };
         }
+        if (!fromHistory && view !== currentView) {
+            try { history.pushState({ navTab: view }, '', location.pathname + location.search); } catch (e) {}
+        }
         if (view === 'industries') { navToIndustries(); } else { showView(view); }
     };
 
+    // ── Mouse/browser back-forward — replays the tab you were on ────────────
+    // navTo() above now pushes a history entry per tab switch, so the mouse's
+    // side "back" button (and the browser's own back/forward arrows, Alt+Left,
+    // trackpad swipe — they all fire the same popstate event) step through
+    // actual tab history instead of leaving the page. Replaying via
+    // navTo(view, true) — not showView(view) directly — matters: navTo is
+    // what tab clicks call, so replaying through it inherits whatever each
+    // tab already does on entry (e.g. Industries resuming the last
+    // drilled-into industry + its scroll position via navToIndustries())
+    // instead of bypassing that logic.
+    try {
+        history.replaceState({ navTab: currentView }, '', location.pathname + location.search);
+    } catch (e) {}
+    window.addEventListener('popstate', function(e) {
+        var view = (e.state && e.state.navTab) || 'industries';
+        navTo(view, true);
+    });
