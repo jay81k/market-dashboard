@@ -177,8 +177,7 @@
         }).slice(0, 5);
         var html = '<div class="industry-chips">';
         top.forEach(function(r) {
-            var rsLabel = r.weighted_rs_pct != null ? Math.round(r.weighted_rs_pct) : '—';
-            html += '<span class="industry-chip" title="' + esc(r.ticker) + ' — 3M RS ' + rsLabel + '"' +
+            html += '<span class="industry-chip"' +
                 ' onclick="event.stopPropagation();openChartModal(\'' + esc(r.ticker) + '\')"' +
                 ' oncontextmenu="event.preventDefault();event.stopPropagation();indChipContext(event,\'' + esc(r.ticker) + '\')">' +
                 esc(r.ticker) + '</span>';
