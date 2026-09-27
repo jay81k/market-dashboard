@@ -2440,7 +2440,7 @@
         // OHLC legend
         var leg = document.createElement('div');
         leg.id = 'al-chart-legend';
-        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:rgba(13,17,23,0.85);padding:4px 10px;border-radius:4px;';
+        leg.style.cssText = 'position:absolute;top:8px;left:14px;z-index:10;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-muted-2);pointer-events:none;line-height:1.8;background:var(--bg-page-alpha-3);padding:4px 10px;border-radius:4px;';
         container.style.position = 'relative';
         container.appendChild(leg);
 
