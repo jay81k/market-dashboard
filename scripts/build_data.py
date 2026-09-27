@@ -517,17 +517,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             hist["Low"].iloc[-2]  > hist["Low"].iloc[-3]
         ) if len(hist) >= 3 else False
 
-        # Bullish outside day: today's high > prev high AND today's low < prev low
-        bullish_outside = bool(
+        # Outside day: today's high > prev high AND today's low < prev low (engulfs prior range)
+        outside_day = bool(
             hist["High"].iloc[-1] > hist["High"].iloc[-2] and
             hist["Low"].iloc[-1]  < hist["Low"].iloc[-2]
-        ) if len(hist) >= 2 else False
-
-        # Bearish outside day: outside day (engulfs prev range) AND closes below prev close
-        bearish_outside = bool(
-            hist["High"].iloc[-1] > hist["High"].iloc[-2] and
-            hist["Low"].iloc[-1]  < hist["Low"].iloc[-2] and
-            hist["Close"].iloc[-1] < hist["Close"].iloc[-2]
         ) if len(hist) >= 2 else False
 
         # Hammer / Bullish Hammer
@@ -584,7 +577,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         def detect_patterns(h: pd.DataFrame) -> dict:
             """Run all pattern checks on the last 2 bars of a resampled DataFrame."""
             out = {k: False for k in [
-                "inside_day", "double_inside_day", "bullish_outside", "bearish_outside", "hammer",
+                "inside_day", "double_inside_day", "outside_day", "hammer",
                 "bullish_reversal_bar", "upside_reversal",
                 "oops_reversal", "pocket_pivot",
             ]}
@@ -608,8 +601,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                     hi < p_hi and lo > p_lo and
                     p_hi < h["High"].iloc[-3] and p_lo > h["Low"].iloc[-3]
                 )
-                out["bullish_outside"]= bool(hi > p_hi and lo < p_lo)
-                out["bearish_outside"]= bool(hi > p_hi and lo < p_lo and c < p_close)
+                out["outside_day"]    = bool(hi > p_hi and lo < p_lo)
                 out["hammer"]         = bool(
                     candle_range > 0 and body <= 0.3 * candle_range and
                     lower_shadow >= 2 * body and upper_shadow <= 0.1 * candle_range
@@ -683,8 +675,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "price":      round(float(current), 2),
             "inside_day": inside_day,
             "double_inside_day": double_inside_day,
-            "bullish_outside": bullish_outside,
-            "bearish_outside": bearish_outside,
+            "outside_day": outside_day,
             "hammer":              hammer,
             "bullish_reversal_bar": bullish_reversal_bar,
             "upside_reversal":      upside_reversal,
@@ -693,8 +684,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             # Weekly patterns
             "inside_day_w":          weekly_patterns["inside_day"],
             "double_inside_day_w":   weekly_patterns["double_inside_day"],
-            "bullish_outside_w":     weekly_patterns["bullish_outside"],
-            "bearish_outside_w":     weekly_patterns["bearish_outside"],
+            "outside_day_w":         weekly_patterns["outside_day"],
             "hammer_w":              weekly_patterns["hammer"],
             "bullish_reversal_bar_w":weekly_patterns["bullish_reversal_bar"],
             "upside_reversal_w":     weekly_patterns["upside_reversal"],
@@ -703,8 +693,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             # Monthly patterns
             "inside_day_m":          monthly_patterns["inside_day"],
             "double_inside_day_m":   monthly_patterns["double_inside_day"],
-            "bullish_outside_m":     monthly_patterns["bullish_outside"],
-            "bearish_outside_m":     monthly_patterns["bearish_outside"],
+            "outside_day_m":         monthly_patterns["outside_day"],
             "hammer_m":              monthly_patterns["hammer"],
             "bullish_reversal_bar_m":monthly_patterns["bullish_reversal_bar"],
             "upside_reversal_m":     monthly_patterns["upside_reversal"],
