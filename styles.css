@@ -353,6 +353,21 @@
         /* Industry row trend sparkline — same visual language as .mic-sparkline */
         .industry-spark-col  { width: 150px; flex-shrink: 0; display: flex; align-items: center; padding-right: 28px; }
         .industry-flex-fill  { flex: 1 1 0; min-width: 0; }
+
+        /* Top-5-by-3M-RS ticker chips — sits where .industry-flex-fill used to */
+        .industry-chips {
+            flex: 1 1 0; min-width: 0; display: flex; align-items: center;
+            gap: 6px; overflow: hidden; padding-right: 12px;
+        }
+        .industry-chip {
+            display: inline-flex; align-items: center; flex-shrink: 0;
+            padding: 3px 8px; border-radius: 4px;
+            background: var(--bg-subtle); color: var(--text-muted-2);
+            border: 1px solid var(--bg-surface);
+            font-size: 0.78em; font-weight: 600; font-variant-numeric: tabular-nums;
+            cursor: pointer; user-select: none; transition: all 0.12s;
+        }
+        .industry-chip:hover { border-color: var(--border-muted); color: var(--text-primary); }
         .industry-spark      { display: block; width: 100%; height: 24px; overflow: visible; }
         .industry-spark-path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
         .industry-spark-area { stroke: none; opacity: 0.14; }
@@ -375,6 +390,11 @@
         .ind-hdr-name   { flex: 1; min-width: 0; padding-right: 16px; }
         .ind-hdr-sector {
             width: 200px; flex-shrink: 0; padding-right: 6px;
+            font-size: 0.825em; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .ind-hdr-chips {
+            flex: 1 1 0; min-width: 0; padding-right: 12px;
             font-size: 0.825em; font-weight: 600; color: var(--text-muted);
             text-transform: uppercase; letter-spacing: 0.05em;
         }
