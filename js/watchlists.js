@@ -1029,6 +1029,9 @@
         html += '<span style="font-size:1em;color:var(--text-muted);">+</span> New watchlist…';
         html += '</div>';
         html += '<div class="wl-picker-divider"></div>';
+        html += '<div class="wl-picker-new" id="wl-picker-details-btn">';
+        html += '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0"><path d="M11 2a5 5 0 11-1.2 9.8l3.7 3.7-1.4 1.4-3.7-3.7A5 5 0 1111 2zm0 2a3 3 0 100 6 3 3 0 000-6zM2 7h4v2H2V7z"/></svg> Details';
+        html += '</div>';
         html += '<div class="wl-picker-new" id="wl-picker-alert-btn" style="color:var(--accent-strong);">';
         html += '<span style="font-size:1em;color:var(--text-muted);">+</span> Add Alert';
         html += '</div>';
@@ -1042,6 +1045,14 @@
             if (item) { wlPickerToggle(item.getAttribute('data-wl-pick')); return; }
             var newBtn = ev.target.closest('#wl-picker-new-btn');
             if (newBtn) { wlPickerNewList(); return; }
+            var detailsBtn = ev.target.closest('#wl-picker-details-btn');
+            if (detailsBtn) {
+                // Capture ticker immediately before wlClosePicker() nulls wlPickerTicker
+                var _detailsTicker = ticker || wlPickerTicker;
+                wlClosePicker();
+                window.open('https://finviz.com/quote.ashx?t=' + _detailsTicker.replace(/[^A-Z0-9]/gi, ''), '_blank', 'noopener');
+                return;
+            }
             var alertBtn = ev.target.closest('#wl-picker-alert-btn');
             if (alertBtn) {
                 // Capture ticker immediately before wlClosePicker() nulls wlPickerTicker
