@@ -331,6 +331,14 @@
         renderHeatmap();
     };
 
+    window.refreshHeatmapData = function() {
+        var btn = document.getElementById('heatmap-refresh-btn');
+        if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+        fetchLiveIndustryDay(function() {
+            if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+        });
+    };
+
     function renderIndustries() {
         var list = document.getElementById('industry-list');
         if (!industriesData || !industriesData.industries) {
