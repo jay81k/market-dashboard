@@ -394,7 +394,7 @@
             text-transform: uppercase; letter-spacing: 0.05em;
         }
         .ind-hdr-chips {
-            flex: 1 1 0; min-width: 0; padding-left: 130px; padding-right: 12px;
+            flex: 1 1 0; min-width: 0; padding-left: 134px; padding-right: 12px;
             font-size: 0.825em; font-weight: 600; color: var(--text-muted);
             text-transform: uppercase; letter-spacing: 0.05em;
         }
