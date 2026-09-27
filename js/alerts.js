@@ -785,7 +785,7 @@
             });
         }
 
-        var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', bullish_outside: 'Bullish Outside', bearish_outside: 'Bearish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
+        var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
 
         listEl.innerHTML = displayList.map(function(item) {
             var a = item.a, idx = item.idx;
@@ -1061,7 +1061,7 @@
             var ts = isToday
                 ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            var AL_HIST_PAT_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', bullish_outside: 'Bullish Outside', bearish_outside: 'Bearish Outside', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
+            var AL_HIST_PAT_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
             var condHtml = f.alertType === 'macross'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' +
                   (f.condition === 'above' ? '▲' : '▼') + ' ' +
