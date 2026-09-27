@@ -834,6 +834,7 @@
     var sectorPerfTf = 'avg_daily';
     var SP_TF_FIELDS = [
         { key: 'avg_daily', label: 'Day' },
+        { key: 'avg_1w',    label: '1W'  },
         { key: 'avg_1m',    label: '1M'  },
         { key: 'avg_3m',    label: '3M'  },
         { key: 'avg_6m',    label: '6M'  },
