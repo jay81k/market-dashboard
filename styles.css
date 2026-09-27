@@ -936,7 +936,7 @@
         .heatmap-card-null { background: var(--bg-subtle) !important; border-color: var(--bg-surface) !important; }
         .heatmap-card-null .heatmap-card-name { color: var(--border-muted); }
         .heatmap-card-null .heatmap-card-val  { color: var(--border-muted); }
-        [data-theme="light"] #industry-heatmap { background: #dde1e6; }
+        #industry-heatmap { background: #0d1117; }
         /* ── Scans filter bar ── */
         .scans-filter-bar {
             display: flex; align-items: flex-start; gap: 8px;
