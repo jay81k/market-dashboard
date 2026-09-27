@@ -8,7 +8,11 @@
 
     function applyLabel(theme) {
         var el = document.getElementById('theme-toggle-switch');
-        if (el) el.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+        if (el) {
+            var label = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+            el.setAttribute('aria-label', label);
+            el.setAttribute('title', label);
+        }
     }
 
     // Bridge from CSS custom properties into JS, for canvas and third-party
