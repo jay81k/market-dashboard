@@ -248,6 +248,7 @@
             border-bottom: 2px solid transparent; letter-spacing: 0.01em;
             transition: color 0.15s; user-select: none;
         }
+        [data-theme="light"] .nav-tab { color: var(--text-strong); }
         .nav-tab:hover { color: var(--text-primary); }
         .nav-tab:hover .nav-tab-icon { opacity: 1; }
         .nav-tab.active { color: var(--accent-subtle); border-bottom-width: 3px; border-bottom-color: var(--accent); background: rgba(56, 139, 253, 0.12); }
