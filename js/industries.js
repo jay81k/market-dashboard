@@ -66,7 +66,7 @@
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '" onclick="openIndustry(\'' + esc(ind.industry) + '\')">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
-            html += '<span class="industry-flex-fill"></span>';
+            html += topRsChipsHtml(ind.industry);
             html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
             html += '<div class="industry-perf-cols">';
@@ -160,6 +160,42 @@
     }
 
     function rsColClass(v) { return v == null ? 'neutral' : v >= 50 ? 'positive' : 'negative'; }
+
+    // ── Top-5-by-3M-RS ticker chips (industry list + sector drill-down) ────
+    // "3M RS" here is the per-ticker weighted_rs_pct field — the same one
+    // labeled "3M RS" on the stocks table and the industry-detail RS badge.
+    // That's distinct from the industry-level rs_3m summary field used by
+    // the list's own "3M RS" sort column.
+    function topRsChipsHtml(industryName) {
+        var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
+        if (!rows || !rows.length) return '<div class="industry-chips"></div>';
+        var top = rows.slice().sort(function(a, b) {
+            var av = a.weighted_rs_pct != null ? a.weighted_rs_pct : -Infinity;
+            var bv = b.weighted_rs_pct != null ? b.weighted_rs_pct : -Infinity;
+            return bv - av;
+        }).slice(0, 5);
+        var html = '<div class="industry-chips">';
+        top.forEach(function(r) {
+            var rsLabel = r.weighted_rs_pct != null ? Math.round(r.weighted_rs_pct) : '—';
+            html += '<span class="industry-chip" title="' + esc(r.ticker) + ' — 3M RS ' + rsLabel + '"' +
+                ' onclick="event.stopPropagation();openChartModal(\'' + esc(r.ticker) + '\')"' +
+                ' oncontextmenu="event.preventDefault();event.stopPropagation();indChipContext(event,\'' + esc(r.ticker) + '\')">' +
+                esc(r.ticker) + '</span>';
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // Same fakeBtn contract wlOpenPicker expects everywhere else it's called
+    // from a right-click (stocks.js tbody, market-popup.js popup).
+    window.indChipContext = function(e, ticker) {
+        var fakeBtn = {
+            getAttribute: function(attr) { return attr === 'data-ticker' ? ticker : null; },
+            getBoundingClientRect: function() { return { bottom: e.clientY, top: e.clientY, left: e.clientX }; },
+            _wlNoSwitch: true
+        };
+        wlOpenPicker(fakeBtn, e, false);
+    };
 
     function indRankDeltaHtml(industryName, currentRank) {
         var prev = indPrevRanks[industryName];
@@ -384,7 +420,7 @@
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
-            html += '<span class="industry-flex-fill"></span>';
+            html += topRsChipsHtml(ind.industry);
             html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
             html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
