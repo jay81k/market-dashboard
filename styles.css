@@ -767,7 +767,7 @@
            36px = 42px (badge left edge: td pad 6 + star 2+18 + picker 13+3) minus the th's 6px left pad.
            If those button sizes change, update this number. overflow:hidden mirrors the td so a narrow column clips instead of overlapping Price. */
         .stocks-table th.th-ticker { overflow: hidden; }
-        .stocks-table .th-ticker-lbl { display: inline-block; margin-left: 36px; }
+        .stocks-table .th-ticker-lbl { display: inline-block; margin-left: 48px; }
 
         .stocks-table td { padding: 7px 6px; border-bottom: 1px solid var(--bg-subtle); color: var(--text-muted-2); vertical-align: middle; overflow: hidden; }
         .stock-row { cursor: pointer; transition: background 0.1s; }
