@@ -174,15 +174,18 @@
     var _wlCtxAvwap             = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _wlCtxAttached          = false;
 
-    // Re-theme every currently-open chart live if the toggle is flipped —
-    // covers all three chart shapes this file renders: the multichart grid
-    // cells (mcWidgets, potentially several at once), the fullscreen chart,
-    // and the watchlist side-panel chart. Anything not currently open just
-    // picks up the new theme the next time it's (re)built, same as before.
-    window.addEventListener('themechange', function() {
-        try {
-            Object.keys(mcWidgets).forEach(function(sym) {
-                var inst = mcWidgets[sym];
+    // Re-theme one multichart grid's cells. Every grid built by _buildLwMcGrid
+    // stores its charts in its own registry object (mcWidgets for industries,
+    // wlMcWidgets, scansMcWidgets, alMcWidgets), so the theme handler below has
+    // to walk each one — walking only mcWidgets left the watchlist, scans and
+    // alerts grids with their old-theme canvases after a toggle. Each cell gets
+    // its own try/catch so a single failing chart can't skip the ones after it,
+    // and failures are logged instead of being swallowed silently.
+    function _mcRethemeGridCells(registry, label) {
+        if (!registry) return;
+        Object.keys(registry).forEach(function(sym) {
+            try {
+                var inst = registry[sym];
                 if (!inst || !inst.chart || !inst.candle) return;
                 inst.chart.applyOptions({
                     layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted') },
@@ -199,8 +202,25 @@
                         return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
                     }));
                 }
-            });
-        } catch (e) {}
+            } catch (e) {
+                console.warn('[theme] failed to re-theme ' + label + ' multichart cell ' + sym, e);
+            }
+        });
+    }
+
+    // Re-theme every currently-open chart live if the toggle is flipped —
+    // covers every chart shape this file renders: the cells of all four
+    // multichart grids (industries, watchlists, scans, alerts — potentially
+    // several charts at once), the fullscreen chart, and the watchlist
+    // side-panel chart. Anything not currently open just picks up the new
+    // theme the next time it's (re)built, same as before.
+    window.addEventListener('themechange', function() {
+        // wlMcWidgets / scansMcWidgets / alMcWidgets are declared in scripts that
+        // load after this one, so guard with typeof rather than assuming they exist.
+        _mcRethemeGridCells(mcWidgets, 'industries');
+        _mcRethemeGridCells(typeof wlMcWidgets     !== 'undefined' ? wlMcWidgets     : null, 'watchlists');
+        _mcRethemeGridCells(typeof scansMcWidgets  !== 'undefined' ? scansMcWidgets  : null, 'scans');
+        _mcRethemeGridCells(typeof alMcWidgets     !== 'undefined' ? alMcWidgets     : null, 'alerts');
 
         [
             { chart: _mcFsChart, candle: _mcFsCandle, vol: _mcFsVol, watermark: _mcFsWatermark, ohlcv: _mcFsOhlcv, sym: _mcFsSym },
