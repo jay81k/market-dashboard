@@ -725,7 +725,7 @@
            61px = 69px (badge left edge: td pad 6 + add-btn 20+7 + star 2+18 + picker 13+3) minus the th's 8px left pad.
            If those button sizes change, update this number. overflow:hidden mirrors the td so a narrow column clips instead of overlapping Industry. */
         #scans-table th:first-child { overflow: hidden; }
-        #scans-table .scans-th-chk { display: inline-block; width: 61px; vertical-align: middle; }
+        #scans-table .scans-th-chk { display: inline-block; width: 73px; vertical-align: middle; }
         #scans-table th:nth-child(1)  { width: 90px; }   /* Ticker */
         #scans-table th:nth-child(2)  { width: 136px; }  /* Industry */
         #scans-table th:nth-child(3)  { width: 54px; }   /* Price */
