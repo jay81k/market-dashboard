@@ -359,7 +359,7 @@
         /* Top-5-by-3M-RS ticker chips — sits where .industry-flex-fill used to */
         .industry-chips {
             flex: 1 1 0; min-width: 0; display: flex; align-items: center;
-            gap: 6px; overflow: hidden; padding-left: 40px; padding-right: 12px;
+            gap: 6px; overflow: hidden; padding-left: 60px; padding-right: 12px;
         }
         .industry-chip {
             display: inline-flex; align-items: center; flex-shrink: 0;
@@ -396,7 +396,7 @@
             text-transform: uppercase; letter-spacing: 0.05em;
         }
         .ind-hdr-chips {
-            flex: 1 1 0; min-width: 0; padding-left: 138px; padding-right: 12px;
+            flex: 1 1 0; min-width: 0; padding-left: 158px; padding-right: 12px;
             font-size: 0.825em; font-weight: 600; color: var(--text-muted);
             text-transform: uppercase; letter-spacing: 0.05em;
         }
