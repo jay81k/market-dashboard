@@ -721,6 +721,11 @@
         #view-industry-stocks .stocks-table th:nth-child(27) { width: 52px; }   /* Margin */
 
         /* Scans tab: Ticker+btn|Industry|Price|RS|3MRS|Chg|Chg%|1W|1M|3M|1Y|vs1M|vs3M|Dist/MA|Avg Vol|52Wk%|ADR%|CR|EPS TY|EPS NY|EPS 5Y|EPS Q/Q|Sales Q/Q|Margin */
+        /* Scans header, col 1: checkbox sits over the row buttons; the "Ticker" label starts at the badge's left edge.
+           61px = 69px (badge left edge: td pad 6 + add-btn 20+7 + star 2+18 + picker 13+3) minus the th's 8px left pad.
+           If those button sizes change, update this number. overflow:hidden mirrors the td so a narrow column clips instead of overlapping Industry. */
+        #scans-table th:first-child { overflow: hidden; }
+        #scans-table .scans-th-chk { display: inline-block; width: 61px; vertical-align: middle; }
         #scans-table th:nth-child(1)  { width: 90px; }   /* Ticker */
         #scans-table th:nth-child(2)  { width: 136px; }  /* Industry */
         #scans-table th:nth-child(3)  { width: 54px; }   /* Price */
