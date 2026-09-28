@@ -240,6 +240,28 @@
         });
     });
 
+    // Click an index card → open it in the fullscreen LW chart (Daily).
+    // Delegated and bound once at load: marketRenderCard() rewrites each
+    // card's innerHTML on every refresh, so per-card listeners would be
+    // wiped (or duplicated if re-bound on each render).
+    // The raw symbol (e.g. ^GSPC) is passed with NO displayName on purpose:
+    // alerts.js/state.js read #mc-fullscreen-sym's text back as the ticker
+    // to restore the chart after navigating away, so a friendly name like
+    // "S&P 500" there would be re-opened as a bogus symbol.
+    document.addEventListener('click', function(e) {
+        var card = e.target.closest('#market-index-grid .market-index-card');
+        if (!card) return;
+        var wrap = card.querySelector('.mic-chart-wrap');
+        if (!wrap || !wrap._lwChart) return;   // skeleton / no-data card — nothing to open
+        var idx = MARKET_INDEXES.filter(function(i) { return 'mc-' + i.id === card.id; })[0];
+        if (!idx || typeof openMcFullscreen !== 'function') return;
+        openMcFullscreen(idx.symbol, 'D');
+        // openMcFullscreen points the Finviz button at finviz.com/quote.ashx?t=GSPC
+        // (caret stripped), which isn't a real quote page — hide it for indexes.
+        var fvBtn = document.getElementById('mc-fullscreen-details-btn');
+        if (fvBtn) fvBtn.style.display = 'none';
+    });
+
     function marketRenderCard(idx, parsed, futuresParsed) {
         var card = document.getElementById('mc-' + idx.id);
         if (!card) return;
