@@ -101,6 +101,14 @@
     }
 
     // ── Render stocks table ───────────────────────────────────────────────
+    // Arrow class for a header, from the shared sort state. Numeric columns keep this table's existing
+    // mapping (dir 1 -> sort-desc). Ticker is alphabetical with dir 1 = A->Z, so it maps the other way
+    // round, making the arrow truthful (up = A->Z, down = Z->A).
+    function sortDirClass(key, dir) {
+        var asc = (key === 'symbol') ? (dir === 1) : (dir !== 1);
+        return asc ? 'sort-asc' : 'sort-desc';
+    }
+
     function buildTableHeader(theadId, industryName) {
         var dmaTooltip = '% distance from ' + activeMAType + activeMALength;
         var cols = [
@@ -138,12 +146,14 @@
             '<input type="checkbox" id="ind-select-all-chk" onclick="event.stopPropagation();indToggleSelectAll()" style="cursor:pointer;accent-color:var(--accent);color-scheme:dark;opacity:0.35;">' +
             '</th>';
         cols.forEach(function(c) {
-            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
-            var label = c.key === 'symbol' ? '' : c.label;
-            html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + label + (c.extra||'') + '</th>';
+            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + sortDirClass(c.key, currentStockSort.dir)) : '';
+            // Ticker label is offset to the badge's left edge by .th-ticker-lbl (styles.css)
+            var isSym = c.key === 'symbol';
+            var label = isSym ? '<span class="th-ticker-lbl">' + c.label + '</span>' : c.label;
+            html += '<th class="sortable' + (isSym ? ' th-ticker' : '') + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + label + (c.extra||'') + '</th>';
         });
         fundCols.forEach(function(c) {
-            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + (currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc')) : '';
+            var sortCl = (currentStockSort.by === c.key) ? (' sorted ' + sortDirClass(c.key, currentStockSort.dir)) : '';
             html += '<th class="sortable' + sortCl + '" data-sort-by="' + c.key + '" data-tooltip="' + esc(c.tip) + '">' + c.label + '</th>';
         });
         html += '</tr>';
@@ -349,7 +359,7 @@
         currentStockSort.by = sortBy;
         if (currentStockSort.count === 2) currentStockSort.dir *= -1; else currentStockSort.dir = 1;
         thead.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc','sorted'); });
-        th.classList.add(currentStockSort.dir === 1 ? 'sort-desc' : 'sort-asc', 'sorted');
+        th.classList.add(sortDirClass(sortBy, currentStockSort.dir), 'sorted');
         var rows = Array.from(tbody.querySelectorAll('.stock-row'));
         rows.sort(function(a,b) {
             if (sortBy === 'symbol') return a.getAttribute('data-symbol').localeCompare(b.getAttribute('data-symbol')) * currentStockSort.dir;
