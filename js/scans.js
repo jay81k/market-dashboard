@@ -1667,8 +1667,12 @@
             { key:'profit_margin_pct', label:'Margin',    tip:'Profit Margin %' },
         ];
         var html = '<tr>';
-        html += '<th style="text-align:left;padding-left:8px;cursor:pointer;" title="Select / deselect all" onclick="sfToggleSelectAll(this)">' +
-            '<input type="checkbox" id="scans-select-all-chk" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:var(--accent);color-scheme:dark;opacity:0.35;">' +
+        // Col 1 = select-all checkbox + the sortable "Ticker" label. .scans-th-chk (styles.css) pads the
+        // checkbox out to the ticker badge's left edge so the label sits directly above the badges.
+        var symCl = scansSortState.by === cols[0].key ? (' sorted ' + (scansSortState.dir === -1 ? 'sort-desc' : 'sort-asc')) : '';
+        html += '<th class="sortable' + symCl + '" data-sort-by="' + cols[0].key + '" data-tooltip="' + esc(cols[0].tip) + '" style="text-align:left;padding-left:8px;">' +
+            '<span class="scans-th-chk"><input type="checkbox" id="scans-select-all-chk" title="Select / deselect all" onclick="event.stopPropagation();sfToggleSelectAll(document.getElementById(\'scans-select-all-chk\'))" style="cursor:pointer;accent-color:var(--accent);color-scheme:dark;opacity:0.35;vertical-align:middle;"></span>' +
+            cols[0].label +
             '</th>';
         cols.slice(1).forEach(function(c) {
             var sorted = scansSortState.by === c.key;
@@ -1687,7 +1691,7 @@
             th.addEventListener('click', function() {
                 var key = this.getAttribute('data-sort-by');
                 if (scansSortState.by === key) { scansSortState.dir *= -1; }
-                else { scansSortState.by = key; scansSortState.dir = key === 'industry' ? 1 : -1; }
+                else { scansSortState.by = key; scansSortState.dir = (key === 'industry' || key === 'symbol') ? 1 : -1; }
                 renderScans();
             });
         });
@@ -1869,7 +1873,7 @@
         filtered.sort(function(a, b) {
             var key = scansSortState.by;
             var av, bv;
-            if (key === 'symbol')   { av = a.ticker;    bv = b.ticker;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
+            if (key === 'symbol')   { av = a.ticker;    bv = b.ticker;    return av < bv ? -scansSortState.dir : av > bv ? scansSortState.dir : 0; }
             if (key === 'sector')   { av = a.sector;    bv = b.sector;    return av < bv ? scansSortState.dir : av > bv ? -scansSortState.dir : 0; }
             if (key === 'industry') { av = _indRankMap[a.industry] || 9999; bv = _indRankMap[b.industry] || 9999; return (av - bv) * scansSortState.dir; }
             if (key === 'rs')                   { av = a.Percentile;          bv = b.Percentile; }
