@@ -1399,6 +1399,10 @@
         .market-index-card.up   { border-left: 3px solid var(--success); }
         .market-index-card.down { border-left: 3px solid var(--danger); }
         .market-index-card.flat { border-left: 3px solid var(--border-muted); }
+        /* Loaded cards open the fullscreen chart on click. !important on the
+           descendants because the LW chart sets its own cursor on its canvases. */
+        .market-index-card.up, .market-index-card.down, .market-index-card.flat,
+        .market-index-card.up *, .market-index-card.down *, .market-index-card.flat * { cursor: pointer !important; }
 
         /* Card header row */
         .mic-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
