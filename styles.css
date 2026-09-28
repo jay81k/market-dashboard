@@ -326,6 +326,8 @@
             cursor: pointer; transition: background 0.1s;
         }
         .industry-row:hover { background: var(--bg-subtle); }
+        [data-theme="light"] .industry-row { border-bottom-color: var(--bg-surface); }
+        [data-theme="light"] .industry-row:hover { background: var(--bg-row-active); }
 
         /* Fixed column widths — must match .ind-hdr-* exactly */
         .industry-rank   { font-size: 0.88em; color: var(--text-muted); width: 36px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; padding-right: 12px; }
@@ -673,6 +675,8 @@
         }
         .stocks-table tbody tr:hover td:first-child,
         .stocks-table tbody tr:hover td:nth-child(2) { background: var(--bg-subtle); }
+        [data-theme="light"] .stocks-table tbody tr:hover:not(.active) td:first-child,
+        [data-theme="light"] .stocks-table tbody tr:hover:not(.active) td:nth-child(2) { background: var(--bg-row-active); }
         .stocks-table tbody tr.active td:first-child,
         .stocks-table tbody tr.active td:nth-child(2) { background: var(--bg-row-active); }
 
@@ -758,6 +762,7 @@
         .stocks-table td { padding: 7px 6px; border-bottom: 1px solid var(--bg-subtle); color: var(--text-muted-2); vertical-align: middle; overflow: hidden; }
         .stock-row { cursor: pointer; transition: background 0.1s; }
         .stock-row:hover { background: var(--bg-subtle); }
+        [data-theme="light"] .stock-row:hover:not(.active) { background: var(--bg-row-active); }
         .stock-row.active { background: var(--bg-row-active); }
 
         .ticker-badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; background: var(--bg-subtle); color: var(--accent-strong); font-size: 1.045em; font-weight: 600; border: 1px solid var(--bg-surface); }
@@ -830,6 +835,7 @@
             cursor: pointer; transition: background 0.08s;
         }
         .snp-row:hover:not(.snp-active) { background: var(--bg-subtle); }
+        [data-theme="light"] .snp-row:hover:not(.snp-active) { background: var(--bg-row-active); }
         .snp-row.snp-active { background: var(--bg-accent-wash-2); border-right: 2px solid var(--accent); padding-right: 2px; }
         .snp-rank   { font-size: 9px; color: var(--border-muted); width: 18px; flex-shrink: 0; text-align: right; padding-right: 4px; overflow: hidden; }
         .snp-ticker { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary); overflow: hidden; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
@@ -1200,6 +1206,7 @@
             transition: background 0.1s; border-top: 1px solid var(--bg-page);
         }
         .wl-ticker-row:hover { background: var(--bg-subtle); }
+        [data-theme="light"] .wl-ticker-row:hover:not(.active) { background: var(--bg-row-active); }
         .wl-ticker-row.active { background: var(--bg-accent-active); }
         .wl-col-hdr {
             display: flex; align-items: center;
