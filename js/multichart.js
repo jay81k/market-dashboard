@@ -285,7 +285,9 @@
         EMA21:  { period: 21,  color: '#1848cc', ema: true  },
         SMA50:  { period: 50,  color: '#f23645', ema: false },
         SMA150: { period: 150, color: '#757575', ema: false },
-        SMA200: { period: 200, color: '#2e2e2e', ema: false },
+        // SMA200 color is read at chart-build time from --al-chart-ma200 so it can
+        // differ per theme (pure black in light mode); falls back to the old value.
+        SMA200: { period: 200, get color() { return (typeof themeColor === 'function' && themeColor('al-chart-ma200')) || '#2e2e2e'; }, ema: false },
     };
 
     function _mcInterval(tf) { return tf === 'W' ? '1wk' : tf === 'M' ? '1mo' : '1d'; }
