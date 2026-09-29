@@ -913,7 +913,6 @@
         .fund-stat-lbl { color: var(--text-muted); }
         .fund-stat-div { background: var(--bg-surface); }
         [data-theme="light"] .fund-stat-lbl { color: var(--text-strong); }
-        [data-theme="light"] .fund-stat-div { background: #afb8c1; }
 
 
         .loading-msg { padding: 40px; text-align: center; color: var(--border-muted); font-size: 0.935em; }
