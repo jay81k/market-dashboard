@@ -272,6 +272,9 @@
         }
         .search-input::placeholder { color: var(--border-muted); }
         .search-input:focus { border-color: var(--accent-alpha-1); }
+        /* Light mode: default border (--bg-surface) is nearly invisible against the light fill */
+        [data-theme="light"] .search-input { border-color: var(--border); }
+        [data-theme="light"] .search-input:focus { border-color: var(--accent-alpha-1); }
         .search-clear-btn {
             position: absolute; right: 7px; background: none; border: none;
             color: var(--border-muted); cursor: pointer; font-size: 13px; line-height: 1;
@@ -899,6 +902,18 @@
         .queue-add-btn:hover { background: var(--bg-surface); border-color: var(--border-muted); color: var(--text-primary); }
         .queue-add-btn.added { background: var(--bg-accent-active); border-color: var(--accent-fill); color: var(--accent-strong); }
         .queue-add-btn svg { opacity: 0.8; flex-shrink: 0; }
+        /* Light mode: Stock Details / copy-symbol buttons were too faint (border, text, icon opacity) */
+        [data-theme="light"] .chart-modal-ext-btn,
+        [data-theme="light"] .queue-add-btn { border-color: #afb8c1; color: var(--text-muted); }
+        [data-theme="light"] .chart-modal-ext-btn svg,
+        [data-theme="light"] .queue-add-btn svg { opacity: 1; }
+        [data-theme="light"] .chart-modal-ext-btn:hover,
+        [data-theme="light"] .queue-add-btn:hover { background: var(--bg-surface); border-color: var(--border-muted); color: var(--text-primary); }
+        /* Fundamentals row (EPS Q/Q, Sales Q/Q, ...): label + divider colors moved out of inline styles in stocks.js */
+        .fund-stat-lbl { color: var(--text-muted); }
+        .fund-stat-div { background: var(--bg-surface); }
+        [data-theme="light"] .fund-stat-lbl { color: var(--text-strong); }
+        [data-theme="light"] .fund-stat-div { background: #afb8c1; }
 
 
         .loading-msg { padding: 40px; text-align: center; color: var(--border-muted); font-size: 0.935em; }
