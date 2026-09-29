@@ -1059,6 +1059,8 @@
             overflow: hidden; flex-direction: column;
         }
         .sf-preset-dropdown.open { display: flex; }
+        /* Light mode: preset dropdown blended into the page (--bg-subtle ~ page bg); slightly greyer fill for contrast */
+        [data-theme="light"] .sf-preset-dropdown { background: var(--bg-inset-1); }
         .sf-preset-dropdown-scroll { overflow-y: auto; flex: 1; }
         .sf-preset-dropdown-footer { border-top: 1px solid var(--bg-surface); flex-shrink: 0; display: flex; align-items: center; }
         .sf-preset-item {
