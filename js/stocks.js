@@ -496,7 +496,7 @@
         ];
         var hasAny = stats.some(function(s){ return s.val != null; });
         if (!hasAny) return '';
-        var divider = '<span style="display:inline-block;width:1px;height:12px;background:var(--bg-surface);margin:0 4px;vertical-align:middle;flex-shrink:0;"></span>';
+        var divider = '<span class="fund-stat-div" style="display:inline-block;width:1px;height:12px;margin:0 4px;vertical-align:middle;flex-shrink:0;"></span>';
         var html = divider;
         stats.forEach(function(s, i) {
             if (s.val == null) return;
@@ -504,7 +504,7 @@
             var color = !s.pct ? (v >= 5 ? 'var(--success)' : v < 0 ? 'var(--danger)' : 'var(--text-muted-2)') : (v >= 0 ? 'var(--success)' : 'var(--danger)');
             var sign  = s.pct && v > 0 ? '+' : '';
             html += '<span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;">' +
-                '<span title="' + s.tip + '" style="font-size:0.748em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;cursor:default;">' + s.label + '</span>' +
+                '<span title="' + s.tip + '" class="fund-stat-lbl" style="font-size:0.748em;text-transform:uppercase;letter-spacing:0.04em;cursor:default;">' + s.label + '</span>' +
                 '<span style="font-size:0.858em;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;">' + sign + v.toFixed(1) + '%</span>' +
             '</span>';
             if (i < stats.length - 1) html += divider;
