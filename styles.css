@@ -857,6 +857,10 @@
         .chart-modal-meta .meta-sep { margin: 0 5px; color: var(--border); }
         .chart-modal-meta .meta-sector { color: var(--text-muted-2); }
         .chart-modal-meta .meta-industry { color: var(--text-muted); }
+        /* Light mode: fullscreen chart header (industry name + (rank/total)) reads too thin.
+           Scoped by ID so other modals sharing .chart-modal-meta are unaffected. */
+        [data-theme="light"] #mc-fullscreen-meta { font-weight: 600; }
+        [data-theme="light"] #mc-fullscreen-meta .meta-ind-rank { font-weight: 700; }
         .chart-rs-badge {
             font-size: 0.825em; font-weight: 700; margin-left: 6px;
             padding: 2px 8px; border-radius: 4px; white-space: nowrap;
