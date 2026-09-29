@@ -3,10 +3,12 @@ Build stock dashboard data for static GitHub Pages deployment.
 
 Flow:
   1. Download fresh stock universe CSV (RS-ranked list)
-  2. Filter to AvgVol10 >= 100k
-  3. Batch-download 1y price history from yfinance in parallel
-  4. Compute metrics per stock
-  5. Write data/snapshot.json + data/meta.json
+  2. Filter the universe on AvgVol50, MarketCap and ETFs (see the MIN_* constants
+     below); add supplemental tickers and apply industry overrides
+  3. Batch-download 14 months of daily price history from yfinance in parallel
+  4. Compute metrics per stock (stale/halted tickers and closes below MIN_PRICE
+     are dropped; cached fundamentals.json is merged in if present)
+  5. Write data/snapshot.json + data/industries.json
 
 Run from repo root:
   python scripts/build_data.py [--out-dir data] [--csv-url URL] [--workers 10]
@@ -541,10 +543,13 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         # Pocket Pivot: today closes up AND today's volume > max down-volume of prior 10 days
         pocket_pivot = False
         try:
-            if len(hist) >= 11:
+            if len(hist) >= 12:   # 11 prior bars needed so the oldest of the 10 days has a bar before it
                 today_vol  = hist["Volume"].iloc[-1]
+                # Flag down days on the FULL history, then take the last 10. Shifting inside the
+                # 10-row slice left its oldest day with no prior close, so it could never count as down.
+                is_down    = (hist["Close"] < hist["Close"].shift(1)).values
                 prior_10   = hist.iloc[-11:-1]
-                down_days  = prior_10[prior_10["Close"] < prior_10["Close"].shift(1)]
+                down_days  = prior_10[is_down[-11:-1]]
                 max_down_vol = down_days["Volume"].max() if len(down_days) > 0 else 0
                 pocket_pivot = bool(
                     _c > _prev_close and
@@ -612,10 +617,11 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 )
                 out["oops_reversal"]  = bool(o < p_lo and c > p_lo)
                 # Pocket pivot on weekly/monthly: close up AND volume > max down-bar vol of prior 10 bars
-                if len(h) >= 11:
+                if len(h) >= 12:   # 11 prior bars needed (see daily pocket pivot note)
                     today_vol2  = h["Volume"].iloc[-1]
+                    is_down_bar = (h["Close"] < h["Close"].shift(1)).values
                     prior_10_2  = h.iloc[-11:-1]
-                    down_bars   = prior_10_2[prior_10_2["Close"] < prior_10_2["Close"].shift(1)]
+                    down_bars   = prior_10_2[is_down_bar[-11:-1]]
                     max_dv      = down_bars["Volume"].max() if len(down_bars) > 0 else 0
                     out["pocket_pivot"] = bool(c > p_close and today_vol2 > max_dv)
             except Exception:
