@@ -236,7 +236,7 @@
                 var v = row.AvgVol50;
                 volVal = v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : v.toFixed(0);
             }
-            html += '<td style="color:var(--text-muted-2);">' + volVal + '</td>';
+            html += '<td class="avg-vol-cell">' + volVal + '</td>';
             var pct52Val = '—';
             var pct52Color = 'var(--border-muted)';
             if (row.PctFrom52WkHigh != null) {
