@@ -110,6 +110,41 @@ var _mmPopup = (function () {
 
         popup.style.width = POPUP_W + 'px';
 
+        var leadersEl = card.closest('.heat-leaders');
+        if (leadersEl) {
+            // ── Side placement: popup appears beside the heatmap leaders panel,
+            // aligned to the hovered row, so it never covers the rows themselves ──
+            var lpRect  = leadersEl.getBoundingClientRect();
+            var lrRect  = (card.closest('.hl-row') || card).getBoundingClientRect();
+            var lgap    = 10;
+            var fitsRight = (window.innerWidth - lpRect.right - lgap - 8) >= POPUP_W;
+            var fitsLeft  = (lpRect.left - lgap - 8) >= POPUP_W;
+            // Prefer the side away from the heatmap card (the panel opens to the card's
+            // right, or flips to its left when short on room); fall back to whichever fits.
+            var hmCard    = document.querySelector('.heatmap-card.heat-active');
+            var wantRight = hmCard ? hmCard.getBoundingClientRect().left < lpRect.left : true;
+            var onRight   = wantRight ? (fitsRight || !fitsLeft) : (!fitsLeft && fitsRight);
+
+            var left = onRight ? lpRect.right + lgap : lpRect.left - POPUP_W - lgap;
+            left = Math.max(8, Math.min(left, window.innerWidth - POPUP_W - 8));
+            popup.style.left   = left + 'px';
+            popup.style.right  = '';
+
+            var centerY = lrRect.top + lrRect.height / 2;
+            var top     = Math.max(8, Math.min(centerY - POPUP_H / 2, window.innerHeight - POPUP_H - 8));
+            popup.style.top    = top + 'px';
+            popup.style.bottom = '';
+
+            // Caret points at the hovered row (reset every inline position first)
+            popupCaret.className       = 'mm-popup-caret ' + (onRight ? 'left' : 'right');
+            popupCaret.style.left      = '';
+            popupCaret.style.right     = '';
+            popupCaret.style.bottom    = '';
+            popupCaret.style.transform = '';
+            popupCaret.style.top = Math.max(16, Math.min(centerY - top, POPUP_H - 16)) + 'px';
+            return;
+        }
+
         if (panelEl) {
             // ── Side placement: popup appears to the LEFT of the scan nav / watchlist panel ──
             var panelRect = panelEl.getBoundingClientRect();
