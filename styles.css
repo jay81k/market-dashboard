@@ -1066,6 +1066,12 @@
         .scan-add-btn.added { border-color: var(--success); background: var(--bg-success-subtle-2); }
         .scan-ind-link { cursor: pointer; }
         .scan-ind-link:hover { color: var(--accent-subtle) !important; text-decoration: underline; text-underline-offset: 2px; }
+        /* Avg Vol column + Scans industry name: base color in dark mode, darker in light mode (were hardcoded inline) */
+        .stocks-table td.avg-vol-cell { color: var(--text-muted-2); }
+        .scan-ind-link, .scan-ind-empty { color: var(--text-muted-2); }
+        [data-theme="light"] .stocks-table td.avg-vol-cell,
+        [data-theme="light"] .scan-ind-link,
+        [data-theme="light"] .scan-ind-empty { color: var(--text-strong); }
         .sf-export-modal {
             display: none; position: fixed; inset: 0; z-index: 10000;
             background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
