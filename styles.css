@@ -974,6 +974,39 @@
         .heatmap-card-null .heatmap-card-val  { color: var(--border-muted); }
         [data-theme="light"] .heatmap-card-null { background: #454c56 !important; border-color: #21262d !important; }
         #industry-heatmap { background: #0d1117; }
+        /* ── Heatmap hover: leaders quick view (industries.js) ── */
+        .heatmap-card.heat-active { filter: brightness(1.15); border-color: rgba(255,255,255,0.2); }
+        .heat-leaders {
+            display: none; position: fixed; z-index: 9000; width: 248px;
+            background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden;
+        }
+        [data-theme="light"] .heat-leaders { box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+        .heat-leaders.has-day { width: 304px; }
+        .hl-head  { padding: 10px 12px 8px; border-bottom: 1px solid var(--bg-surface); }
+        .hl-title { font-size: 0.902em; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hl-sub   { font-size: 0.78em; color: var(--text-muted-2); margin-top: 2px; }
+        .hl-row {
+            display: grid; grid-template-columns: 14px 1fr 44px 26px; align-items: center;
+            gap: 8px; padding: 6px 12px; cursor: pointer;
+        }
+        .heat-leaders.has-day .hl-row { grid-template-columns: 14px 1fr 44px 26px 52px; }
+        .hl-row:hover { background: var(--bg-row-active); }
+        .hl-idx { font-size: 0.78em; color: var(--text-muted); }
+        .hl-tkr { font-size: 0.902em; font-weight: 600; color: var(--accent-strong); }
+        .hl-bar { display: block; height: 3px; border-radius: 2px; background: var(--bg-surface); overflow: hidden; }
+        .hl-bar > span { display: block; height: 100%; border-radius: 2px; background: var(--border-muted); }
+        .hl-rs  { font-size: 0.825em; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+        .hl-row.rs-high .hl-bar > span { background: var(--success); }
+        .hl-row.rs-mid  .hl-bar > span { background: var(--warning-alt); }
+        .hl-row.rs-low  .hl-bar > span { background: var(--danger); }
+        .hl-row.rs-high .hl-rs { color: var(--success); }
+        .hl-row.rs-mid  .hl-rs { color: var(--warning-alt); }
+        .hl-row.rs-low  .hl-rs { color: var(--danger); }
+        .hl-day { font-size: 0.825em; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+        .hl-day.up   { color: var(--success); }
+        .hl-day.down { color: var(--danger); }
+        .hl-foot { padding: 7px 12px; border-top: 1px solid var(--bg-surface); font-size: 0.78em; color: var(--text-muted); white-space: nowrap; }
         /* ── Scans filter bar ── */
         .scans-filter-bar {
             display: flex; align-items: flex-start; gap: 8px;
