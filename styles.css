@@ -985,6 +985,8 @@
         .heat-leaders.has-day { width: 210px; }
         .hl-head  { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px 6px; border-bottom: 1px solid var(--bg-surface); font-size: 0.78em; color: var(--text-muted-2); white-space: nowrap; }
         .hl-lead  { color: var(--text-primary); }
+        [data-theme="light"] .hl-head { color: var(--text-strong); }
+        [data-theme="light"] .hl-lead { color: var(--text-primary); font-weight: 600; }
         .hl-row {
             display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: center;
             gap: 8px; padding: 6px 12px; cursor: pointer;
