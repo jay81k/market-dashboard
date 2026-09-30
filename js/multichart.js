@@ -312,6 +312,46 @@ return '10y';
 
     }
 
+    // ── Weekly / Monthly in-progress bar ─────────────────────────────────────
+    // Bars are stamped noon-UTC by fetchMcOhlcv. Weekly bars span Mon-Sun and
+    // monthly bars a calendar month. _mcPeriodKey collapses any such stamp to an
+    // integer naming its bar's period, so "is this the current bar?" is a key
+    // comparison that never depends on which day Yahoo stamps a period with
+    // (Monday vs. first session, the 1st vs. first trading day).
+    function _mcPeriodKey(ts, tf) {
+        var day = Math.floor(ts / 86400);
+        if (tf === 'W') return Math.floor((day + 3) / 7); // epoch day 0 is a Thursday -> Monday-based week index
+        if (tf === 'M') { var d = new Date(ts * 1000); return d.getUTCFullYear() * 12 + d.getUTCMonth(); }
+        return day;
+    }
+    function _mcPeriodStartTs(ts, tf) {
+        var d = new Date(ts * 1000);
+        if (tf === 'W') return ts - ((d.getUTCDay() + 6) % 7) * 86400;
+        if (tf === 'M') return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000 + 43200;
+        return ts;
+    }
+    // Folds a live price into the current W/M bar (mutating ohlcvArr's last bar,
+    // same as the Daily paths do) and returns a bar for series.update(), or null
+    // if nothing should be drawn. If the feed has no bar for the current period
+    // yet (first session of a new week/month), a new one is created only when
+    // createIfMissing is set AND the market is open - never a phantom after close.
+    function _mcApplyLiveWM(ohlcvArr, tf, price, dayHigh, dayLow, createIfMissing) {
+        if (!ohlcvArr || !ohlcvArr.length || !price) return null;
+        var now = new Date();
+        var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
+        var last = ohlcvArr[ohlcvArr.length - 1];
+        if (_mcPeriodKey(last.time, tf) === _mcPeriodKey(todayTs, tf)) {
+            last.high  = dayHigh != null ? Math.max(last.high, dayHigh, price) : Math.max(last.high, price);
+            last.low   = dayLow  != null ? Math.min(last.low,  dayLow,  price) : Math.min(last.low,  price);
+            last.close = price;
+            return { time: last.time, open: last.open, high: last.high, low: last.low, close: last.close, volume: last.volume };
+        }
+        if (!createIfMissing || !wlIsMarketOpen()) return null;
+        var t = _mcPeriodStartTs(todayTs, tf);
+        ohlcvArr.push({ time: t, open: price, high: price, low: price, close: price, volume: 0 });
+        return { time: t, open: price, high: price, low: price, close: price, volume: 0 };
+    }
+
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
     function fetchMcOhlcv(sym, tf, gridMode) {
         var key = sym + '_' + tf + (gridMode ? '_grid' : '');
@@ -429,19 +469,9 @@ return '10y';
                                 ohlcv.sort(function(a, b) { return a.time - b.time; });
                             }
                         }
-                        // Strip incomplete current period (Yahoo includes it, TV doesn't)
-                        if (ohlcv.length > 0 && tf !== 'D') {
-                            var now      = new Date();
-                            var lastDate = new Date(ohlcv[ohlcv.length - 1].time * 1000);
-                            if (tf === 'M') {
-                                if (lastDate.getUTCMonth() === now.getUTCMonth() && lastDate.getUTCFullYear() === now.getUTCFullYear()) ohlcv.pop();
-                            } else if (tf === 'W') {
-                                var dow = now.getUTCDay();
-                                var daysSinceMon = (dow + 6) % 7;
-                                var lastMon = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMon));
-                                if (lastDate >= lastMon) ohlcv.pop();
-                            }
-                        }
+                        // The in-progress week/month bar is deliberately KEPT (TradingView draws
+                        // it too). It is kept current by _mcApplyLiveWM via _injectChartLiveBar,
+                        // _mcFsStartLiveTick, _alStartLiveTick and _updateMcLiveCandle.
                         _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')] = ohlcv;
                         _mcOhlcvCacheAt[s + '_' + tf + (gridMode ? '_grid' : '')] = Date.now();
                         var res = (q.resolvers[s] || []).splice(0);
@@ -829,6 +859,17 @@ return '10y';
     function _updateMcLiveCandle(ticker, price, dayHigh, dayLow, widgetsObj) {
         var inst = widgetsObj && widgetsObj[ticker];
         if (!inst || !inst.candle || !inst.ohlcv || !inst.ohlcv.length) return;
+        // Weekly/Monthly tiles: fold into the current period's bar instead of
+        // appending a one-day candle to a W/M series.
+        if (inst.tf && inst.tf !== 'D') {
+            var _wm = _mcApplyLiveWM(inst.ohlcv, inst.tf, price, dayHigh, dayLow, true);
+            if (!_wm) return;
+            try { inst.candle.update(_wm); } catch(e) {}
+            if (inst.vol) {
+                try { inst.vol.update({ time: _wm.time, value: _wm.volume, color: price >= _wm.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
+            }
+            return;
+        }
         var d = new Date();
         // Use noon UTC (midnight UTC + 43200s) so todayTs matches the noon-UTC stamps
         // written by fetchMcOhlcv and stays within the correct calendar day for UTC-N zones.
@@ -846,7 +887,7 @@ return '10y';
             last.close = price;
         } else {
             // Only create a new bar during market hours — prevents a phantom candle
-            // appearing after close when W/M strips the current period bar.
+            // appearing after close.
             if (!wlIsMarketOpen()) return;
             open = high = low = price;
             volume = 0;
@@ -968,7 +1009,7 @@ return '10y';
                     try {
                         var inst = renderLwMcCellChart(chartDiv, ohlcv);
                         rendered = true;
-                        if (inst) widgetsObj[sym] = inst;
+                        if (inst) { inst.tf = tf; widgetsObj[sym] = inst; }
                     } catch(e) {
                         chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:11px;">Error</div>';
                     }
@@ -2044,9 +2085,10 @@ return '10y';
     // but targets a specific candle/vol/ohlcvArr triple rather than a widgets map.
     // Price is resolved from in-memory live caches (indLivePrices → wlLivePrices
     // → snapshot); if none is found a lightweight 2-day proxy fetch is issued as
-    // a fallback.  Only runs for the Daily timeframe (W/M bars are always closed).
+    // a fallback.  Daily folds into today's bar; Weekly/Monthly fold into the
+    // current period's bar (see _mcApplyLiveWM).
     function _injectChartLiveBar(sym, tf, candle, vol, ohlcvArr, isStale) {
-        if (tf !== 'D' || !candle || !ohlcvArr || !ohlcvArr.length) return;
+        if (!candle || !ohlcvArr || !ohlcvArr.length) return;
 
         var price = null, dayHigh = null, dayLow = null;
 
@@ -2073,6 +2115,15 @@ return '10y';
 
         function _applyLiveBar(p, dh, dl) {
             if (!p || !candle || !ohlcvArr.length) return;
+            if (tf !== 'D') {
+                var _wm = _mcApplyLiveWM(ohlcvArr, tf, p, dh, dl, true);
+                if (!_wm) return;
+                try { candle.update(_wm); } catch(e) {}
+                if (vol) {
+                    try { vol.update({ time: _wm.time, value: _wm.volume, color: p >= _wm.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
+                }
+                return;
+            }
             var now = new Date();
             // Use noon UTC (midnight UTC + 43200s) to match the noon-UTC stamps from fetchMcOhlcv.
             var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
@@ -2125,7 +2176,6 @@ return '10y';
     // replacing the paused pollers' budget, not competing with it.
     function _mcFsStartLiveTick(sym, tf) {
         _mcFsStopLiveTick();
-        if (tf !== 'D') return; // W/M bars are always closed, nothing to tick
         if (!wlIsMarketOpen()) return;
         _mcFsLiveTimer = setInterval(function() {
             if (!_mcFsIsOpen() || _mcFsSym !== sym || !_mcFsCandle) { _mcFsStopLiveTick(); return; }
@@ -2135,6 +2185,12 @@ return '10y';
                 .then(function(data) {
                     var q = data && data.quotes && data.quotes[0];
                     if (!q || !q.price || _mcFsSym !== sym || !_mcFsCandle || !_mcFsOhlcv.length) return;
+                    if (tf !== 'D') {
+                        // W/M: fold into the current period's bar; never create one mid-tick
+                        var _wm = _mcApplyLiveWM(_mcFsOhlcv, tf, q.price, q.dayHigh, q.dayLow, false);
+                        if (_wm) { try { _mcFsCandle.update(_wm); } catch(e) {} }
+                        return;
+                    }
                     var now = new Date();
                     var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
                     var last = _mcFsOhlcv[_mcFsOhlcv.length - 1];
