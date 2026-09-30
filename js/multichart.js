@@ -351,6 +351,28 @@ return '10y';
         ohlcvArr.push({ time: t, open: price, high: price, low: price, close: price, volume: 0 });
         return { time: t, open: price, high: price, low: price, close: price, volume: 0 };
     }
+    // Yahoo can return the latest trading day as its own row alongside the
+    // week/month row, so one period arrives as two candles. Collapse rows that
+    // share a period into one bar: open from the earliest row, high/low across
+    // both, close from the latest. Volume takes the larger of the two - if the
+    // extra row is day-only that understates the period, if it is cumulative
+    // it is exact; it can never double-count. No-op when every period has one row.
+    function _mcMergeSamePeriod(ohlcv, tf) {
+        if (tf === 'D' || !ohlcv || ohlcv.length < 2) return ohlcv;
+        var out = [];
+        for (var i = 0; i < ohlcv.length; i++) {
+            var b = ohlcv[i], p = out[out.length - 1];
+            if (p && _mcPeriodKey(p.time, tf) === _mcPeriodKey(b.time, tf)) {
+                if (b.high != null) p.high = Math.max(p.high, b.high);
+                if (b.low  != null) p.low  = Math.min(p.low,  b.low);
+                p.close  = b.close;
+                p.volume = Math.max(p.volume || 0, b.volume || 0);
+            } else {
+                out.push(b);
+            }
+        }
+        return out;
+    }
 
     // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
     function fetchMcOhlcv(sym, tf, gridMode) {
@@ -472,6 +494,7 @@ return '10y';
                         // The in-progress week/month bar is deliberately KEPT (TradingView draws
                         // it too). It is kept current by _mcApplyLiveWM via _injectChartLiveBar,
                         // _mcFsStartLiveTick, _alStartLiveTick and _updateMcLiveCandle.
+                        ohlcv = _mcMergeSamePeriod(ohlcv, tf); // one candle per week/month even if Yahoo splits the period
                         _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')] = ohlcv;
                         _mcOhlcvCacheAt[s + '_' + tf + (gridMode ? '_grid' : '')] = Date.now();
                         var res = (q.resolvers[s] || []).splice(0);
