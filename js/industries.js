@@ -367,7 +367,8 @@
             return bv - av;
         }).slice(0, HEAT_LEADERS_N);
 
-        var html = '<div class="hl-head">Top ' + top.length + ' by 3M RS · ' + rows.length + ' stocks</div>';
+        var html = '<div class="hl-head"><span class="hl-lead">Leaders</span>' +
+                   '<span>' + rows.length + (rows.length === 1 ? ' stock' : ' stocks') + '</span></div>';
         top.forEach(function(r) {
             var rs    = r.weighted_rs_pct != null ? Number(r.weighted_rs_pct) : NaN;
             var hasRs = !isNaN(rs);
