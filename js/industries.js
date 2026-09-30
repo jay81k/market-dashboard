@@ -348,7 +348,7 @@
     // <body> so it survives renderHeatmap()'s innerHTML rebuilds and isn't
     // clipped by the grid's scroll area.
     var HEAT_LEADERS_N        = 5;
-    var HEAT_LEADERS_SHOW_DAY = false;   // true adds a Day % column (widens the panel)
+    var HEAT_LEADERS_SHOW_DAY = true;    // false hides the Day % column (panel narrows)
     var HEAT_LEADERS_OPEN_MS  = 160;     // hover-intent delay before opening
     var HEAT_LEADERS_CLOSE_MS = 140;     // grace period to travel card -> panel
     var heatLeadersEl       = null;
@@ -356,6 +356,7 @@
     var heatLeadersIndustry = null;
     var heatLeadersOpenT    = null;
     var heatLeadersCloseT   = null;
+    var heatLeadersMouse    = { x: -1, y: -1 };   // last cursor position (for the picker-close check)
 
     function heatLeadersPanelHtml(industryName) {
         var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
@@ -421,8 +422,10 @@
 
         // A fixed panel would drift away from its card if anything scrolled/resized
         var hideIfOpen = function() { if (heatLeadersEl && heatLeadersEl.style.display === 'block') hideHeatLeaders(); };
-        document.addEventListener('scroll', hideIfOpen, true);
+        // The watchlist picker can scroll/focus when it opens — that must not close the panel
+        document.addEventListener('scroll', function() { if (!heatLeadersPickerOpen()) hideIfOpen(); }, true);
         window.addEventListener('resize', hideIfOpen);
+        document.addEventListener('mousemove', function(e) { heatLeadersMouse.x = e.clientX; heatLeadersMouse.y = e.clientY; }, { passive: true });
 
         heatLeadersEl = el;
         return el;
@@ -468,9 +471,34 @@
         heatLeadersIndustry = null;
     }
 
+    // Right-click opens the watchlist picker, which puts a full-screen backdrop
+    // (#wl-picker-backdrop) over the page — so the cursor "leaves" the panel the
+    // instant the picker appears. Hold the panel while the picker is open; once
+    // it closes, hide the panel only if the cursor isn't on it (or on its card).
+    function heatLeadersPickerOpen() {
+        var ids = ['wl-picker-backdrop', 'wl-picker'];
+        for (var i = 0; i < ids.length; i++) {
+            var n = document.getElementById(ids[i]);
+            if (n && window.getComputedStyle(n).display !== 'none') return true;
+        }
+        return false;
+    }
+
+    function heatLeadersCursorOnPanelOrCard() {
+        if (!heatLeadersEl || heatLeadersMouse.x < 0) return false;
+        var t = document.elementFromPoint(heatLeadersMouse.x, heatLeadersMouse.y);
+        return !!t && (heatLeadersEl.contains(t) || (!!heatLeadersCard && heatLeadersCard.contains(t)));
+    }
+
+    function heatLeadersTryHide() {
+        if (heatLeadersPickerOpen()) { heatLeadersCloseT = setTimeout(heatLeadersTryHide, 200); return; }
+        if (heatLeadersCursorOnPanelOrCard()) return;
+        hideHeatLeaders();
+    }
+
     function scheduleHideHeatLeaders() {
         clearTimeout(heatLeadersCloseT);
-        heatLeadersCloseT = setTimeout(hideHeatLeaders, HEAT_LEADERS_CLOSE_MS);
+        heatLeadersCloseT = setTimeout(heatLeadersTryHide, HEAT_LEADERS_CLOSE_MS);
     }
 
     // renderHeatmap() also runs on the live-day refresh (state.js) and rebuilds
