@@ -2161,7 +2161,6 @@
     // to exist.
     function _alStartLiveTick(sym, tf) {
         _alStopLiveTick();
-        if (tf !== 'D') return; // W/M bars are always closed, nothing to tick
         if (!wlIsMarketOpen()) return;
         _alLiveTimer = setInterval(function() {
             if (_alSym !== sym || !_alCandle) { _alStopLiveTick(); return; }
@@ -2171,6 +2170,12 @@
                 .then(function(data) {
                     var q = data && data.quotes && data.quotes[0];
                     if (!q || !q.price || _alSym !== sym || !_alCandle || !_alOhlcv.length) return;
+                    if (tf !== 'D') {
+                        // W/M: fold into the current period's bar (helper lives in multichart.js)
+                        var _wm = _mcApplyLiveWM(_alOhlcv, tf, q.price, q.dayHigh, q.dayLow, false);
+                        if (_wm) { try { _alCandle.update(_wm); } catch(e) {} }
+                        return;
+                    }
                     var now = new Date();
                     var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
                     var last = _alOhlcv[_alOhlcv.length - 1];
