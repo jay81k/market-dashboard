@@ -1784,8 +1784,8 @@
         var _indRkHtml = _indRk != null ? '<span style="font-size:0.858em;color:rgba(56,139,253,0.75);font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;">#' + _indRk + '</span>' : '';
         var _indName = row.industry || '';
         var _indSpan = _indName
-            ? '<span class="scan-ind-link" data-ind="' + esc(_indName) + '" onclick="event.stopPropagation();openIndustry(this.dataset.ind);" style="font-size:0.858em;color:var(--text-muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(_indName) + '</span>'
-            : '<span style="font-size:0.858em;color:var(--text-muted-2);">\u2014</span>';
+            ? '<span class="scan-ind-link" data-ind="' + esc(_indName) + '" onclick="event.stopPropagation();openIndustry(this.dataset.ind);" style="font-size:0.858em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;">' + esc(_indName) + '</span>'
+            : '<span class="scan-ind-empty" style="font-size:0.858em;">\u2014</span>';
         h += '<td style="white-space:nowrap;overflow:hidden;"><div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;">' + _indSpan + _indRkHtml + '</div></td>';
         h += '<td style="color:var(--text-primary);font-weight:500;">'  + (_usePrice != null ? '$' + _usePrice.toFixed(2) : '\u2014') + '</td>';
         h += '<td style="color:var(--text-primary);font-weight:600;">'  + rsVal    + '</td>';
@@ -1799,7 +1799,7 @@
         h += '<td class="' + cc(row.vs_spy)    + '">' + (row.vs_spy    != null ? fmt(row.vs_spy,2,'%')    : '\u2014') + '</td>';
         h += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '\u2014') + '</td>';
         h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '">' + _distHtml + '</td>';
-        h += '<td style="color:var(--text-muted-2);">' + volVal + '</td>';
+        h += '<td class="avg-vol-cell">' + volVal + '</td>';
         h += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
         h += '<td><span style="color:' + adrColor   + ';font-weight:600;">' + adrVal   + '</span></td>';
         h += '<td><span style="color:' + crColor    + ';font-weight:600;">' + crVal    + '</span></td>';
