@@ -290,6 +290,7 @@
     function renderHeatmap() {
         var container = document.getElementById('industry-heatmap');
         if (!industriesData || !industriesData.industries) {
+            hideHeatLeaders();
             container.innerHTML = '<div class="loading-msg">No industry data.</div>';
             return;
         }
@@ -336,10 +337,182 @@
         });
         html += '</div>';
         container.innerHTML = html;
+        bindHeatLeaders(container);
+        heatLeadersReattach(container);
+    }
+
+    // ── Heatmap hover: leaders quick view ─────────────────────────────────
+    // Hovering a heatmap card opens a side panel with that industry's top
+    // tickers by 3M RS — the per-ticker weighted_rs_pct field, same sort as
+    // topRsChipsHtml() above. The panel is one fixed-position element on
+    // <body> so it survives renderHeatmap()'s innerHTML rebuilds and isn't
+    // clipped by the grid's scroll area.
+    var HEAT_LEADERS_N        = 5;
+    var HEAT_LEADERS_SHOW_DAY = false;   // true adds a Day % column (widens the panel)
+    var HEAT_LEADERS_OPEN_MS  = 160;     // hover-intent delay before opening
+    var HEAT_LEADERS_CLOSE_MS = 140;     // grace period to travel card -> panel
+    var heatLeadersEl       = null;
+    var heatLeadersCard     = null;
+    var heatLeadersIndustry = null;
+    var heatLeadersOpenT    = null;
+    var heatLeadersCloseT   = null;
+
+    function heatLeadersPanelHtml(industryName) {
+        var rows = snapshot && snapshot.by_industry && snapshot.by_industry[industryName];
+        if (!rows || !rows.length) return '';
+        var top = rows.slice().sort(function(a, b) {
+            var av = a.weighted_rs_pct != null ? a.weighted_rs_pct : -Infinity;
+            var bv = b.weighted_rs_pct != null ? b.weighted_rs_pct : -Infinity;
+            return bv - av;
+        }).slice(0, HEAT_LEADERS_N);
+
+        var html = '<div class="hl-head">' +
+                   '<div class="hl-title">' + esc(industryName) + '</div>' +
+                   '<div class="hl-sub">Top ' + top.length + ' by 3M RS · ' + rows.length + ' stocks</div>' +
+                   '</div>';
+        top.forEach(function(r, i) {
+            var rs    = r.weighted_rs_pct != null ? Number(r.weighted_rs_pct) : NaN;
+            var hasRs = !isNaN(rs);
+            // Same tiers as the RS badges (rs-high / rs-mid / rs-low)
+            var tier  = !hasRs ? '' : rs >= 75 ? ' rs-high' : rs >= 40 ? ' rs-mid' : ' rs-low';
+            var barW  = hasRs ? Math.max(0, Math.min(100, rs)).toFixed(0) : 0;
+            html += '<div class="hl-row' + tier + '" data-ticker="' + esc(r.ticker) + '">' +
+                    '<span class="hl-idx">' + (i + 1) + '</span>' +
+                    '<span class="hl-tkr">' + esc(r.ticker) + '</span>' +
+                    '<span class="hl-bar"><span style="width:' + barW + '%"></span></span>' +
+                    '<span class="hl-rs">' + (hasRs ? Math.round(rs) : '—') + '</span>';
+            if (HEAT_LEADERS_SHOW_DAY) {
+                var d = r.daily != null ? Number(r.daily) : NaN;
+                html += isNaN(d)
+                    ? '<span class="hl-day">—</span>'
+                    : '<span class="hl-day ' + (d > 0 ? 'up' : d < 0 ? 'down' : '') + '">' + (d >= 0 ? '+' : '') + d.toFixed(2) + '%</span>';
+            }
+            html += '</div>';
+        });
+        html += '<div class="hl-foot">Click: chart · Right-click: watchlist</div>';
+        return html;
+    }
+
+    function ensureHeatLeadersEl() {
+        if (heatLeadersEl) return heatLeadersEl;
+        var el = document.createElement('div');
+        el.id = 'heat-leaders';
+        el.className = 'heat-leaders';
+        document.body.appendChild(el);
+
+        el.addEventListener('mouseenter', function() { clearTimeout(heatLeadersCloseT); });
+        el.addEventListener('mouseleave', scheduleHideHeatLeaders);
+        el.addEventListener('click', function(e) {
+            var row = e.target.closest('.hl-row');
+            if (!row) return;
+            var t = row.getAttribute('data-ticker');
+            hideHeatLeaders();
+            if (t) openChartModal(t);
+        });
+        // Same right-click -> watchlist picker as the Leaders chips in the list view
+        el.addEventListener('contextmenu', function(e) {
+            var row = e.target.closest('.hl-row');
+            if (!row) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var t = row.getAttribute('data-ticker');
+            if (t) window.indChipContext(e, t);
+        });
+
+        // A fixed panel would drift away from its card if anything scrolled/resized
+        var hideIfOpen = function() { if (heatLeadersEl && heatLeadersEl.style.display === 'block') hideHeatLeaders(); };
+        document.addEventListener('scroll', hideIfOpen, true);
+        window.addEventListener('resize', hideIfOpen);
+
+        heatLeadersEl = el;
+        return el;
+    }
+
+    function positionHeatLeaders(card) {
+        var el = heatLeadersEl;
+        var r  = card.getBoundingClientRect();
+        var pw = el.offsetWidth, ph = el.offsetHeight;
+        // Slight overlap with the card edge so the cursor never crosses dead space
+        var left = r.right - 2;
+        if (left + pw > window.innerWidth - 8) left = r.left - pw + 2;
+        left = Math.max(8, left);
+        var top = Math.max(8, Math.min(r.top, window.innerHeight - ph - 8));
+        el.style.left = left + 'px';
+        el.style.top  = top  + 'px';
+    }
+
+    function showHeatLeaders(card) {
+        if (!document.body.contains(card)) return;
+        var name = card.getAttribute('data-industry');
+        var html = heatLeadersPanelHtml(name);
+        if (!html) return;
+        var el = ensureHeatLeadersEl();
+        if (heatLeadersCard && heatLeadersCard !== card) heatLeadersCard.classList.remove('heat-active');
+        heatLeadersCard     = card;
+        heatLeadersIndustry = name;
+        card.classList.add('heat-active');
+        el.className = 'heat-leaders' + (HEAT_LEADERS_SHOW_DAY ? ' has-day' : '');
+        el.innerHTML = html;
+        el.style.visibility = 'hidden';   // measure before showing
+        el.style.display    = 'block';
+        positionHeatLeaders(card);
+        el.style.visibility = '';
+    }
+
+    function hideHeatLeaders() {
+        clearTimeout(heatLeadersOpenT);
+        clearTimeout(heatLeadersCloseT);
+        if (heatLeadersEl) heatLeadersEl.style.display = 'none';
+        if (heatLeadersCard) heatLeadersCard.classList.remove('heat-active');
+        heatLeadersCard = null;
+        heatLeadersIndustry = null;
+    }
+
+    function scheduleHideHeatLeaders() {
+        clearTimeout(heatLeadersCloseT);
+        heatLeadersCloseT = setTimeout(hideHeatLeaders, HEAT_LEADERS_CLOSE_MS);
+    }
+
+    // renderHeatmap() also runs on the live-day refresh (state.js) and rebuilds
+    // every card. If the panel is open, re-anchor it to the rebuilt card
+    // instead of leaving it attached to a detached node.
+    function heatLeadersReattach(container) {
+        if (!heatLeadersIndustry || !heatLeadersEl || heatLeadersEl.style.display !== 'block') return;
+        var cards = container.querySelectorAll('.heatmap-card');
+        for (var i = 0; i < cards.length; i++) {
+            if (cards[i].getAttribute('data-industry') === heatLeadersIndustry) { showHeatLeaders(cards[i]); return; }
+        }
+        hideHeatLeaders();
+    }
+
+    // Delegated once on the persistent container (its children are rebuilt on every render)
+    function bindHeatLeaders(container) {
+        if (container._heatLeadersBound) return;
+        container._heatLeadersBound = true;
+
+        container.addEventListener('mouseover', function(e) {
+            var card = e.target.closest('.heatmap-card');
+            if (!card) { scheduleHideHeatLeaders(); return; }          // grid gap / padding
+            if (e.relatedTarget && card.contains(e.relatedTarget)) return;  // moving inside the same card
+            clearTimeout(heatLeadersCloseT);
+            if (card === heatLeadersCard) return;
+            clearTimeout(heatLeadersOpenT);
+            heatLeadersOpenT = setTimeout(function() { showHeatLeaders(card); }, HEAT_LEADERS_OPEN_MS);
+        });
+        container.addEventListener('mouseout', function(e) {
+            var card = e.target.closest('.heatmap-card');
+            if (!card) return;
+            if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+            clearTimeout(heatLeadersOpenT);
+            scheduleHideHeatLeaders();
+        });
+        // Capture phase: close before the card's own onclick navigates away
+        container.addEventListener('click', hideHeatLeaders, true);
     }
 
     window.setIndView = function(view) {
         indView = view;
+        hideHeatLeaders();
         var isList = view === 'list';
 
         document.getElementById('industry-list-header').style.display = isList ? 'flex' : 'none';
