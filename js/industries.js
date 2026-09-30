@@ -367,20 +367,14 @@
             return bv - av;
         }).slice(0, HEAT_LEADERS_N);
 
-        var html = '<div class="hl-head">' +
-                   '<div class="hl-title">' + esc(industryName) + '</div>' +
-                   '<div class="hl-sub">Top ' + top.length + ' by 3M RS · ' + rows.length + ' stocks</div>' +
-                   '</div>';
-        top.forEach(function(r, i) {
+        var html = '<div class="hl-head">Top ' + top.length + ' by 3M RS · ' + rows.length + ' stocks</div>';
+        top.forEach(function(r) {
             var rs    = r.weighted_rs_pct != null ? Number(r.weighted_rs_pct) : NaN;
             var hasRs = !isNaN(rs);
-            // Same tiers as the RS badges (rs-high / rs-mid / rs-low)
+            // Same tiers as the RS badges (rs-high / rs-mid / rs-low) — drives the RS pill colour
             var tier  = !hasRs ? '' : rs >= 75 ? ' rs-high' : rs >= 40 ? ' rs-mid' : ' rs-low';
-            var barW  = hasRs ? Math.max(0, Math.min(100, rs)).toFixed(0) : 0;
             html += '<div class="hl-row' + tier + '" data-ticker="' + esc(r.ticker) + '">' +
-                    '<span class="hl-idx">' + (i + 1) + '</span>' +
                     '<span class="hl-tkr">' + esc(r.ticker) + '</span>' +
-                    '<span class="hl-bar"><span style="width:' + barW + '%"></span></span>' +
                     '<span class="hl-rs">' + (hasRs ? Math.round(rs) : '—') + '</span>';
             if (HEAT_LEADERS_SHOW_DAY) {
                 var d = r.daily != null ? Number(r.daily) : NaN;
@@ -390,7 +384,6 @@
             }
             html += '</div>';
         });
-        html += '<div class="hl-foot">Click: chart · Right-click: watchlist</div>';
         return html;
     }
 
@@ -456,6 +449,12 @@
         card.classList.add('heat-active');
         el.className = 'heat-leaders' + (HEAT_LEADERS_SHOW_DAY ? ' has-day' : '');
         el.innerHTML = html;
+        // Chart on hover: reuse the shared ticker popup from market-popup.js.
+        // Ticker text only (not the whole row). Rebind on every rebuild because
+        // innerHTML above replaces the elements.
+        if (typeof tickerHoverBind === 'function') {
+            tickerHoverBind(el, '.hl-tkr', function(t) { return t.closest('.hl-row').getAttribute('data-ticker'); });
+        }
         el.style.visibility = 'hidden';   // measure before showing
         el.style.display    = 'block';
         positionHeatLeaders(card);
@@ -463,12 +462,16 @@
     }
 
     function hideHeatLeaders() {
+        var wasOpen = !!heatLeadersEl && heatLeadersEl.style.display === 'block';
         clearTimeout(heatLeadersOpenT);
         clearTimeout(heatLeadersCloseT);
         if (heatLeadersEl) heatLeadersEl.style.display = 'none';
         if (heatLeadersCard) heatLeadersCard.classList.remove('heat-active');
         heatLeadersCard = null;
         heatLeadersIndustry = null;
+        // Close the ticker chart popup opened from this panel. Only when the panel
+        // was actually open, so a heatmap re-render can't close an unrelated popup.
+        if (wasOpen && typeof _mmPopup !== 'undefined' && _mmPopup.hide) _mmPopup.hide();
     }
 
     // Right-click opens the watchlist picker, which puts a full-screen backdrop
