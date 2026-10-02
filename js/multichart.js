@@ -1912,7 +1912,7 @@ return '10y';
             q.style.display = '';
             ic.textContent  = has ? '\u2605' : '\u2606';
             ic.style.color  = has ? 'var(--warning-alt)' : '';
-            q.querySelector('.ctx-wl-qtxt').textContent = has ? 'In ' + last + ' \u00B7 remove' : 'Add to ' + last;
+            q.querySelector('.ctx-wl-qtxt').textContent = has ? 'In ' + last : 'Add to ' + last;
         } else {
             q.style.display = 'none';
         }
