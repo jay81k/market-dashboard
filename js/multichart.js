@@ -1843,6 +1843,191 @@ return '10y';
         });
     };
 
+    // ── Watchlist rows inside the chart right-click menu ──────────────────
+    // Shared by all three chart menus (fullscreen / watchlist / alerts):
+    // _attachCtxMenuCore calls _ctxWlSync() each time it opens one. The rows
+    // are built here, once per menu element, so the three copies of the menu
+    // markup in index.html don't change. They act on the TICKER, not on the
+    // right-clicked price / trendline / AVWAP, so they show for every kind of
+    // right-click. The flyout is a DOM child of the menu, so the existing
+    // "mousedown outside the menu closes it" check treats clicks inside it as
+    // inside. Wrapped in try/catch: a problem here must never stop the alert
+    // items from working.
+    function _ctxWlEnsure(menu) {
+        var host = menu.querySelector('.ctx-wl');
+        if (host) return host;
+        menu.classList.add('ctx-wl-host');
+        host = document.createElement('div');
+        host.className = 'ctx-wl';
+        host.innerHTML =
+            '<div class="ctx-sep"></div>' +
+            '<button class="ctx-item ctx-wl-quick" data-act="quick"><span class="ctx-ic"></span><span class="ctx-wl-qtxt"></span></button>' +
+            '<div class="ctx-wl-sub">' +
+                '<button class="ctx-item" data-act="open"><span class="ctx-ic">\u2261</span>Watchlists<span class="ctx-chev">\u203A</span></button>' +
+                '<div class="ctx-fly"><div class="ctx-fly-box"></div></div>' +
+            '</div>';
+        menu.appendChild(host);
+
+        var sub = host.querySelector('.ctx-wl-sub');
+        sub.addEventListener('mouseenter', function() { _ctxWlOpenFly(menu); });
+        sub.addEventListener('mouseleave', function() {
+            var fly = sub.querySelector('.ctx-fly');
+            if (fly.contains(document.activeElement)) return;   // mid-typing a new list name
+            fly.style.display = 'none';
+        });
+        host.addEventListener('click', function(e) {
+            var el = e.target.closest('[data-act]');
+            if (!el || !host.contains(el)) return;
+            var act = el.getAttribute('data-act');
+            if (act === 'quick') {
+                var last = wlGetLastList();
+                if (last) _ctxWlToggle(menu, last);
+            } else if (act === 'toggle') {
+                _ctxWlToggle(menu, el.getAttribute('data-name'));
+            } else if (act === 'open') {
+                _ctxWlOpenFly(menu);
+            } else if (act === 'new') {
+                _ctxWlNewInput(menu);
+            }
+        });
+        return host;
+    }
+
+    function _ctxWlRender(menu) {
+        var host = menu.querySelector('.ctx-wl');
+        var sym  = menu.getAttribute('data-wl-sym');
+        if (!host) return;
+        if (!sym) { host.style.display = 'none'; return; }
+        host.style.display = '';
+
+        var all   = wlGetAll();
+        var order = wlGetOrder();
+        var last  = wlGetLastList();
+
+        // Quick row: toggles the ticker in the last-used list (same target as the ☆ in the tables)
+        var q = host.querySelector('.ctx-wl-quick');
+        if (last && all[last]) {
+            var has = all[last].indexOf(sym) !== -1;
+            var ic  = q.querySelector('.ctx-ic');
+            q.style.display = '';
+            ic.textContent  = has ? '\u2605' : '\u2606';
+            ic.style.color  = has ? 'var(--warning-alt)' : '';
+            q.querySelector('.ctx-wl-qtxt').textContent = has ? 'In ' + last + ' \u00B7 remove' : 'Add to ' + last;
+        } else {
+            q.style.display = 'none';
+        }
+
+        // Flyout: every list with a check if the ticker is in it
+        var box = host.querySelector('.ctx-fly-box');
+        box.innerHTML = '';
+        order.forEach(function(name) {
+            var on  = all[name] && all[name].indexOf(sym) !== -1;
+            var row = document.createElement('button');
+            row.className = 'ctx-item' + (on ? ' ctx-on' : '');
+            row.setAttribute('data-act', 'toggle');
+            row.setAttribute('data-name', name);
+            var ck = document.createElement('span');
+            ck.className = 'ctx-check';
+            ck.textContent = on ? '\u2713' : '';
+            var tx = document.createElement('span');
+            tx.className = 'ctx-wl-qtxt';
+            tx.textContent = name;
+            row.appendChild(ck);
+            row.appendChild(tx);
+            box.appendChild(row);
+        });
+        if (order.length) {
+            var sep = document.createElement('div');
+            sep.className = 'ctx-sep';
+            box.appendChild(sep);
+        }
+        var nw = document.createElement('button');
+        nw.className = 'ctx-item';
+        nw.setAttribute('data-act', 'new');
+        nw.innerHTML = '<span class="ctx-check">+</span>New watchlist\u2026';
+        box.appendChild(nw);
+    }
+
+    function _ctxWlToggle(menu, name) {
+        var sym = menu.getAttribute('data-wl-sym');
+        if (!sym || !name) return;
+        var all = wlGetAll();
+        if (!all[name]) all[name] = [];
+        var idx = all[name].indexOf(sym);
+        if (idx !== -1) {
+            all[name].splice(idx, 1);
+        } else {
+            all[name].push(sym);
+            wlSetLastList(name);   // same as the table pickers: the list you add to becomes the quick-add target
+        }
+        wlSaveAll(all);
+        if (currentView === 'watchlists') wlRender();
+        wlRefreshStars();
+        _ctxWlRender(menu);
+    }
+
+    function _ctxWlNewInput(menu) {
+        var row = menu.querySelector('.ctx-fly-box [data-act="new"]');
+        if (!row) return;
+        var input = document.createElement('input');
+        input.className   = 'ctx-new-input';
+        input.type        = 'text';
+        input.maxLength   = 40;
+        input.placeholder = 'List name\u2026';
+        row.replaceWith(input);
+        input.focus();
+        input.addEventListener('keydown', function(e) {
+            // Keep keys (Delete, letters, arrows) away from the chart's own key handlers.
+            // Escape still closes the menu: that listener is capture-phase, so it runs first.
+            e.stopPropagation();
+            if (e.key !== 'Enter') return;
+            var name = input.value.trim();
+            var sym  = menu.getAttribute('data-wl-sym');
+            if (!name) return;
+            var all = wlGetAll();
+            if (!all[name]) {
+                all[name] = [];
+                wlSaveAll(all);
+                wlSaveOrder(wlGetOrder());
+            }
+            if (sym && all[name].indexOf(sym) === -1) {
+                all[name].push(sym);
+                wlSetLastList(name);
+            }
+            wlSaveAll(all);
+            if (currentView === 'watchlists') wlRender();
+            wlRefreshStars();
+            _ctxWlRender(menu);
+        });
+    }
+
+    function _ctxWlOpenFly(menu) {
+        var fly = menu.querySelector('.ctx-fly');
+        if (!fly) return;
+        fly.classList.remove('ctx-flip');
+        fly.style.top = '';
+        fly.style.display = 'block';
+        // Flip to the left of the menu if it would run off the right edge
+        if (menu.getBoundingClientRect().right + fly.offsetWidth + 8 > window.innerWidth) fly.classList.add('ctx-flip');
+        // Slide up if it would run off the bottom
+        var r    = fly.getBoundingClientRect();
+        var over = r.bottom - (window.innerHeight - 8);
+        if (over > 0) fly.style.top = (-5 - Math.min(over, Math.max(0, r.top - 8))) + 'px';
+    }
+
+    // Called by _attachCtxMenuCore BEFORE it shows + measures the menu, so the
+    // extra rows are already counted when it clamps the menu to the window.
+    function _ctxWlSync(menu, sym) {
+        if (!menu || typeof wlGetAll !== 'function' || typeof wlGetOrder !== 'function' || typeof wlSaveAll !== 'function') return;
+        try {
+            _ctxWlEnsure(menu);
+            menu.setAttribute('data-wl-sym', sym || '');
+            var fly = menu.querySelector('.ctx-fly');
+            if (fly) fly.style.display = 'none';
+            _ctxWlRender(menu);
+        } catch (e) {}
+    }
+
     // ── Shared right-click context-menu core — used by all three charts.
     // IMPORTANT: the attach wrapper only runs its setup once (guarded by
     // getAttached/setAttached); the actual 'contextmenu' listener it registers
@@ -1910,6 +2095,7 @@ return '10y';
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above trendline';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below trendline';
                 var _tlMenu = document.getElementById(cfg.ctxMenuId);
+                _ctxWlSync(_tlMenu, cfg.getSym());
                 _tlMenu.style.display = 'block';
                 var mw = _tlMenu.offsetWidth  || 185;
                 var mh = _tlMenu.offsetHeight || 90;
@@ -1951,6 +2137,7 @@ return '10y';
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above AVWAP';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below AVWAP';
                 var _avMenu = document.getElementById(cfg.ctxMenuId);
+                _ctxWlSync(_avMenu, cfg.getSym());
                 _avMenu.style.display = 'block';
                 var avMw = _avMenu.offsetWidth  || 185;
                 var avMh = _avMenu.offsetHeight || 90;
@@ -2026,6 +2213,7 @@ return '10y';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below ' + fmt;
             }
             var menu  = document.getElementById(cfg.ctxMenuId);
+            _ctxWlSync(menu, cfg.getSym());
             menu.style.display = 'block';
             var mw = menu.offsetWidth  || 185;
             var mh = menu.offsetHeight || 90;
