@@ -1591,6 +1591,9 @@
             background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px;
             padding: 14px 18px;
         }
+        /* Light mode: the Breadth & Moving Averages card outlines were too faint against the near-white page.
+           Scoped to that row only — Top Movers / Analytics cards and the global --border are unchanged. */
+        [data-theme="light"] .market-six-grid .market-ad-wrap { border-color: #b1bac4; }
         .market-ad-row {
             display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
         }
