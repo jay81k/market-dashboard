@@ -122,6 +122,10 @@
             indSort.col = col;
             indSort.dir = -1; // default desc (best performers first)
         }
+        // A column sort overrides the Rank / A–Z / Sector presets (renderIndustries ignores
+        // activeSort while indSort.col is set), so don't leave one of them looking active.
+        // setSort() lights the clicked preset again and clears the column sort.
+        document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.remove('active'); });
         // Update header indicators
         document.querySelectorAll('#industry-list-header .ind-col-hdr').forEach(function(el) {
             el.classList.remove('sorted','asc','desc');
