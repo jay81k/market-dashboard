@@ -244,6 +244,46 @@
     }
 
 
+    // ── Back/forward history (mouse back button, Alt+Left, swipe) ─────────
+    // Every screen change in the app goes through showView(), so that is the
+    // one place a history entry gets recorded. (It used to be recorded only
+    // inside navTo(), which only the top tab clicks use — opening an industry
+    // or sector, the alert-bell jump, back-to-list etc. all called showView()
+    // directly and never made an entry, so history drifted away from what was
+    // actually on screen.) Each entry stores the sub-state needed to rebuild
+    // the screen: which industry for 'industry-stocks', which sector for
+    // 'sector'.
+    var _navReplaying = false;  // true while a popstate is being replayed — showView must NOT push then
+    var _navInit      = false;  // first showView() REPLACES the load-time entry instead of pushing
+    var _navCurState  = null;   // state object of the history entry we're currently sitting on
+    var _navCurKey    = null;
+
+    function _navStateFor(view) {
+        var st = { navTab: view };
+        if (view === 'industry-stocks') st.ind = _lastIndustryName || '';
+        if (view === 'sector')          st.sec = (typeof currentSector === 'string') ? currentSector : '';
+        return st;
+    }
+
+    function _navKey(st) {
+        return st.navTab + '|' + (st.ind || '') + '|' + (st.sec || '');
+    }
+
+    function _navRecord(view) {
+        if (_navReplaying) return;                       // browser already moved the pointer
+        var st  = _navStateFor(view);
+        var key = _navKey(st);
+        if (_navInit && key === _navCurKey) return;      // same screen again — no duplicate entry
+        var url = location.pathname + location.search;
+        try {
+            if (_navInit) history.pushState(st, '', url);
+            else          history.replaceState(st, '', url);  // startup: fix the load-time entry to the real first screen
+        } catch (e) {}
+        _navInit     = true;
+        _navCurState = st;
+        _navCurKey   = key;
+    }
+
     // ── View switching ─────────────────────────────────────────────────────
     window.showView = function(view) {
         if (currentView === 'industry-stocks') {
@@ -251,6 +291,7 @@
             if (_indWrap) _lastIndustryScrollTop = _indWrap.scrollTop;
         }
         currentView = view;
+        _navRecord(view);
         currentIndustryIndex = -1;
         currentStockIndex    = -1;
         currentWlIndex       = -1;
@@ -406,26 +447,59 @@
             var _ind = (_sym && tickerMap && tickerMap[_sym]) ? (tickerMap[_sym].industry || '') : '';
             _scanReturnState = { ticker: _sym, sector: _sec, industry: _ind, snpOpen: _snpOpen };
         }
-        if (!fromHistory && view !== currentView) {
-            try { history.pushState({ navTab: view }, '', location.pathname + location.search); } catch (e) {}
-        }
+        // History is recorded by showView() now (see _navRecord) — not here.
+        // `fromHistory` is kept only so existing callers/signature stay valid.
         if (view === 'industries') { navToIndustries(); } else { showView(view); }
     };
 
-    // ── Mouse/browser back-forward — replays the tab you were on ────────────
-    // navTo() above now pushes a history entry per tab switch, so the mouse's
-    // side "back" button (and the browser's own back/forward arrows, Alt+Left,
-    // trackpad swipe — they all fire the same popstate event) step through
-    // actual tab history instead of leaving the page. Replaying via
-    // navTo(view, true) — not showView(view) directly — matters: navTo is
-    // what tab clicks call, so replaying through it inherits whatever each
-    // tab already does on entry (e.g. Industries resuming the last
-    // drilled-into industry + its scroll position via navToIndustries())
-    // instead of bypassing that logic.
-    try {
-        history.replaceState({ navTab: currentView }, '', location.pathname + location.search);
-    } catch (e) {}
+    // ── Mouse/browser back-forward — replays the screen you were on ────────
+    // The mouse's side "back" button, the browser arrows, Alt+Left and
+    // trackpad swipe all fire the same popstate event. The entry we land on
+    // says exactly which screen to rebuild.
+    function _navReplay(st) {
+        var view = st.navTab;
+        if (view === 'industry-stocks' && st.ind) {
+            // openIndustry() zeroes _lastIndustryScrollTop, so grab it first
+            var savedScroll = (_lastIndustryName === st.ind) ? _lastIndustryScrollTop : 0;
+            openIndustry(st.ind);
+            if (savedScroll > 0) {
+                setTimeout(function() {
+                    var wrap = document.querySelector('#view-industry-stocks .stocks-table-wrap');
+                    if (wrap) wrap.scrollTop = savedScroll;
+                }, 0);
+            }
+        } else if (view === 'sector' && st.sec) {
+            openSector(st.sec);
+        } else if (view === 'industries' || view === 'industry-stocks' || view === 'sector') {
+            // The plain Industries list (or a drill-down entry with nothing to reopen)
+            if (currentView === 'industry-stocks') backToIndustries();
+            else showView('industries');
+        } else {
+            navTo(view, true);   // market / scans / watchlists / alerts — same entry path as a tab click
+        }
+    }
+
     window.addEventListener('popstate', function(e) {
-        var view = (e.state && e.state.navTab) || 'industries';
-        navTo(view, true);
+        var st = e.state;
+        if (!st || !st.navTab) return;   // not one of ours
+
+        // Fullscreen chart open: back closes the chart and nothing else. The
+        // browser has already stepped to the previous entry, so put an
+        // identical entry back on top — history then still matches the screen
+        // underneath, and the NEXT back goes to the previous screen.
+        var ov = document.getElementById('mc-fullscreen-overlay');
+        if (ov && ov.classList.contains('open')) {
+            closeChartModal();
+            if (_navCurState) {
+                try { history.pushState(_navCurState, '', location.pathname + location.search); } catch (err) {}
+            }
+            return;
+        }
+
+        _navInit     = true;
+        _navCurState = st;
+        _navCurKey   = _navKey(st);
+        _navReplaying = true;
+        try { _navReplay(st); }
+        finally { _navReplaying = false; }
     });
