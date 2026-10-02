@@ -2652,7 +2652,7 @@
                 var ttBtn = document.createElement('button');
                 ttBtn.id        = 'al-chart-tooltip-btn';
                 ttBtn.className = avwapBtn.className.replace(/\bactive\b/g, '').trim();
-                ttBtn.title     = 'Data Tooltip';
+                ttBtn.title     = 'Data Tooltip (Alt+D)';
                 ttBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
                 ttBtn.addEventListener('click', window.alChartToggleTooltip);
                 avwapBtn.parentNode.insertBefore(ttBtn, avwapBtn.nextSibling);
