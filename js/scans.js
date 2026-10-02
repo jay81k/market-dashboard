@@ -202,6 +202,23 @@
         return sfPillLabel(row);
     }
 
+    // The pill already shows its own short name ("Rel. Vol"), so the type name is dropped from the front
+    // of the description. That description is built from SF_TYPES' label ("Rel. Volume"), which is not
+    // always the same as the short pill name — stripping the short name left "ume greater than 2x".
+    // Strip only a LEADING match (a plain replace() also hit text in the middle, e.g. "MA " inside
+    // "SMA 50"), trying the label the description was actually built from first.
+    function sfPillValueText(pt, text) {
+        var t = SF_TYPES.find(function(x){ return x.value === pt.type; });
+        var names = [t ? t.label : null, pt.label];
+        for (var i = 0; i < names.length; i++) {
+            var n = names[i];
+            if (!n) continue;
+            if (text === n) return '';
+            if (text.indexOf(n + ' ') === 0) return text.slice(n.length + 1).trim();
+        }
+        return text.trim();
+    }
+
     function sfRenderPills() {
         var bar = document.getElementById('sf-pill-bar');
         if (!bar) return;
@@ -249,7 +266,7 @@
             var val   = isActive ? sfPillValueLabel(row) : '';
             var tip   = SF_TOOLTIPS[pt.type] || '';
             var valHtml = isActive
-                ? '<span class="sf-pill-val">' + esc(val.replace(pt.label + ' ', '').replace(pt.label, '').trim()) + '</span>'
+                ? '<span class="sf-pill-val">' + esc(sfPillValueText(pt, val)) + '</span>'
                 : '';
             var xBtn = isActive
                 ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemovePillType(\'' + pt.type + '\')">✕</button>'
