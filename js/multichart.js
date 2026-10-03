@@ -2091,7 +2091,6 @@ return '10y';
                 cfg.setCtxTrendline({ p1: _tlHit.leftP, p2: _tlHit.rightP });
                 cfg.setCtxPrice(null);
                 cfg.setCtxMa(null);
-                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · Trendline';
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above trendline';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below trendline';
                 var _tlMenu = document.getElementById(cfg.ctxMenuId);
@@ -2133,7 +2132,6 @@ return '10y';
                 cfg.setCtxTrendline(null);
                 cfg.setCtxPrice(null);
                 cfg.setCtxMa(null);
-                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · AVWAP';
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above AVWAP';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below AVWAP';
                 var _avMenu = document.getElementById(cfg.ctxMenuId);
@@ -2203,12 +2201,10 @@ return '10y';
 
             if (nearestMa) {
                 var maLabel = _maLabel(nearestMa);
-                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · ' + maLabel;
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Price crosses above ' + maLabel;
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Price crosses below ' + maLabel;
             } else {
                 var fmt = '$' + price.toFixed(2);
-                document.getElementById(cfg.ctxLabelId).textContent     = cfg.getSym() + ' · ' + fmt;
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above ' + fmt;
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below ' + fmt;
             }
@@ -2270,7 +2266,6 @@ return '10y';
             getSym:   function() { return _mcFsSym; },
             trendlineHitTest: _trendlineHitTest,
             getTrendlines: function() { return _mcFsTrendlines; },
-            ctxLabelId:     'mc-fs-ctx-label',
             ctxAboveTxtId:  'mc-fs-ctx-above-txt',
             ctxBelowTxtId:  'mc-fs-ctx-below-txt',
             ctxMenuId:      'mc-fs-ctx-menu',
@@ -4029,7 +4024,6 @@ return '10y';
             getSym:   function() { return _wlSym; },
             trendlineHitTest: _wlTrendlineHitTest,
             getTrendlines: function() { return _wlTrendlines; },
-            ctxLabelId:     'wl-chart-ctx-label',
             ctxAboveTxtId:  'wl-chart-ctx-above-txt',
             ctxBelowTxtId:  'wl-chart-ctx-below-txt',
             ctxMenuId:      'wl-chart-ctx-menu',
