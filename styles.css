@@ -464,6 +464,10 @@
         #industry-list-header .ind-hdr-chips-lbl { display: block; width: var(--ind-chips-w); max-width: 100%; text-align: center; }
         /* # now sits between Trend and Day: 12px right pad centres it between the sparkline and Day's text */
         #industry-list .industry-count, #industry-list-header .ind-hdr-count { padding-right: 12px; }
+        /* Day–1Y perf columns: 88px (was 76px) so 3-digit values like +143.82% aren't cramped.
+           Row and header widths must match. Main Industries list only (sector drill-down keeps 76px). */
+        #industry-list .industry-perf-col { width: 88px; }
+        #industry-list-header .ind-col-hdr[data-col^="avg_"] { width: 88px; }
         /* Temporary state while fitIndListColumns() measures natural text widths */
         #industry-list.ind-measuring .industry-name-text { flex: none; overflow: visible; }
         #industry-list.ind-measuring .industry-sector    { flex: none; overflow: visible; padding-right: 0; }
