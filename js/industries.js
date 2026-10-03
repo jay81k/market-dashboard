@@ -584,6 +584,46 @@
         });
     };
 
+    // ── Content-fit columns for the main Industries list ─────────────────
+    // Industry / Sector / Leaders widths are measured from the rendered rows
+    // (feeding the --ind-*-w vars in styles.css) so names never truncate and no
+    // column reserves more room than it needs. Can't measure while the list is
+    // hidden, so the ResizeObserver below re-runs this when it becomes visible.
+    var _indFitKey = '';
+    function fitIndListColumns() {
+        var list = document.getElementById('industry-list');
+        var view = document.getElementById('view-industries');
+        if (!list || !view || !list.offsetWidth) return;
+        var nameW = 0, sectorW = 0, chipsW = 0;
+        list.classList.add('ind-measuring');   // natural (untruncated) widths
+        list.querySelectorAll('.industry-row').forEach(function(row) {
+            var t = row.querySelector('.industry-name-text');
+            if (t) {
+                var tr = t.getBoundingClientRect();
+                var w = tr.width;
+                var d = row.querySelector('.ind-rank-delta');
+                if (d) { var dr = d.getBoundingClientRect(); w = dr.right - tr.left; }
+                nameW = Math.max(nameW, w);
+            }
+            var s = row.querySelector('.industry-sector');
+            if (s) sectorW = Math.max(sectorW, s.getBoundingClientRect().width);
+            var chips = row.querySelectorAll('.industry-chips .industry-chip');
+            if (chips.length) {
+                chipsW = Math.max(chipsW, chips[chips.length - 1].getBoundingClientRect().right - chips[0].getBoundingClientRect().left);
+            }
+        });
+        list.classList.remove('ind-measuring');
+        if (!nameW) return;
+        var vals = [Math.ceil(nameW) + 1, Math.ceil(sectorW) + 1, Math.ceil(chipsW) + 1];
+        var key = vals.join(',');
+        if (key === _indFitKey) return;
+        _indFitKey = key;
+        view.style.setProperty('--ind-name-w',   vals[0] + 'px');
+        view.style.setProperty('--ind-sector-w', vals[1] + 'px');
+        view.style.setProperty('--ind-chips-w',  vals[2] + 'px');
+    }
+    if (window.ResizeObserver) new ResizeObserver(fitIndListColumns).observe(document.getElementById('industry-list'));
+
     function renderIndustries() {
         var list = document.getElementById('industry-list');
         if (!industriesData || !industriesData.industries) {
@@ -629,10 +669,10 @@
             html += '<div class="industry-row" data-industry="' + esc(ind.industry) + '">';
             html += '<span class="industry-rank">' + (ind.rank || '—') + '</span>';
             html += '<div class="industry-name"><span class="industry-name-text">' + esc(ind.industry) + '</span>' + indRankDeltaHtml(ind.industry, ind.rank) + '</div>';
-            html += topRsChipsHtml(ind.industry);
             html += '<span class="industry-sector ' + sectorClass(ind.sector) + '">' + esc(ind.sector) + '</span>';
-            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             html += '<span class="industry-count">' + stockCount + '</span>';
+            html += topRsChipsHtml(ind.industry);
+            html += '<span class="industry-spark-col">' + sparkSvg(summary ? summary.spark_3m : null) + '</span>';
             // Perf columns
             html += '<div class="industry-perf-cols">';
             html += '<span class="industry-perf-col">' + perfCol(summary ? summary.avg_daily : null) + '</span>';
@@ -663,6 +703,7 @@
         });
         list.innerHTML = html || '<div class="loading-msg">No results.</div>';
         if (typeof tickerHoverBind === 'function') tickerHoverBind(list, '.industry-chip', null);
+        fitIndListColumns();
     }
 
     // ── Open industry → stocks ────────────────────────────────────────────
