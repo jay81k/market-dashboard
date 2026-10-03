@@ -446,13 +446,6 @@
         .industry-breadth-col.negative { color: var(--danger); }
         .industry-breadth-col.neutral  { color: var(--border-muted); }
 
-        /* Industries list view only (scoped by id so the sector drill-down is untouched):
-           column order is Sector, #, Leaders, Trend. Widths below must match between row and header. */
-        #industry-list .industry-sector       { width: 184px; }
-        #industry-list-header .ind-hdr-sector { width: 184px; }
-        #industry-list .industry-chips        { padding-left: 8px; }
-        #industry-list-header .ind-hdr-chips  { padding-left: 8px; }
-
         /* ── Multichart ── */
         .multichart-toolbar {
             display: flex; align-items: center; gap: 6px;
