@@ -203,16 +203,16 @@ var _mmPopup = (function () {
             var rowRect   = card.getBoundingClientRect();
 
             var allChips      = chipsWrap.querySelectorAll('.industry-chip');
-            var firstChipLeft = (allChips.length ? allChips[0] : card).getBoundingClientRect().left;
             var lastChipRight = (allChips.length ? allChips[allChips.length - 1] : card).getBoundingClientRect().right;
 
             var left = Math.max(8, Math.min(chipsRect.right - POPUP_W - 18, window.innerWidth - POPUP_W - 8));
             // With content-fit columns the blank space right of the chips can be narrower than
             // the popup. It would then land on top of the chips (including the hovered one),
-            // which fires mouseleave and makes the popup flash. In that case place it to the
-            // left of the Leaders column instead.
-            var onLeft = left < lastChipRight + 10;
-            if (onLeft) left = Math.max(8, firstChipLeft - 10 - POPUP_W);
+            // which fires mouseleave and makes the popup flash. In that case start it just
+            // past the last chip instead.
+            if (left < lastChipRight + 10) {
+                left = Math.max(8, Math.min(lastChipRight + 10, window.innerWidth - POPUP_W - 8));
+            }
             popup.style.left   = left + 'px';
             popup.style.right  = '';
 
@@ -221,9 +221,8 @@ var _mmPopup = (function () {
             popup.style.top    = top + 'px';
             popup.style.bottom = '';
 
-            // Caret aligned to the hovered chip: points left when the popup is to the right
-            // of the chips, right when the popup is to the left of them
-            popupCaret.className       = 'mm-popup-caret ' + (onLeft ? 'right' : 'left');
+            // Left-pointing caret aligned to the hovered chip
+            popupCaret.className       = 'mm-popup-caret left';
             popupCaret.style.left      = '';
             popupCaret.style.right     = '';
             popupCaret.style.bottom    = '';
