@@ -612,13 +612,6 @@
             border-radius: 8px; padding: 4px; min-width: 185px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.7);
         }
-        #mc-fs-ctx-menu .ctx-label,
-        #wl-chart-ctx-menu .ctx-label,
-        #al-chart-ctx-menu .ctx-label {
-            padding: 5px 10px 6px; font-size: 0.72em; color: var(--border-muted);
-            border-bottom: 1px solid var(--bg-surface); margin-bottom: 3px;
-            letter-spacing: 0.02em; user-select: none;
-        }
         #mc-fs-ctx-menu .ctx-item,
         #wl-chart-ctx-menu .ctx-item,
         #al-chart-ctx-menu .ctx-item {
