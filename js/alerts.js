@@ -2099,7 +2099,6 @@
             getSym:   function() { return _alSym; },
             trendlineHitTest: _alTrendlineHitTest,
             getTrendlines: function() { return _alTrendlines; },
-            ctxLabelId:     'al-chart-ctx-label',
             ctxAboveTxtId:  'al-chart-ctx-above-txt',
             ctxBelowTxtId:  'al-chart-ctx-below-txt',
             ctxMenuId:      'al-chart-ctx-menu',
