@@ -447,7 +447,7 @@
         .industry-breadth-col.neutral  { color: var(--border-muted); }
 
         /* ── Main Industries list only: content-fit columns ──────────────────
-           Order: Rank | Industry | Sector | # | Leaders | Trend | metrics.
+           Order: Rank | Industry | Sector | Leaders | Trend | # | metrics.
            --ind-*-w are written by fitIndListColumns() in industries.js from the
            widest rendered value, so names never truncate and nothing over-reserves.
            Leftover width is shared evenly by Industry, Sector and Leaders. The
@@ -455,11 +455,15 @@
         #view-industries { --ind-name-w: 300px; --ind-sector-w: 150px; --ind-chips-w: 300px; }
         #industry-list .industry-name   { width: auto; flex: 1 0 calc(var(--ind-name-w) + 16px); }
         #industry-list .industry-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); }
-        #industry-list .industry-chips  { flex: 1 1 calc(var(--ind-chips-w) + 12px); padding-left: 0; }
+        #industry-list .industry-chips  { flex: 1 1 calc(var(--ind-chips-w) + 32px); padding-left: 20px; }
         /* Header cells must keep the same flex-basis / grow as the row cells above */
         #industry-list-header .ind-hdr-first  { flex: 1 0 calc(36px + var(--ind-name-w) + 16px); min-width: 0; }
         #industry-list-header .ind-hdr-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); }
-        #industry-list-header .ind-hdr-chips  { flex: 1 1 calc(var(--ind-chips-w) + 12px); padding-left: 0; }
+        #industry-list-header .ind-hdr-chips  { flex: 1 1 calc(var(--ind-chips-w) + 32px); padding-left: 20px; }
+        /* "Leaders" label centred over the chip span (first chip's left edge to last chip's right edge) */
+        #industry-list-header .ind-hdr-chips-lbl { display: block; width: var(--ind-chips-w); max-width: 100%; text-align: center; }
+        /* # now sits between Trend and Day: 12px right pad centres it between the sparkline and Day's text */
+        #industry-list .industry-count, #industry-list-header .ind-hdr-count { padding-right: 12px; }
         /* Temporary state while fitIndListColumns() measures natural text widths */
         #industry-list.ind-measuring .industry-name-text { flex: none; overflow: visible; }
         #industry-list.ind-measuring .industry-sector    { flex: none; overflow: visible; padding-right: 0; }
