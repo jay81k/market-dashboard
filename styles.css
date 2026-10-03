@@ -1673,6 +1673,9 @@
         .market-macro-card.up   { border-left: 3px solid var(--success); }
         .market-macro-card.down { border-left: 3px solid var(--danger); }
         .market-macro-card.flat { border-left: 3px solid var(--border-muted); }
+        /* Light mode: macro card outlines were too faint against the near-white page.
+           Only top/right/bottom — the 3px green/red/grey left stripe is untouched. */
+        [data-theme="light"] .market-macro-card { border-top-color: #b1bac4; border-right-color: #b1bac4; border-bottom-color: #b1bac4; }
         .mm-label { font-size: 11px; font-weight: 700; color: var(--border-muted); text-transform: uppercase; letter-spacing: 0.08em; }
         .mm-name  { font-size: 11px; color: var(--text-muted); }
         .mm-price { font-size: 1.5em; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; }
