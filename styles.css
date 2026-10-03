@@ -446,6 +446,24 @@
         .industry-breadth-col.negative { color: var(--danger); }
         .industry-breadth-col.neutral  { color: var(--border-muted); }
 
+        /* ── Main Industries list only: content-fit columns ──────────────────
+           Order: Rank | Industry | Sector | # | Leaders | Trend | metrics.
+           --ind-*-w are written by fitIndListColumns() in industries.js from the
+           widest rendered value, so names never truncate and nothing over-reserves.
+           Leftover width is shared evenly by Industry, Sector and Leaders. The
+           Sector drill-down view uses none of this (scoped by id). */
+        #view-industries { --ind-name-w: 300px; --ind-sector-w: 150px; --ind-chips-w: 300px; }
+        #industry-list .industry-name   { width: auto; flex: 1 0 calc(var(--ind-name-w) + 16px); }
+        #industry-list .industry-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); }
+        #industry-list .industry-chips  { flex: 1 1 calc(var(--ind-chips-w) + 12px); padding-left: 0; }
+        /* Header cells must keep the same flex-basis / grow as the row cells above */
+        #industry-list-header .ind-hdr-first  { flex: 1 0 calc(36px + var(--ind-name-w) + 16px); min-width: 0; }
+        #industry-list-header .ind-hdr-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); }
+        #industry-list-header .ind-hdr-chips  { flex: 1 1 calc(var(--ind-chips-w) + 12px); padding-left: 0; }
+        /* Temporary state while fitIndListColumns() measures natural text widths */
+        #industry-list.ind-measuring .industry-name-text { flex: none; overflow: visible; }
+        #industry-list.ind-measuring .industry-sector    { flex: none; overflow: visible; padding-right: 0; }
+
         /* ── Multichart ── */
         .multichart-toolbar {
             display: flex; align-items: center; gap: 6px;
