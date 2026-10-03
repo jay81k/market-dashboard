@@ -53,7 +53,10 @@ var _mmPopup = (function () {
         popupIndSep    = document.getElementById('mm-popup-ind-sep');
         if (!popup) return;
 
-        // mousemove tracker handles hide logic — no listeners needed on popup itself
+        // mousemove tracker handles hide logic. Entering the popup also cancels any pending
+        // hide, so a popup that appears under a still cursor can't be hidden by the
+        // hovered chip's mouseleave.
+        popup.addEventListener('mouseenter', function() { clearTimeout(hideTimer); });
         window.addEventListener('resize', hidePopup);
         // Close immediately when user scrolls anywhere
         window.addEventListener('wheel', function() {
@@ -199,7 +202,17 @@ var _mmPopup = (function () {
             var chipsRect = chipsWrap.getBoundingClientRect();
             var rowRect   = card.getBoundingClientRect();
 
+            var allChips      = chipsWrap.querySelectorAll('.industry-chip');
+            var firstChipLeft = (allChips.length ? allChips[0] : card).getBoundingClientRect().left;
+            var lastChipRight = (allChips.length ? allChips[allChips.length - 1] : card).getBoundingClientRect().right;
+
             var left = Math.max(8, Math.min(chipsRect.right - POPUP_W - 18, window.innerWidth - POPUP_W - 8));
+            // With content-fit columns the blank space right of the chips can be narrower than
+            // the popup. It would then land on top of the chips (including the hovered one),
+            // which fires mouseleave and makes the popup flash. In that case place it to the
+            // left of the Leaders column instead.
+            var onLeft = left < lastChipRight + 10;
+            if (onLeft) left = Math.max(8, firstChipLeft - 10 - POPUP_W);
             popup.style.left   = left + 'px';
             popup.style.right  = '';
 
@@ -208,8 +221,10 @@ var _mmPopup = (function () {
             popup.style.top    = top + 'px';
             popup.style.bottom = '';
 
-            // Left-pointing caret aligned to the hovered chip
-            popupCaret.className       = 'mm-popup-caret left';
+            // Caret aligned to the hovered chip: points left when the popup is to the right
+            // of the chips, right when the popup is to the left of them
+            popupCaret.className       = 'mm-popup-caret ' + (onLeft ? 'right' : 'left');
+            popupCaret.style.left      = '';
             popupCaret.style.right     = '';
             popupCaret.style.bottom    = '';
             popupCaret.style.transform = '';
@@ -682,8 +697,10 @@ var _mmPopup = (function () {
             activeCard = el;
             hoverTimer = setTimeout(function() { showTickerPopup(el, ticker); }, 200);
         });
-        el.addEventListener('mouseleave', function() {
+        el.addEventListener('mouseleave', function(e) {
             clearTimeout(hoverTimer);
+            // Moving onto the popup (or the popup appearing under a still cursor) is not leaving
+            if (popup && e && e.relatedTarget && popup.contains(e.relatedTarget)) return;
             hideTimer = setTimeout(hidePopup, 60);
         });
     }
