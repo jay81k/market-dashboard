@@ -2870,6 +2870,9 @@
             if (existing) existing.classList.toggle('active', _alTooltipEnabled);
         })();
 
+        // High/Low pivot labels (always on, Daily only; implementation lives in multichart.js)
+        _mcPivotAttach(_alChart, _alCandle, function() { return _alOhlcv; }, tf);
+
         // Inject live bar
         _injectChartLiveBar(sym, tf, _alCandle, _alVol, _alOhlcv,
             function() { return _alSym !== sym || !_alCandle; });
