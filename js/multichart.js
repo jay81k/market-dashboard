@@ -374,20 +374,34 @@ return '10y';
         return out;
     }
 
-    // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once
-    function fetchMcOhlcv(sym, tf, gridMode) {
+    // Concurrent fetch queue — max MC_FETCH_LIMIT in-flight at once.
+    //
+    // force === true refetches even if the cached entry is still inside the TTL. The OLD entry
+    // stays in _mcOhlcvCache until the new one arrives, and stays if the refetch fails (a forced
+    // call then resolves null so the caller knows). Callers must never `delete` a good series
+    // just to refresh it -- that throws away history on every transient failure.
+    //
+    // Without force, an entry older than MC_CACHE_TTL_MS is refetched, but if that refetch fails
+    // the stale entry is served instead of null (stale data beats a blank chart).
+    function fetchMcOhlcv(sym, tf, gridMode, force) {
         var key = sym + '_' + tf + (gridMode ? '_grid' : '');
-        var isFresh = _mcOhlcvCache[key] !== undefined &&
+        var isFresh = !force && _mcOhlcvCache[key] !== undefined &&
             (Date.now() - (_mcOhlcvCacheAt[key] || 0)) < MC_CACHE_TTL_MS;
         if (isFresh) return Promise.resolve(_mcOhlcvCache[key]);
-        return new Promise(function(resolve) {
+        var pr = new Promise(function(resolve) {
             var qKey = tf + (gridMode ? '_grid' : '');
-            if (!_mcFetchQueue[qKey]) _mcFetchQueue[qKey] = { pending: [], active: 0, resolvers: {} };
+            if (!_mcFetchQueue[qKey]) _mcFetchQueue[qKey] = { pending: [], active: 0, resolvers: {}, forced: {} };
             var q = _mcFetchQueue[qKey];
+            if (!q.forced) q.forced = {};
             if (!q.resolvers[sym]) q.resolvers[sym] = [];
             q.resolvers[sym].push(resolve);
+            if (force) q.forced[sym] = true;
             if (q.pending.indexOf(sym) === -1) q.pending.push(sym);
             _drainMcQueue(tf, gridMode);
+        });
+        if (force) return pr;
+        return pr.then(function(r) {
+            return (r === null && _mcOhlcvCache[key] !== undefined) ? _mcOhlcvCache[key] : r;
         });
     }
 
@@ -427,7 +441,9 @@ return '10y';
         while (q.pending.length > 0 && q.active < MC_FETCH_LIMIT) {
             var sym = q.pending[0];
             var key = sym + '_' + tf + (gridMode ? '_grid' : '');
-            if (_mcOhlcvCache[key] !== undefined) {
+            var _entryFresh = _mcOhlcvCache[key] !== undefined &&
+                (Date.now() - (_mcOhlcvCacheAt[key] || 0)) < MC_CACHE_TTL_MS;
+            if (_entryFresh && !(q.forced && q.forced[sym])) {
                 q.pending.shift();
                 var res0 = (q.resolvers[sym] || []).splice(0);
                 delete q.resolvers[sym];
@@ -495,8 +511,13 @@ return '10y';
                         // it too). It is kept current by _mcApplyLiveWM via _injectChartLiveBar,
                         // _mcFsStartLiveTick, _alStartLiveTick and _updateMcLiveCandle.
                         ohlcv = _mcMergeSamePeriod(ohlcv, tf); // one candle per week/month even if Yahoo splits the period
+                        // An empty answer for a ticker we already hold history for is a failed refresh, not "no data":
+                        // throw so it is retried, and the existing series stays in place if it keeps failing.
+                        var _prevSeries = _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')];
+                        if (ohlcv.length === 0 && _prevSeries && _prevSeries.length > 0) throw new Error('empty_refresh');
                         _mcOhlcvCache[s + '_' + tf + (gridMode ? '_grid' : '')] = ohlcv;
                         _mcOhlcvCacheAt[s + '_' + tf + (gridMode ? '_grid' : '')] = Date.now();
+                        if (q.forced) delete q.forced[s];
                         var res = (q.resolvers[s] || []).splice(0);
                         delete q.resolvers[s];
                         res.forEach(function(r) { r(ohlcv); });
@@ -537,6 +558,7 @@ return '10y';
                             // fetch instead of instantly resolving to a stale permanent blank.
                             var res = (q.resolvers[s] || []).splice(0);
                             delete q.resolvers[s];
+                            if (q.forced) delete q.forced[s];
                             res.forEach(function(r) { r(null); }); // null = failed, distinct from [] = genuinely no data
                             q.active = Math.max(0, q.active - 1);
                             _drainMcQueue(tf, gridMode);
@@ -564,10 +586,16 @@ return '10y';
         }
         return out;
     }
+    // Price input for AVWAP. 'hlc3' = (H+L+C)/3, the conventional VWAP "typical price" (what TradingView's
+    // anchored VWAP defaults to). 'ohlc4' was the previous behaviour -- the open is not a traded-volume
+    // price, so it skews the line toward gap opens. Flip this one constant to go back.
+    var AVWAP_PRICE_SOURCE = 'hlc3';
     function _calcAVWAP(ohlcv, anchorIdx) {
         var out = [], cumVT = 0, cumV = 0;
         for (var i = anchorIdx; i < ohlcv.length; i++) {
-            var tp = (ohlcv[i].open + ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 4;
+            var tp = (AVWAP_PRICE_SOURCE === 'ohlc4')
+                ? (ohlcv[i].open + ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 4
+                : (ohlcv[i].high + ohlcv[i].low + ohlcv[i].close) / 3;
             cumVT += tp * (ohlcv[i].volume || 0);
             cumV  += (ohlcv[i].volume || 0);
             if (cumV > 0) out.push({ time: ohlcv[i].time, value: cumVT / cumV });
@@ -1084,8 +1112,26 @@ return '10y';
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color, dataMap: dataMap });
     }
 
-    // Converts a time to a pixel X coordinate, extrapolating linearly for
-    // future timestamps that have no entry in LWC's internal time scale.
+    // Future bar slots. Daily-like series (bars at most ~5 days apart) advance by TRADING days: weekends are skipped,
+    // exactly as the chart spaces real bars and exactly as the alert engine counts slots (alerts.js _alSlotOfDay). The
+    // old `last.time + n * (last.time - prev.time)` made one "bar" three days long whenever the last two bars straddled
+    // a weekend, which silently shifted every future-anchored line (and the alert evaluated on it).
+    // Weekly / monthly series keep calendar steps (a week is still 5 weekdays per bar).
+    function _mcIsDailyLike(ohlcv) {
+        return ohlcv.length < 2 || (ohlcv[ohlcv.length - 1].time - ohlcv[ohlcv.length - 2].time) <= 5.5 * 86400;
+    }
+    // Timestamp of the slot `n` bars past the last bar.
+    function _mcFutureTime(ohlcv, n) {
+        var last = ohlcv[ohlcv.length - 1];
+        var prev = ohlcv[ohlcv.length - 2] || last;
+        if (!_mcIsDailyLike(ohlcv)) return last.time + n * (last.time - prev.time);
+        var day = Math.floor(last.time / 86400);
+        for (var k = 0; k < n; ) { day++; var w = (day + 4) % 7; if (w !== 0 && w !== 6) k++; }
+        return day * 86400 + (last.time - Math.floor(last.time / 86400) * 86400);   // keep the bars' own time-of-day (noon UTC)
+    }
+
+    // Converts a time to a pixel X coordinate. Future timestamps have no entry in LWC's internal time scale, so they
+    // are placed by counting slots past the last bar (trading days for daily-like series).
     function _mcFsTimeToX(chart, ohlcv, time) {
         var x = chart.timeScale().timeToCoordinate(time);
         if (x !== null) return x;
@@ -1095,6 +1141,13 @@ return '10y';
         var lastX = chart.timeScale().timeToCoordinate(last.time);
         var prevX = chart.timeScale().timeToCoordinate(prev.time);
         if (lastX == null || prevX == null) return null;
+        if (_mcIsDailyLike(ohlcv)) {
+            var d0 = Math.floor(last.time / 86400), d1 = Math.floor(time / 86400), slots = 0;
+            for (var d = d0 + 1; d <= d1; d++) { var w = (d + 4) % 7; if (w !== 0 && w !== 6) slots++; }
+            var wEnd = (d1 + 4) % 7;
+            if (d1 > d0 && (wEnd === 0 || wEnd === 6)) slots += 1;     // a weekend date sits on the next Monday's slot
+            return lastX + slots * (lastX - prevX);
+        }
         var pxPerSec = (lastX - prevX) / (last.time - prev.time);
         return lastX + pxPerSec * (time - last.time);
     }
@@ -1105,8 +1158,12 @@ return '10y';
     // Builds the canvas-primitive trendline object and attaches it to the
     // candle series. Shared by fullscreen/watchlist/alerts (alerts.js calls
     // this cross-file, same pattern as the other shared cores above).
-    function _addTrendlineCore(p1, p2, chart, candle, ohlcv, trendlines) {
-        if (!chart || !candle || !ohlcv.length) return;
+    // opts.extend: also draw a dashed continuation of the line to the right edge. Used for alert-backed lines:
+    // the alert is evaluated on that continuation at today's bar, so it is the level actually being monitored
+    // (the old finite segment hid it, so an alert could fire on a line you could not see).
+    // Returns the drawing object (callers may ignore it).
+    function _addTrendlineCore(p1, p2, chart, candle, ohlcv, trendlines, opts) {
+        if (!chart || !candle || !ohlcv.length) return null;
         var refChart  = chart;
         var refSeries = candle;
 
@@ -1115,7 +1172,11 @@ return '10y';
         var rightP = p1.time <= p2.time ? p2 : p1;
 
         // Create the object first so the primitive closes over it
-        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null };
+        var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null,
+                      extend: !!(opts && opts.extend),
+                      // The line's identity as the alert store knows it. Dragging an anchor moves the matching
+                      // alert from these points to the new ones (see _onTrendAnchorDragEndCore).
+                      alertRef: { l: { time: leftP.time, price: leftP.price }, r: { time: rightP.time, price: rightP.price } } };
 
         var primitive = {
             attached: function(param) {
@@ -1148,6 +1209,26 @@ return '10y';
                                     ctx.strokeStyle = _TRENDLINE_COLOR();
                                     ctx.lineWidth   = 1.5 * rx;
                                     ctx.stroke();
+                                    // Dashed continuation to the right edge (alert-backed lines only). Bars are evenly
+                                    // spaced per trading day, so a straight pixel line here is the same line the alert
+                                    // evaluates in trading-day slots.
+                                    if (tlObj.extend) {
+                                        try {
+                                            var xr = scope.bitmapSize.width;
+                                            if (bx2 !== bx1 && xr > bx2) {
+                                                ctx.save();
+                                                ctx.setLineDash([6 * rx, 5 * rx]);
+                                                ctx.globalAlpha = 0.65;
+                                                ctx.beginPath();
+                                                ctx.moveTo(bx2, by2);
+                                                ctx.lineTo(xr, by2 + (by2 - by1) / (bx2 - bx1) * (xr - bx2));
+                                                ctx.strokeStyle = _TRENDLINE_COLOR();
+                                                ctx.lineWidth   = 1.25 * rx;
+                                                ctx.stroke();
+                                                ctx.restore();
+                                            }
+                                        } catch (e) { /* the continuation must never break the main line */ }
+                                    }
                                     // Anchor dots only when selected
                                     if (tlObj.selected) {
                                         [[bx1, by1], [bx2, by2]].forEach(function(pt) {
@@ -1172,10 +1253,66 @@ return '10y';
         tlObj.primitive = primitive;
         refSeries.attachPrimitive(primitive);
         trendlines.push(tlObj);
+        return tlObj;
     }
 
-    function _addFsTrendline(p1, p2) {
-        _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines);
+    function _addFsTrendline(p1, p2, extend) {
+        return _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines, { extend: !!extend });
+    }
+
+    // Index of an alert's AVWAP anchor in a chart's own bar array. Daily: the bar on/after the anchor day.
+    // Weekly/monthly: the bar whose PERIOD contains it, so it resolves whatever day Yahoo stamped that bar with
+    // (the old strict-equality match silently failed whenever a stamp landed on a non-trading day).
+    function _chartAnchorIdx(ohlcv, tf, anchorUnix) {
+        if (!ohlcv || !ohlcv.length || anchorUnix == null) return -1;
+        var i;
+        if (tf === 'W' || tf === 'M') {
+            var key = _mcPeriodKey(anchorUnix, tf);
+            for (i = 0; i < ohlcv.length; i++) if (_mcPeriodKey(ohlcv[i].time, tf) === key) return i;
+            return -1;
+        }
+        var day = Math.floor(anchorUnix / 86400);
+        if (Math.floor(ohlcv[0].time / 86400) > day) return -1;
+        for (i = 0; i < ohlcv.length; i++) if (Math.floor(ohlcv[i].time / 86400) >= day) return i;
+        return -1;
+    }
+
+    // Deleting a drawn line used to leave its alert armed: the alert kept monitoring a line you had deleted, and the
+    // line was redrawn from the alert store the next time the chart opened. These ask the alert engine to delete the
+    // alert(s) behind the line as well (it confirms first, unless "don't ask again" was ticked), then run `remove`.
+    function _deleteTrendlineWithAlerts(sym, tl, remove) {
+        if (!tl || !tl.alertRef || !window.alDeleteLineAlerts) { remove(); return; }
+        window.alDeleteLineAlerts(sym, 'trendline', tl.alertRef, remove);
+    }
+    function _deleteVwapWithAlerts(sym, ohlcv, tf, entry, remove) {
+        if (!entry || !window.alDeleteLineAlerts) { remove(); return; }
+        window.alDeleteLineAlerts(sym, 'avwap', { ohlcv: ohlcv, tf: tf, idx: entry.anchor }, remove);
+    }
+
+    // Draws the alert-backed trendlines and AVWAPs onto a chart so they're visible when reviewing it.
+    // One drawing per distinct line (an "above" and a "below" alert on the same line share one), and AVWAP anchors
+    // are resolved on THIS chart's timeframe. AVWAP alerts used to be restored on the alerts chart only.
+    function _restoreAlertLines(sym, tf, ohlcv, addTrendline, addVwap) {
+        if (window.alGetTrendlineAlerts) {
+            var seenTl = {};
+            window.alGetTrendlineAlerts(sym).forEach(function(a) {
+                if (!a.p1 || !a.p2) return;
+                var k = a.p1.unix + '@' + a.p1.price + '|' + a.p2.unix + '@' + a.p2.price;
+                if (seenTl[k]) return;
+                seenTl[k] = true;
+                addTrendline(a.p1, a.p2, true);
+            });
+        }
+        if (window.alGetAvwapAlerts) {
+            var seenAv = {};
+            window.alGetAvwapAlerts(sym).forEach(function(a) {
+                var u = (a.anchorUnix != null) ? a.anchorUnix : (typeof a.anchorTime === 'number' ? a.anchorTime : null);
+                var idx = _chartAnchorIdx(ohlcv, tf, u);
+                if (idx < 0 || seenAv[idx]) return;
+                seenAv[idx] = true;
+                addVwap(idx);
+            });
+        }
     }
 
     // ── Shared hit-test / selection cores — used by fullscreen, watchlist, and
@@ -1318,7 +1455,7 @@ return '10y';
             var prevX    = cfg.chart.timeScale().timeToCoordinate(prev.time);
             var pxPerBar = prevX != null ? Math.abs(lastX - prevX) : 8;
             var barsAhead = pxPerBar > 0 ? Math.max(1, Math.round((lx - lastX) / pxPerBar)) : 1;
-            time = last.time + barsAhead * barSec;
+            time = _mcFutureTime(ohlcv, barsAhead);
         }
         var newAnchor = { time: time, price: price };
         if (dragState.anchorSide === 'left') {
@@ -1348,7 +1485,17 @@ return '10y';
         // Re-enable canvas draw and commit final position
         if (state) {
             var tl = cfg.trendlines[state.tlIdx];
-            if (tl) { tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate(); }
+            if (tl) {
+                tl.dragging = false; if (tl.requestUpdate) tl.requestUpdate();
+                // Dragging used to move only the drawing: the alert kept monitoring the OLD line (and the old line
+                // was redrawn from the alert store on the next open). If this drawing backs an alert, move it too.
+                if (cfg.getSym && tl.alertRef && tl.leftP && tl.rightP && window.alSyncTrendlineAlertsAfterDrag) {
+                    try { window.alSyncTrendlineAlertsAfterDrag(cfg.getSym(), tl.alertRef.l, tl.alertRef.r, tl.leftP, tl.rightP); } catch (e) {}
+                }
+                if (tl.leftP && tl.rightP) {
+                    tl.alertRef = { l: { time: tl.leftP.time, price: tl.leftP.price }, r: { time: tl.rightP.time, price: tl.rightP.price } };
+                }
+            }
         }
         // Hide SVG after two rAFs so LW canvas has time to paint the committed line
         requestAnimationFrame(function() {
@@ -1375,6 +1522,7 @@ return '10y';
         _onTrendAnchorDragEndCore({
             getDragState: function() { return _mcFsTrendDragState; },
             setDragState: function(v) { _mcFsTrendDragState = v; },
+            getSym:       function() { return _mcFsSym; },
             trendlines:   _mcFsTrendlines,
             contRef:      _mcFsTrendContRef,
             svgOverlay:   _mcFsTrendSvgOverlay,
@@ -1629,7 +1777,7 @@ return '10y';
                 // Cursor is past the last bar — extrapolate a future timestamp
                 var _barSec   = _last.time - _prev.time;
                 var _barsAhead = Math.max(1, Math.round((lx - _lastX) / _pxPerBar));
-                time = _last.time + _barsAhead * _barSec;
+                time = _mcFutureTime(_ohlcv, _barsAhead);
             } else {
                 // Within bar area — crosshair time is reliable
                 time = cfg.getLastCrosshairTime() || _last.time;
@@ -1790,7 +1938,9 @@ return '10y';
             cfg.dismiss();
             var sym = cfg.getSym();
             if (!sym) return;
-            window.alAddTrendlineAlert(sym, tl.p1, tl.p2, direction);
+            var tlRes = window.alAddTrendlineAlert(sym, tl.p1, tl.p2, direction);
+            // The line now has an alert: show the continuation it is evaluated on.
+            if (tlRes && tl.tl) { tl.tl.extend = true; if (tl.tl.requestUpdate) tl.tl.requestUpdate(); }
             return;
         }
         var av = cfg.getCtxAvwap();
@@ -2088,7 +2238,7 @@ return '10y';
             var _tlHitIdx = cfg.trendlineHitTest(evt.clientX, evt.clientY);
             if (_tlHitIdx !== -1) {
                 var _tlHit = cfg.getTrendlines()[_tlHitIdx];
-                cfg.setCtxTrendline({ p1: _tlHit.leftP, p2: _tlHit.rightP });
+                cfg.setCtxTrendline({ p1: _tlHit.leftP, p2: _tlHit.rightP, tl: _tlHit });
                 cfg.setCtxPrice(null);
                 cfg.setCtxMa(null);
                 document.getElementById(cfg.ctxAboveTxtId).textContent  = 'Alert above trendline';
@@ -3036,25 +3186,35 @@ return '10y';
             if (document.getElementById('mc-fs-sym-input')) return;
             // Delete selected trendline first (takes priority over "delete last")
             if (_mcFsSelectedTrendlineIdx !== -1) {
-                var selIdx = _mcFsSelectedTrendlineIdx;
+                var selTl = _mcFsTrendlines[_mcFsSelectedTrendlineIdx];
                 _mcFsSelectedTrendlineIdx = -1;
-                var selTl = _mcFsTrendlines.splice(selIdx, 1)[0];
-                try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                if (selTl) _deleteTrendlineWithAlerts(_mcFsSym, selTl, function() {
+                    var ti = _mcFsTrendlines.indexOf(selTl);
+                    if (ti !== -1) _mcFsTrendlines.splice(ti, 1);
+                    try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                });
                 return;
             }
             // Delete selected AVWAP
             if (_mcFsSelectedVwapIdx !== -1) {
-                var selVwapIdx = _mcFsSelectedVwapIdx;
+                var selVwap = _mcFsVwapSeries[_mcFsSelectedVwapIdx];
                 _mcFsSelectedVwapIdx = -1;
-                var removed = _mcFsVwapSeries.splice(selVwapIdx, 1)[0];
-                try { _mcFsChart.removeSeries(removed.series); } catch(e) {}
-                _mcFsVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                if (selVwap) _deleteVwapWithAlerts(_mcFsSym, _mcFsOhlcv, _mcFsTf, selVwap, function() {
+                    var vi = _mcFsVwapSeries.indexOf(selVwap);
+                    if (vi !== -1) _mcFsVwapSeries.splice(vi, 1);
+                    try { _mcFsChart.removeSeries(selVwap.series); } catch(e) {}
+                    _mcFsVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                });
                 return;
             }
             // Trendline delete (last) when draw tool is active
             if (_mcFsTrendlineMode && _mcFsTrendlines.length) {
-                var tLast = _mcFsTrendlines.pop();
-                try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                var tLast = _mcFsTrendlines[_mcFsTrendlines.length - 1];
+                _deleteTrendlineWithAlerts(_mcFsSym, tLast, function() {
+                    var li = _mcFsTrendlines.indexOf(tLast);
+                    if (li !== -1) _mcFsTrendlines.splice(li, 1);
+                    try { if (_mcFsCandle) _mcFsCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                });
                 return;
             }
         };
@@ -3086,12 +3246,8 @@ return '10y';
         // _mcFsStartLiveTick for why this can't just reuse the caches above.
         _mcFsStartLiveTick(sym, tf);
 
-        // Restore trendlines from alert store so they're visible when reviewing the chart
-        if (window.alGetTrendlineAlerts) {
-            window.alGetTrendlineAlerts(sym).forEach(function(a) {
-                _addFsTrendline(a.p1, a.p2);
-            });
-        }
+        // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart
+        _restoreAlertLines(sym, tf, ohlcv, _addFsTrendline, _addFsVwap);
     }
 
     // Fullscreen window-level controls
@@ -3814,8 +3970,18 @@ return '10y';
     // ══════════════════════════════════════════════════════════════════════
 
     // ── Trendline primitive ───────────────────────────────────────────────
-    function _addWlTrendline(p1, p2) {
-        _addTrendlineCore(p1, p2, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines);
+    function _addWlTrendline(p1, p2, extend) {
+        return _addTrendlineCore(p1, p2, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines, { extend: !!extend });
+    }
+
+    // Watchlist-chart equivalent of _addFsVwap (the click handler builds its AVWAP inline, so restore needs this).
+    function _addWlVwap(anchorIdx) {
+        if (!_wlChart || !_wlOhlcv.length) return;
+        var data = _calcAVWAP(_wlOhlcv, anchorIdx);
+        if (!data.length) return;
+        var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: _AVWAP_COLOR, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        s.setData(data);
+        _wlVwapSeries.push({ series: s, anchor: anchorIdx, color: _AVWAP_COLOR, dataMap: new Map(data.map(function(d) { return [d.time, d.value]; })) });
     }
 
     // ── Hit-test helpers ─────────────────────────────────────────────────
@@ -3863,6 +4029,7 @@ return '10y';
         _onTrendAnchorDragEndCore({
             getDragState: function() { return _wlTrendDragState; },
             setDragState: function(v) { _wlTrendDragState = v; },
+            getSym:       function() { return _wlSym; },
             trendlines:   _wlTrendlines,
             contRef:      _wlTrendContRef,
             svgOverlay:   _wlTrendSvgOverlay,
@@ -4521,23 +4688,33 @@ return '10y';
             }
             if (evt.key !== 'Delete') return;
             if (_wlSelectedTrendlineIdx !== -1) {
-                var selIdx = _wlSelectedTrendlineIdx;
+                var selTl = _wlTrendlines[_wlSelectedTrendlineIdx];
                 _wlSelectedTrendlineIdx = -1;
-                var selTl = _wlTrendlines.splice(selIdx, 1)[0];
-                try { if (_wlCandle) _wlCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                if (selTl) _deleteTrendlineWithAlerts(_wlSym, selTl, function() {
+                    var ti = _wlTrendlines.indexOf(selTl);
+                    if (ti !== -1) _wlTrendlines.splice(ti, 1);
+                    try { if (_wlCandle) _wlCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                });
                 return;
             }
             if (_wlSelectedVwapIdx !== -1) {
-                var selVwapIdx = _wlSelectedVwapIdx;
+                var selVwap = _wlVwapSeries[_wlSelectedVwapIdx];
                 _wlSelectedVwapIdx = -1;
-                var removed = _wlVwapSeries.splice(selVwapIdx, 1)[0];
-                try { _wlChart.removeSeries(removed.series); } catch(e) {}
-                _wlVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                if (selVwap) _deleteVwapWithAlerts(_wlSym, _wlOhlcv, _wlTf, selVwap, function() {
+                    var vi = _wlVwapSeries.indexOf(selVwap);
+                    if (vi !== -1) _wlVwapSeries.splice(vi, 1);
+                    try { _wlChart.removeSeries(selVwap.series); } catch(e) {}
+                    _wlVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                });
                 return;
             }
             if (_wlTrendlineMode && _wlTrendlines.length) {
-                var tLast = _wlTrendlines.pop();
-                try { if (_wlCandle) _wlCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                var tLast = _wlTrendlines[_wlTrendlines.length - 1];
+                _deleteTrendlineWithAlerts(_wlSym, tLast, function() {
+                    var li = _wlTrendlines.indexOf(tLast);
+                    if (li !== -1) _wlTrendlines.splice(li, 1);
+                    try { if (_wlCandle) _wlCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                });
             }
         };
         document.addEventListener('keydown', _wlKeyHandler);
@@ -4563,12 +4740,8 @@ return '10y';
         _injectChartLiveBar(sym, tf, _wlCandle, _wlVol, _wlOhlcv,
             function() { return _wlSym !== sym || !_wlCandle; });
 
-        // Restore trendlines from alert store so they're visible when reviewing the chart
-        if (window.alGetTrendlineAlerts) {
-            window.alGetTrendlineAlerts(sym).forEach(function(a) {
-                _addWlTrendline(a.p1, a.p2);
-            });
-        }
+        // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart
+        _restoreAlertLines(sym, tf, ohlcv, _addWlTrendline, _addWlVwap);
     }
 
     // ── WL chart controls (exposed to HTML onclick) ───────────────────────
