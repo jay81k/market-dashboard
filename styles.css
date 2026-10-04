@@ -100,6 +100,8 @@
             --bg-surface-alpha: rgba(33,38,45,0.5);
             --al-watermark: rgba(255,255,255,0.22);
             --chart-watermark: rgba(255,255,255,0.22);
+            /* Trendline colour: canvas lines + SVG drag preview. Dark = #ffffff, identical to --text-emphasis (no change) */
+            --chart-trendline: #ffffff;
             --al-measure-fill-up: rgba(8,153,129,0.15);
             --al-measure-fill-down: rgba(178,40,51,0.18);
             --al-measure-stroke-up: rgba(8,153,129,0.55);
@@ -206,6 +208,8 @@
             --bg-surface-alpha: rgba(175,184,193,0.5);
             --al-watermark: rgba(31,35,40,0.16);
             --chart-watermark: rgba(31,35,40,0.55);
+            /* Trendline colour: canvas lines + SVG drag preview (see _TRENDLINE_COLOR in multichart.js) */
+            --chart-trendline: #9598a2;
             --al-measure-fill-up: rgba(6,122,102,0.15);
             --al-measure-fill-down: rgba(164,34,45,0.18);
             --al-measure-stroke-up: rgba(6,122,102,0.55);
