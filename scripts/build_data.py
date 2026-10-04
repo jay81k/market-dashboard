@@ -663,6 +663,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         new_52wk_high = False
         new_52wk_low  = False
         pct_from_52wk_low = None
+        high_52wk_level = None
+        low_52wk_level  = None
         try:
             prior = hist.iloc[:-1]  # everything except today
             if len(prior) >= 20:    # need enough history to be meaningful
@@ -672,6 +674,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 today_low  = hist["Low"].iloc[-1]
                 new_52wk_high = bool(today_high >= high_52w)
                 new_52wk_low  = bool(today_low  <= low_52w)
+                # Full 52-week levels INCLUDING today's bar — tomorrow's reference for the
+                # browser's live new-high / new-low check (market.js, Top Movers)
+                high_52wk_level = round(float(max(high_52w, today_high)), 4)
+                low_52wk_level  = round(float(min(low_52w,  today_low)),  4)
                 if low_52w and low_52w > 0:
                     pct_from_52wk_low = round((current / low_52w - 1) * 100, 2)
         except Exception:
@@ -707,6 +713,8 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "pocket_pivot_m":        monthly_patterns["pocket_pivot"],
             "new_52wk_high":        new_52wk_high,
             "new_52wk_low":         new_52wk_low,
+            "high_52wk":            high_52wk_level,
+            "low_52wk":             low_52wk_level,
             "PctFrom52WkLow":       pct_from_52wk_low,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
