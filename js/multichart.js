@@ -262,9 +262,11 @@
                 }
             } catch (e) {}
         });
-        // Canvas-drawn trendlines (_TRENDLINE_COLOR is now a live function, not a
-        // stale value) and the SVG drag-preview lines repaint on the applyOptions
-        // calls above; nothing further to do for them here.
+        // Canvas-drawn trendlines repaint on the applyOptions calls above because
+        // _TRENDLINE_COLOR() is re-read on every draw. The SVG preview lines do NOT:
+        // their stroke is a static attribute. They stay hidden between uses and have
+        // their stroke re-resolved each time they are shown (see _onTrendMouseDownCore),
+        // so nothing further is needed here.
     });
 
     // Measure tool state (wl)
@@ -1732,6 +1734,9 @@ return '10y';
                     var _curY  = evt.clientY - _dRect.top;
                     cfg.svgLine.setAttribute('x1', _fixedX); cfg.svgLine.setAttribute('y1', _fixedY);
                     cfg.svgLine.setAttribute('x2', _curX);   cfg.svgLine.setAttribute('y2', _curY);
+                    // Re-resolve the colour every time the preview is shown — the overlay is created once
+                    // and reused, so a stroke set at creation goes stale after a light/dark toggle.
+                    cfg.svgLine.setAttribute('stroke', _TRENDLINE_COLOR());
                     cfg.svgOverlay.style.display = '';
                 }
                 document.addEventListener('mousemove', cfg.dragMoveHandler);
@@ -1800,6 +1805,8 @@ return '10y';
                     cfg.svgLine.setAttribute('x1', ax); cfg.svgLine.setAttribute('y1', ay);
                     cfg.svgLine.setAttribute('x2', ax); cfg.svgLine.setAttribute('y2', ay);
                 }
+                // Same as the anchor-drag path: refresh the stroke so it matches the current theme.
+                cfg.svgLine.setAttribute('stroke', _TRENDLINE_COLOR());
                 cfg.svgOverlay.style.display = '';
             }
         } else {
