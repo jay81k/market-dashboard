@@ -5,8 +5,9 @@
     var alertFiredList   = [];   // [{ticker, condition, alertPrice, hitPrice, firedAt, dismissed}]
     var alertPrices      = {};   // {ticker: latestPrice}
     var alertPrevClose   = {};   // {ticker: prevClosePrice}
-    var alertDayHigh     = {};   // {ticker: today's intraday high} — used to catch spikes the 60s poll misses
+    var alertDayHigh     = {};   // {ticker: today's intraday high} — used to catch spikes the 10s poll misses
     var alertDayLow      = {};   // {ticker: today's intraday low}  — same, for 'below' conditions
+    var alertPriceAt     = {};   // {ticker: Date.now() of the last quote we actually received} — line alerts refuse to act on a stale price
     var alertEstimatedMAs = {};  // {"ticker_maKey": estimatedMAValue} derived from snapshot
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
@@ -22,20 +23,56 @@
     var _alLoaded      = false; // guard: once the user has mutated alerts, ignore any late alLoad responses
     var _alFiredLoaded = false; // guard: once fired-history has been mutated, ignore any late alLoad responses
 
-    // Canonical dedup key for a fired-history entry — MUST stay in sync with the
-    // live key format built in alCheckTriggers() (the hit-check branch and the
-    // toRemove filter both duplicate this shape; this is the version used when
-    // rehydrating _alertFiredSess from persisted history on page load). Previously
-    // this always used ticker_alertPrice_condition regardless of alertType, which
-    // is the wrong shape for macross/ma/pattern/trendline/avwap and meant their
-    // session dedup never carried over a reload correctly.
-    function _alFiredHistKey(f) {
-        if (f.alertType === 'macross') return f.ticker + '_macross_' + f.ma1Key + '_' + f.ma2Key + '_' + f.condition;
-        if (f.alertType === 'ma') return f.ticker + '_ma_' + f.maKey + '_' + f.condition;
-        if (f.alertType === 'pattern') return window.alPatternAlertKey(f);
-        if (f.alertType === 'trendline') return f.ticker + '_trendline_' + (f.p1 ? f.p1.unix : '') + '_' + (f.p2 ? f.p2.unix : '') + '_' + f.condition;
-        if (f.alertType === 'avwap') return f.ticker + '_avwap_' + (f.anchorUnix || '') + '_' + f.condition;
-        return f.ticker + '_' + f.alertPrice + '_' + f.condition;
+    // ── Canonical alert identity ─────────────────────────────────────────────────────────────
+    // ONE function builds the dedup key for every alert type, for live alerts AND fired-history
+    // entries (they share field names). It used to be copy-pasted in 7+ places that drifted apart
+    // (alDelete and the edit form never learned about trendline/AVWAP, so deleting one left the
+    // real key behind). Never build a key inline again -- call _alKey().
+    //
+    // Trendline keys include the anchor PRICES, not just the anchor dates: two different lines can
+    // share both anchor dates (e.g. after a vertical-only drag), and they must not collapse into one.
+    function _alToUnix(t) {
+        if (t == null) return null;
+        if (typeof t === 'number') return isFinite(t) ? t : null;
+        if (typeof t === 'string') { var ms = new Date(t).getTime(); return isNaN(ms) ? null : Math.floor(ms / 1000); }
+        if (t.year != null) return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
+        return null;
+    }
+    function _alPtUnix(p) { return p ? ((p.unix != null) ? p.unix : _alToUnix(p.time)) : null; }
+    function _alAnchorUnix(a) { return (a.anchorUnix != null) ? a.anchorUnix : _alToUnix(a.anchorTime); }
+    function _alPtKey(p) {
+        var u = _alPtUnix(p);
+        return (u == null ? '' : u) + '@' + ((p && p.price != null && isFinite(p.price)) ? Number(p.price).toFixed(4) : '');
+    }
+    function _alKey(a) {
+        if (a.alertType === 'macross') return a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
+        if (a.alertType === 'ma') return a.ticker + '_ma_' + a.maKey + '_' + a.condition;
+        if (a.alertType === 'pattern') return window.alPatternAlertKey(a);
+        if (a.alertType === 'trendline') return a.ticker + '_trendline_' + _alPtKey(a.p1) + '_' + _alPtKey(a.p2) + '_' + a.condition;
+        if (a.alertType === 'avwap') { var au = _alAnchorUnix(a); return a.ticker + '_avwap_' + (au == null ? '' : au) + '_' + a.condition; }
+        // Plain/RSI alerts: live alerts carry .price, fired-history entries carry .alertPrice
+        return a.ticker + '_' + (a.price != null ? a.price : a.alertPrice) + '_' + a.condition;
+    }
+    function _alFiredHistKey(f) { return _alKey(f); } // kept under its old name for existing callers
+
+    // Rebuild the "already fired this session" map from persisted history on page load.
+    // The old version marked EVERY history entry's key as fired. If you fired an alert and then
+    // re-armed the same ticker/anchor/condition, the history entry re-poisoned the key after the next
+    // reload and the re-armed alert was skipped forever (shown as "Fired" though it never had).
+    // A live alert with the same key that was added AFTER that entry fired is a deliberate re-arm,
+    // so it must not be suppressed. (The suppression still covers the case it exists for: an alert
+    // that fired but whose removal failed to persist is older than its own history entry.)
+    function _alRehydrateFiredSess() {
+        alertFiredList.forEach(function(f) {
+            var k = _alFiredHistKey(f);
+            var firedMs = f.firedAt ? new Date(f.firedAt).getTime() : NaN;
+            var rearmed = !isNaN(firedMs) && alertsList.some(function(a) {
+                if (!a.addedAt || _alKey(a) !== k) return false;
+                var addedMs = new Date(a.addedAt).getTime();
+                return !isNaN(addedMs) && addedMs > firedMs;
+            });
+            if (!rearmed) _alertFiredSess[k] = true;
+        });
     }
 
     function alLoad() {
@@ -78,9 +115,7 @@
                 try { alertFiredList = rawFired ? JSON.parse(rawFired) : []; } catch(e) { alertFiredList = []; }
                 // Mirror KV data to localStorage so fallback stays fresh
                 if (r[1]) { try { localStorage.setItem(LS_AL_FIRED_KEY, r[1]); } catch(e) {} }
-                alertFiredList.forEach(function(f) {
-                    _alertFiredSess[_alFiredHistKey(f)] = true;
-                });
+                _alRehydrateFiredSess();
                 didChange = true;
             }
             if (!didChange) return;
@@ -100,9 +135,7 @@
             if (!_alFiredLoaded) {
                 _alFiredLoaded = true;
                 try { alertFiredList = JSON.parse(localStorage.getItem(LS_AL_FIRED_KEY) || '[]'); } catch(e) { alertFiredList = []; }
-                alertFiredList.forEach(function(f) {
-                    _alertFiredSess[_alFiredHistKey(f)] = true;
-                });
+                _alRehydrateFiredSess();
                 didChange = true;
             }
             if (!didChange) return;
@@ -114,8 +147,20 @@
         });
     }
 
+    var _alLastSaveAt = 0, _alSaveSoonTimer = null;
+    // Saves that come from the ENGINE (arming state, baselines, removal of a fired alert) rather than from a click.
+    // Workers KV allows about one write per second per key (see the note in alCheckTriggers), and a creation click
+    // has just written the same 'price_alerts' key: if we're inside that window, queue ONE trailing write (it saves
+    // whatever the latest state is) instead of racing it.
+    function _alSaveSoon() {
+        var wait = 1100 - (Date.now() - _alLastSaveAt);
+        if (wait <= 0) { alSave(); return; }
+        if (_alSaveSoonTimer) return;
+        _alSaveSoonTimer = setTimeout(function() { _alSaveSoonTimer = null; alSave(); }, wait + 50);
+    }
     function alSave() {
         _alLoaded = true; // mark as user-owned so any late alLoad response won't overwrite
+        _alLastSaveAt = Date.now();
         var str = JSON.stringify(alertsList);
         kvSet('price_alerts', str);
         try { localStorage.setItem(LS_AL_KEY, str); } catch(e) {}
@@ -243,94 +288,272 @@
         }, 10 * 1000);
     }
 
-    // _mcOhlcvCache (multichart.js) caches daily OHLCV permanently for the
-    // session — fetchMcOhlcv() only refetches if the key is missing entirely.
-    // That means an AVWAP alert's "today" bar can be frozen at whatever
-    // O/H/L/C it had when the chart was last opened, hours or days stale,
-    // which silently breaks avwapNow comparisons in alCheckTriggers() until
-    // something happens to delete that cache key (e.g. closing a chart).
+    // ── Daily history + line evaluation for trendline and AVWAP alerts ───────────────────────────────
     //
-    // Fix: every poll, patch today's cached bar in place with the live quote
-    // price we already fetched (no extra network call — quotes_batch doesn't
-    // return volume/high/low so we can't true those up here, only close and
-    // the high/low bounds). If today's bar isn't in the cache yet at all
-    // (first run, or first poll after a day rollover), force a real refetch
-    // via fetchMcOhlcv so the AVWAP calc has a same-day bar to work with.
-    // A failed fetchMcOhlcv() call resolves with null and leaves the cache key
-    // unset (see multichart.js), so without this, a ticker whose refetch fails
-    // would get retried on literally every single 60s poll forever, with no
-    // memory that it just failed — pure noise against an upstream that isn't
-    // cooperating, and it doesn't make the alert work any better in the
-    // meantime (see the empty-cache guards in alCheckTriggers below — a
-    // ticker with no cached data isn't being checked either way). This cools
-    // a specific ticker down for a few minutes after a failure instead of
-    // hammering it every cycle; alCheckTriggers itself still runs every poll,
-    // unaffected — this only throttles the underlying data refetch.
+    // Both alert types are computed from the per-ticker daily OHLCV series that multichart.js keeps in
+    // _mcOhlcvCache['<TICKER>_D']. Everything that decides "what is this alert's line worth right now"
+    // lives in this section and nowhere else, so the engine (alCheckTriggers), the table (Away column and
+    // sort), the chart restore and the history view can't drift apart.
+    //
+    // Guarantees (each of these used to be a bug):
+    //  - The cached series is only ever REPLACED by a successful refetch, never deleted first, so a failed
+    //    refetch can't throw away ten years of good history.
+    //  - Refreshing is fire-and-forget: alFetchPrices never waits on it, so a slow or rate-limited history
+    //    fetch can't delay the evaluation of any alert (price alerts included).
+    //  - Refetches are throttled with backoff. A ticker that never gets a bar for "today" (halted,
+    //    illiquid, a holiday on that exchange) is retried at 15s, 30s, 60s ... capped at 15 min, not every poll.
+    //  - Today's bar is kept current in place: close/high/low from the quote (including the quote's own
+    //    dayHigh/dayLow) every poll, and volume from a throttled refetch (quotes_batch carries no volume).
+    //    A frozen volume under-weights today in the AVWAP all session -- worst for short anchors.
+    //  - Trendlines are refreshed once per ET trading day, and "today" is placed on the trading-day axis from
+    //    the calendar (_alNowSlot), so a cache that is a few days stale can't shift the line either.
+
     var _alFetchFailedAt = {};
-    var AL_REFETCH_COOLDOWN_MS = 5 * 60 * 1000;
+    var AL_REFETCH_COOLDOWN_MS = 5 * 60 * 1000;     // after a FAILED refetch, leave that ticker alone this long
+    var AL_REFRESH_ACTIVE_MS   = 5 * 60 * 1000;     // while today's bar is present, re-pull it this often (volume)
+    var AL_REFRESH_RETRY_MIN   = 15 * 1000;         // today's bar still missing: first retry after this ...
+    var AL_REFRESH_RETRY_MAX   = 15 * 60 * 1000;    // ... doubling up to this cap
+    var AL_QUOTE_MAX_AGE_MS    = 90 * 1000;         // a line alert won't act on a quote older than this
+    var _alRefresh    = {};   // ticker -> { day, nextAt, gap, inflight }
+    var _alEvalStatus = {};   // alert key -> { warn, msg }  (runtime only): why an alert isn't being evaluated right now
 
     function _alShouldSkipRefetch(ticker) {
         var failedAt = _alFetchFailedAt[ticker];
         return !!failedAt && (Date.now() - failedAt) < AL_REFETCH_COOLDOWN_MS;
     }
 
-    function _alTrackedRefetch(ticker) {
-        return fetchMcOhlcv(ticker, 'D').then(function(ohlcv) {
-            if (ohlcv === null) {
-                _alFetchFailedAt[ticker] = Date.now();
-            } else {
-                delete _alFetchFailedAt[ticker];
-            }
-            return ohlcv;
-        });
+    // ── calendar / trading-day axis ──
+    var _alEtFmt = null;
+    // The current New York calendar date as an epoch-day number (days since 1970-01-01).
+    function _alEtDayNum() {
+        try {
+            if (!_alEtFmt) _alEtFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+            var y = 0, m = 0, d = 0;
+            _alEtFmt.formatToParts(new Date(Date.now())).forEach(function(p) {
+                if (p.type === 'year') y = +p.value; else if (p.type === 'month') m = +p.value; else if (p.type === 'day') d = +p.value;
+            });
+            return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+        } catch (e) { return Math.floor(Date.now() / 86400000); }
+    }
+    // Number of weekdays (Mon-Fri) in the half-open range (d0, d1]; both are epoch-day numbers. Holidays
+    // aren't known here, so a holiday counts as a slot (off by at most one slot per holiday inside the span).
+    function _alWeekdaysBetween(d0, d1) {
+        var c = 0;
+        for (var d = d0 + 1; d <= d1; d++) { var w = (d + 4) % 7; if (w !== 0 && w !== 6) c++; }
+        return c;
+    }
+    function _alDailyCache(ticker) {
+        var arr = _mcOhlcvCache[ticker + '_D'] || _mcOhlcvCache[ticker + '_d'];
+        return (arr && arr.length) ? arr : null;
+    }
+    function _alHasTodayBar(ticker) {
+        var arr = _alDailyCache(ticker);
+        return !!arr && Math.floor(arr[arr.length - 1].time / 86400) >= _alEtDayNum();
+    }
+    // Position of an epoch-day on the trading-day axis the chart draws on (an index into the daily series).
+    //   past/present date -> index of the first bar on or after it (exact for daily bars; weekly/monthly
+    //                        stamps can land on a non-trading day), or -1 if older than the loaded history
+    //   future date       -> last index + number of weekdays past the last bar (a weekend date rolls to Monday)
+    function _alSlotOfDay(ohlcv, day) {
+        var n = ohlcv.length;
+        var lastDay = Math.floor(ohlcv[n - 1].time / 86400);
+        if (day > lastDay) {
+            var slots = _alWeekdaysBetween(lastDay, day), w = (day + 4) % 7;
+            if (w === 0 || w === 6) slots += 1;
+            return (n - 1) + slots;
+        }
+        if (Math.floor(ohlcv[0].time / 86400) > day) return -1;
+        var lo = 0, hi = n - 1;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (Math.floor(ohlcv[mid].time / 86400) >= day) hi = mid; else lo = mid + 1; }
+        return lo;
+    }
+    // Where "now" sits on that axis: today's bar if it exists, otherwise the calendar-correct slot past the
+    // last bar -- so a tab that has been open for days with a stale cache still evaluates at the right slot.
+    function _alNowSlot(ohlcv) {
+        var n = ohlcv.length, lastDay = Math.floor(ohlcv[n - 1].time / 86400), today = _alEtDayNum();
+        return (n - 1) + (lastDay >= today ? 0 : _alWeekdaysBetween(lastDay, today));
     }
 
-    function alSyncAvwapCache(tickers, prices) {
-        if (!tickers.length) return Promise.resolve();
-        var nowSec    = Math.floor(Date.now() / 1000);
-        var todayNoon = Math.floor(nowSec / 86400) * 86400 + 43200; // matches noon-UTC bucketing in fetchMcOhlcv
-        var pending = [];
-        tickers.forEach(function(ticker) {
-            var key  = ticker + '_D';
-            var arr  = _mcOhlcvCache[key];
-            var live = prices[ticker];
-            if (!arr || !arr.length || arr[arr.length - 1].time !== todayNoon) {
-                if (_alShouldSkipRefetch(ticker)) return;
-                delete _mcOhlcvCache[key];
-                pending.push(_alTrackedRefetch(ticker));
-            } else if (live != null) {
-                var bar = arr[arr.length - 1];
-                bar.close = live;
-                if (live > bar.high) bar.high = live;
-                if (live < bar.low)  bar.low  = live;
-            }
-        });
-        return pending.length ? Promise.all(pending) : Promise.resolve();
+    // ── line values ──
+    // A trendline is linear in trading-day slots (that is how the chart draws it: Lightweight Charts gives
+    // weekends/holidays zero width). Evaluated at today's slot. Returns { v, why }; v is null when it can't be
+    // computed, and `why` says so in words (the table shows it instead of silently looking "Active").
+    function _alTrendlineEval(ticker, p1, p2) {
+        var ohlcv = _alDailyCache(ticker);
+        if (!ohlcv) return { v: null, why: 'Daily history not loaded yet' };
+        var u1 = _alPtUnix(p1), u2 = _alPtUnix(p2);
+        if (u1 == null || u2 == null || p1.price == null || p2.price == null) return { v: null, why: 'Line points are invalid' };
+        var i1 = _alSlotOfDay(ohlcv, Math.floor(u1 / 86400)), i2 = _alSlotOfDay(ohlcv, Math.floor(u2 / 86400));
+        if (i1 < 0 || i2 < 0) return { v: null, why: 'A line anchor is older than the loaded history' };
+        if (i1 === i2) return { v: null, why: 'Both line anchors fall on the same trading day' };
+        var v = p1.price + (p2.price - p1.price) * (_alNowSlot(ohlcv) - i1) / (i2 - i1);
+        return isFinite(v) ? { v: v, why: null } : { v: null, why: 'Line value is not a number' };
+    }
+    function _alTrendlineValueNow(ticker, p1, p2) { return _alTrendlineEval(ticker, p1, p2).v; }
+
+    // AVWAP from the anchor day (first daily bar on/after it) to the latest bar. Returns { line, why }.
+    function _alAvwapEval(a) {
+        var ohlcv = _alDailyCache(a.ticker);
+        if (!ohlcv) return { line: null, why: 'Daily history not loaded yet' };
+        var t = _alAnchorUnix(a);
+        if (t == null) return { line: null, why: 'Anchor date is missing' };
+        var idx = _alSlotOfDay(ohlcv, Math.floor(t / 86400));
+        if (idx < 0) return { line: null, why: 'Anchor is older than the loaded history' };
+        if (idx > ohlcv.length - 1) return { line: null, why: 'Anchor is in the future' };
+        var data = _calcAVWAP(ohlcv, idx);
+        if (!data.length) return { line: null, why: 'No volume data since the anchor' };
+        return { line: data[data.length - 1].value, why: null };
+    }
+    // What is this trendline/AVWAP alert's line worth right now?  -> { line: number|null, why: string|null }
+    function _alLineLevel(a) {
+        if (a.alertType === 'trendline') {
+            if (!a.p1 || !a.p2) return { line: null, why: 'Line points are missing' };
+            var r = _alTrendlineEval(a.ticker, a.p1, a.p2);
+            return { line: r.v, why: r.why };
+        }
+        return _alAvwapEval(a);
     }
 
-    // Keeps a per-ticker daily OHLCV series cached for trendline alerts so their
-    // value can be computed from real trading-day bar positions instead of raw
-    // calendar time (see _alTrendlineValueNow). We don't need "today" itself to be
-    // in the series -- _alTrendlineValueNow treats a missing today bar as "one slot
-    // past the last close", which is the normal state all day until the close prints.
-    // We only force a refetch when the cache is missing outright or has clearly gone
-    // stale across several real trading days (tab left open over a long weekend etc.),
-    // not just because today hasn't printed yet -- that would refetch on every 60s poll.
-    function alSyncTrendlineCache(tickers) {
-        if (!tickers.length) return Promise.resolve();
-        var todayDay = Math.floor(Date.now() / 86400000);
-        var pending = [];
-        tickers.forEach(function(ticker) {
-            var key = ticker + '_D';
-            var arr = _mcOhlcvCache[key];
-            var lastDay = (arr && arr.length) ? Math.floor(arr[arr.length - 1].time / 86400) : null;
-            if (!arr || !arr.length || (todayDay - lastDay) > 4) {
-                if (_alShouldSkipRefetch(ticker)) return;
-                delete _mcOhlcvCache[key];
-                pending.push(_alTrackedRefetch(ticker));
+    // Distance in % between the live price and a trendline/AVWAP line, or null when it can't be computed.
+    // Used by BOTH the Away column and the Away sort, so they can't disagree (the sort used to have no AVWAP branch).
+    function _alLineAwayPct(a) {
+        var px = alertPrices[a.ticker];
+        if (px == null) return null;
+        var lv = _alLineLevel(a);
+        return (lv.line != null && lv.line > 0) ? Math.abs((px - lv.line) / lv.line * 100) : null;
+    }
+    // Status pill for the table. An alert that can't currently be evaluated says so (and why) instead of looking "Active".
+    function _alStatusPillHtml(fired, key) {
+        if (fired) return '<span class="al-pill al-pill-fired">Fired</span>';
+        var st = _alEvalStatus[key];
+        if (st && st.warn) return '<span class="al-pill al-pill-active al-pill-warn" style="color:var(--warning-alt);" title="' + esc(st.msg) + '">Not evaluating</span>';
+        if (st) return '<span class="al-pill al-pill-active" title="' + esc(st.msg) + '">Active</span>';
+        return '<span class="al-pill al-pill-active">Active</span>';
+    }
+
+    // On creation: if the price is already known to be on the far side of the line, arm right away, so a gap
+    // through the line at the next open still counts. Otherwise the first evaluation arms it.
+    function _alTryArm(a) {
+        var lv = _alLineLevel(a);
+        if (lv.line == null) return;
+        var px = alertPrices[a.ticker];
+        if (px == null) { var arr = _alDailyCache(a.ticker); if (arr) px = arr[arr.length - 1].close; }
+        if (px == null) return;
+        if (a.condition === 'above' ? px < lv.line : px > lv.line) a.armed = true;
+    }
+
+    function _alNoEval(key, warn, msg) {
+        if (msg) _alEvalStatus[key] = { warn: !!warn, msg: msg }; else delete _alEvalStatus[key];
+        return null;
+    }
+    // Decide whether a trendline / AVWAP alert fires on this tick.
+    //
+    // These fire on a CROSS, not on a state. An alert is "armed" only once it has seen the price on the far side
+    // of the line, and only an armed alert can fire when the price reaches or passes the line. Before this, an
+    // "above" alert created while the price was already above fired on the very next poll, and any error in the line
+    // value (stale cache, stale quote) turned straight into a false alert. It's the same idea as the baseline the
+    // price-alert branch already uses.
+    //
+    // Firing also requires: the session is open, a quote received within AL_QUOTE_MAX_AGE_MS, and today's daily bar
+    // present in the cache. That last one is what keeps a market holiday from firing alerts off the stale last
+    // close, whether or not wlIsMarketOpen() knows about holidays. Outside those conditions the alert only observes
+    // (it can still arm from the last close, so a gap through the line at the next open is caught).
+    //
+    // Returns null when the alert can't be evaluated right now (the reason is left in _alEvalStatus for the table),
+    // else { hit, line, price, changed } where `changed` means a.armed was modified and must be saved.
+    function _alLineEval(a, key, mktOpen) {
+        var price = alertPrices[a.ticker];
+        if (price == null) return _alNoEval(key, true, 'Waiting for a quote');
+        var lv = _alLineLevel(a);
+        if (lv.line == null) return _alNoEval(key, true, lv.why);
+        var quoteAge = Date.now() - (alertPriceAt[a.ticker] || 0);
+        if (mktOpen && quoteAge > AL_QUOTE_MAX_AGE_MS)
+            return _alNoEval(key, true, 'Quote is stale (' + Math.round(quoteAge / 1000) + 's old), not evaluating');
+        var changed = false;
+        // Alerts saved before arming existed keep their old level-triggered behaviour: mark them armed.
+        if (a.armed === undefined) { a.armed = true; changed = true; }
+        var above      = a.condition === 'above';
+        var onHitSide  = above ? price >= lv.line : price <= lv.line;
+        var onFarSide  = above ? price <  lv.line : price >  lv.line;
+        if (!a.armed) {
+            if (onFarSide) { a.armed = true; changed = true; }
+            else _alEvalStatus[key] = { warn: false, msg: 'Not armed yet: waits for price to move to the other side of the line, then fires when it crosses' };
+            if (a.armed) delete _alEvalStatus[key];
+            return { hit: false, line: lv.line, price: price, changed: changed };
+        }
+        if (!mktOpen) { delete _alEvalStatus[key]; return { hit: false, line: lv.line, price: price, changed: changed }; }
+        if (!_alHasTodayBar(a.ticker)) {
+            _alEvalStatus[key] = { warn: false, msg: "Waiting for today's trading data" };
+            return { hit: false, line: lv.line, price: price, changed: changed };
+        }
+        delete _alEvalStatus[key];
+        return { hit: onHitSide, line: lv.line, price: price, changed: changed };
+    }
+
+    // ── keeping the daily series fresh ──
+    // Today's cached bar, kept current in place. Close and high/low come from the quote we already fetched
+    // (including the quote's own day range, so a spike between two polls isn't lost). Only while the session is
+    // open: after hours, Yahoo's own daily bar with the official close beats an extended-hours print.
+    function _alPatchTodayBar(ticker, live) {
+        var arr = _alDailyCache(ticker);
+        if (!arr) return;
+        var bar = arr[arr.length - 1];
+        if (Math.floor(bar.time / 86400) < _alEtDayNum()) return;   // not today's bar
+        if (live != null && isFinite(live)) {
+            bar.close = live;
+            if (live > bar.high) bar.high = live;
+            if (live < bar.low)  bar.low  = live;
+        }
+        var hi = alertDayHigh[ticker], lo = alertDayLow[ticker];
+        if (hi != null && isFinite(hi) && hi > bar.high) bar.high = hi;
+        if (lo != null && isFinite(lo) && lo > 0 && lo < bar.low) bar.low = lo;
+    }
+
+    function _alRefreshDaily(ticker, st, force) {
+        st.inflight = true;
+        return fetchMcOhlcv(ticker, 'D', false, force).then(function(ohlcv) {
+            st.inflight = false;
+            var now = Date.now();
+            if (!ohlcv || !ohlcv.length) {              // failed or empty: keep whatever is cached, cool this ticker down
+                _alFetchFailedAt[ticker] = now;
+                return false;
             }
+            delete _alFetchFailedAt[ticker];
+            st.day = _alEtDayNum();
+            if (_alHasTodayBar(ticker)) { st.gap = AL_REFRESH_RETRY_MIN; st.nextAt = now + AL_REFRESH_ACTIVE_MS; }
+            else { st.nextAt = now + st.gap; st.gap = Math.min(st.gap * 2, AL_REFRESH_RETRY_MAX); }
+            return true;
+        }, function() { st.inflight = false; _alFetchFailedAt[ticker] = Date.now(); return false; });
+    }
+
+    // Called from every price poll. Never awaited by the caller; never throws into it.
+    function alSyncLineData() {
+        var need = {};   // ticker -> true if an AVWAP alert needs it (volume matters), false if only trendlines do
+        alertsList.forEach(function(a) {
+            if (a.alertType === 'avwap') need[a.ticker] = true;
+            else if (a.alertType === 'trendline' && !need[a.ticker]) need[a.ticker] = false;
         });
-        return pending.length ? Promise.all(pending) : Promise.resolve();
+        var mktOpen = wlIsMarketOpen(), now = Date.now(), todayKey = _alEtDayNum();
+        Object.keys(need).forEach(function(ticker) {
+            var st = _alRefresh[ticker] || (_alRefresh[ticker] = { day: null, nextAt: 0, gap: AL_REFRESH_RETRY_MIN, inflight: false });
+            if (st.inflight) return;
+            var arr = _alDailyCache(ticker);
+            if (arr && mktOpen) _alPatchTodayBar(ticker, alertPrices[ticker]);
+            if (_alShouldSkipRefetch(ticker)) return;
+            var want = false, force = !!arr;
+            if (!arr) want = true;                                    // nothing cached yet
+            else if (st.day !== todayKey) want = true;                // first look today: pick up yesterday's final bar / today's bar
+            else if (mktOpen && now >= st.nextAt) {
+                var lastDay = Math.floor(arr[arr.length - 1].time / 86400);
+                if (lastDay < todayKey) want = true;                  // today's bar still missing (backoff'd retry)
+                else if (need[ticker]) want = true;                   // AVWAP: re-pull today's volume
+            }
+            if (!want) return;
+            _alRefreshDaily(ticker, st, force).then(function(ok) {
+                if (!ok) return;
+                try { alCheckTriggers(); renderAlerts(); } catch (e) {}   // table + arming reflect the fresh data right away
+            });
+        });
     }
 
     function alFetchPrices() {
@@ -369,6 +592,7 @@
                     var qPrice  = q.price != null ? q.price : q.regularMarketPrice;
                     if (qTicker && qPrice != null) {
                         alertPrices[qTicker]    = qPrice;
+                        alertPriceAt[qTicker]   = Date.now();
                         // prevClose now comes from the daily snapshot's preserved
                         // close (tickerMap[ticker]._snapPrice), not the Worker
                         // response — Questrade quotes don't include one.
@@ -380,18 +604,9 @@
                 });
             });
             alUpdateEstimatedMAs();
-            var avwapTickers = alertsList
-                .filter(function(a) { return a.alertType === 'avwap'; })
-                .map(function(a) { return a.ticker; })
-                .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-            var trendlineTickers = alertsList
-                .filter(function(a) { return a.alertType === 'trendline'; })
-                .map(function(a) { return a.ticker; })
-                .filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-            return Promise.all([
-                alSyncAvwapCache(avwapTickers, alertPrices),
-                alSyncTrendlineCache(trendlineTickers)
-            ]);
+            // Daily history for trendline/AVWAP alerts refreshes in the background. It is deliberately NOT
+            // awaited: a slow, failing or rate-limited history fetch must never delay evaluating any alert.
+            try { alSyncLineData(); } catch (e) {}
         }).then(function() {
             alCheckTriggers();
             // Not gated on currentView, unlike the other renderAlerts() call
@@ -449,34 +664,31 @@
         var anyFired = false;
         var toRemove = [];
         var anyBaselineChanged = false;
+        var mktOpen = wlIsMarketOpen();
+        // The snapshot is indexed once per check (it used to be fully scanned once per alert, per poll,
+        // including for alert types that never read it). First match wins, as before.
+        var snapIdx = null;
+        function snapLookup(ticker) {
+            if (!snapshot || !snapshot.by_industry) return null;
+            if (!snapIdx) {
+                snapIdx = Object.create(null);
+                for (var ind in snapshot.by_industry) {
+                    var stocks = snapshot.by_industry[ind];
+                    for (var si = 0; si < stocks.length; si++) { var tk = stocks[si].ticker; if (!(tk in snapIdx)) snapIdx[tk] = stocks[si]; }
+                }
+            }
+            return snapIdx[ticker] || null;
+        }
         alertsList.forEach(function(a) {
-            var key;
-            if (a.alertType === 'macross')
-                key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
-            else if (a.alertType === 'ma')
-                key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            else if (a.alertType === 'pattern')
-                key = window.alPatternAlertKey(a);
-            else if (a.alertType === 'trendline')
-                key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
-            else if (a.alertType === 'avwap')
-                key = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
-            else
-                key = a.ticker + '_' + a.price + '_' + a.condition;
+            var key = _alKey(a);
             if (_alertFiredSess[key]) return;
             var hit = false;
             var hitVal = null;
+            var lineAtFire = null;   // trendline/AVWAP only: the line's value at the moment it fired
 
-            // Find this ticker in snapshot (shared by all MA checks)
-            var stockData = null;
-            if (snapshot && snapshot.by_industry) {
-                outer: for (var ind in snapshot.by_industry) {
-                    var stocks = snapshot.by_industry[ind];
-                    for (var si = 0; si < stocks.length; si++) {
-                        if (stocks[si].ticker === a.ticker) { stockData = stocks[si]; break outer; }
-                    }
-                }
-            }
+            // This ticker's snapshot row (only the snapshot-driven alert types read it)
+            var stockData = (a.alertType === 'macross' || a.alertType === 'ma' || a.alertType === 'rsi14' || a.alertType === 'pattern')
+                ? snapLookup(a.ticker) : null;
 
             if (a.alertType === 'macross') {
                 if (!stockData) return;
@@ -523,30 +735,16 @@
                 var triggeredPats = pKeys.filter(function(pk) { return !!stockData[pk + ptfSuffix]; });
                 hit = triggeredPats.length > 0;
                 hitVal = stockData.price || 0;
-            } else if (a.alertType === 'trendline') {
-                var tlLivePrice = alertPrices[a.ticker];
-                if (tlLivePrice == null || !a.p1 || !a.p2) return;
-                var tlLinePrice = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
-                hitVal = tlLivePrice;
-                hit = (a.condition === 'above' && tlLivePrice >= tlLinePrice) ||
-                      (a.condition === 'below' && tlLivePrice <= tlLinePrice);
-            } else if (a.alertType === 'avwap') {
-                var avLivePrice = alertPrices[a.ticker];
-                if (avLivePrice == null || !a.anchorTime) return;
-                var avOhlcv = _mcOhlcvCache[a.ticker + '_D'] || _mcOhlcvCache[a.ticker + '_d'];
-                if (!avOhlcv || !avOhlcv.length) return;
-                // Find anchor bar index by time
-                var avAnchorIdx = -1;
-                for (var ai = 0; ai < avOhlcv.length; ai++) {
-                    if (avOhlcv[ai].time === a.anchorTime) { avAnchorIdx = ai; break; }
-                }
-                if (avAnchorIdx < 0) return;
-                var avData = _calcAVWAP(avOhlcv, avAnchorIdx);
-                if (!avData || !avData.length) return;
-                var avwapNow = avData[avData.length - 1].value;
-                hitVal = avLivePrice;
-                hit = (a.condition === 'above' && avLivePrice >= avwapNow) ||
-                      (a.condition === 'below' && avLivePrice <= avwapNow);
+            } else if (a.alertType === 'trendline' || a.alertType === 'avwap') {
+                // Both line types share one evaluator: it fires on a CROSS (armed -> reaches the line), refuses to
+                // act on a stale quote / closed session / missing today's bar, and records WHY when it can't evaluate.
+                var lr = _alLineEval(a, key, mktOpen);
+                if (!lr) return;
+                if (lr.changed) anyBaselineChanged = true;   // arming state changed: persist (still one write per pass)
+                if (!lr.hit) return;
+                hit = true;
+                hitVal = lr.price;
+                lineAtFire = lr.line;
             } else {
                 var price = alertPrices[a.ticker];
                 var dHigh = alertDayHigh[a.ticker];
@@ -570,7 +768,7 @@
                 }
                 if (baselineChanged) anyBaselineChanged = true;
                 // Compare against the day's high/low, not just the last-polled price.
-                // A 60s poll can otherwise completely miss a spike that prints and
+                // A 10s poll can otherwise completely miss a spike that prints and
                 // reverts faster than the poll interval (e.g. high $313.33, alert at
                 // $309.61, price already back to $307.80 by the next poll — the
                 // condition was met on the exchange but never observed by us). But
@@ -591,7 +789,8 @@
             _alertFiredSess[key] = true;
             alertFiredList.unshift({
                 ticker: a.ticker, condition: a.condition,
-                alertPrice: a.alertType === 'trendline' ? null : a.price, hitPrice: hitVal,
+                alertPrice: (a.alertType === 'trendline' || a.alertType === 'avwap') ? null : a.price, hitPrice: hitVal,
+                lineValue: lineAtFire,
                 alertType: a.alertType || 'price',
                 maKey: a.maKey || null,
                 ma1Key: a.ma1Key || null, ma2Key: a.ma2Key || null,
@@ -617,10 +816,11 @@
                     var pLabels = triggeredPats.map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' + ');
                     body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
                 } else if (a.alertType === 'trendline') {
-                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline · now $' + hitVal.toFixed(2);
+                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                 } else if (a.alertType === 'avwap') {
-                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' AVWAP · now $' + hitVal.toFixed(2);
+                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' AVWAP $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                 } else {
+                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' $' + Number(a.price).toFixed(2) + ' · now $' + Number(hitVal).toFixed(2);
                 }
                 new Notification(a.ticker + ' alert triggered', { body: body });
             }
@@ -628,17 +828,8 @@
         if (toRemove.length) {
             var removeSet = {};
             toRemove.forEach(function(k) { removeSet[k] = true; });
-            alertsList = alertsList.filter(function(a) {
-                var k;
-                if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
-                else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-                else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
-                else if (a.alertType === 'trendline') k = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
-                else if (a.alertType === 'avwap') k = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
-                else k = a.ticker + '_' + a.price + '_' + a.condition;
-                return !removeSet[k];
-            });
-            alSave();
+            alertsList = alertsList.filter(function(a) { return !removeSet[_alKey(a)]; });
+            _alSaveSoon();
         } else if (anyBaselineChanged) {
             // Collapses what used to be up to one kv_set write per alert
             // (fired inline inside the loop above, whenever that alert's
@@ -649,7 +840,9 @@
             // that many back-to-back kv_set calls to the same 'price_alerts'
             // key, tripping Workers KV's 1-write-per-second-per-key limit
             // and crashing the Worker before it could attach CORS headers.
-            alSave();
+            // (The arming state of trendline/AVWAP alerts rides on this same single write, and _alSaveSoon coalesces
+            // it with any write a click made a moment ago.)
+            _alSaveSoon();
         }
         if (anyFired) { alPlayAlert(); alSaveFired(); alUpdateBadge(); renderHistory(); }
     }
@@ -683,7 +876,7 @@
         if (!listEl) return;
 
         // Preserve scroll position — every innerHTML replacement resets scrollTop to 0.
-        // This snaps the user to the top on every 60-second price poll AND on the async
+        // This snaps the user to the top on every 10-second price poll AND on the async
         // name-resolution render that fires a few seconds after adding an alert.
         var savedScrollTop = listEl.scrollTop;
 
@@ -731,11 +924,9 @@
             displayList.sort(function(x, y) {
                 function awayVal(a) {
                     if (a.alertType === 'rsi14' || a.alertType === 'pattern') return Infinity;
-                    if (a.alertType === 'trendline') {
-                        var tlCurr = alertPrices[a.ticker];
-                        if (tlCurr == null || !a.p1 || !a.p2) return Infinity;
-                        var tlSortPrice = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
-                        return tlSortPrice > 0 ? Math.abs((tlCurr - tlSortPrice) / tlSortPrice * 100) : Infinity;
+                    if (a.alertType === 'trendline' || a.alertType === 'avwap') {
+                        var linePctSort = _alLineAwayPct(a);
+                        return linePctSort == null ? Infinity : linePctSort;
                     }
                     if (a.alertType === 'macross') {
                         var sd = null;
@@ -789,13 +980,7 @@
 
         listEl.innerHTML = displayList.map(function(item) {
             var a = item.a, idx = item.idx;
-            var key;
-            if (a.alertType === 'macross') key = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
-            else if (a.alertType === 'ma') key = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            else if (a.alertType === 'pattern') key = window.alPatternAlertKey(a);
-            else if (a.alertType === 'trendline') key = a.ticker + '_trendline_' + (a.p1 ? a.p1.unix : '') + '_' + (a.p2 ? a.p2.unix : '') + '_' + a.condition;
-            else if (a.alertType === 'avwap') key = a.ticker + '_avwap_' + (a.anchorUnix || '') + '_' + a.condition;
-            else key = a.ticker + '_' + a.price + '_' + a.condition;
+            var key = _alKey(a);
             var fired = !!_alertFiredSess[key];
             var curr  = alertPrices[a.ticker] != null ? alertPrices[a.ticker] : null;
             var name  = (tickerMap && tickerMap[a.ticker] && tickerMap[a.ticker].name) ? tickerMap[a.ticker].name : (a.name || '');
@@ -886,41 +1071,13 @@
                 }
             } else if (a.alertType === 'pattern') {
                 awayHtml = '<div class="al-col-away">—</div>';
-            } else if (a.alertType === 'trendline') {
-                if (fired || curr == null || !a.p1 || !a.p2) {
+            } else if (a.alertType === 'trendline' || a.alertType === 'avwap') {
+                var linePct = fired ? null : _alLineAwayPct(a);
+                if (linePct == null) {
                     awayHtml = '<div class="al-col-away">—</div>';
                 } else {
-                    var tlPriceNow = _alTrendlineValueNow(a.ticker, a.p1, a.p2);
-                    var tlPct   = tlPriceNow > 0 ? Math.abs((curr - tlPriceNow) / tlPriceNow * 100) : 0;
-                    var tlCls   = tlPct < 1 ? ' imminent' : tlPct < 5 ? ' close' : '';
-                    awayHtml    = '<div class="al-col-away' + tlCls + '">' + tlPct.toFixed(1) + '%</div>';
-                }
-            } else if (a.alertType === 'avwap') {
-                if (fired || curr == null || !a.anchorTime) {
-                    awayHtml = '<div class="al-col-away">—</div>';
-                } else {
-                    var avOhlcvAw = _mcOhlcvCache[a.ticker + '_D'] || _mcOhlcvCache[a.ticker + '_d'];
-                    if (!avOhlcvAw || !avOhlcvAw.length) {
-                        awayHtml = '<div class="al-col-away">—</div>';
-                    } else {
-                        var avIdxAw = -1;
-                        for (var awi = 0; awi < avOhlcvAw.length; awi++) {
-                            if (avOhlcvAw[awi].time === a.anchorTime) { avIdxAw = awi; break; }
-                        }
-                        if (avIdxAw < 0) {
-                            awayHtml = '<div class="al-col-away">—</div>';
-                        } else {
-                            var avDataAw  = _calcAVWAP(avOhlcvAw, avIdxAw);
-                            var avNowAw   = avDataAw && avDataAw.length ? avDataAw[avDataAw.length - 1].value : null;
-                            if (avNowAw == null || avNowAw <= 0) {
-                                awayHtml = '<div class="al-col-away">—</div>';
-                            } else {
-                                var avPct = Math.abs((curr - avNowAw) / avNowAw * 100);
-                                var avCls = avPct < 1 ? ' imminent' : avPct < 5 ? ' close' : '';
-                                awayHtml  = '<div class="al-col-away' + avCls + '">' + avPct.toFixed(1) + '%</div>';
-                            }
-                        }
-                    }
+                    var lineCls = linePct < 1 ? ' imminent' : linePct < 5 ? ' close' : '';
+                    awayHtml = '<div class="al-col-away' + lineCls + '">' + linePct.toFixed(1) + '%</div>';
                 }
             } else if (fired || curr == null) {
                 awayHtml = '<div class="al-col-away">—</div>';
@@ -970,7 +1127,7 @@
                 chgHtml +
                 chgPctHtml +
                 awayHtml +
-                '<div class="al-col-status">' + (fired ? '<span class="al-pill al-pill-fired">Fired</span>' : '<span class="al-pill al-pill-active">Active</span>') + '</div>' +
+                '<div class="al-col-status">' + _alStatusPillHtml(fired, key) + '</div>' +
                 '<div class="al-col-added">' + addedHtml + '</div>' +
                 (a.alertType === 'trendline' || a.alertType === 'avwap'
                     ? '<div class="al-col-edit" style="visibility:hidden;pointer-events:none;">✎</div>'
@@ -1070,9 +1227,9 @@
                 : f.alertType === 'ma'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'trendline'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline' + (typeof f.lineValue === 'number' ? ' $' + f.lineValue.toFixed(2) : '') + '</span>'
                 : f.alertType === 'avwap'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' AVWAP</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' AVWAP' + (typeof f.lineValue === 'number' ? ' $' + f.lineValue.toFixed(2) : '') + '</span>'
                 : f.alertType === 'pattern'
                 ? (function() {
                     var pKeys = (f.triggeredPatternKeys && f.triggeredPatternKeys.length)
@@ -1092,8 +1249,13 @@
             var name = esc(f.name || '');
             var curPrice = alertPrices[f.ticker];
             var chgHtml = '';
-            if (curPrice != null && f.alertPrice > 0 && f.alertType !== 'ma') {
-                var chgPct = ((curPrice - f.alertPrice) / f.alertPrice) * 100;
+            // Line alerts have no fixed alert price; their level is the line's value when they fired
+            // (older history entries without it fall back to the price they fired at).
+            var sinceBase = (f.alertType === 'trendline' || f.alertType === 'avwap')
+                ? (typeof f.lineValue === 'number' ? f.lineValue : f.hitPrice)
+                : f.alertPrice;
+            if (curPrice != null && sinceBase > 0 && f.alertType !== 'ma') {
+                var chgPct = ((curPrice - sinceBase) / sinceBase) * 100;
                 var chgCls = chgPct > 0.05 ? 'up' : chgPct < -0.05 ? 'dn' : 'flat';
                 var chgSign = chgPct > 0 ? '+' : '';
                 chgHtml = '<div class="al-hist-row-bot">' +
@@ -1446,12 +1608,7 @@
             document.getElementById('al-input-ma2').focus(); return;
         }
 
-        var alKey = function(a) {
-            if (a.alertType === 'macross') return a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
-            if (a.alertType === 'ma') return a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            if (a.alertType === 'pattern') return window.alPatternAlertKey(a);
-            return a.ticker + '_' + a.price + '_' + a.condition;
-        };
+        var alKey = _alKey;   // one canonical key builder for every alert type (this local copy had drifted)
 
         if (_alEditIdx !== null) {
             // ── Prev Day High / Low edit: re-fetch ──
@@ -1614,12 +1771,10 @@
     window.alDelete = function(idx) {
         var a = alertsList[idx];
         if (a) {
-            var k;
-            if (a.alertType === 'macross') k = a.ticker + '_macross_' + a.ma1Key + '_' + a.ma2Key + '_' + a.condition;
-            else if (a.alertType === 'ma') k = a.ticker + '_ma_' + a.maKey + '_' + a.condition;
-            else if (a.alertType === 'pattern') k = window.alPatternAlertKey(a);
-            else k = a.ticker + '_' + a.price + '_' + a.condition;
+            // Was building the plain-price key for trendline/AVWAP alerts, so their real key was never cleared.
+            var k = _alKey(a);
             delete _alertFiredSess[k];
+            delete _alEvalStatus[k];
         }
         alertsList.splice(idx, 1);
         alSave();
@@ -1741,8 +1896,22 @@
     };
 
     // ── Trendline helpers ─────────────────────────────────────────────────
-    function _addAlTrendline(p1, p2) {
-        _addTrendlineCore(p1, p2, _alChart, _alCandle, _alOhlcv, _alTrendlines);
+    function _addAlTrendline(p1, p2, extend) {
+        return _addTrendlineCore(p1, p2, _alChart, _alCandle, _alOhlcv, _alTrendlines, { extend: !!extend });
+    }
+
+    // Draws an AVWAP line anchored at a bar index of the alerts chart (skips one already drawn at that anchor).
+    function _addAlVwap(anchorIdx) {
+        if (!_alChart || !_alOhlcv.length) return;
+        if (_alVwapSeries.some(function(v) { return v.anchor === anchorIdx; })) return;
+        var avData = _calcAVWAP(_alOhlcv, anchorIdx);
+        if (!avData || !avData.length) return;
+        var s = _alChart.addSeries(LightweightCharts.LineSeries, {
+            color: _AVWAP_COLOR, lineWidth: 1.5, priceLineVisible: false,
+            lastValueVisible: true, crosshairMarkerVisible: true,
+        });
+        s.setData(avData);
+        _alVwapSeries.push({ series: s, anchor: anchorIdx, color: _AVWAP_COLOR, dataMap: new Map(avData.map(function(d) { return [d.time, d.value]; })) });
     }
 
     function _alTrendlineHitTest(clientX, clientY) {
@@ -1789,6 +1958,7 @@
         _onTrendAnchorDragEndCore({
             getDragState: function() { return _alTrendDragState; },
             setDragState: function(v) { _alTrendDragState = v; },
+            getSym:       function() { return _alSym; },
             trendlines:   _alTrendlines,
             contRef:      _alTrendContRef,
             svgOverlay:   _alTrendSvgOverlay,
@@ -1798,15 +1968,11 @@
     }
 
     // ── Trendline Alert creation API ──────────────────────────────────────
+    // Returns { alert, created } -- `created` is false when an identical alert already existed (nothing is added).
     window.alAddTrendlineAlert = function(ticker, p1, p2, condition) {
         // Convert LW time to unix seconds (handles number, 'YYYY-MM-DD' string, or {year,month,day})
-        function toUnix(t) {
-            if (typeof t === 'number') return t;
-            if (typeof t === 'string') return Math.floor(new Date(t).getTime() / 1000);
-            if (t && t.year != null) return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
-            return 0;
-        }
-        var u1 = toUnix(p1.time), u2 = toUnix(p2.time);
+        var u1 = _alToUnix(p1 && p1.time), u2 = _alToUnix(p2 && p2.time);
+        if (u1 == null || u2 == null || p1.price == null || p2.price == null) return null;
         // Normalise so np1.unix <= np2.unix (chronological order)
         var np1, np2;
         if (u1 <= u2) {
@@ -1816,33 +1982,33 @@
             np1 = { time: p2.time, price: p2.price, unix: u2 };
             np2 = { time: p1.time, price: p1.price, unix: u1 };
         }
-        // Dedup: same ticker + same two anchor times + same condition
-        var exists = alertsList.some(function(a) {
-            return a.alertType === 'trendline' && a.ticker === ticker &&
-                   a.condition === condition && a.p1 && a.p2 &&
-                   a.p1.unix === np1.unix && a.p2.unix === np2.unix;
-        });
-        if (exists) return;
-        var name = (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '';
-        alertsList.push({
+        // Dedup on the canonical key: same ticker + same two anchors (time AND price) + same condition. Price is part
+        // of the key because two different lines can share both anchor dates.
+        var newAlert = {
             ticker:    ticker,
             alertType: 'trendline',
             condition: condition,
             p1:        np1,
             p2:        np2,
-            name:      name,
+            name:      (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '',
+            armed:     false,   // fires on a CROSS: becomes armed once price is seen on the far side of the line
             addedAt:   new Date().toISOString()
-        });
-        // A previous trendline alert with this exact ticker+points+condition may have
-        // fired and been removed earlier this session — that leaves _alertFiredSess
-        // holding the matching key forever, which would silently block this brand-new
+        };
+        var newKey = _alKey(newAlert);
+        var existing = alertsList.filter(function(a) { return a.alertType === 'trendline' && _alKey(a) === newKey; })[0];
+        if (existing) return { alert: existing, created: false };
+        alertsList.push(newAlert);
+        // A previous trendline alert with this exact key may have fired and been removed earlier this
+        // session — that leaves _alertFiredSess holding the key, which would silently block this brand-new
         // alert from ever triggering. Clear it so the new alert starts fresh.
-        delete _alertFiredSess[ticker + '_trendline_' + np1.unix + '_' + np2.unix + '_' + condition];
+        delete _alertFiredSess[newKey];
+        _alTryArm(newAlert);
         _alLoaded = true;
         alSave();
         alStartBackgroundPolling();
         if (currentView === 'alerts') renderAlerts();
         alStampBadges();
+        return { alert: newAlert, created: true };
     };
 
     // Accessor for other chart contexts (fullscreen, watchlist) to read trendline alerts
@@ -1852,42 +2018,127 @@
         });
     };
 
+    // Returns { alert, created } -- `created` is false when an identical alert already existed (nothing is added).
     window.alAddAvwapAlert = function(ticker, anchorTime, condition) {
-        if (!anchorTime) return;
-        // Convert anchorTime to unix for dedup key
-        function toUnix(t) {
-            if (typeof t === 'number') return t;
-            if (typeof t === 'string') return Math.floor(new Date(t).getTime() / 1000);
-            if (t && t.year != null) return Math.floor(Date.UTC(t.year, t.month - 1, t.day) / 1000);
-            return 0;
-        }
-        var anchorUnix = toUnix(anchorTime);
-        // Dedup: same ticker + same anchor + same condition
-        var exists = alertsList.some(function(a) {
-            return a.alertType === 'avwap' && a.ticker === ticker &&
-                   a.condition === condition && a.anchorUnix === anchorUnix;
-        });
-        if (exists) return;
-        var name = (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '';
-        alertsList.push({
+        if (!anchorTime) return null;
+        var anchorUnix = _alToUnix(anchorTime);
+        if (anchorUnix == null) return null;
+        var newAlert = {
             ticker:     ticker,
             alertType:  'avwap',
             condition:  condition,
             anchorTime: anchorTime,
             anchorUnix: anchorUnix,
-            name:       name,
+            name:       (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '',
+            armed:      false,   // fires on a CROSS: becomes armed once price is seen on the far side of the line
             addedAt:    new Date().toISOString()
-        });
-        // Same fix as alAddTrendlineAlert above — an earlier AVWAP alert on this exact
-        // ticker+anchor+condition may have already fired and been removed this session,
-        // leaving a stale _alertFiredSess key that would otherwise block this new one
-        // from ever triggering.
-        delete _alertFiredSess[ticker + '_avwap_' + (anchorUnix || '') + '_' + condition];
+        };
+        var newKey = _alKey(newAlert);
+        // Dedup: same ticker + same anchor + same condition
+        var existing = alertsList.filter(function(a) { return a.alertType === 'avwap' && _alKey(a) === newKey; })[0];
+        if (existing) return { alert: existing, created: false };
+        alertsList.push(newAlert);
+        // Same reasoning as alAddTrendlineAlert: clear a stale fired-this-session key so this new alert can trigger.
+        delete _alertFiredSess[newKey];
+        _alTryArm(newAlert);
         _alLoaded = true;
         alSave();
         alStartBackgroundPolling();
         if (currentView === 'alerts') renderAlerts();
         alStampBadges();
+        return { alert: newAlert, created: true };
+    };
+
+    // Accessor for other chart contexts (fullscreen, watchlist) to read AVWAP alerts
+    window.alGetAvwapAlerts = function(ticker) {
+        return alertsList.filter(function(a) { return a.alertType === 'avwap' && a.ticker === ticker; });
+    };
+
+    // ── Keeping a drawn line and its alert in step ─────────────────────────────────────────────
+    // Dragging an anchor used to move only the DRAWING: the alert kept monitoring the old line, and the old line
+    // was redrawn from the alert store the next time the chart opened. Deleting a line with the Delete key left
+    // its alert armed as well. The two APIs below close both gaps; the chart code in multichart.js calls them.
+
+    // A drawn trendline's anchors were dragged: move any alert matching the OLD points to the new ones.
+    // Matches on anchor time AND price (two different lines can share both dates). The alert is re-baselined so
+    // dragging a line through the current price can't fire it. Returns how many alerts moved.
+    window.alSyncTrendlineAlertsAfterDrag = function(ticker, oldP1, oldP2, newP1, newP2) {
+        var ou1 = _alPtUnix(oldP1), ou2 = _alPtUnix(oldP2);
+        var nu1 = _alToUnix(newP1 && newP1.time), nu2 = _alToUnix(newP2 && newP2.time);
+        if (ou1 == null || ou2 == null || nu1 == null || nu2 == null || newP1.price == null || newP2.price == null) return 0;
+        var first = nu1 <= nu2;
+        var lo = first ? newP1 : newP2, hi = first ? newP2 : newP1;
+        var moved = 0;
+        alertsList.forEach(function(a) {
+            if (a.alertType !== 'trendline' || a.ticker !== ticker || !a.p1 || !a.p2) return;
+            if (_alPtUnix(a.p1) !== ou1 || _alPtUnix(a.p2) !== ou2) return;
+            if (oldP1.price != null && a.p1.price !== oldP1.price) return;
+            if (oldP2.price != null && a.p2.price !== oldP2.price) return;
+            var oldKey = _alKey(a);
+            a.p1 = { time: lo.time, price: lo.price, unix: _alToUnix(lo.time) };
+            a.p2 = { time: hi.time, price: hi.price, unix: _alToUnix(hi.time) };
+            a.armed = false;
+            _alTryArm(a);
+            delete _alEvalStatus[oldKey];
+            delete _alertFiredSess[_alKey(a)];
+            moved++;
+        });
+        if (!moved) return 0;
+        // If the moved line now coincides exactly with another alert's line, keep one of them.
+        var seen = {};
+        alertsList = alertsList.filter(function(a) {
+            if (a.alertType !== 'trendline') return true;
+            var k = _alKey(a);
+            if (seen[k]) return false;
+            seen[k] = true;
+            return true;
+        });
+        _alLoaded = true;
+        alSave();
+        if (currentView === 'alerts') renderAlerts();
+        alStampBadges();
+        return moved;
+    };
+
+    // Alerts backed by a drawn line.
+    //   kind 'trendline': ref = the drawing's anchor points { l: {time, price}, r: {time, price} }
+    //   kind 'avwap':     ref = { ohlcv, tf, idx } -- the chart's bar array, its timeframe, and the anchor's index in it
+    window.alLineAlerts = function(ticker, kind, ref) {
+        if (kind === 'trendline') {
+            var u1 = _alPtUnix(ref.l), u2 = _alPtUnix(ref.r);
+            return alertsList.filter(function(a) {
+                return a.alertType === 'trendline' && a.ticker === ticker && a.p1 && a.p2 &&
+                       _alPtUnix(a.p1) === u1 && _alPtUnix(a.p2) === u2 &&
+                       (ref.l.price == null || a.p1.price === ref.l.price) &&
+                       (ref.r.price == null || a.p2.price === ref.r.price);
+            });
+        }
+        return alertsList.filter(function(a) {
+            return a.alertType === 'avwap' && a.ticker === ticker &&
+                   _chartAnchorIdx(ref.ohlcv, ref.tf, _alAnchorUnix(a)) === ref.idx;
+        });
+    };
+    // Delete the alert(s) behind a drawn line, asking first (unless "don't ask again" was ticked this session),
+    // then run proceed() -- which removes the drawing itself. With no alert behind the line it just runs proceed().
+    window.alDeleteLineAlerts = function(ticker, kind, ref, proceed) {
+        var matches = window.alLineAlerts(ticker, kind, ref);
+        if (!matches.length) { proceed(); return; }
+        var doIt = function() {
+            matches.map(function(a) { return alertsList.indexOf(a); })
+                   .filter(function(i) { return i >= 0; })
+                   .sort(function(x, y) { return y - x; })          // from the end, so earlier indices stay valid
+                   .forEach(function(i) { window.alDelete(i); });
+            alStampBadges();
+            if (currentView === 'alerts') renderAlerts();
+            proceed();
+        };
+        if (_alSkipDeleteConfirm) { doIt(); return; }
+        var n = matches.length;
+        alConfirmOpen(
+            'Delete line and alert' + (n > 1 ? 's' : '') + '?',
+            'This line has ' + n + ' active alert' + (n > 1 ? 's' : '') + ' on ' + ticker + '. Deleting the line also deletes ' + (n > 1 ? 'them' : 'the alert') + '.',
+            doIt, 'Delete', true
+        );
     };
 
     // ── AL Measure drag handlers ─────────────────────────────────────────────
@@ -1997,60 +2248,7 @@
     var _alCtxTrendline = null; // {p1, p2} when right-click lands on a trendline
     var _alCtxAvwap     = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
 
-    // Returns the unix timestamp to use when evaluating a trendline.
-    // Daily/weekly/monthly bars have midnight-UTC anchors (divisible by 86400).
-    // Using Date.now() directly shifts the evaluated trendline by up to 20 hours
-    // relative to what the chart visually shows at today's bar, causing premature
-    // triggers. Snap to today's midnight UTC so the evaluated price matches the
-    // visual trendline at the current bar. Intraday anchors are not midnight-aligned
-    // so they fall through to real wall-clock time, which is correct for them.
-    function _alTlEvalUnix(p1unix, p2unix) {
-        if (p1unix % 86400 === 0 && p2unix % 86400 === 0) {
-            return Math.floor(Date.now() / 86400000) * 86400;
-        }
-        return Math.floor(Date.now() / 1000);
-    }
-
-    // Linear interpolation/extrapolation of trendline price at a given unix timestamp
-    function _alTrendlinePriceAt(p1unix, p1price, p2unix, p2price, nowUnix) {
-        if (p1unix === p2unix) return p1price;
-        return p1price + (p2price - p1price) * (nowUnix - p1unix) / (p2unix - p1unix);
-    }
-
-    // Computes the trendline's current price using real trading-day bar positions
-    // (bar index), not calendar time. Lightweight Charts spaces daily bars evenly by
-    // index and gives weekends/holidays zero width, so a straight line drawn on the
-    // chart advances one "step" per trading day, not per elapsed calendar day. Calendar
-    // interpolation (_alTrendlinePriceAt) implicitly counts weekends as if the market
-    // moved on them, so the computed value drifts from the visual line as time passes
-    // since the alert was set -- this is what caused premature triggers. Matching is
-    // done by calendar day (not exact timestamp) so it's unaffected by whatever
-    // intraday offset fetchMcOhlcv's bar timestamps use.
-    // Falls back to the old calendar-time calc if the daily OHLCV cache isn't ready
-    // yet or either anchor can't be located in it (e.g. a weekly/monthly-drawn line).
-    function _alTrendlineValueNow(ticker, p1, p2) {
-        var ohlcv = _mcOhlcvCache[ticker + '_D'] || _mcOhlcvCache[ticker + '_d'];
-        if (ohlcv && ohlcv.length) {
-            var p1Day = Math.floor(p1.unix / 86400);
-            var p2Day = Math.floor(p2.unix / 86400);
-            var p1Idx = -1, p2Idx = -1;
-            for (var i = 0; i < ohlcv.length; i++) {
-                var barDay = Math.floor(ohlcv[i].time / 86400);
-                if (p1Idx < 0 && barDay === p1Day) p1Idx = i;
-                if (barDay === p2Day) p2Idx = i;
-            }
-            if (p1Idx >= 0 && p2Idx >= 0 && p1Idx !== p2Idx) {
-                var lastDay  = Math.floor(ohlcv[ohlcv.length - 1].time / 86400);
-                var todayDay = Math.floor(Date.now() / 86400000);
-                // If today's bar hasn't printed yet, treat "now" as one slot past the
-                // last close -- the normal state for the entire trading day.
-                var todayIdx = (lastDay >= todayDay) ? (ohlcv.length - 1) : ohlcv.length;
-                return p1.price + (p2.price - p1.price) * (todayIdx - p1Idx) / (p2Idx - p1Idx);
-            }
-        }
-        var tlNowUnix = _alTlEvalUnix(p1.unix, p2.unix);
-        return _alTrendlinePriceAt(p1.unix, p1.price, p2.unix, p2.price, tlNowUnix);
-    }
+    // (trendline/AVWAP value functions live with the rest of the line engine, next to alFetchPrices)
 
     function _alDismissCtx() {
         _hideCtxMenu('al-chart-ctx-menu');
@@ -2619,27 +2817,39 @@
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.alChartToggleVwap(); return; }
             }
             if (evt.key !== 'Delete') return;
+            // A line that backs an alert takes the alert with it (after a confirm). Before, the alert stayed armed
+            // and the line was redrawn from the alert store the next time the chart opened.
             if (_alSelectedTrendlineIdx !== -1) {
                 evt.stopPropagation();
-                var selIdx = _alSelectedTrendlineIdx;
+                var selTl = _alTrendlines[_alSelectedTrendlineIdx];
                 _alSelectedTrendlineIdx = -1;
-                var selTl = _alTrendlines.splice(selIdx, 1)[0];
-                try { if (_alCandle) _alCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                if (selTl) _deleteTrendlineWithAlerts(_alSym, selTl, function() {
+                    var ti = _alTrendlines.indexOf(selTl);
+                    if (ti !== -1) _alTrendlines.splice(ti, 1);
+                    try { if (_alCandle) _alCandle.detachPrimitive(selTl.primitive); } catch(e) {}
+                });
                 return;
             }
             if (_alSelectedVwapIdx !== -1) {
                 evt.stopPropagation();
-                var selVwapIdx = _alSelectedVwapIdx;
+                var selVwap = _alVwapSeries[_alSelectedVwapIdx];
                 _alSelectedVwapIdx = -1;
-                var removed = _alVwapSeries.splice(selVwapIdx, 1)[0];
-                try { _alChart.removeSeries(removed.series); } catch(e) {}
-                _alVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                if (selVwap) _deleteVwapWithAlerts(_alSym, _alOhlcv, _alChartTf, selVwap, function() {
+                    var vi = _alVwapSeries.indexOf(selVwap);
+                    if (vi !== -1) _alVwapSeries.splice(vi, 1);
+                    try { _alChart.removeSeries(selVwap.series); } catch(e) {}
+                    _alVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                });
                 return;
             }
             if (_alTrendlineMode && _alTrendlines.length) {
                 evt.stopPropagation();
-                var tLast = _alTrendlines.pop();
-                try { if (_alCandle) _alCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                var tLast = _alTrendlines[_alTrendlines.length - 1];
+                _deleteTrendlineWithAlerts(_alSym, tLast, function() {
+                    var li = _alTrendlines.indexOf(tLast);
+                    if (li !== -1) _alTrendlines.splice(li, 1);
+                    try { if (_alCandle) _alCandle.detachPrimitive(tLast.primitive); } catch(e) {}
+                });
             }
         };
         document.addEventListener('keydown', _alKeyHandler);
@@ -2665,35 +2875,9 @@
             function() { return _alSym !== sym || !_alCandle; });
         _alStartLiveTick(sym, tf);
 
-        // Restore trendlines from alert store so they're visible when reviewing the chart
-        alertsList.forEach(function(a) {
-            if (a.alertType !== 'trendline' || a.ticker !== sym || !a.p1 || !a.p2) return;
-            _addAlTrendline(a.p1, a.p2);
-        });
-
-        // Restore AVWAP lines from saved avwap alerts for this ticker
-        alertsList.forEach(function(a) {
-            if (a.alertType !== 'avwap' || a.ticker !== sym || !a.anchorTime) return;
-            // Find anchor bar index by time in the loaded ohlcv
-            var anchorIdx = -1;
-            for (var ri = 0; ri < _alOhlcv.length; ri++) {
-                if (_alOhlcv[ri].time === a.anchorTime) { anchorIdx = ri; break; }
-            }
-            if (anchorIdx < 0) return;
-            // Avoid duplicates if already drawn (e.g. user drew it and then reloaded)
-            var already = _alVwapSeries.some(function(v) { return v.anchor === anchorIdx; });
-            if (already) return;
-            var avData = _calcAVWAP(_alOhlcv, anchorIdx);
-            if (!avData || !avData.length) return;
-            var color = _AVWAP_COLOR;
-            var s = _alChart.addSeries(LightweightCharts.LineSeries, {
-                color: color, lineWidth: 1.5, priceLineVisible: false,
-                lastValueVisible: true, crosshairMarkerVisible: true,
-            });
-            s.setData(avData);
-            var dm = new Map(avData.map(function(d) { return [d.time, d.value]; }));
-            _alVwapSeries.push({ series: s, anchor: anchorIdx, color: color, dataMap: dm });
-        });
+        // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart. The anchor is
+        // resolved on THIS chart's timeframe (the old strict time match drew nothing whenever the timeframe differed).
+        _restoreAlertLines(sym, tf, _alOhlcv, _addAlTrendline, _addAlVwap);
     }
 
     // ── alSelectChart: open panel + fetch + build ─────────────────────────
@@ -2808,13 +2992,12 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
         _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
-        delete _mcOhlcvCache[_alSym + '_' + tf];
-        var sym = _alSym;
+        var sym = _alSym;   // (no cache delete: the alert engine reads this same series; a forced fetch replaces it only on success)
         var container = document.getElementById('al-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
-        fetchMcOhlcv(sym, tf).then(function(ohlcv) {
+        fetchMcOhlcv(sym, tf, false, true).then(function(ohlcv) {
             if (_alSym !== sym || _alChartTf !== tf) return;
-            _buildAlChart(sym, ohlcv, tf);
+            _buildAlChart(sym, ohlcv || _mcOhlcvCache[sym + '_' + tf] || null, tf);
         });
     };
 
