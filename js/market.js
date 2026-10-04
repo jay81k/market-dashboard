@@ -832,12 +832,13 @@
             return stocks.map(function(r, i) {
                 var pctStr = (r.daily >= 0 ? '+' : '') + r.daily.toFixed(2) + '%';
                 var vol    = r.rel_vol != null ? r.rel_vol.toFixed(1) + 'x' : '—';
+                var d      = dir === 'auto' ? (r.daily > 0 ? 'up' : r.daily < 0 ? 'down' : '') : dir; // 'auto' = colour by sign
                 return '<div class="gl-row gl-clickable" data-ticker="' + esc(r.ticker) + '" data-industry="' + esc(r.industry||'') + '">' +
                     '<div class="gl-rank">' + (i + 1) + '</div>' +
                     '<div class="gl-ticker">' + esc(r.ticker) + '</div>' +
                     '<div class="gl-name">' + esc(r.industry || '') + '</div>' +
                     '<div class="gl-price">$' + r.price.toFixed(2) + '</div>' +
-                    '<div class="gl-pct ' + dir + '">' + pctStr + '</div>' +
+                    '<div class="gl-pct ' + d + '">' + pctStr + '</div>' +
                     '<div class="gl-vol" style="color:var(--accent-strong);font-weight:700;">' + vol + '</div>' +
                 '</div>';
             }).join('');
@@ -847,6 +848,47 @@
         lossEl.innerHTML = '<div class="gl-header"><div class="gl-title down">Top Losers</div><div class="gl-subtitle">daily % change</div></div>' + buildRows(losers, 'down');
         tickerHoverBind(gainEl, '.gl-ticker');
         tickerHoverBind(lossEl, '.gl-ticker');
+
+        // ── New 52-week highs / lows ──────────────────────────────────────
+        // Once a row has a live price this session (r._live, set in state.js while
+        // the market's open), a new high/low is that price crossing the stored 52-wk
+        // level (high_52wk / low_52wk, which include the last snapshot session's bar).
+        // Otherwise — or if the snapshot predates the stored levels — fall back to the
+        // snapshot's new_52wk_high / new_52wk_low flags.
+        // Highs: ranked by 3M RS (weighted_rs_pct, ties by raw weighted_rs_score).
+        // Lows:  ranked by highest 12M RS (Percentile, ties by vs_spy_12m).
+        var hiEl = document.getElementById('market-wk52-highs');
+        var loEl = document.getElementById('market-wk52-lows');
+
+        function sortDescBy(list, keys) {
+            return list.slice().sort(function(a, b) {
+                for (var i = 0; i < keys.length; i++) {
+                    var x = a[keys[i]], y = b[keys[i]];
+                    if (x == null && y == null) continue;
+                    if (x == null) return 1;      // missing values sort last
+                    if (y == null) return -1;
+                    if (x !== y) return y - x;
+                }
+                return 0;
+            });
+        }
+
+        function buildWk52Card(el, title, cls, sub, stocks) {
+            if (!el) return;
+            el.innerHTML = '<div class="gl-header"><div class="gl-title ' + cls + '">' + title + '</div><div class="gl-subtitle">' + sub + '</div></div>' +
+                (stocks.length ? buildRows(stocks, 'auto') : '<div class="gl-loading">None</div>');
+            tickerHoverBind(el, '.gl-ticker');
+        }
+
+        var newHighs = all.filter(function(r) {
+            return (r._live && r.high_52wk != null) ? r.price >= r.high_52wk : r.new_52wk_high === true;
+        });
+        var newLows = all.filter(function(r) {
+            return (r._live && r.low_52wk != null) ? r.price <= r.low_52wk : r.new_52wk_low === true;
+        });
+
+        buildWk52Card(hiEl, 'New 52-Week Highs', 'up',   'by 3M RS',  sortDescBy(newHighs, ['weighted_rs_pct', 'weighted_rs_score']).slice(0, 8));
+        buildWk52Card(loEl, 'New 52-Week Lows',  'down', 'by 12M RS', sortDescBy(newLows,  ['Percentile', 'vs_spy_12m']).slice(0, 8));
     }
 
     // ── Sector Performance ────────────────────────────────────────────────
