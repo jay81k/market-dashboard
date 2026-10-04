@@ -3188,11 +3188,19 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.mcFsToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.mcFsToggleTrendline(); return; }
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.mcFsToggleVwap(); return; }
+                // Alt+C: same as clicking the header's copy-symbol button. Skipped while the
+                // symbol search box (or any input) has focus so typing is never hijacked.
+                if ((evt.key === 'c' || evt.key === 'C' || evt.code === 'KeyC') &&
+                    evt.target.tagName !== 'INPUT' && evt.target.tagName !== 'TEXTAREA' &&
+                    !document.getElementById('mc-fs-sym-input')) {
+                    var _qBtn = document.getElementById('mc-fullscreen-queue-btn');
+                    if (_qBtn) { evt.preventDefault(); _qBtn.click(); return; }
+                }
             }
             if (evt.key !== 'Delete') return;
             // Don't steal Delete from the symbol input
