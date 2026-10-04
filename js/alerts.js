@@ -2434,7 +2434,7 @@
             _alTrendSvgOverlay.setAttribute('class', 'al-trend-svg-overlay');
             _alTrendSvgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
             _alTrendSvgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            _alTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR);
+            _alTrendSvgLine.setAttribute('stroke', _TRENDLINE_COLOR());
             _alTrendSvgLine.setAttribute('stroke-width', '1.5');
             _alTrendSvgLine.setAttribute('x1', '0'); _alTrendSvgLine.setAttribute('y1', '0');
             _alTrendSvgLine.setAttribute('x2', '0'); _alTrendSvgLine.setAttribute('y2', '0');
