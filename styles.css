@@ -1817,7 +1817,7 @@
         .rs-skew-pill.bal  { background: var(--bg-subtle); color: var(--text-muted-2); border: 1px solid var(--bg-surface); }
 
         /* ── Gainers / Losers ── */
-        .market-gl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 16px 20px; }
+        .market-gl-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 16px 20px; }
         .gl-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid var(--bg-surface); }
         .gl-title  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
         .gl-title.up   { color: var(--success); }
