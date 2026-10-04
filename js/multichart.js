@@ -117,6 +117,10 @@
     var _mcFsTrendlineFirst         = null;    // kept for compat (unused in new flow)
     var _mcFsTrendSvgOverlay        = null;    // SVG element overlaid on chart for preview
     var _mcFsTrendSvgLine           = null;    // <line> inside the SVG overlay
+    // Alert-backed trendlines keep their `extend` flag (it marks the line as one an alert is evaluated on), but the
+    // dashed continuation to the right edge is NOT drawn. The alert itself is evaluated in alerts.js
+    // (_alTrendlineEval), independent of this drawing. Set to true to show the continuation again.
+    var _TRENDLINE_SHOW_CONTINUATION = false;
     function _TRENDLINE_COLOR() { return themeColor('text-emphasis'); } // was a static 'var(--text-emphasis)' — pure white trendlines would vanish on a white light-mode background, so this now re-resolves live every time it's read
     var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
     var _mcFsTrendDraw              = { active: false, startTime: null, startPrice: null };
@@ -1212,7 +1216,7 @@ return '10y';
                                     // Dashed continuation to the right edge (alert-backed lines only). Bars are evenly
                                     // spaced per trading day, so a straight pixel line here is the same line the alert
                                     // evaluates in trading-day slots.
-                                    if (tlObj.extend) {
+                                    if (tlObj.extend && _TRENDLINE_SHOW_CONTINUATION) {
                                         try {
                                             var xr = scope.bitmapSize.width;
                                             if (bx2 !== bx1 && xr > bx2) {
