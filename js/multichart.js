@@ -1264,143 +1264,6 @@ return '10y';
         return tlObj;
     }
 
-    // ── High/Low pivot labels ────────────────────────────────────────────────
-    // Port of the TradingView "Price Peak/Valley Points" script.
-    // A bar is a pivot HIGH when no bar within MC_PIVOT_LEN bars on either side
-    // has a higher high (pivot LOW: a lower low). Price text sits above highs /
-    // below lows, anchored at the exact price. Optional %: a pivot high shows the
-    // rise from the most recent pivot low, a pivot low shows the decline from the
-    // most recent pivot high (same formulas as the Pine script).
-    // A pivot is only confirmed MC_PIVOT_LEN bars after it forms, so the newest
-    // MC_PIVOT_LEN bars can never carry one yet.
-    // Daily only: hidden on Weekly / Monthly.
-    // Always on (no toolbar toggle). One primitive per chart (fullscreen, watchlist,
-    // alerts); alerts.js calls _mcPivotAttach directly (same cross-file pattern as
-    // _addTrendlineCore). To show the % labels set MC_PIVOT_SHOW_PCT = true below.
-    var MC_PIVOT_LEN           = 9;                    // Pine i_pivot (bars each side)
-    var MC_PIVOT_PCT_UP_COLOR  = 'rgb(0, 0, 255)';     // Pine i_colorPctP
-    var MC_PIVOT_PCT_DN_COLOR  = 'rgb(222, 50, 174)';  // Pine i_colorPctN
-    var MC_PIVOT_SHOW_PCT      = false;                // Pine i_displayPc (H/L prices are always shown)
-
-    // Pure calculation. Returns [{ i, time, price, high, pct }] in bar order.
-    // pct is null until an opposite-type pivot exists (Pine shows no % label then).
-    function _mcCalcPivots(ohlcv, len) {
-        var out = [], n = ohlcv.length;
-        if (n < 2 * len + 1) return out;
-        var lastHigh = null, lastLow = null;
-        // c = bar on which the pivot at i = c - len gets confirmed
-        for (var c = 2 * len; c < n; c++) {
-            var i = c - len, bar = ohlcv[i];
-            var hi = bar.high, lo = bar.low;
-            var isHigh = hi != null && isFinite(hi);
-            var isLow  = lo != null && isFinite(lo);
-            for (var j = i - len; j <= c && (isHigh || isLow); j++) {
-                if (j === i) continue;
-                var b = ohlcv[j];
-                if (isHigh && b.high > hi) isHigh = false;
-                if (isLow  && b.low  < lo) isLow  = false;
-            }
-            // Update both "latest pivot" values before computing either %, as the Pine script does
-            if (isHigh) lastHigh = hi;
-            if (isLow)  lastLow  = lo;
-            if (isHigh) {
-                var pu = (lastLow != null && lastLow !== 0) ? (hi - lastLow) / lastLow * 100 : null;
-                out.push({ i: i, time: bar.time, price: hi, high: true, pct: (pu != null && isFinite(pu)) ? pu : null });
-            }
-            if (isLow) {
-                var pd = (lastHigh != null && lastHigh !== 0) ? (lo / lastHigh - 1) * 100 : null;
-                out.push({ i: i, time: bar.time, price: lo, high: false, pct: (pd != null && isFinite(pd)) ? pd : null });
-            }
-        }
-        return out;
-    }
-
-    // Cached per chart. Only the last bar is ever mutated in place by the live-bar
-    // code, and it can only affect the pivot at n - 1 - len, so n + last bar's
-    // time/high/low is a complete cache key.
-    function _mcPivotGet(state, ohlcv) {
-        var n = ohlcv.length, last = ohlcv[n - 1];
-        var key = n + '|' + (last ? last.time + '|' + last.high + '|' + last.low : '');
-        if (state.key !== key) {
-            state.key = key;
-            state.pivots = _mcCalcPivots(ohlcv, MC_PIVOT_LEN);
-        }
-        return state.pivots;
-    }
-
-    // Attaches the label primitive to a chart's candle series.
-    // getOhlcv returns that chart's CURRENT bar array (live bars get pushed into it).
-    function _mcPivotAttach(chart, candle, getOhlcv, tf) {
-        if (!chart || !candle) return;
-        var state = { key: null, pivots: [] };
-
-        var primitive = {
-            attached: function(param) { param.requestUpdate(); },
-            paneViews: function() {
-                return [{
-                    zOrder: function() { return 'top'; },
-                    renderer: function() {
-                        return {
-                            draw: function(target) {
-                                try {
-                                    if (tf !== 'D') return;
-                                    var ohlcv = getOhlcv();
-                                    if (!ohlcv || ohlcv.length < 2 * MC_PIVOT_LEN + 1) return;
-                                    var pivots = _mcPivotGet(state, ohlcv);
-                                    if (!pivots.length) return;
-
-                                    var lay      = (chart.options() || {}).layout || {};
-                                    var fontPx   = lay.fontSize || 12;
-                                    var font     = fontPx + 'px ' + (lay.fontFamily || 'sans-serif');
-                                    var lineH    = fontPx + 2, gap = 4;
-                                    var txtColor = themeColor('text-emphasis');
-                                    var ts       = chart.timeScale();
-
-                                    target.useMediaCoordinateSpace(function(scope) {
-                                        var ctx = scope.context, w = scope.mediaSize.width;
-                                        ctx.save();
-                                        ctx.font = font;
-                                        ctx.textAlign = 'center';
-                                        ctx.textBaseline = 'middle';
-                                        for (var k = 0; k < pivots.length; k++) {
-                                            var p = pivots[k];
-                                            var x = ts.timeToCoordinate(p.time);
-                                            if (x == null || x < -30 || x > w + 30) continue;
-                                            var y = candle.priceToCoordinate(p.price);
-                                            if (y == null) continue;
-                                            var showPct = MC_PIVOT_SHOW_PCT && p.pct != null;
-                                            // Stack reads top-to-bottom "price, %" for highs and lows alike.
-                                            // Highs: stack sits above the high (% nearest the bar).
-                                            // Lows:  stack sits below the low  (price nearest the bar).
-                                            var yPrice, yPct;
-                                            if (p.high) {
-                                                yPct   = y - gap - lineH / 2;
-                                                yPrice = showPct ? yPct - lineH : yPct;
-                                            } else {
-                                                yPrice = y + gap + lineH / 2;
-                                                yPct   = yPrice + lineH;
-                                            }
-                                            ctx.fillStyle = txtColor;
-                                            ctx.fillText(p.price.toFixed(2), x, yPrice);
-                                            if (showPct) {
-                                                ctx.fillStyle = p.pct >= 0 ? MC_PIVOT_PCT_UP_COLOR : MC_PIVOT_PCT_DN_COLOR;
-                                                ctx.fillText((p.pct >= 0 ? '+' : '') + p.pct.toFixed(1) + '%', x, yPct);
-                                            }
-                                        }
-                                        ctx.restore();
-                                    });
-                                } catch (e) { /* labels must never break chart rendering */ }
-                            }
-                        };
-                    }
-                }];
-            }
-        };
-
-        candle.attachPrimitive(primitive);
-    }
-    // ── END High/Low pivot labels ────────────────────────────────────────────
-
     function _addFsTrendline(p1, p2, extend) {
         return _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines, { extend: !!extend });
     }
@@ -3394,9 +3257,6 @@ return '10y';
             if (existing) existing.classList.toggle('active', _mcFsTooltipEnabled);
         })();
 
-        // High/Low pivot labels (always on, Daily only)
-        _mcPivotAttach(_mcFsChart, _mcFsCandle, function() { return _mcFsOhlcv; }, tf);
-
         // Inject today's live bar into the fullscreen chart so the latest
         // intraday OHLC is always reflected, even if Yahoo's historical feed
         // returned a stale or missing current-day bar.
@@ -4895,9 +4755,6 @@ return '10y';
             var existing = document.getElementById('wl-chart-tooltip-btn');
             if (existing) existing.classList.toggle('active', _wlTooltipEnabled);
         })();
-
-        // High/Low pivot labels (always on, Daily only)
-        _mcPivotAttach(_wlChart, _wlCandle, function() { return _wlOhlcv; }, tf);
 
         // Inject today's live bar so the WL chart always shows the latest
         // intraday OHLC — mirrors the fullscreen chart fix above.
