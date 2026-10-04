@@ -119,7 +119,7 @@
                         // price equals _snapPrice, which would silently clobber the real
                         // last-session daily change with a spurious 0 for every ticker
                         // this loop happens to touch.
-                        if (wlIsMarketOpen()) { row.price = q.price; row.daily = pct; }
+                        if (wlIsMarketOpen()) { row.price = q.price; row.daily = pct; row._live = true; } // _live: lets market.js trust row.price for the 52-wk highs/lows cards
                     });
                 }
             }).catch(function() {}).finally(function() {
