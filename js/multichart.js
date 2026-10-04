@@ -121,7 +121,7 @@
     // dashed continuation to the right edge is NOT drawn. The alert itself is evaluated in alerts.js
     // (_alTrendlineEval), independent of this drawing. Set to true to show the continuation again.
     var _TRENDLINE_SHOW_CONTINUATION = false;
-    function _TRENDLINE_COLOR() { return themeColor('text-emphasis'); } // was a static 'var(--text-emphasis)' — pure white trendlines would vanish on a white light-mode background, so this now re-resolves live every time it's read
+    function _TRENDLINE_COLOR() { return themeColor('chart-trendline'); } // theme token (--chart-trendline in styles.css: #ffffff dark / #9598a2 light). Re-resolved live on every read, so a theme toggle is picked up. Was 'text-emphasis'.
     var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
     var _mcFsTrendDraw              = { active: false, startTime: null, startPrice: null };
     var _mcFsTrendContRef           = null;    // reference to chart container div
@@ -1240,7 +1240,9 @@ return '10y';
                                         [[bx1, by1], [bx2, by2]].forEach(function(pt) {
                                             ctx.beginPath();
                                             ctx.arc(pt[0], pt[1], 4.5 * rx, 0, Math.PI * 2);
-                                            ctx.fillStyle   = _TRENDLINE_COLOR();
+                                            // Anchor handles deliberately use text-emphasis, NOT the (lighter) trendline colour:
+                                            // they are what you grab to adjust a line, so they must stay high-contrast in light mode.
+                                            ctx.fillStyle   = themeColor('text-emphasis');
                                             ctx.fill();
                                             ctx.strokeStyle = themeColor('bg-page');
                                             ctx.lineWidth   = 1.5 * rx;
