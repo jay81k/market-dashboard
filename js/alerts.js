@@ -2215,6 +2215,7 @@
             setSelectedIdx:    function(v) { _alSelectedTrendlineIdx = v; },
             trendlines:        _alTrendlines,
             deselectAllTrendlines: _alDeselectAllTrendlines,
+            deselectAllVwaps:  _alDeselectAllVwaps,
             anchorHitTest:     _alAnchorHitTest,
             trendlineHitTest:  _alTrendlineHitTest,
             dragMoveHandler:   _onAlTrendAnchorDragMove,
@@ -2615,6 +2616,9 @@
                 var s = _alChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
                 s.setData(data);
                 _alVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
+                // Select the new AVWAP so Delete removes it straight away (trendlines deselected first, as on fullscreen).
+                _alDeselectAllTrendlines();
+                _alSelectVwap(_alVwapSeries.length - 1);
                 return;
             }
             if (_alTrendlineMode) return;
