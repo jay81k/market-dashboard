@@ -1896,8 +1896,8 @@
     };
 
     // ── Trendline helpers ─────────────────────────────────────────────────
-    function _addAlTrendline(p1, p2, extend) {
-        return _addTrendlineCore(p1, p2, _alChart, _alCandle, _alOhlcv, _alTrendlines, { extend: !!extend });
+    function _addAlTrendline(p1, p2, extend, dotted) {
+        return _addTrendlineCore(p1, p2, _alChart, _alCandle, _alOhlcv, _alTrendlines, { extend: !!extend, dotted: !!dotted });
     }
 
     // Draws an AVWAP line anchored at a bar index of the alerts chart (skips one already drawn at that anchor).
@@ -2221,6 +2221,7 @@
             dragEndHandler:    _onAlTrendAnchorDragEnd,
             getTrendlineMode:  function() { return _alTrendlineMode; },
             setTrendlineMode:  function(v) { _alTrendlineMode = v; },
+            getTrendlineStyle: function() { return _alTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _alLastCrosshairTime; },
             addTrendline:      _addAlTrendline,
             doneBtnId:         'al-chart-trendline-btn'
@@ -3062,6 +3063,7 @@
     };
 
     window.alChartToggleTrendline = function() {
+        _alTlMenu.resetStyle(); // plain click and Alt+T always draw solid
         _alTrendlineMode = !_alTrendlineMode;
         var btn = document.getElementById('al-chart-trendline-btn');
         if (btn) btn.classList.toggle('active', _alTrendlineMode);
@@ -3080,6 +3082,18 @@
         if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
         if (_alSelectedTrendlineIdx !== -1) _alDeselectAllTrendlines();
     };
+
+    // Alerts chart instance of the shared hold-menu (_makeTrendlineStyleHold, defined in multichart.js) — #al-chart-trendline-btn
+    var _alTlMenu = _makeTrendlineStyleHold({
+        toggle:     function() { window.alChartToggleTrendline(); },
+        isActive:   function() { return _alTrendlineMode; },
+        cancelDraw: function() {
+            _alTrendDraw.active = false; _alTrendDraw.startTime = null; _alTrendDraw.startPrice = null;
+            if (_alTrendSvgOverlay) _alTrendSvgOverlay.style.display = 'none';
+        }
+    });
+    window.alChartTlBtnDown  = _alTlMenu.down;
+    window.alChartTlBtnClick = _alTlMenu.click;
 
     window.alChartToggleTooltip = function() {
         _alTooltipEnabled = !_alTooltipEnabled;
