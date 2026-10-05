@@ -1218,9 +1218,9 @@ return '10y';
                                     ctx.lineTo(bx2, by2);
                                     ctx.strokeStyle = _TRENDLINE_COLOR();
                                     ctx.lineWidth   = 1.5 * rx;
-                                    if (tlObj.dotted) { ctx.lineCap = 'round'; ctx.setLineDash([0.1 * rx, 4.5 * rx]); }
+                                    if (tlObj.dotted) { ctx.lineWidth = 2.5 * rx; ctx.lineCap = 'round'; ctx.setLineDash([0.1 * rx, 5.9 * rx]); } // dotted: 2.5px round dots, 6px apart
                                     ctx.stroke();
-                                    if (tlObj.dotted) { ctx.setLineDash([]); ctx.lineCap = 'butt'; } // don't leak the dots into the continuation / anchor handles
+                                    if (tlObj.dotted) { ctx.setLineDash([]); ctx.lineCap = 'butt'; ctx.lineWidth = 1.5 * rx; } // don't leak the dots into the continuation / anchor handles
                                     // Dashed continuation to the right edge (alert-backed lines only). Bars are evenly
                                     // spaced per trading day, so a straight pixel line here is the same line the alert
                                     // evaluates in trading-day slots.
@@ -1646,8 +1646,8 @@ return '10y';
     // preview is shown, so it also clears the dots when the next line is solid.
     function _applyTrendlineDash(svgLine, dotted) {
         if (!svgLine) return;
-        if (dotted) { svgLine.setAttribute('stroke-dasharray', '0.1 4.5'); svgLine.setAttribute('stroke-linecap', 'round'); }
-        else        { svgLine.removeAttribute('stroke-dasharray');         svgLine.removeAttribute('stroke-linecap'); }
+        if (dotted) { svgLine.setAttribute('stroke-dasharray', '0.1 5.9'); svgLine.setAttribute('stroke-linecap', 'round'); svgLine.setAttribute('stroke-width', '2.5'); }
+        else        { svgLine.removeAttribute('stroke-dasharray');         svgLine.removeAttribute('stroke-linecap');         svgLine.setAttribute('stroke-width', '1.5'); } // 1.5 = the width every chart's preview line is created with
     }
 
     // ── Shared trendline mousedown core — used by all three charts. Handles the
@@ -3450,7 +3450,7 @@ return '10y';
                 '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
                 '<span>Solid</span></div>' +
             '<div class="mc-tl-style-opt" data-tl-style="dotted">' +
-                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg>' +
+                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.1 5.9"/></svg>' +
                 '<span>Dotted</span></div>';
         var r = btn.getBoundingClientRect();
         pop.style.left = r.left + 'px';
