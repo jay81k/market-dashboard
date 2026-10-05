@@ -1570,16 +1570,78 @@ return '10y';
         });
     }
 
+    // A selected AVWAP is marked with a dot on its anchor bar -- the same dot a selected trendline shows on each of its
+    // anchors -- instead of a thicker line. The dot is a canvas primitive on the AVWAP's own series (the primitive API
+    // the trendlines already use), created the first time that AVWAP is selected and then just shown / hidden.
+    // If it can't be attached or has no anchor point, the selected AVWAP is drawn DASHED instead (never thicker), so a
+    // selection is never invisible.
+    function _vwapAnchorPt(entry) {
+        try {
+            var it = entry && entry.dataMap && entry.dataMap.entries().next();   // first point = the anchor bar
+            if (it && !it.done) return { time: it.value[0], value: it.value[1] };
+        } catch (e) {}
+        return null;
+    }
+    function _makeVwapAnchorDot(entry) {
+        var chartRef = null, seriesRef = null, requestUpdate = null;
+        var prim = {
+            shown: false,
+            attached: function(param) { chartRef = param.chart; seriesRef = param.series; requestUpdate = param.requestUpdate; },
+            detached: function() { chartRef = seriesRef = requestUpdate = null; },
+            show: function(on) { prim.shown = !!on; if (requestUpdate) { try { requestUpdate(); } catch (e) {} } },
+            paneViews: function() {
+                return [{
+                    zOrder: function() { return 'top'; },
+                    renderer: function() {
+                        return {
+                            draw: function(target) {
+                                if (!prim.shown || !chartRef || !seriesRef) return;
+                                var pt = _vwapAnchorPt(entry);
+                                if (!pt) return;
+                                var x = chartRef.timeScale().timeToCoordinate(pt.time);
+                                var y = seriesRef.priceToCoordinate(pt.value);
+                                if (x == null || y == null) return;
+                                target.useBitmapCoordinateSpace(function(scope) {
+                                    var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(x * rx, y * ry, 4.5 * rx, 0, Math.PI * 2);
+                                    // Same look as the trendline anchor handles (see _addTrendlineCore)
+                                    ctx.fillStyle   = themeColor('text-emphasis');
+                                    ctx.fill();
+                                    ctx.strokeStyle = themeColor('bg-page');
+                                    ctx.lineWidth   = 1.5 * rx;
+                                    ctx.stroke();
+                                    ctx.restore();
+                                });
+                            }
+                        };
+                    }
+                }];
+            }
+        };
+        return prim;
+    }
+    function _vwapSetSelectedLook(entry, selected) {
+        if (selected && !entry._dot && !entry._dotFailed) {
+            try {
+                if (typeof entry.series.attachPrimitive !== 'function' || !_vwapAnchorPt(entry)) throw new Error('no dot');
+                var d = _makeVwapAnchorDot(entry);
+                entry.series.attachPrimitive(d);
+                entry._dot = d;
+            } catch (e) { entry._dotFailed = true; entry._dot = null; }
+        }
+        if (entry._dot) entry._dot.show(selected);
+        // lineStyle 0 = solid, 2 = dashed (the library's numeric values). Width never changes.
+        entry.series.applyOptions({ lineWidth: 1.5, lineStyle: (selected && !entry._dot) ? 2 : 0 });
+    }
+
     function _selectVwapCore(vwapSeries, idx) {
-        vwapSeries.forEach(function(entry, i) {
-            entry.series.applyOptions({ lineWidth: i === idx ? 3 : 1.5 });
-        });
+        vwapSeries.forEach(function(entry, i) { _vwapSetSelectedLook(entry, i === idx); });
     }
 
     function _deselectAllVwapsCore(vwapSeries) {
-        vwapSeries.forEach(function(entry) {
-            entry.series.applyOptions({ lineWidth: 1.5 });
-        });
+        vwapSeries.forEach(function(entry) { _vwapSetSelectedLook(entry, false); });
     }
 
     function _vwapHitTestCore(clientX, clientY, chart, vwapSeries, lastCrosshairTime, containerId) {
@@ -3479,7 +3541,7 @@ return '10y';
                     var vi = _mcFsVwapSeries.indexOf(selVwap);
                     if (vi !== -1) _mcFsVwapSeries.splice(vi, 1);
                     try { _mcFsChart.removeSeries(selVwap.series); } catch(e) {}
-                    _mcFsVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                    _mcFsVwapSeries.forEach(function(entry) { _vwapSetSelectedLook(entry, false); });
                 });
                 return;
             }
@@ -5117,7 +5179,7 @@ return '10y';
                     var vi = _wlVwapSeries.indexOf(selVwap);
                     if (vi !== -1) _wlVwapSeries.splice(vi, 1);
                     try { _wlChart.removeSeries(selVwap.series); } catch(e) {}
-                    _wlVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                    _wlVwapSeries.forEach(function(entry) { _vwapSetSelectedLook(entry, false); });
                 });
                 return;
             }
