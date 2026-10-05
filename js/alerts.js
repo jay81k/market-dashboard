@@ -2843,7 +2843,7 @@
                     var vi = _alVwapSeries.indexOf(selVwap);
                     if (vi !== -1) _alVwapSeries.splice(vi, 1);
                     try { _alChart.removeSeries(selVwap.series); } catch(e) {}
-                    _alVwapSeries.forEach(function(entry) { entry.series.applyOptions({ lineWidth: 1.5 }); });
+                    _alVwapSeries.forEach(function(entry) { _vwapSetSelectedLook(entry, false); });
                 });
                 return;
             }
