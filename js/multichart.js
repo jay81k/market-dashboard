@@ -2050,6 +2050,17 @@ return '10y';
                 var drawnTl = cfg.addTrendline(p1, { time: time, price: price }, false, !!(cfg.getTrendlineStyle && cfg.getTrendlineStyle() === 'dotted'));
                 // Opt-in: only the fullscreen and watchlist charts save hand-drawn lines (see "Saved chart drawings").
                 if (drawnTl && cfg.onTrendDrawn) cfg.onTrendDrawn(drawnTl);
+                // Select the line just drawn so Delete removes it straight away. The draw tool switches itself off
+                // below, so the "delete the last line while the tool is on" branch of the key handlers no longer
+                // applies. Exclusive with AVWAP selection, because the key handlers check trendlines first.
+                var _newTlIdx = drawnTl ? cfg.trendlines.indexOf(drawnTl) : -1;
+                if (_newTlIdx !== -1) {
+                    cfg.deselectAllTrendlines();
+                    if (cfg.deselectAllVwaps) cfg.deselectAllVwaps();
+                    cfg.setSelectedIdx(_newTlIdx);
+                    drawnTl.selected = true;
+                    if (drawnTl.requestUpdate) drawnTl.requestUpdate();
+                }
             }
             // Auto-deactivate: turn button off after trendline is drawn
             cfg.setTrendlineMode(false);
@@ -2088,6 +2099,7 @@ return '10y';
             setSelectedIdx:    function(v) { _mcFsSelectedTrendlineIdx = v; },
             trendlines:        _mcFsTrendlines,
             deselectAllTrendlines: _deselectAllTrendlines,
+            deselectAllVwaps:  _deselectAllVwaps,
             anchorHitTest:     _anchorHitTest,
             trendlineHitTest:  _trendlineHitTest,
             dragMoveHandler:   _onTrendAnchorDragMove,
@@ -3162,7 +3174,13 @@ return '10y';
                 if (idx < 0) return;
                 var _nVwBefore = _mcFsVwapSeries.length;
                 _addFsVwap(idx);
-                if (_mcFsVwapSeries.length > _nVwBefore) _cdAddAv(_mcFsSym, _mcFsOhlcv, _mcFsTf, idx);   // save the anchor
+                if (_mcFsVwapSeries.length > _nVwBefore) {
+                    _cdAddAv(_mcFsSym, _mcFsOhlcv, _mcFsTf, idx);   // save the anchor
+                    // Select the new AVWAP so Delete removes it straight away. Trendlines are deselected first:
+                    // the key handler checks them first and would otherwise delete an older selected line instead.
+                    _deselectAllTrendlines();
+                    _selectVwap(_mcFsVwapSeries.length - 1);
+                }
                 return;
             }
             // Don't interfere with trendline tool
@@ -4501,6 +4519,7 @@ return '10y';
             setSelectedIdx:    function(v) { _wlSelectedTrendlineIdx = v; },
             trendlines:        _wlTrendlines,
             deselectAllTrendlines: _wlDeselectAllTrendlines,
+            deselectAllVwaps:  _wlDeselectAllVwaps,
             anchorHitTest:     _wlAnchorHitTest,
             trendlineHitTest:  _wlTrendlineHitTest,
             dragMoveHandler:   _onWlTrendAnchorDragMove,
@@ -4858,6 +4877,9 @@ return '10y';
                 s.setData(data);
                 _wlVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
                 _cdAddAv(_wlSym, _wlOhlcv, _wlTf, idx);   // save the anchor
+                // Select the new AVWAP so Delete removes it straight away (trendlines deselected first, as on fullscreen).
+                _wlDeselectAllTrendlines();
+                _wlSelectVwap(_wlVwapSeries.length - 1);
                 return;
             }
             if (_wlTrendlineMode) return;
