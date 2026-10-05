@@ -100,8 +100,8 @@
             --bg-surface-alpha: rgba(33,38,45,0.5);
             --al-watermark: rgba(255,255,255,0.22);
             --chart-watermark: rgba(255,255,255,0.22);
-            /* Trendline colour: canvas lines + SVG drag preview. Dark = #ffffff, identical to --text-emphasis (no change) */
-            --chart-trendline: #ffffff;
+            /* Trendline colour: canvas lines + SVG drag preview. Dark = #c8d0dc (same as --text-primary), softened from pure #ffffff */
+            --chart-trendline: #c8d0dc;
             --al-measure-fill-up: rgba(8,153,129,0.15);
             --al-measure-fill-down: rgba(178,40,51,0.18);
             --al-measure-stroke-up: rgba(8,153,129,0.55);
