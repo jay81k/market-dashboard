@@ -122,7 +122,7 @@
     // dashed continuation to the right edge is NOT drawn. The alert itself is evaluated in alerts.js
     // (_alTrendlineEval), independent of this drawing. Set to true to show the continuation again.
     var _TRENDLINE_SHOW_CONTINUATION = false;
-    function _TRENDLINE_COLOR() { return themeColor('chart-trendline'); } // theme token (--chart-trendline in styles.css: #ffffff dark / #9598a2 light). Re-resolved live on every read, so a theme toggle is picked up. Was 'text-emphasis'.
+    function _TRENDLINE_COLOR() { return themeColor('chart-trendline'); } // theme token (--chart-trendline in styles.css: #c8d0dc dark / #9598a2 light). Re-resolved live on every read, so a theme toggle is picked up. Was 'text-emphasis'.
     var _TRENDLINE_SELECTED_COLOR   = '#f9c74f';
     var _mcFsTrendDraw              = { active: false, startTime: null, startPrice: null };
     var _mcFsTrendContRef           = null;    // reference to chart container div
