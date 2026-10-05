@@ -873,9 +873,10 @@
             });
         }
 
-        function buildWk52Card(el, title, cls, sub, stocks) {
+        function buildWk52Card(el, title, cls, tip, stocks) {
             if (!el) return;
-            el.innerHTML = '<div class="gl-header"><div class="gl-title ' + cls + '">' + title + '</div><div class="gl-subtitle">' + sub + '</div></div>' +
+            // `tip` shows on hover over the title via the global data-rs-tip floating tooltip (main.js) — no visible subtitle
+            el.innerHTML = '<div class="gl-header"><div class="gl-title ' + cls + '" data-rs-tip="' + tip + '">' + title + '</div></div>' +
                 (stocks.length ? buildRows(stocks, 'auto') : '<div class="gl-loading">None</div>');
             tickerHoverBind(el, '.gl-ticker');
         }
@@ -887,8 +888,8 @@
             return (r._live && r.low_52wk != null) ? r.price <= r.low_52wk : r.new_52wk_low === true;
         });
 
-        buildWk52Card(hiEl, 'New 52-Week Highs', 'up',   'by 3M RS',  sortDescBy(newHighs, ['weighted_rs_pct', 'weighted_rs_score']).slice(0, 8));
-        buildWk52Card(loEl, 'New 52-Week Lows',  'down', 'by 12M RS', sortDescBy(newLows,  ['Percentile', 'vs_spy_12m']).slice(0, 8));
+        buildWk52Card(hiEl, 'New Highs', 'up',   'Sorted by 3M RS',  sortDescBy(newHighs, ['weighted_rs_pct', 'weighted_rs_score']).slice(0, 8));
+        buildWk52Card(loEl, 'New Lows',  'down', 'Sorted by 12M RS', sortDescBy(newLows,  ['Percentile', 'vs_spy_12m']).slice(0, 8));
     }
 
     // ── Sector Performance ────────────────────────────────────────────────
