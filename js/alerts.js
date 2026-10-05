@@ -3318,6 +3318,12 @@
         }
 
         if (e.key === 'Delete') {
+            // The alerts chart owns Delete while a line is selected (or the draw tool has lines to remove).
+            // Without this, the highlighted alert row ALSO got the key and opened "Remove alert?" for a plain
+            // drawn line. This listener is registered before the chart's own handler, so the chart's selection
+            // state is still intact when we check it here.
+            if (_alSelectedTrendlineIdx !== -1 || _alSelectedVwapIdx !== -1 ||
+                (_alTrendlineMode && _alTrendlines.length)) return;
             if (_alKbFocus === 'history' && _alHistKbIdx >= 0) {
                 e.preventDefault();
                 var hRows = alKbGetHistRows();
