@@ -113,7 +113,6 @@
 
     // Trendline drawing state
     var _mcFsTrendlineMode          = false;   // tool active?
-    var _mcFsTrendlineStyle         = 'solid'; // 'solid' | 'dotted' — style of the NEXT line drawn. Always 'solid' unless picked from the hold-menu on the trendline button (click / Alt+T reset it).
     var _mcFsTrendlines             = [];      // array of { primitive, p1, p2, leftP, rightP, selected, requestUpdate }
     var _mcFsTrendlineFirst         = null;    // kept for compat (unused in new flow)
     var _mcFsTrendSvgOverlay        = null;    // SVG element overlaid on chart for preview
@@ -1879,7 +1878,7 @@ return '10y';
             dragEndHandler:    _onTrendAnchorDragEnd,
             getTrendlineMode:  function() { return _mcFsTrendlineMode; },
             setTrendlineMode:  function(v) { _mcFsTrendlineMode = v; },
-            getTrendlineStyle: function() { return _mcFsTrendlineStyle; },
+            getTrendlineStyle: function() { return _mcFsTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _mcFsLastCrosshairTime; },
             addTrendline:      _addFsTrendline,
             doneBtnId:         'mc-fs-trendline-btn'
@@ -3406,7 +3405,7 @@ return '10y';
     };
 
     window.mcFsToggleTrendline = function() {
-        _mcFsTrendlineStyle = 'solid'; // plain click and Alt+T always draw solid
+        _mcFsTlMenu.resetStyle(); // plain click and Alt+T always draw solid
         _mcFsTrendlineMode = !_mcFsTrendlineMode;
         var btn  = document.getElementById('mc-fs-trendline-btn');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
@@ -3430,95 +3429,120 @@ return '10y';
 
 
     // ── Trendline button: press and hold → pick Solid or Dotted ─────────────
+    // ONE implementation shared by the fullscreen, watchlist and alerts charts: each builds its own instance (below,
+    // and in alerts.js), so all three behave identically and a change here applies to all of them.
     // A normal click (or Alt+T) still just toggles the tool and draws solid. Holding the button for HOLD_MS opens a
     // small menu under it; release over an option to arm the tool with that style, release anywhere else to cancel.
     // After the line is drawn the tool switches itself off as before, so a dotted line needs the hold again.
-    var _mcFsTlHold = { timer: null, fired: false, pop: null };
+    //   cfg.toggle()      the chart's own trendline toggle (what a plain click / Alt+T runs). It must call resetStyle().
+    //   cfg.isActive()    true while the trendline tool is armed
+    //   cfg.cancelDraw()  drop a half-drawn line (used when the tool is re-armed while it is already on)
+    // Returns { getStyle, resetStyle, down, click, arm }; down/click are the button's onmousedown / onclick handlers.
     var _MC_TL_HOLD_MS = 400;
+    function _makeTrendlineStyleHold(cfg) {
+        var hold  = { timer: null, fired: false, pop: null };
+        var style = 'solid';   // 'solid' | 'dotted' — style of the NEXT line drawn. Always 'solid' unless picked from the hold-menu (click / Alt+T reset it).
 
-    function _mcFsTlPopClose() {
-        if (_mcFsTlHold.pop && _mcFsTlHold.pop.parentNode) _mcFsTlHold.pop.parentNode.removeChild(_mcFsTlHold.pop);
-        _mcFsTlHold.pop = null;
+        function popClose() {
+            if (hold.pop && hold.pop.parentNode) hold.pop.parentNode.removeChild(hold.pop);
+            hold.pop = null;
+        }
+
+        function popOpen(btn) {
+            popClose();
+            var pop = document.createElement('div');
+            pop.className = 'mc-tl-style-pop';
+            pop.innerHTML =
+                '<div class="mc-tl-style-opt" data-tl-style="solid">' +
+                    '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
+                    '<span>Solid</span></div>' +
+                '<div class="mc-tl-style-opt" data-tl-style="dotted">' +
+                    '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.1 5.9"/></svg>' +
+                    '<span>Dotted</span></div>';
+            var r = btn.getBoundingClientRect();
+            pop.style.left = r.left + 'px';
+            pop.style.top  = (r.bottom + 6) + 'px';
+            document.body.appendChild(pop);
+            hold.pop = pop;
+        }
+
+        // Option under the pointer (elementFromPoint, not event.target, so it doesn't depend on mouse capture while the button is held)
+        function optAt(x, y) {
+            if (!hold.pop) return null;
+            var el = document.elementFromPoint(x, y);
+            var opt = el && el.closest ? el.closest('.mc-tl-style-opt') : null;
+            return (opt && hold.pop.contains(opt)) ? opt : null;
+        }
+
+        function onMove(evt) {
+            if (!hold.pop) return;
+            var hot = optAt(evt.clientX, evt.clientY);
+            var opts = hold.pop.querySelectorAll('.mc-tl-style-opt');
+            for (var i = 0; i < opts.length; i++) opts[i].classList.toggle('hot', opts[i] === hot);
+        }
+
+        // Arm the tool with a chosen style. Uses the very same activation path as a click / Alt+T
+        // (turns AVWAP / measure off, clears selection and any half-drawn line); if the tool is already armed it just restarts with the new style.
+        function arm(s) {
+            if (!cfg.isActive()) {
+                cfg.toggle();
+            } else {
+                cfg.cancelDraw();
+            }
+            style = (s === 'dotted') ? 'dotted' : 'solid';
+        }
+
+        function onUp(evt) {
+            document.removeEventListener('mouseup',   onUp, true);
+            document.removeEventListener('mousemove', onMove, true);
+            clearTimeout(hold.timer); hold.timer = null;
+            if (!hold.fired) return;   // quick press: the button's own click handler does the normal toggle
+            var opt    = optAt(evt.clientX, evt.clientY);
+            var picked = opt ? opt.getAttribute('data-tl-style') : null;
+            popClose();
+            if (picked) arm(picked);
+            // Keep `fired` set just long enough to swallow the click that follows this mouseup, then clear it
+            setTimeout(function() { hold.fired = false; }, 50);
+        }
+
+        return {
+            getStyle:   function() { return style; },
+            resetStyle: function() { style = 'solid'; },
+            arm:        arm,
+            // onmousedown on the trendline button
+            down: function(evt) {
+                if (evt.button !== 0) return;
+                var btn = evt.currentTarget;
+                clearTimeout(hold.timer);
+                hold.fired = false;
+                hold.timer = setTimeout(function() {
+                    hold.timer = null;
+                    hold.fired = true;
+                    popOpen(btn);
+                }, _MC_TL_HOLD_MS);
+                document.addEventListener('mouseup',   onUp, true);
+                document.addEventListener('mousemove', onMove, true);
+            },
+            // onclick on the trendline button — ignored when the press was a hold (the menu handled it)
+            click: function() {
+                if (hold.fired) return;
+                cfg.toggle();
+            }
+        };
     }
 
-    function _mcFsTlPopOpen(btn) {
-        _mcFsTlPopClose();
-        var pop = document.createElement('div');
-        pop.className = 'mc-tl-style-pop';
-        pop.innerHTML =
-            '<div class="mc-tl-style-opt" data-tl-style="solid">' +
-                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
-                '<span>Solid</span></div>' +
-            '<div class="mc-tl-style-opt" data-tl-style="dotted">' +
-                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.1 5.9"/></svg>' +
-                '<span>Dotted</span></div>';
-        var r = btn.getBoundingClientRect();
-        pop.style.left = r.left + 'px';
-        pop.style.top  = (r.bottom + 6) + 'px';
-        document.body.appendChild(pop);
-        _mcFsTlHold.pop = pop;
-    }
-
-    // Option under the pointer (elementFromPoint, not event.target, so it doesn't depend on mouse capture while the button is held)
-    function _mcFsTlOptAt(x, y) {
-        if (!_mcFsTlHold.pop) return null;
-        var el = document.elementFromPoint(x, y);
-        var opt = el && el.closest ? el.closest('.mc-tl-style-opt') : null;
-        return (opt && _mcFsTlHold.pop.contains(opt)) ? opt : null;
-    }
-
-    function _mcFsTlHoldMove(evt) {
-        if (!_mcFsTlHold.pop) return;
-        var hot = _mcFsTlOptAt(evt.clientX, evt.clientY);
-        var opts = _mcFsTlHold.pop.querySelectorAll('.mc-tl-style-opt');
-        for (var i = 0; i < opts.length; i++) opts[i].classList.toggle('hot', opts[i] === hot);
-    }
-
-    function _mcFsTlHoldUp(evt) {
-        document.removeEventListener('mouseup',   _mcFsTlHoldUp, true);
-        document.removeEventListener('mousemove', _mcFsTlHoldMove, true);
-        clearTimeout(_mcFsTlHold.timer); _mcFsTlHold.timer = null;
-        if (!_mcFsTlHold.fired) return;   // quick press: the button's own click handler does the normal toggle
-        var opt   = _mcFsTlOptAt(evt.clientX, evt.clientY);
-        var style = opt ? opt.getAttribute('data-tl-style') : null;
-        _mcFsTlPopClose();
-        if (style) window.mcFsArmTrendline(style);
-        // Keep `fired` set just long enough to swallow the click that follows this mouseup, then clear it
-        setTimeout(function() { _mcFsTlHold.fired = false; }, 50);
-    }
-
-    // onmousedown on #mc-fs-trendline-btn
-    window.mcFsTlBtnDown = function(evt) {
-        if (evt.button !== 0) return;
-        var btn = evt.currentTarget;
-        clearTimeout(_mcFsTlHold.timer);
-        _mcFsTlHold.fired = false;
-        _mcFsTlHold.timer = setTimeout(function() {
-            _mcFsTlHold.timer = null;
-            _mcFsTlHold.fired = true;
-            _mcFsTlPopOpen(btn);
-        }, _MC_TL_HOLD_MS);
-        document.addEventListener('mouseup',   _mcFsTlHoldUp, true);
-        document.addEventListener('mousemove', _mcFsTlHoldMove, true);
-    };
-
-    // onclick on #mc-fs-trendline-btn — ignored when the press was a hold (the menu handled it)
-    window.mcFsTlBtnClick = function() {
-        if (_mcFsTlHold.fired) return;
-        window.mcFsToggleTrendline();
-    };
-
-    // Arm the tool with a chosen style. Uses the very same activation path as a click / Alt+T
-    // (turns AVWAP / measure off, clears selection and any half-drawn line); if the tool is already armed it just restarts with the new style.
-    window.mcFsArmTrendline = function(style) {
-        if (!_mcFsTrendlineMode) {
-            window.mcFsToggleTrendline();
-        } else {
+    // Fullscreen chart instance — #mc-fs-trendline-btn (onmousedown="mcFsTlBtnDown(event)" onclick="mcFsTlBtnClick()")
+    var _mcFsTlMenu = _makeTrendlineStyleHold({
+        toggle:     function() { window.mcFsToggleTrendline(); },
+        isActive:   function() { return _mcFsTrendlineMode; },
+        cancelDraw: function() {
             _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
             if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         }
-        _mcFsTrendlineStyle = (style === 'dotted') ? 'dotted' : 'solid';
-    };
+    });
+    window.mcFsTlBtnDown    = _mcFsTlMenu.down;
+    window.mcFsTlBtnClick   = _mcFsTlMenu.click;
+    window.mcFsArmTrendline = _mcFsTlMenu.arm;
 
     window.mcFsToggleMeasure = function() {
         _mcFsMeasureMode = !_mcFsMeasureMode;
@@ -4103,8 +4127,8 @@ return '10y';
     // ══════════════════════════════════════════════════════════════════════
 
     // ── Trendline primitive ───────────────────────────────────────────────
-    function _addWlTrendline(p1, p2, extend) {
-        return _addTrendlineCore(p1, p2, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines, { extend: !!extend });
+    function _addWlTrendline(p1, p2, extend, dotted) {
+        return _addTrendlineCore(p1, p2, _wlChart, _wlCandle, _wlOhlcv, _wlTrendlines, { extend: !!extend, dotted: !!dotted });
     }
 
     // Watchlist-chart equivalent of _addFsVwap (the click handler builds its AVWAP inline, so restore needs this).
@@ -4252,6 +4276,7 @@ return '10y';
             dragEndHandler:    _onWlTrendAnchorDragEnd,
             getTrendlineMode:  function() { return _wlTrendlineMode; },
             setTrendlineMode:  function(v) { _wlTrendlineMode = v; },
+            getTrendlineStyle: function() { return _wlTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _wlLastCrosshairTime; },
             addTrendline:      _addWlTrendline,
             doneBtnId:         'wl-chart-trendline-btn'
@@ -4976,6 +5001,7 @@ return '10y';
     };
 
     window.wlChartToggleTrendline = function() {
+        _wlTlMenu.resetStyle(); // plain click and Alt+T always draw solid
         _wlTrendlineMode = !_wlTrendlineMode;
         var btn = document.getElementById('wl-chart-trendline-btn');
         if (btn) btn.classList.toggle('active', _wlTrendlineMode);
@@ -4994,6 +5020,18 @@ return '10y';
         if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
         if (_wlSelectedTrendlineIdx !== -1) _wlDeselectAllTrendlines();
     };
+
+    // Watchlist chart instance of the shared hold-menu (see _makeTrendlineStyleHold) — #wl-chart-trendline-btn
+    var _wlTlMenu = _makeTrendlineStyleHold({
+        toggle:     function() { window.wlChartToggleTrendline(); },
+        isActive:   function() { return _wlTrendlineMode; },
+        cancelDraw: function() {
+            _wlTrendDraw.active = false; _wlTrendDraw.startTime = null; _wlTrendDraw.startPrice = null;
+            if (_wlTrendSvgOverlay) _wlTrendSvgOverlay.style.display = 'none';
+        }
+    });
+    window.wlChartTlBtnDown  = _wlTlMenu.down;
+    window.wlChartTlBtnClick = _wlTlMenu.click;
 
     window.wlChartToggleMeasure = function() {
         _wlMeasureMode = !_wlMeasureMode;
