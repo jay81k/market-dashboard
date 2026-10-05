@@ -113,6 +113,7 @@
 
     // Trendline drawing state
     var _mcFsTrendlineMode          = false;   // tool active?
+    var _mcFsTrendlineStyle         = 'solid'; // 'solid' | 'dotted' — style of the NEXT line drawn. Always 'solid' unless picked from the hold-menu on the trendline button (click / Alt+T reset it).
     var _mcFsTrendlines             = [];      // array of { primitive, p1, p2, leftP, rightP, selected, requestUpdate }
     var _mcFsTrendlineFirst         = null;    // kept for compat (unused in new flow)
     var _mcFsTrendSvgOverlay        = null;    // SVG element overlaid on chart for preview
@@ -1180,6 +1181,9 @@ return '10y';
         // Create the object first so the primitive closes over it
         var tlObj = { p1: p1, p2: p2, leftP: leftP, rightP: rightP, selected: false, requestUpdate: null,
                       extend: !!(opts && opts.extend),
+                      // Dotted is a drawing style only: the line is the same object with the same anchors, hit-test,
+                      // selection, drag and alert behaviour as a solid one — just stroked with round dots.
+                      dotted: !!(opts && opts.dotted),
                       // The line's identity as the alert store knows it. Dragging an anchor moves the matching
                       // alert from these points to the new ones (see _onTrendAnchorDragEndCore).
                       alertRef: { l: { time: leftP.time, price: leftP.price }, r: { time: rightP.time, price: rightP.price } } };
@@ -1214,7 +1218,9 @@ return '10y';
                                     ctx.lineTo(bx2, by2);
                                     ctx.strokeStyle = _TRENDLINE_COLOR();
                                     ctx.lineWidth   = 1.5 * rx;
+                                    if (tlObj.dotted) { ctx.lineCap = 'round'; ctx.setLineDash([0.1 * rx, 4.5 * rx]); }
                                     ctx.stroke();
+                                    if (tlObj.dotted) { ctx.setLineDash([]); ctx.lineCap = 'butt'; } // don't leak the dots into the continuation / anchor handles
                                     // Dashed continuation to the right edge (alert-backed lines only). Bars are evenly
                                     // spaced per trading day, so a straight pixel line here is the same line the alert
                                     // evaluates in trading-day slots.
@@ -1264,8 +1270,8 @@ return '10y';
         return tlObj;
     }
 
-    function _addFsTrendline(p1, p2, extend) {
-        return _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines, { extend: !!extend });
+    function _addFsTrendline(p1, p2, extend, dotted) {
+        return _addTrendlineCore(p1, p2, _mcFsChart, _mcFsCandle, _mcFsOhlcv, _mcFsTrendlines, { extend: !!extend, dotted: !!dotted });
     }
 
     // Index of an alert's AVWAP anchor in a chart's own bar array. Daily: the bar on/after the anchor day.
@@ -1635,6 +1641,15 @@ return '10y';
     // live extended-line preview; second click finalises.  Uses raw DOM mousedown
     // in capture phase so LW Charts never sees the event and cannot start a pan.
 
+    // The SVG preview line (shown while drawing and while dragging an anchor) must match the style of the line it
+    // previews, otherwise a dotted line would flip to solid for the duration of a drag. Called every time the
+    // preview is shown, so it also clears the dots when the next line is solid.
+    function _applyTrendlineDash(svgLine, dotted) {
+        if (!svgLine) return;
+        if (dotted) { svgLine.setAttribute('stroke-dasharray', '0.1 4.5'); svgLine.setAttribute('stroke-linecap', 'round'); }
+        else        { svgLine.removeAttribute('stroke-dasharray');         svgLine.removeAttribute('stroke-linecap'); }
+    }
+
     // ── Shared trendline mousedown core — used by all three charts. Handles the
     // measure-tool intercept, anchor-drag pickup, line select/deselect, and the
     // two-click draw flow. (alerts.js calls this cross-file.)
@@ -1739,6 +1754,7 @@ return '10y';
                     // Re-resolve the colour every time the preview is shown — the overlay is created once
                     // and reused, so a stroke set at creation goes stale after a light/dark toggle.
                     cfg.svgLine.setAttribute('stroke', _TRENDLINE_COLOR());
+                    _applyTrendlineDash(cfg.svgLine, !!_dragTl.dotted);
                     cfg.svgOverlay.style.display = '';
                 }
                 document.addEventListener('mousemove', cfg.dragMoveHandler);
@@ -1809,6 +1825,8 @@ return '10y';
                 }
                 // Same as the anchor-drag path: refresh the stroke so it matches the current theme.
                 cfg.svgLine.setAttribute('stroke', _TRENDLINE_COLOR());
+                // Only the fullscreen chart supplies getTrendlineStyle; the watchlist/alerts charts stay solid.
+                _applyTrendlineDash(cfg.svgLine, !!(cfg.getTrendlineStyle && cfg.getTrendlineStyle() === 'dotted'));
                 cfg.svgOverlay.style.display = '';
             }
         } else {
@@ -1817,7 +1835,7 @@ return '10y';
             cfg.trendDraw.active = false;
             cfg.trendDraw.startTime = null; cfg.trendDraw.startPrice = null;
             if (cfg.svgOverlay) cfg.svgOverlay.style.display = 'none';
-            if (time !== p1.time) cfg.addTrendline(p1, { time: time, price: price });
+            if (time !== p1.time) cfg.addTrendline(p1, { time: time, price: price }, false, !!(cfg.getTrendlineStyle && cfg.getTrendlineStyle() === 'dotted'));
             // Auto-deactivate: turn button off after trendline is drawn
             cfg.setTrendlineMode(false);
             var tDoneBtn = document.getElementById(cfg.doneBtnId);
@@ -1861,6 +1879,7 @@ return '10y';
             dragEndHandler:    _onTrendAnchorDragEnd,
             getTrendlineMode:  function() { return _mcFsTrendlineMode; },
             setTrendlineMode:  function(v) { _mcFsTrendlineMode = v; },
+            getTrendlineStyle: function() { return _mcFsTrendlineStyle; },
             getLastCrosshairTime: function() { return _mcFsLastCrosshairTime; },
             addTrendline:      _addFsTrendline,
             doneBtnId:         'mc-fs-trendline-btn'
@@ -3387,6 +3406,7 @@ return '10y';
     };
 
     window.mcFsToggleTrendline = function() {
+        _mcFsTrendlineStyle = 'solid'; // plain click and Alt+T always draw solid
         _mcFsTrendlineMode = !_mcFsTrendlineMode;
         var btn  = document.getElementById('mc-fs-trendline-btn');
         if (btn) btn.classList.toggle('active', _mcFsTrendlineMode);
@@ -3406,6 +3426,98 @@ return '10y';
         _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
         if (_mcFsSelectedTrendlineIdx !== -1) _deselectAllTrendlines();
+    };
+
+
+    // ── Trendline button: press and hold → pick Solid or Dotted ─────────────
+    // A normal click (or Alt+T) still just toggles the tool and draws solid. Holding the button for HOLD_MS opens a
+    // small menu under it; release over an option to arm the tool with that style, release anywhere else to cancel.
+    // After the line is drawn the tool switches itself off as before, so a dotted line needs the hold again.
+    var _mcFsTlHold = { timer: null, fired: false, pop: null };
+    var _MC_TL_HOLD_MS = 400;
+
+    function _mcFsTlPopClose() {
+        if (_mcFsTlHold.pop && _mcFsTlHold.pop.parentNode) _mcFsTlHold.pop.parentNode.removeChild(_mcFsTlHold.pop);
+        _mcFsTlHold.pop = null;
+    }
+
+    function _mcFsTlPopOpen(btn) {
+        _mcFsTlPopClose();
+        var pop = document.createElement('div');
+        pop.className = 'mc-tl-style-pop';
+        pop.innerHTML =
+            '<div class="mc-tl-style-opt" data-tl-style="solid">' +
+                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
+                '<span>Solid</span></div>' +
+            '<div class="mc-tl-style-opt" data-tl-style="dotted">' +
+                '<svg width="30" height="8" viewBox="0 0 30 8"><line x1="3" y1="4" x2="27" y2="4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg>' +
+                '<span>Dotted</span></div>';
+        var r = btn.getBoundingClientRect();
+        pop.style.left = r.left + 'px';
+        pop.style.top  = (r.bottom + 6) + 'px';
+        document.body.appendChild(pop);
+        _mcFsTlHold.pop = pop;
+    }
+
+    // Option under the pointer (elementFromPoint, not event.target, so it doesn't depend on mouse capture while the button is held)
+    function _mcFsTlOptAt(x, y) {
+        if (!_mcFsTlHold.pop) return null;
+        var el = document.elementFromPoint(x, y);
+        var opt = el && el.closest ? el.closest('.mc-tl-style-opt') : null;
+        return (opt && _mcFsTlHold.pop.contains(opt)) ? opt : null;
+    }
+
+    function _mcFsTlHoldMove(evt) {
+        if (!_mcFsTlHold.pop) return;
+        var hot = _mcFsTlOptAt(evt.clientX, evt.clientY);
+        var opts = _mcFsTlHold.pop.querySelectorAll('.mc-tl-style-opt');
+        for (var i = 0; i < opts.length; i++) opts[i].classList.toggle('hot', opts[i] === hot);
+    }
+
+    function _mcFsTlHoldUp(evt) {
+        document.removeEventListener('mouseup',   _mcFsTlHoldUp, true);
+        document.removeEventListener('mousemove', _mcFsTlHoldMove, true);
+        clearTimeout(_mcFsTlHold.timer); _mcFsTlHold.timer = null;
+        if (!_mcFsTlHold.fired) return;   // quick press: the button's own click handler does the normal toggle
+        var opt   = _mcFsTlOptAt(evt.clientX, evt.clientY);
+        var style = opt ? opt.getAttribute('data-tl-style') : null;
+        _mcFsTlPopClose();
+        if (style) window.mcFsArmTrendline(style);
+        // Keep `fired` set just long enough to swallow the click that follows this mouseup, then clear it
+        setTimeout(function() { _mcFsTlHold.fired = false; }, 50);
+    }
+
+    // onmousedown on #mc-fs-trendline-btn
+    window.mcFsTlBtnDown = function(evt) {
+        if (evt.button !== 0) return;
+        var btn = evt.currentTarget;
+        clearTimeout(_mcFsTlHold.timer);
+        _mcFsTlHold.fired = false;
+        _mcFsTlHold.timer = setTimeout(function() {
+            _mcFsTlHold.timer = null;
+            _mcFsTlHold.fired = true;
+            _mcFsTlPopOpen(btn);
+        }, _MC_TL_HOLD_MS);
+        document.addEventListener('mouseup',   _mcFsTlHoldUp, true);
+        document.addEventListener('mousemove', _mcFsTlHoldMove, true);
+    };
+
+    // onclick on #mc-fs-trendline-btn — ignored when the press was a hold (the menu handled it)
+    window.mcFsTlBtnClick = function() {
+        if (_mcFsTlHold.fired) return;
+        window.mcFsToggleTrendline();
+    };
+
+    // Arm the tool with a chosen style. Uses the very same activation path as a click / Alt+T
+    // (turns AVWAP / measure off, clears selection and any half-drawn line); if the tool is already armed it just restarts with the new style.
+    window.mcFsArmTrendline = function(style) {
+        if (!_mcFsTrendlineMode) {
+            window.mcFsToggleTrendline();
+        } else {
+            _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
+            if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
+        }
+        _mcFsTrendlineStyle = (style === 'dotted') ? 'dotted' : 'solid';
     };
 
     window.mcFsToggleMeasure = function() {
