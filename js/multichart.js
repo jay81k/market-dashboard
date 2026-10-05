@@ -1293,13 +1293,17 @@ return '10y';
     // Deleting a drawn line used to leave its alert armed: the alert kept monitoring a line you had deleted, and the
     // line was redrawn from the alert store the next time the chart opened. These ask the alert engine to delete the
     // alert(s) behind the line as well (it confirms first, unless "don't ask again" was ticked), then run `remove`.
+    // `done` also drops the line's SAVED copy (see "Saved chart drawings" below). It only runs once the delete goes
+    // through, so cancelling the "Delete line and alert?" dialog leaves the saved line alone.
     function _deleteTrendlineWithAlerts(sym, tl, remove) {
-        if (!tl || !tl.alertRef || !window.alDeleteLineAlerts) { remove(); return; }
-        window.alDeleteLineAlerts(sym, 'trendline', tl.alertRef, remove);
+        var done = function() { remove(); if (tl && tl.alertRef) _cdDropTl(sym, tl.alertRef); };
+        if (!tl || !tl.alertRef || !window.alDeleteLineAlerts) { done(); return; }
+        window.alDeleteLineAlerts(sym, 'trendline', tl.alertRef, done);
     }
     function _deleteVwapWithAlerts(sym, ohlcv, tf, entry, remove) {
-        if (!entry || !window.alDeleteLineAlerts) { remove(); return; }
-        window.alDeleteLineAlerts(sym, 'avwap', { ohlcv: ohlcv, tf: tf, idx: entry.anchor }, remove);
+        var done = function() { remove(); if (entry) _cdDropAv(sym, ohlcv, tf, entry.anchor); };
+        if (!entry || !window.alDeleteLineAlerts) { done(); return; }
+        window.alDeleteLineAlerts(sym, 'avwap', { ohlcv: ohlcv, tf: tf, idx: entry.anchor }, done);
     }
 
     // Draws the alert-backed trendlines and AVWAPs onto a chart so they're visible when reviewing it.
@@ -1326,6 +1330,208 @@ return '10y';
                 addVwap(idx);
             });
         }
+    }
+
+    // ── Saved chart drawings (fullscreen + watchlist charts) ───────────────────────────────────────────
+    // Trendlines and AVWAPs drawn by hand used to vanish on a timeframe change, a symbol change or closing the chart;
+    // only alert-backed lines came back (_restoreAlertLines). They are now kept per ticker and redrawn the next time
+    // that ticker's chart opens, on any timeframe.
+    //   store = { TICKER: { tl: [ { l: {time, price}, r: {time, price}, dotted } ], av: [ anchorUnixSeconds ] } }
+    //  - Trendlines are saved by their two anchors (absolute time + price), so they don't depend on the timeframe.
+    //  - AVWAPs are saved by the anchor bar's TIMESTAMP, never its index: an index only means something on the
+    //    timeframe it was placed on. Restore resolves the timestamp on the chart being opened (_chartAnchorIdx). An
+    //    anchor that doesn't resolve there (older than the loaded history) is not drawn but is KEPT in the store.
+    //  - Changes are applied one entry at a time (add / move / drop). The store is never rebuilt from what is on
+    //    screen: a snapshot would silently delete every saved line the current timeframe can't show.
+    //  - The alerts side-panel chart neither draws nor saves these; it still restores alert-backed lines only.
+    // Persistence: KV (kvGet/kvSet, like alerts) plus an immediate localStorage mirror. The whole store is ONE key and
+    // KV writes are coalesced into one trailing write, because the Worker's KV has a small daily write allowance. The
+    // blob carries a timestamp and the NEWER of KV / localStorage wins at load, so a KV write that never landed (tab
+    // closed, Worker unreachable, origin not allowed) can't roll back a newer local copy.
+    var _CD_KEY = 'chart_drawings', _CD_LS_KEY = 'chart_drawings_ls';
+    var _cdStore = null;                 // loaded store, or null until the first load finishes
+    var _cdStamp = 0;                    // ms timestamp of the last change
+    var _cdLoadP = null;
+    var _cdPending = [];                 // changes made before the first load finished; replayed on top of it
+    var _cdKvTimer = null, _cdKvDirty = false;
+
+    function _cdParse(raw) {
+        try {
+            var o = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+            if (o && typeof o === 'object' && o.d && typeof o.d === 'object') return { t: +o.t || 0, d: o.d };
+        } catch (e) {}
+        return null;
+    }
+    function _cdBlob() { return JSON.stringify({ v: 1, t: _cdStamp, d: _cdStore }); }
+    function _cdHasData(d) { return !!d && Object.keys(d).length > 0; }
+
+    function _cdFlushKv() {
+        if (_cdKvTimer) { clearTimeout(_cdKvTimer); _cdKvTimer = null; }
+        if (!_cdKvDirty || !_cdStore) return;
+        _cdKvDirty = false;
+        try {
+            if (typeof kvSet !== 'function') return;
+            var p = kvSet(_CD_KEY, _cdBlob());
+            if (p && typeof p.catch === 'function') p.catch(function() { _cdKvDirty = true; });
+        } catch (e) { _cdKvDirty = true; }
+    }
+    function _cdCommit() {
+        _cdStamp = Date.now();
+        try { localStorage.setItem(_CD_LS_KEY, _cdBlob()); } catch (e) {}
+        _cdKvDirty = true;
+        if (!_cdKvTimer) _cdKvTimer = setTimeout(_cdFlushKv, 2000);
+    }
+    window.addEventListener('pagehide', _cdFlushKv);
+
+    function _cdLoad() {
+        if (_cdLoadP) return _cdLoadP;
+        var local = null;
+        try { local = _cdParse(localStorage.getItem(_CD_LS_KEY)); } catch (e) {}
+        var kvP;
+        try { kvP = (typeof kvGet === 'function') ? Promise.resolve(kvGet(_CD_KEY)) : Promise.resolve(null); }
+        catch (e) { kvP = Promise.resolve(null); }
+        // A KV read that never answers must not block drawing or saving: fall back to the local copy after 4s.
+        var timeout = new Promise(function(res) { setTimeout(function() { res(null); }, 4000); });
+        _cdLoadP = Promise.race([kvP.catch(function() { return null; }), timeout]).then(function(raw) {
+            var remote = _cdParse(raw);
+            var pick = (remote && (!local || remote.t >= local.t)) ? remote : local;
+            _cdStore = pick ? pick.d : {};
+            _cdStamp = pick ? pick.t : 0;
+            if (_cdPending.length) {
+                var q = _cdPending; _cdPending = [];
+                var changed = false;
+                q.forEach(function(fn) { try { changed = fn(_cdStore) || changed; } catch (e) {} });
+                if (changed) _cdCommit();
+            } else if (pick === local && local && _cdHasData(local.d) && (!remote || local.t > remote.t)) {
+                _cdKvDirty = true;                       // local is newer than KV (an earlier KV write was lost): repair once
+                if (!_cdKvTimer) _cdKvTimer = setTimeout(_cdFlushKv, 2000);
+            } else if (pick === remote) {
+                try { localStorage.setItem(_CD_LS_KEY, _cdBlob()); } catch (e) {}   // keep the local mirror fresh
+            }
+            return _cdStore;
+        });
+        return _cdLoadP;
+    }
+    // fn(store) applies one change and returns true if it changed anything.
+    function _cdMutate(fn) {
+        if (_cdStore) { var ch = false; try { ch = fn(_cdStore); } catch (e) {} if (ch) _cdCommit(); return; }
+        _cdPending.push(fn);
+        _cdLoad();
+    }
+
+    function _cdNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+    function _cdAnch(p) { return (p && _cdNum(p.time) != null && _cdNum(p.price) != null) ? { time: p.time, price: p.price } : null; }
+    function _cdSamePt(a, b) { return a.time === b.time && a.price === b.price; }
+    // Same line whichever end is called "left" (a drag can carry an anchor past the other one).
+    function _cdSameLine(a, b) {
+        return (_cdSamePt(a.l, b.l) && _cdSamePt(a.r, b.r)) || (_cdSamePt(a.l, b.r) && _cdSamePt(a.r, b.l));
+    }
+    function _cdPrune(store, sym) {
+        var e = store[sym];
+        if (e && !(e.tl && e.tl.length) && !(e.av && e.av.length)) delete store[sym];
+    }
+    function _cdEntry(store, sym) {
+        var e = store[sym] || (store[sym] = {});
+        if (!e.tl) e.tl = [];
+        if (!e.av) e.av = [];
+        return e;
+    }
+
+    // A hand-drawn trendline was committed.
+    function _cdAddTl(sym, tl) {
+        var a = tl && _cdAnch(tl.leftP), b = tl && _cdAnch(tl.rightP);
+        if (!sym || !a || !b) return;
+        var line = a.time <= b.time ? { l: a, r: b } : { l: b, r: a };
+        line.dotted = !!tl.dotted;
+        _cdMutate(function(store) {
+            var e = _cdEntry(store, sym);
+            if (e.tl.some(function(x) { return _cdSameLine(x, line); })) { _cdPrune(store, sym); return false; }
+            e.tl.push(line);
+            return true;
+        });
+    }
+    // A drawn trendline was deleted. `ref` = its alertRef ({l, r} anchors as last committed).
+    function _cdDropTl(sym, ref) {
+        if (!sym || !ref || !ref.l || !ref.r) return;
+        _cdMutate(function(store) {
+            var e = store[sym];
+            if (!e || !e.tl) return false;
+            var n = e.tl.length;
+            e.tl = e.tl.filter(function(x) { return !_cdSameLine(x, ref); });
+            if (e.tl.length === n) return false;
+            _cdPrune(store, sym);
+            return true;
+        });
+    }
+    // An anchor drag finished: move the saved copy (if there is one) from the OLD anchors to the new ones.
+    function _cdMoveTl(sym, oldRef, newL, newR) {
+        var a = _cdAnch(newL), b = _cdAnch(newR);
+        if (!sym || !oldRef || !oldRef.l || !oldRef.r || !a || !b) return;
+        var moved = a.time <= b.time ? { l: a, r: b } : { l: b, r: a };
+        if (_cdSameLine(moved, oldRef)) return;                  // grabbed an anchor but didn't move it
+        _cdMutate(function(store) {
+            var e = store[sym];
+            if (!e || !e.tl) return false;
+            var i = -1;
+            for (var k = 0; k < e.tl.length; k++) { if (_cdSameLine(e.tl[k], oldRef)) { i = k; break; } }
+            if (i < 0) return false;                             // not a saved line (e.g. alert-backed only)
+            moved.dotted = !!e.tl[i].dotted;
+            e.tl.splice(i, 1);
+            if (!e.tl.some(function(x) { return _cdSameLine(x, moved); })) e.tl.push(moved);
+            return true;
+        });
+    }
+    // An AVWAP was placed at bar `idx` of `ohlcv`.
+    function _cdAddAv(sym, ohlcv, tf, idx) {
+        var bar = ohlcv && ohlcv[idx];
+        var u = bar ? _cdNum(bar.time) : null;
+        if (!sym || u == null) return;
+        _cdMutate(function(store) {
+            var e = _cdEntry(store, sym);
+            if (e.av.some(function(x) { return _chartAnchorIdx(ohlcv, tf, x) === idx; })) { _cdPrune(store, sym); return false; }
+            e.av.push(u);
+            return true;
+        });
+    }
+    // An AVWAP at bar `idx` was deleted. Drops every saved anchor that RESOLVES to that bar on this chart -- exactly
+    // what restore would have drawn there -- so it still works when the line was placed on another timeframe.
+    function _cdDropAv(sym, ohlcv, tf, idx) {
+        if (!sym || idx == null) return;
+        _cdMutate(function(store) {
+            var e = store[sym];
+            if (!e || !e.av) return false;
+            var n = e.av.length;
+            e.av = e.av.filter(function(x) { return _chartAnchorIdx(ohlcv, tf, x) !== idx; });
+            if (e.av.length === n) return false;
+            _cdPrune(store, sym);
+            return true;
+        });
+    }
+
+    // Draw this ticker's saved lines onto a chart that was just built. Call it AFTER _restoreAlertLines so an
+    // alert-backed copy of the same line is already there and is not drawn twice.
+    // cfg: { isStale(), getOhlcv(), getTrendlines(), getVwapAnchors(), addTrendline(p1,p2,extend,dotted), addVwap(idx) }
+    function _cdRestore(sym, tf, cfg) {
+        _cdLoad().then(function(store) {
+            if (cfg.isStale()) return;                           // the chart was rebuilt / closed while KV was answering
+            var e = store[sym];
+            if (!e) return;
+            var ohlcv = cfg.getOhlcv();
+            if (!ohlcv || !ohlcv.length) return;
+            (e.tl || []).forEach(function(s) {
+                if (!s || !s.l || !s.r) return;
+                var have = cfg.getTrendlines().some(function(t) {
+                    return t.leftP && t.rightP && _cdSameLine({ l: t.leftP, r: t.rightP }, s);
+                });
+                if (have) return;
+                cfg.addTrendline({ time: s.l.time, price: s.l.price }, { time: s.r.time, price: s.r.price }, false, !!s.dotted);
+            });
+            (e.av || []).forEach(function(u) {
+                var idx = _chartAnchorIdx(ohlcv, tf, u);
+                if (idx < 0 || cfg.getVwapAnchors().indexOf(idx) !== -1) return;
+                cfg.addVwap(idx);
+            });
+        });
     }
 
     // ── Shared hit-test / selection cores — used by fullscreen, watchlist, and
@@ -1504,6 +1710,12 @@ return '10y';
                 // was redrawn from the alert store on the next open). If this drawing backs an alert, move it too.
                 if (cfg.getSym && tl.alertRef && tl.leftP && tl.rightP && window.alSyncTrendlineAlertsAfterDrag) {
                     try { window.alSyncTrendlineAlertsAfterDrag(cfg.getSym(), tl.alertRef.l, tl.alertRef.r, tl.leftP, tl.rightP); } catch (e) {}
+                }
+                // Move the SAVED copy of this line too (see "Saved chart drawings"). Must run before alertRef is
+                // overwritten below: the old anchors are how the saved entry is found. No-op if the line isn't saved
+                // (e.g. an alert-backed line), and harmless on the alerts chart, which shares this core.
+                if (cfg.getSym && tl.alertRef && tl.leftP && tl.rightP) {
+                    try { _cdMoveTl(cfg.getSym(), tl.alertRef, tl.leftP, tl.rightP); } catch (e) {}
                 }
                 if (tl.leftP && tl.rightP) {
                     tl.alertRef = { l: { time: tl.leftP.time, price: tl.leftP.price }, r: { time: tl.rightP.time, price: tl.rightP.price } };
@@ -1834,7 +2046,11 @@ return '10y';
             cfg.trendDraw.active = false;
             cfg.trendDraw.startTime = null; cfg.trendDraw.startPrice = null;
             if (cfg.svgOverlay) cfg.svgOverlay.style.display = 'none';
-            if (time !== p1.time) cfg.addTrendline(p1, { time: time, price: price }, false, !!(cfg.getTrendlineStyle && cfg.getTrendlineStyle() === 'dotted'));
+            if (time !== p1.time) {
+                var drawnTl = cfg.addTrendline(p1, { time: time, price: price }, false, !!(cfg.getTrendlineStyle && cfg.getTrendlineStyle() === 'dotted'));
+                // Opt-in: only the fullscreen and watchlist charts save hand-drawn lines (see "Saved chart drawings").
+                if (drawnTl && cfg.onTrendDrawn) cfg.onTrendDrawn(drawnTl);
+            }
             // Auto-deactivate: turn button off after trendline is drawn
             cfg.setTrendlineMode(false);
             var tDoneBtn = document.getElementById(cfg.doneBtnId);
@@ -1881,6 +2097,7 @@ return '10y';
             getTrendlineStyle: function() { return _mcFsTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _mcFsLastCrosshairTime; },
             addTrendline:      _addFsTrendline,
+            onTrendDrawn:      function(tl) { _cdAddTl(_mcFsSym, tl); },
             doneBtnId:         'mc-fs-trendline-btn'
         });
     }
@@ -2943,7 +3160,9 @@ return '10y';
                 if (!param.time) return;
                 var idx = _barIdxByTime(_mcFsOhlcv, param.time);
                 if (idx < 0) return;
+                var _nVwBefore = _mcFsVwapSeries.length;
                 _addFsVwap(idx);
+                if (_mcFsVwapSeries.length > _nVwBefore) _cdAddAv(_mcFsSym, _mcFsOhlcv, _mcFsTf, idx);   // save the anchor
                 return;
             }
             // Don't interfere with trendline tool
@@ -3287,6 +3506,18 @@ return '10y';
 
         // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart
         _restoreAlertLines(sym, tf, ohlcv, _addFsTrendline, _addFsVwap);
+        // Then the lines you drew by hand. After the alert-backed ones, so a line that also backs an alert isn't doubled.
+        (function() {
+            var chartRef = _mcFsChart;
+            _cdRestore(sym, tf, {
+                isStale:        function() { return _mcFsChart !== chartRef || _mcFsSym !== sym || !_mcFsCandle; },
+                getOhlcv:       function() { return _mcFsOhlcv; },
+                getTrendlines:  function() { return _mcFsTrendlines; },
+                getVwapAnchors: function() { return _mcFsVwapSeries.map(function(v) { return v.anchor; }); },
+                addTrendline:   _addFsTrendline,
+                addVwap:        _addFsVwap
+            });
+        })();
     }
 
     // Fullscreen window-level controls
@@ -4279,6 +4510,7 @@ return '10y';
             getTrendlineStyle: function() { return _wlTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _wlLastCrosshairTime; },
             addTrendline:      _addWlTrendline,
+            onTrendDrawn:      function(tl) { _cdAddTl(_wlSym, tl); },
             doneBtnId:         'wl-chart-trendline-btn'
         });
     }
@@ -4625,6 +4857,7 @@ return '10y';
                 var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
                 s.setData(data);
                 _wlVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
+                _cdAddAv(_wlSym, _wlOhlcv, _wlTf, idx);   // save the anchor
                 return;
             }
             if (_wlTrendlineMode) return;
@@ -4900,6 +5133,18 @@ return '10y';
 
         // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart
         _restoreAlertLines(sym, tf, ohlcv, _addWlTrendline, _addWlVwap);
+        // Then the lines you drew by hand (see the fullscreen chart above).
+        (function() {
+            var chartRef = _wlChart;
+            _cdRestore(sym, tf, {
+                isStale:        function() { return _wlChart !== chartRef || _wlSym !== sym || !_wlCandle; },
+                getOhlcv:       function() { return _wlOhlcv; },
+                getTrendlines:  function() { return _wlTrendlines; },
+                getVwapAnchors: function() { return _wlVwapSeries.map(function(v) { return v.anchor; }); },
+                addTrendline:   _addWlTrendline,
+                addVwap:        _addWlVwap
+            });
+        })();
     }
 
     // ── WL chart controls (exposed to HTML onclick) ───────────────────────
