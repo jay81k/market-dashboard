@@ -2278,16 +2278,29 @@ return '10y';
             cfg.dismiss();
             var maSym = cfg.getSym();
             if (!maSym) return;
-            alShowForm(maSym);
-            setTimeout(function() {
-                document.getElementById('al-input-type').value = 'ma';
-                if (typeof alFormTypeChange === 'function') alFormTypeChange();
-                // price_above / price_below are the MA-vs-price condition values
-                document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
-                if (typeof alMACondChange === 'function') alMACondChange();
-                document.getElementById('al-input-ma').value = maKey;
-                document.getElementById('al-input-ma').focus();
-            }, 60);
+            var openMaForm = function() {
+                alShowForm(maSym);
+                setTimeout(function() {
+                    document.getElementById('al-input-type').value = 'ma';
+                    if (typeof alFormTypeChange === 'function') alFormTypeChange();
+                    // price_above / price_below are the MA-vs-price condition values
+                    document.getElementById('al-input-cond').value = direction === 'above' ? 'price_above' : 'price_below';
+                    if (typeof alMACondChange === 'function') alMACondChange();
+                    document.getElementById('al-input-ma').value = maKey;
+                    document.getElementById('al-input-ma').focus();
+                }, 60);
+            };
+            // MA alerts are evaluated on DAILY bars, but the chart draws each MA on its own timeframe. Clicking the weekly
+            // "SMA 50" used to create a bare SMA50 alert that silently watched the daily one (a typical ~8% different line).
+            var maTf = cfg.getTf ? cfg.getTf() : 'D';
+            if (maTf && maTf !== 'D' && window.alConfirmOpen) {
+                var lbl = _maLabel(maKey);
+                window.alConfirmOpen('Moving-average alerts use daily bars',
+                    'You clicked the ' + (maTf === 'W' ? 'weekly' : 'monthly') + ' ' + lbl + ', but MA alerts always watch the daily average. Set the alert on the daily ' + lbl + ' instead?',
+                    openMaForm, 'Use daily ' + lbl, false);
+                return;
+            }
+            openMaForm();
         } else {
             var price = cfg.getCtxPrice();
             cfg.dismiss();
@@ -2311,6 +2324,7 @@ return '10y';
             getCtxMa:        function() { return _mcFsCtxMa; },
             getCtxPrice:     function() { return _mcFsCtxPrice; },
             getSym:          function() { return _mcFsSym; },
+            getTf:           function() { return _mcFsTf; },
             dismiss:         _mcFsDismissCtx
         });
     };
@@ -4630,6 +4644,7 @@ return '10y';
             getCtxMa:        function() { return _wlCtxMa; },
             getCtxPrice:     function() { return _wlCtxPrice; },
             getSym:          function() { return _wlSym; },
+            getTf:           function() { return _wlTf; },
             dismiss:         _wlDismissCtx
         });
     };
