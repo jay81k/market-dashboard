@@ -1570,11 +1570,16 @@ return '10y';
         });
     }
 
-    // A selected AVWAP is marked with a dot on its anchor bar -- the same dot a selected trendline shows on each of its
-    // anchors -- instead of a thicker line. The dot is a canvas primitive on the AVWAP's own series (the primitive API
-    // the trendlines already use), created the first time that AVWAP is selected and then just shown / hidden.
+    // A selected AVWAP is marked with fixed dots along its line -- the same dot a selected trendline shows on each of its
+    // anchors -- instead of a thicker line. The first dot is always on the anchor bar; the rest follow every Nth bar
+    // (counted from the anchor, so they stay pinned to the same bars while panning), with N chosen from the current zoom
+    // so neighbouring dots sit about _VWAP_DOT_GAP_PX apart. Only on-screen dots are drawn. The dots are a canvas
+    // primitive on the AVWAP's own series (the primitive API the trendlines already use), created the first time that
+    // AVWAP is selected and then just shown / hidden.
     // If it can't be attached or has no anchor point, the selected AVWAP is drawn DASHED instead (never thicker), so a
     // selection is never invisible.
+    var _VWAP_DOT_GAP_PX = 60;    // target on-screen distance between selection dots
+    var _VWAP_DOT_RADIUS = 4.5;   // same radius the anchor dot has always had
     function _vwapAnchorPt(entry) {
         try {
             var it = entry && entry.dataMap && entry.dataMap.entries().next();   // first point = the anchor bar
@@ -1595,23 +1600,40 @@ return '10y';
                     renderer: function() {
                         return {
                             draw: function(target) {
-                                if (!prim.shown || !chartRef || !seriesRef) return;
-                                var pt = _vwapAnchorPt(entry);
-                                if (!pt) return;
-                                var x = chartRef.timeScale().timeToCoordinate(pt.time);
-                                var y = seriesRef.priceToCoordinate(pt.value);
-                                if (x == null || y == null) return;
+                                if (!prim.shown || !chartRef || !seriesRef || !entry || !entry.dataMap) return;
+                                var ts = chartRef.timeScale();
+                                // Pixel width of one bar, from the time scale itself (robust to zoom)
+                                var step = 1;
+                                try {
+                                    var c0 = ts.logicalToCoordinate(0), c1 = ts.logicalToCoordinate(1);
+                                    var sp = (c0 != null && c1 != null) ? Math.abs(c1 - c0) : 0;
+                                    if (!(sp > 0)) { var bs = ts.options && ts.options().barSpacing; sp = bs > 0 ? bs : 0; }
+                                    step = sp > 0 ? Math.max(1, Math.ceil(_VWAP_DOT_GAP_PX / sp)) : 5;
+                                } catch (e) { step = 5; }
                                 target.useBitmapCoordinateSpace(function(scope) {
                                     var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
+                                    var w = scope.mediaSize ? scope.mediaSize.width : Infinity;
+                                    var h = scope.mediaSize ? scope.mediaSize.height : Infinity;
+                                    var r = _VWAP_DOT_RADIUS;
                                     ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(x * rx, y * ry, 4.5 * rx, 0, Math.PI * 2);
                                     // Same look as the trendline anchor handles (see _addTrendlineCore)
                                     ctx.fillStyle   = themeColor('text-emphasis');
-                                    ctx.fill();
                                     ctx.strokeStyle = themeColor('bg-page');
                                     ctx.lineWidth   = 1.5 * rx;
-                                    ctx.stroke();
+                                    var i = 0;
+                                    // dataMap is in time order, first entry = anchor bar, so i % step == 0 includes the anchor
+                                    entry.dataMap.forEach(function(value, time) {
+                                        var idx = i++;
+                                        if (idx % step !== 0) return;
+                                        var x = ts.timeToCoordinate(time);
+                                        if (x == null || x < -r || x > w + r) return;
+                                        var y = seriesRef.priceToCoordinate(value);
+                                        if (y == null || y < -r || y > h + r) return;
+                                        ctx.beginPath();
+                                        ctx.arc(x * rx, y * ry, r * rx, 0, Math.PI * 2);
+                                        ctx.fill();
+                                        ctx.stroke();
+                                    });
                                     ctx.restore();
                                 });
                             }
