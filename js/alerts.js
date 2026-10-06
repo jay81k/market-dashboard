@@ -3316,6 +3316,9 @@
 
     document.addEventListener('keydown', function(e) {
         if (currentView !== 'alerts') return;
+        // The fullscreen chart sits on top of the alerts list; it owns the keyboard while open (otherwise Enter after typing a symbol
+        // there re-opened the highlighted row's ticker, Escape also closed this panel, and Delete could open "Remove alert?").
+        if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
         if (document.getElementById('al-confirm-overlay').classList.contains('open')) return; // handled by the confirm-modal listeners above
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Delete') return;
         var tag = document.activeElement && document.activeElement.tagName;
