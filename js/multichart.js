@@ -1112,7 +1112,7 @@ return '10y';
         var color = _AVWAP_COLOR;
         var data  = _calcAVWAP(_mcFsOhlcv, anchorIdx);
         if (!data.length) return;
-        var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        var s = _mcFsChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
         s.setData(data);
         var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
         _mcFsVwapSeries.push({ series: s, anchor: anchorIdx, color: color, dataMap: dataMap });
@@ -4461,7 +4461,7 @@ return '10y';
         if (!_wlChart || !_wlOhlcv.length) return;
         var data = _calcAVWAP(_wlOhlcv, anchorIdx);
         if (!data.length) return;
-        var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: _AVWAP_COLOR, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+        var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: _AVWAP_COLOR, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
         s.setData(data);
         _wlVwapSeries.push({ series: s, anchor: anchorIdx, color: _AVWAP_COLOR, dataMap: new Map(data.map(function(d) { return [d.time, d.value]; })) });
     }
@@ -4950,7 +4950,7 @@ return '10y';
                 var color = _AVWAP_COLOR;
                 var data  = _calcAVWAP(_wlOhlcv, idx);
                 var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
-                var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+                var s = _wlChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
                 s.setData(data);
                 _wlVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
                 _cdAddAv(_wlSym, _wlOhlcv, _wlTf, idx);   // save the anchor
