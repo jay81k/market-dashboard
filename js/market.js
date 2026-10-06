@@ -506,7 +506,8 @@
                 var dir       = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
                 var isCrypto  = ['BTC','ETH','XRP','SOL','HYPE','ZEC'].indexOf(t.id) !== -1;
-                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: isCrypto ? 0 : 2, maximumFractionDigits: isCrypto ? (price >= 100 ? 0 : 2) : 2 }) : '—';
+                var priceDec  = isCrypto ? (price >= 1000 ? 0 : 2) : 2; // crypto under 1,000 keeps 2 decimals (SOL 119.76, not 120)
+                var priceStr  = price != null ? price.toLocaleString('en-US', { minimumFractionDigits: priceDec, maximumFractionDigits: priceDec }) : '—';
                 var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '—';
                 var chgPctStr = chgPct != null ? (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%' : '—';
                 var hiStr     = dayHigh != null ? dayHigh.toFixed(2) : '—';
