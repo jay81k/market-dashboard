@@ -1571,15 +1571,16 @@ return '10y';
     }
 
     // A selected AVWAP is marked with fixed dots along its line -- the same dot a selected trendline shows on each of its
-    // anchors -- instead of a thicker line. The first dot is always on the anchor bar; the rest follow every Nth bar
-    // (counted from the anchor, so they stay pinned to the same bars while panning), with N chosen from the current zoom
-    // so neighbouring dots sit about _VWAP_DOT_GAP_PX apart. Only on-screen dots are drawn. The dots are a canvas
+    // anchors -- instead of a thicker line. Dots sit on the anchor bar, then every _VWAP_DOT_EVERY_BARS bars counted from
+    // the anchor, plus one on the line's last bar (a regular dot that would land within half a step of the last-bar dot
+    // is dropped so the two don't crowd). The count depends only on how many bars the line spans -- never on zoom -- and
+    // the dots stay pinned to the same bars while panning. Only on-screen dots are drawn. The dots are a canvas
     // primitive on the AVWAP's own series (the primitive API the trendlines already use), created the first time that
     // AVWAP is selected and then just shown / hidden.
     // If it can't be attached or has no anchor point, the selected AVWAP is drawn DASHED instead (never thicker), so a
     // selection is never invisible.
-    var _VWAP_DOT_GAP_PX = 60;    // target on-screen distance between selection dots
-    var _VWAP_DOT_RADIUS = 4.5;   // same radius the anchor dot has always had
+    var _VWAP_DOT_EVERY_BARS = 25;   // bars between selection dots (50-bar line -> 3 dots: start, middle, end)
+    var _VWAP_DOT_RADIUS = 4.5;      // same radius the anchor dot has always had
     function _vwapAnchorPt(entry) {
         try {
             var it = entry && entry.dataMap && entry.dataMap.entries().next();   // first point = the anchor bar
@@ -1602,14 +1603,12 @@ return '10y';
                             draw: function(target) {
                                 if (!prim.shown || !chartRef || !seriesRef || !entry || !entry.dataMap) return;
                                 var ts = chartRef.timeScale();
-                                // Pixel width of one bar, from the time scale itself (robust to zoom)
-                                var step = 1;
-                                try {
-                                    var c0 = ts.logicalToCoordinate(0), c1 = ts.logicalToCoordinate(1);
-                                    var sp = (c0 != null && c1 != null) ? Math.abs(c1 - c0) : 0;
-                                    if (!(sp > 0)) { var bs = ts.options && ts.options().barSpacing; sp = bs > 0 ? bs : 0; }
-                                    step = sp > 0 ? Math.max(1, Math.ceil(_VWAP_DOT_GAP_PX / sp)) : 5;
-                                } catch (e) { step = 5; }
+                                // Which bars (counted from the anchor) get a dot: anchor, every Nth, and the last bar.
+                                var step = _VWAP_DOT_EVERY_BARS;
+                                var lastIdx = entry.dataMap.size - 1;
+                                var lastRegular = Math.floor(lastIdx / step) * step;
+                                // A regular dot within half a step of the last bar is dropped (never the anchor itself)
+                                var dropIdx = (lastRegular > 0 && lastRegular < lastIdx && (lastIdx - lastRegular) < step / 2) ? lastRegular : -1;
                                 target.useBitmapCoordinateSpace(function(scope) {
                                     var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
                                     var w = scope.mediaSize ? scope.mediaSize.width : Infinity;
@@ -1621,10 +1620,11 @@ return '10y';
                                     ctx.strokeStyle = themeColor('bg-page');
                                     ctx.lineWidth   = 1.5 * rx;
                                     var i = 0;
-                                    // dataMap is in time order, first entry = anchor bar, so i % step == 0 includes the anchor
+                                    // dataMap is in time order, first entry = anchor bar, last entry = the line's last bar
                                     entry.dataMap.forEach(function(value, time) {
                                         var idx = i++;
-                                        if (idx % step !== 0) return;
+                                        var wanted = (idx === 0) || (idx === lastIdx) || (idx % step === 0 && idx !== dropIdx);
+                                        if (!wanted) return;
                                         var x = ts.timeToCoordinate(time);
                                         if (x == null || x < -r || x > w + r) return;
                                         var y = seriesRef.priceToCoordinate(value);
