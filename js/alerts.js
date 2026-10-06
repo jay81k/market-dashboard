@@ -8,7 +8,6 @@
     var alertDayHigh     = {};   // {ticker: today's intraday high} — used to catch spikes the 10s poll misses
     var alertDayLow      = {};   // {ticker: today's intraday low}  — same, for 'below' conditions
     var alertPriceAt     = {};   // {ticker: Date.now() of the last quote we actually received} — line alerts refuse to act on a stale price
-    var alertEstimatedMAs = {};  // {"ticker_maKey": estimatedMAValue} derived from snapshot
     var alertPriceTimer  = null;
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
@@ -50,7 +49,10 @@
         if (a.alertType === 'pattern') return window.alPatternAlertKey(a);
         if (a.alertType === 'trendline') return a.ticker + '_trendline_' + _alPtKey(a.p1) + '_' + _alPtKey(a.p2) + '_' + a.condition;
         if (a.alertType === 'avwap') { var au = _alAnchorUnix(a); return a.ticker + '_avwap_' + (au == null ? '' : au) + '_' + a.condition; }
-        // Plain/RSI alerts: live alerts carry .price, fired-history entries carry .alertPrice
+        // RSI alerts keep their LEVEL in .price, so the type is part of the key: an RSI-70 alert must not collide with a $70
+        // price alert on the same ticker (it would now be refused as a "duplicate" when added).
+        if (a.alertType === 'rsi14') return a.ticker + '_rsi14_' + (a.price != null ? a.price : a.alertPrice) + '_' + a.condition;
+        // Plain price alerts: live alerts carry .price, fired-history entries carry .alertPrice
         return a.ticker + '_' + (a.price != null ? a.price : a.alertPrice) + '_' + a.condition;
     }
     function _alFiredHistKey(f) { return _alKey(f); } // kept under its old name for existing callers
@@ -68,8 +70,9 @@
             var firedMs = f.firedAt ? new Date(f.firedAt).getTime() : NaN;
             var rearmed = !isNaN(firedMs) && alertsList.some(function(a) {
                 if (!a.addedAt || _alKey(a) !== k) return false;
-                var addedMs = new Date(a.addedAt).getTime();
-                return !isNaN(addedMs) && addedMs > firedMs;
+                // "alive since" = the later of when it was added and when it was last edited (an edit re-arms it)
+                var sinceMs = Math.max(new Date(a.addedAt).getTime() || 0, a.editedAt ? (new Date(a.editedAt).getTime() || 0) : 0);
+                return sinceMs > firedMs;
             });
             if (!rearmed) _alertFiredSess[k] = true;
         });
@@ -404,23 +407,81 @@
         if (!data.length) return { line: null, why: 'No volume data since the anchor' };
         return { line: data[data.length - 1].value, why: null };
     }
-    // What is this trendline/AVWAP alert's line worth right now?  -> { line: number|null, why: string|null }
+    // ── Moving averages, computed live ───────────────────────────────────────────────────────────
+    // MA alerts used to compare the live price with an "estimated MA" rebuilt from the daily snapshot
+    // (price / (1 + dist_ma/100)). Three problems: (1) that is yesterday's MA, not today's; (2) it read s.price, which
+    // fetchLiveIndustryDay (state.js) overwrites with the live quote -- once that has run, the live price cancels out
+    // of the comparison and an intraday cross can never fire; (3) a ticker missing from the snapshot, or an MA the
+    // snapshot doesn't carry, was silently dead. Now the MA comes from the SAME daily history the trendline/AVWAP
+    // alerts use, with today's bar carrying the live quote -- exactly the line the chart draws at the live bar. The
+    // SMA/EMA maths is the chart's own (_calcSMA/_calcEMA), so an alert and the line you clicked agree.
+    var _alMaMemo = {};
+    // Last value of the chart's SMA/EMA for this series, without building the whole array.
+    function _alMaLast(arr, def) {
+        var n = arr.length, i;
+        if (n < def.period) return null;
+        if (!def.ema) {
+            var sum = 0;
+            for (i = n - def.period; i < n; i++) sum += arr[i].close;
+            return sum / def.period;
+        }
+        var k = 2 / (def.period + 1), ema = arr[0].close;     // same seed and recursion as _calcEMA
+        for (i = 0; i < n; i++) ema = arr[i].close * k + ema * (1 - k);
+        return ema;
+    }
+    // Memoised on (series identity, length, last bar): one poll or one table render evaluates each MA once.
+    function _alMaEval(ticker, key) {
+        var def = _MC_MA_DEFS[key];
+        if (!def) return { v: null, why: 'Unknown moving average ' + key };
+        var arr = _alDailyCache(ticker);
+        if (!arr) return { v: null, why: 'Daily history not loaded yet' };
+        if (arr.length < def.period)
+            return { v: null, why: 'Not enough history for ' + _maLabel(key) + ' (' + arr.length + ' of ' + def.period + ' daily bars)' };
+        var last = arr[arr.length - 1], memo = _alMaMemo[ticker + '|' + key];
+        if (memo && memo.arr === arr && memo.n === arr.length && memo.c === last.close && memo.t === last.time) return { v: memo.v, why: null };
+        var v = _alMaLast(arr, def);
+        _alMaMemo[ticker + '|' + key] = { arr: arr, n: arr.length, c: last.close, t: last.time, v: v };
+        return { v: v, why: null };
+    }
+    // 'ma': the line is the MA, compared with the live price.  'macross': the line is MA 2, compared with MA 1.
+    function _alMaLevel(a) {
+        if (a.alertType === 'macross') {
+            var m1 = _alMaEval(a.ticker, a.ma1Key), m2 = _alMaEval(a.ticker, a.ma2Key);
+            if (m1.v == null) return { line: null, why: m1.why };
+            if (m2.v == null) return { line: null, why: m2.why };
+            return { line: m2.v, x: m1.v, why: null };
+        }
+        var m = _alMaEval(a.ticker, a.maKey);
+        return { line: m.v, why: m.why };
+    }
+    function _alNotArmedMsg(a) {
+        if (a.alertType === 'macross') return 'Not armed yet: waits for ' + _maLabel(a.ma1Key) + ' to be on the other side of ' + _maLabel(a.ma2Key) + ', then fires when it crosses';
+        if (a.alertType === 'ma') return 'Not armed yet: waits for price to be on the other side of the ' + _maLabel(a.maKey) + ', then fires when it crosses';
+        return 'Not armed yet: waits for price to move to the other side of the line, then fires when it crosses';
+    }
+
+    // What is this alert's line worth right now?  -> { line: number|null, why: string|null, x?: number }
+    // `x` is the value compared with the line; it defaults to the live price (it is MA 1 for an MA-vs-MA alert).
     function _alLineLevel(a) {
         if (a.alertType === 'trendline') {
             if (!a.p1 || !a.p2) return { line: null, why: 'Line points are missing' };
             var r = _alTrendlineEval(a.ticker, a.p1, a.p2);
             return { line: r.v, why: r.why };
         }
+        if (a.alertType === 'ma' || a.alertType === 'macross') return _alMaLevel(a);
         return _alAvwapEval(a);
     }
 
     // Distance in % between the live price and a trendline/AVWAP line, or null when it can't be computed.
     // Used by BOTH the Away column and the Away sort, so they can't disagree (the sort used to have no AVWAP branch).
-    function _alLineAwayPct(a) {
-        var px = alertPrices[a.ticker];
-        if (px == null) return null;
+    function _alLineSignedPct(a) {
         var lv = _alLineLevel(a);
-        return (lv.line != null && lv.line > 0) ? Math.abs((px - lv.line) / lv.line * 100) : null;
+        var x = (lv.x != null) ? lv.x : alertPrices[a.ticker];
+        return (x != null && lv.line != null && lv.line > 0) ? (x - lv.line) / lv.line * 100 : null;
+    }
+    function _alLineAwayPct(a) {
+        var p = _alLineSignedPct(a);
+        return p == null ? null : Math.abs(p);
     }
     // Status pill for the table. An alert that can't currently be evaluated says so (and why) instead of looking "Active".
     function _alStatusPillHtml(fired, key) {
@@ -436,7 +497,7 @@
     function _alTryArm(a) {
         var lv = _alLineLevel(a);
         if (lv.line == null) return;
-        var px = alertPrices[a.ticker];
+        var px = (lv.x != null) ? lv.x : alertPrices[a.ticker];
         if (px == null) { var arr = _alDailyCache(a.ticker); if (arr) px = arr[arr.length - 1].close; }
         if (px == null) return;
         if (a.condition === 'above' ? px < lv.line : px > lv.line) a.armed = true;
@@ -466,6 +527,7 @@
         if (price == null) return _alNoEval(key, true, 'Waiting for a quote');
         var lv = _alLineLevel(a);
         if (lv.line == null) return _alNoEval(key, true, lv.why);
+        var x = (lv.x != null) ? lv.x : price;      // what is compared with the line: the price, or MA 1 for an MA-vs-MA alert
         var quoteAge = Date.now() - (alertPriceAt[a.ticker] || 0);
         if (mktOpen && quoteAge > AL_QUOTE_MAX_AGE_MS)
             return _alNoEval(key, true, 'Quote is stale (' + Math.round(quoteAge / 1000) + 's old), not evaluating');
@@ -473,21 +535,22 @@
         // Alerts saved before arming existed keep their old level-triggered behaviour: mark them armed.
         if (a.armed === undefined) { a.armed = true; changed = true; }
         var above      = a.condition === 'above';
-        var onHitSide  = above ? price >= lv.line : price <= lv.line;
-        var onFarSide  = above ? price <  lv.line : price >  lv.line;
+        var onHitSide  = above ? x >= lv.line : x <= lv.line;
+        var onFarSide  = above ? x <  lv.line : x >  lv.line;
+        var out = function(hit) { return { hit: hit, line: lv.line, x: x, price: price, changed: changed }; };
         if (!a.armed) {
             if (onFarSide) { a.armed = true; changed = true; }
-            else _alEvalStatus[key] = { warn: false, msg: 'Not armed yet: waits for price to move to the other side of the line, then fires when it crosses' };
+            else _alEvalStatus[key] = { warn: false, msg: _alNotArmedMsg(a) };
             if (a.armed) delete _alEvalStatus[key];
-            return { hit: false, line: lv.line, price: price, changed: changed };
+            return out(false);
         }
-        if (!mktOpen) { delete _alEvalStatus[key]; return { hit: false, line: lv.line, price: price, changed: changed }; }
+        if (!mktOpen) { delete _alEvalStatus[key]; return out(false); }
         if (!_alHasTodayBar(a.ticker)) {
             _alEvalStatus[key] = { warn: false, msg: "Waiting for today's trading data" };
-            return { hit: false, line: lv.line, price: price, changed: changed };
+            return out(false);
         }
         delete _alEvalStatus[key];
-        return { hit: onHitSide, line: lv.line, price: price, changed: changed };
+        return out(onHitSide);
     }
 
     // ── keeping the daily series fresh ──
@@ -531,7 +594,7 @@
         var need = {};   // ticker -> true if an AVWAP alert needs it (volume matters), false if only trendlines do
         alertsList.forEach(function(a) {
             if (a.alertType === 'avwap') need[a.ticker] = true;
-            else if (a.alertType === 'trendline' && !need[a.ticker]) need[a.ticker] = false;
+            else if ((a.alertType === 'trendline' || a.alertType === 'ma' || a.alertType === 'macross') && !need[a.ticker]) need[a.ticker] = false;
         });
         var mktOpen = wlIsMarketOpen(), now = Date.now(), todayKey = _alEtDayNum();
         Object.keys(need).forEach(function(ticker) {
@@ -551,6 +614,10 @@
             if (!want) return;
             _alRefreshDaily(ticker, st, force).then(function(ok) {
                 if (!ok) return;
+                // The fresh series carries Yahoo's PARTIAL close for today. Put the live quote on it before anything
+                // evaluates: otherwise the first look after a refresh used a stale close and could arm (or not) from a
+                // state that wasn't real (an MA-vs-MA alert armed itself that way in testing).
+                if (wlIsMarketOpen()) _alPatchTodayBar(ticker, alertPrices[ticker]);
                 try { alCheckTriggers(); renderAlerts(); } catch (e) {}   // table + arming reflect the fresh data right away
             });
         });
@@ -603,7 +670,6 @@
                     }
                 });
             });
-            alUpdateEstimatedMAs();
             // Daily history for trendline/AVWAP alerts refreshes in the background. It is deliberately NOT
             // awaited: a slow, failing or rate-limited history fetch must never delay evaluating any alert.
             try { alSyncLineData(); } catch (e) {}
@@ -641,24 +707,8 @@
         } catch(e) {}
     }
 
-    function alUpdateEstimatedMAs() {
-        if (!snapshot || !snapshot.by_industry) return;
-        var maAlerts = alertsList.filter(function(a) { return a.alertType === 'ma'; });
-        if (!maAlerts.length) return;
-        maAlerts.forEach(function(a) {
-            var cacheKey = a.ticker + '_' + a.maKey;
-            outer: for (var ind in snapshot.by_industry) {
-                var stocks = snapshot.by_industry[ind];
-                for (var si = 0; si < stocks.length; si++) {
-                    var s = stocks[si];
-                    if (s.ticker === a.ticker && s.price != null && s.dist_ma && s.dist_ma[a.maKey] != null) {
-                        alertEstimatedMAs[cacheKey] = s.price / (1 + s.dist_ma[a.maKey] / 100);
-                        break outer;
-                    }
-                }
-            }
-        });
-    }
+    // (alUpdateEstimatedMAs lived here: it rebuilt an "estimated MA" from snapshot price/dist. MA alerts are now computed
+    //  live from the daily history -- see _alMaEval.)
 
     function alCheckTriggers() {
         var anyFired = false;
@@ -684,44 +734,25 @@
             if (_alertFiredSess[key]) return;
             var hit = false;
             var hitVal = null;
-            var lineAtFire = null;   // trendline/AVWAP only: the line's value at the moment it fired
+            var lineAtFire = null;   // trendline/AVWAP/MA alerts: the line's value at the moment it fired
+            var maDistPct  = null;   // MA alerts: how far past the MA (or MA 1 past MA 2) it was, in %
 
-            // This ticker's snapshot row (only the snapshot-driven alert types read it)
-            var stockData = (a.alertType === 'macross' || a.alertType === 'ma' || a.alertType === 'rsi14' || a.alertType === 'pattern')
-                ? snapLookup(a.ticker) : null;
+            // This ticker's snapshot row (only RSI and pattern alerts still read the snapshot)
+            var stockData = (a.alertType === 'rsi14' || a.alertType === 'pattern') ? snapLookup(a.ticker) : null;
 
-            if (a.alertType === 'macross') {
-                if (!stockData) return;
-                var v1 = stockData.ma_val ? stockData.ma_val[a.ma1Key] : null;
-                var v2 = stockData.ma_val ? stockData.ma_val[a.ma2Key] : null;
-                // Event-based: crossover happened in latest candle
-                var xKey = a.ma1Key + '|' + a.ma2Key + '|' + a.condition;
-                var eventHit = (stockData.ma_crossovers || []).indexOf(xKey) !== -1;
-                // State-based: MA 1 is currently above/below MA 2
-                var stateHit = (v1 != null && v2 != null) &&
-                    ((a.condition === 'above' && v1 > v2) || (a.condition === 'below' && v1 < v2));
-                hit = eventHit || stateHit;
-                hitVal = (v1 != null && v2 != null) ? ((v1 - v2) / v2 * 100) : 0;
-            } else if (a.alertType === 'ma') {
-                var livePrice = alertPrices[a.ticker];
-                var estMA     = alertEstimatedMAs[a.ticker + '_' + a.maKey];
-                // Event-based: price crossed the MA in the latest candle
-                var pxKey    = a.maKey + '|' + a.condition;
-                var eventHit = stockData && (stockData.price_ma_crossovers || []).indexOf(pxKey) !== -1;
-                if (eventHit) {
-                    hit = true;
-                    hitVal = livePrice != null ? livePrice : (stockData ? (stockData.price || 0) : 0);
-                } else if (livePrice != null && estMA != null) {
-                    hitVal = livePrice;
-                    hit = (a.condition === 'above' && livePrice >= estMA) ||
-                          (a.condition === 'below' && livePrice <= estMA);
-                } else {
-                    var snapDist = stockData ? (stockData.dist_ma ? stockData.dist_ma[a.maKey] : null) : null;
-                    if (snapDist == null) return;
-                    hitVal = snapDist;
-                    hit = (a.condition === 'above' && snapDist >= 0) ||
-                          (a.condition === 'below' && snapDist <= 0);
-                }
+            if (a.alertType === 'ma' || a.alertType === 'macross') {
+                // Live moving averages from the daily history; fires on a CROSS (armed -> reaches the MA) and only
+                // with the session open, a fresh quote and today's bar present -- see _alLineEval. The old branches
+                // fired on a state ("price is above the MA"), on snapshot "crossover" events that could contradict the
+                // live price, and on an MA that stopped tracking reality once state.js overwrote row.price.
+                var mr = _alLineEval(a, key, mktOpen);
+                if (!mr) return;
+                if (mr.changed) anyBaselineChanged = true;   // arming state changed: persist (one coalesced write)
+                if (!mr.hit) return;
+                hit = true;
+                hitVal = mr.price;                           // always a PRICE (it used to be a price or a % depending on the path)
+                lineAtFire = mr.line;
+                maDistPct = (mr.x - mr.line) / mr.line * 100;
             } else if (a.alertType === 'rsi14') {
                 var snapRsi = stockData ? stockData.rsi14 : null;
                 if (snapRsi == null) return;
@@ -807,9 +838,11 @@
                 var body;
                 if (a.alertType === 'macross') {
                     var dir = a.condition === 'above' ? '▲' : '▼';
-                    body = dir + ' ' + a.ma1Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' ' + a.condition + ' ' + a.ma2Key.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' · spread ' + (hitVal >= 0 ? '+' : '') + hitVal.toFixed(2) + '%';
+                    body = dir + ' ' + _maLabel(a.ma1Key) + ' ' + a.condition + ' ' + _maLabel(a.ma2Key) + ' · spread ' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%';
                 } else if (a.alertType === 'ma') {
-                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + a.maKey.replace(/([A-Z]+)(\d+)/,'$1 $2') + ' · dist ' + (typeof hitVal === 'number' ? hitVal.toFixed(2) : '—') + '%';
+                    // (this used to print the live PRICE as "dist 313.40%")
+                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + _maLabel(a.maKey) + ' $' + lineAtFire.toFixed(2) +
+                           ' · now $' + hitVal.toFixed(2) + ' (' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%)';
                 } else if (a.alertType === 'rsi14') {
                     body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
                 } else if (a.alertType === 'pattern') {
@@ -928,31 +961,10 @@
                         var linePctSort = _alLineAwayPct(a);
                         return linePctSort == null ? Infinity : linePctSort;
                     }
-                    if (a.alertType === 'macross') {
-                        var sd = null;
-                        if (snapshot && snapshot.by_industry) {
-                            outerS: for (var ind in snapshot.by_industry) {
-                                var st = snapshot.by_industry[ind];
-                                for (var si = 0; si < st.length; si++) {
-                                    if (st[si].ticker === a.ticker) { sd = st[si]; break outerS; }
-                                }
-                            }
-                        }
-                        if (!sd || !sd.ma_val) return Infinity;
-                        var v1 = sd.ma_val[a.ma1Key], v2 = sd.ma_val[a.ma2Key];
-                        return (v1 != null && v2 != null) ? Math.abs((v1 - v2) / v2 * 100) : Infinity;
-                    }
-                    if (a.alertType === 'ma') {
-                        var dist = null;
-                        if (snapshot && snapshot.by_industry) {
-                            outerM: for (var indM in snapshot.by_industry) {
-                                var stM = snapshot.by_industry[indM];
-                                for (var siM = 0; siM < stM.length; siM++) {
-                                    if (stM[siM].ticker === a.ticker) { dist = stM[siM].dist_ma ? stM[siM].dist_ma[a.maKey] : null; break outerM; }
-                                }
-                            }
-                        }
-                        return dist != null ? Math.abs(dist) : Infinity;
+                    if (a.alertType === 'macross' || a.alertType === 'ma') {
+                        // Live distance (price to MA, or MA 1 to MA 2) -- the same number the Away column shows
+                        var maPctSort = _alLineAwayPct(a);
+                        return maPctSort == null ? Infinity : maPctSort;
                     }
                     var curr = alertPrices[a.ticker];
                     return (curr != null && a.price > 0) ? Math.abs((curr - a.price) / a.price * 100) : Infinity;
@@ -1011,44 +1023,22 @@
                                 : '<span style="color:var(--danger);">▼ below</span>';
             var awayHtml;
             if (a.alertType === 'macross') {
-                var mcStockData = null;
-                if (snapshot && snapshot.by_industry) {
-                    outerMC: for (var indMC in snapshot.by_industry) {
-                        var stMC = snapshot.by_industry[indMC];
-                        for (var siMC = 0; siMC < stMC.length; siMC++) {
-                            if (stMC[siMC].ticker === a.ticker) { mcStockData = stMC[siMC]; break outerMC; }
-                        }
-                    }
-                }
-                if (fired || !mcStockData || !mcStockData.ma_val) {
+                // signed spread of MA 1 over MA 2, live
+                var mcSpread = fired ? null : _alLineSignedPct(a);
+                if (mcSpread == null) {
                     awayHtml = '<div class="al-col-away">—</div>';
                 } else {
-                    var mcV1 = mcStockData.ma_val[a.ma1Key];
-                    var mcV2 = mcStockData.ma_val[a.ma2Key];
-                    if (mcV1 == null || mcV2 == null) {
-                        awayHtml = '<div class="al-col-away">—</div>';
-                    } else {
-                        var spread = ((mcV1 - mcV2) / mcV2 * 100);
-                        var spreadAbs = Math.abs(spread);
-                        var awayCls = spreadAbs < 1 ? ' imminent' : spreadAbs < 5 ? ' close' : '';
-                        var spreadStr = (spread >= 0 ? '+' : '') + spread.toFixed(1) + '%';
-                        awayHtml = '<div class="al-col-away' + awayCls + '">' + spreadStr + '</div>';
-                    }
+                    var spreadAbs = Math.abs(mcSpread);
+                    var awayCls = spreadAbs < 1 ? ' imminent' : spreadAbs < 5 ? ' close' : '';
+                    var spreadStr = (mcSpread >= 0 ? '+' : '') + mcSpread.toFixed(1) + '%';
+                    awayHtml = '<div class="al-col-away' + awayCls + '">' + spreadStr + '</div>';
                 }
             } else if (a.alertType === 'ma') {
-                var snapDistMA = null;
-                if (snapshot && snapshot.by_industry) {
-                    outerMA: for (var indMA in snapshot.by_industry) {
-                        var stMA = snapshot.by_industry[indMA];
-                        for (var siMA = 0; siMA < stMA.length; siMA++) {
-                            if (stMA[siMA].ticker === a.ticker) { snapDistMA = stMA[siMA].dist_ma ? stMA[siMA].dist_ma[a.maKey] : null; break outerMA; }
-                        }
-                    }
-                }
-                if (fired || snapDistMA == null) {
+                // live distance from price to the MA (this used to be the SNAPSHOT distance, frozen all day)
+                var maDist = fired ? null : _alLineAwayPct(a);
+                if (maDist == null) {
                     awayHtml = '<div class="al-col-away">—</div>';
                 } else {
-                    var maDist = Math.abs(snapDistMA);
                     var awayCls = maDist < 1 ? ' imminent' : maDist < 5 ? ' close' : '';
                     awayHtml = '<div class="al-col-away' + awayCls + '">' + maDist.toFixed(1) + '%</div>';
                 }
@@ -1225,7 +1215,7 @@
                   (f.ma1Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + ' × ' +
                   (f.ma2Key || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
                 : f.alertType === 'ma'
-                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + '</span>'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' ' + (f.maKey || '').replace(/([A-Z]+)(\d+)/,'$1 $2') + (typeof f.lineValue === 'number' ? ' $' + f.lineValue.toFixed(2) : '') + '</span>'
                 : f.alertType === 'trendline'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' + (f.condition === 'above' ? '▲' : '▼') + ' trendline' + (typeof f.lineValue === 'number' ? ' $' + f.lineValue.toFixed(2) : '') + '</span>'
                 : f.alertType === 'avwap'
@@ -1251,10 +1241,11 @@
             var chgHtml = '';
             // Line alerts have no fixed alert price; their level is the line's value when they fired
             // (older history entries without it fall back to the price they fired at).
+            // MA alerts use the MA's value when they fired; older MA entries have none (their hitPrice could be a % or a price).
             var sinceBase = (f.alertType === 'trendline' || f.alertType === 'avwap')
                 ? (typeof f.lineValue === 'number' ? f.lineValue : f.hitPrice)
-                : f.alertPrice;
-            if (curPrice != null && sinceBase > 0 && f.alertType !== 'ma') {
+                : (f.alertType === 'ma' ? (typeof f.lineValue === 'number' ? f.lineValue : null) : f.alertPrice);
+            if (curPrice != null && sinceBase > 0) {
                 var chgPct = ((curPrice - sinceBase) / sinceBase) * 100;
                 var chgCls = chgPct > 0.05 ? 'up' : chgPct < -0.05 ? 'dn' : 'flat';
                 var chgSign = chgPct > 0 ? '+' : '';
@@ -1649,6 +1640,9 @@
                             ae.prevDayCandle = is52wkE ? null : candleOffsetE;
                             delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key;
                             delete ae.patternKey; delete ae.patternKeys; delete ae.patternTf;
+                            ae.editedAt = new Date().toISOString();
+                            delete ae.armed;
+                            delete _alertFiredSess[alKey(ae)];   // the NEW identity may match a key that already fired this session
                         }
                         alSave();
                         alHideForm();
@@ -1671,6 +1665,14 @@
                 else if (alertType === 'ma') { a.maKey = maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternKeys; delete a.patternTf; a.price = 0; }
                 else if (alertType === 'pattern') { a.patternKeys = patternKeys; delete a.patternKey; a.patternTf = patternTf; delete a.maKey; delete a.ma1Key; delete a.ma2Key; a.price = 0; }
                 else { a.price = price; delete a.maKey; delete a.ma1Key; delete a.ma2Key; delete a.patternKey; delete a.patternKeys; delete a.patternTf; }
+                // An edit is a re-arm. The edited alert's NEW identity may match a key that already fired this session
+                // (it then showed "Fired" and never fired) or one sitting in the fired history (dead after the next
+                // reload, because addedAt is older than that entry) -- so clear the key and stamp editedAt, which the
+                // reload logic now counts as "alive since". MA alerts also re-baseline: they fire on a cross.
+                a.editedAt = new Date().toISOString();
+                delete _alertFiredSess[alKey(a)];
+                delete _alEvalStatus[alKey(a)];
+                if (alertType === 'ma' || alertType === 'macross') { a.armed = false; _alTryArm(a); } else { delete a.armed; }
             }
             alSave();
             alHideForm();
@@ -1734,17 +1736,28 @@
 
             var entry;
             if (alertType === 'macross') {
-                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'macross', ma1Key: ma1Key, ma2Key: ma2Key, name: '', addedAt: new Date().toISOString() };
+                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'macross', ma1Key: ma1Key, ma2Key: ma2Key, name: '', armed: false, addedAt: new Date().toISOString() };
             } else if (alertType === 'ma') {
-                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', addedAt: new Date().toISOString() };
+                entry = { ticker: ticker, condition: cond, price: 0, alertType: 'ma', maKey: maKey, name: '', armed: false, addedAt: new Date().toISOString() };
             } else if (alertType === 'pattern') {
                 entry = { ticker: ticker, condition: 'detected', price: 0, alertType: 'pattern', patternKeys: patternKeys, patternTf: patternTf, name: '', addedAt: new Date().toISOString() };
             } else {
                 entry = { ticker: ticker, condition: cond, price: price, alertType: alertType, name: '', addedAt: new Date().toISOString() };
             }
+            // An identical alert is already on the list: don't stack a second copy (line alerts always refused this; MA and
+            // price alerts accepted any number). An MA-vs-MA alert is the same event written the other way round
+            // ("SMA 5 above SMA 50" == "SMA 50 below SMA 5").
+            var entryKey = alKey(entry);
+            var duplicate = alertsList.some(function(x) {
+                return alKey(x) === entryKey ||
+                    (x.alertType === 'macross' && entry.alertType === 'macross' && x.ticker === entry.ticker &&
+                     x.ma1Key === entry.ma2Key && x.ma2Key === entry.ma1Key && x.condition !== entry.condition);
+            });
+            if (duplicate) { alHideForm(); renderAlerts(); return; }
             var entryIdx = alertsList.length;
             alertsList.push(entry);
             delete _alertFiredSess[alKey(entry)];
+            if (entry.alertType === 'ma' || entry.alertType === 'macross') _alTryArm(entry);   // arm now if the far side is already known
             alSave();
             alHideForm();
             alStartBackgroundPolling();
@@ -2267,6 +2280,7 @@
             getCtxMa:        function() { return _alCtxMa; },
             getCtxPrice:     function() { return _alCtxPrice; },
             getSym:          function() { return _alSym; },
+            getTf:           function() { return _alChartTf; },
             dismiss:         _alDismissCtx
         });
     };
