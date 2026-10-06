@@ -2806,6 +2806,8 @@
         // Keyboard: Delete/Escape for trendlines + AVWAP
         if (_alKeyHandler) { document.removeEventListener('keydown', _alKeyHandler); }
         _alKeyHandler = function(evt) {
+            // The fullscreen chart sits on top of this panel; its own handler owns the keyboard while it's open.
+            if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (evt.key === 'Escape') {
                 if (_alMeasureActive || _alMeasurePhase === 1) {
                     _alMeasureActive = false;
@@ -2970,6 +2972,13 @@
             if (_alSym !== loadTicker || _alChartTf !== tf) return;
             _buildAlChart(loadTicker, ohlcv, tf);
         });
+    };
+
+    // Opens the LW fullscreen chart for the symbol currently shown in the alerts panel, at the panel's timeframe.
+    window.alChartOpenFullscreen = function() {
+        if (!_alSym) return;
+        _mcFsTf = _alChartTf;
+        openChartModal(_alSym);
     };
 
     window.alChartPanelClose = function() {
