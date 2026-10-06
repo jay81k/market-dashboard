@@ -1921,7 +1921,7 @@
         if (!avData || !avData.length) return;
         var s = _alChart.addSeries(LightweightCharts.LineSeries, {
             color: _AVWAP_COLOR, lineWidth: 1.5, priceLineVisible: false,
-            lastValueVisible: true, crosshairMarkerVisible: true,
+            lastValueVisible: true, crosshairMarkerVisible: false,
         });
         s.setData(avData);
         _alVwapSeries.push({ series: s, anchor: anchorIdx, color: _AVWAP_COLOR, dataMap: new Map(avData.map(function(d) { return [d.time, d.value]; })) });
@@ -2627,7 +2627,7 @@
                 var color = _AVWAP_COLOR;
                 var data  = _calcAVWAP(_alOhlcv, idx);
                 var dataMap = new Map(data.map(function(d) { return [d.time, d.value]; }));
-                var s = _alChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: true });
+                var s = _alChart.addSeries(LightweightCharts.LineSeries, { color: color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
                 s.setData(data);
                 _alVwapSeries.push({ series: s, anchor: idx, color: color, dataMap: dataMap });
                 // Select the new AVWAP so Delete removes it straight away (trendlines deselected first, as on fullscreen).
