@@ -3191,7 +3191,7 @@ return '10y';
 
             var lbl = document.createElement('div');
             lbl.id = 'mc-fs-vol-pct-label';
-            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
+            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
             lbl.innerHTML = '<span style="color:var(--border-muted);">›</span>'
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
@@ -4903,7 +4903,7 @@ return '10y';
             var color = volDiffPct >= 0 ? 'var(--success)' : 'var(--danger)';
             var lbl = document.createElement('div');
             lbl.id = 'wl-chart-vol-pct-label';
-            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
+            lbl.style.cssText = 'position:absolute;z-index:20;pointer-events:none;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:3px;white-space:nowrap;line-height:1;';
             lbl.innerHTML = '<span style="color:var(--border-muted);">›</span>'
                           + '<span style="color:' + color + ';">' + sign + volDiffPct.toFixed(1) + '%</span>';
             container.appendChild(lbl);
