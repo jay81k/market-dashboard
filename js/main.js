@@ -398,7 +398,7 @@
         if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) {
             if (_mcFsChart && _mcFsOhlcv.length) {
                 var n = _mcFsOhlcv.length;
-                _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 12 });
+                _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 15 });
             }
             return;
         }
@@ -409,7 +409,7 @@
             if (wlWidget && wlWidget.style.display === 'block') {
                 if (_wlChart && _wlOhlcv.length) {
                     var n = _wlOhlcv.length;
-                    _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+                    _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 15 });
                 }
                 return;
             }
@@ -421,7 +421,7 @@
             if (alPanel && alPanel.classList.contains('open')) {
                 if (_alChart && _alOhlcv.length) {
                     var n = _alOhlcv.length;
-                    _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+                    _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 15 });
                 }
                 return;
             }
