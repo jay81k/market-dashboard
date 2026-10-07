@@ -3009,10 +3009,12 @@ return '10y';
     }
 
     // ── Fullscreen screenshot (Alt+S) ─────────────────────────────────────────
-    // Output = the fullscreen header row (symbol, industry, RS badges, fundamentals)
-    // stacked on top of the chart exactly as drawn (candles, volume, MAs, AVWAPs,
-    // trendlines, watermark, axes). Not included: the timeframe/MA/tool settings row,
-    // the Details / + / x buttons, the hover OHLC legend, and the crosshair.
+    // Output, top to bottom: (1) the fullscreen header row (symbol, industry, RS/EPS
+    // badges, fundamentals); (2) the market info bar from the right side of the settings
+    // row (price/change, ADR, mkt cap, day range, 52W range); (3) the chart exactly as
+    // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes). Not included:
+    // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
+    // hover OHLC legend, and the crosshair.
     // Goes to the clipboard as a PNG. Always captured at the screen's native pixel
     // density, never upscaled; refused if the result would be under the width below.
     var _MC_SHOT_MIN_WIDTH = 1600;   // real pixels
@@ -3039,15 +3041,9 @@ return '10y';
     // borders and text are read from computed styles, and every character is placed
     // at the x/y the browser itself laid it out at, so the result matches the screen.
     // ctx must already carry a transform that maps viewport CSS px -> canvas px.
-    function _mcFsShotDrawHeader(ctx, hdr) {
-        var skip = [];
-        var detailsBtn = document.getElementById('mc-fullscreen-details-btn');
-        var queueBtn   = document.getElementById('mc-fullscreen-queue-btn');
-        var closeBtn   = hdr.querySelector('.mc-fullscreen-close');
-        if (detailsBtn) { skip.push(detailsBtn); if (detailsBtn.previousElementSibling) skip.push(detailsBtn.previousElementSibling); }
-        if (queueBtn) skip.push(queueBtn);
-        if (closeBtn) skip.push(closeBtn);
-
+    // root = element to paint; skip = elements to leave out; only = if given, paint root's
+    // own background/border and then just this one descendant (used for the market info bar).
+    function _mcFsShotPaint(ctx, root, skip, only) {
         function px(v) { return parseFloat(v) || 0; }
         function clear(c) { return !c || c === 'transparent' || /^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(c); }
         function rrect(x, y, w, h, r) {
@@ -3058,6 +3054,13 @@ return '10y';
         function drawBox(cs, r, alpha) {
             ctx.globalAlpha = alpha;
             var rad = px(cs.borderTopLeftRadius);
+            var sh = /^(rgba?\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px(?:\s+([\d.]+)px)?/.exec(cs.boxShadow || '');
+            if (sh && !clear(sh[1]) && px(sh[4]) === 0 && px(sh[5]) > 0) {
+                var sp = px(sh[5]);
+                ctx.fillStyle = sh[1];
+                rrect(r.left + px(sh[2]) - sp, r.top + px(sh[3]) - sp, r.width + sp * 2, r.height + sp * 2, rad + sp);
+                ctx.fill();
+            }
             if (!clear(cs.backgroundColor)) {
                 ctx.fillStyle = cs.backgroundColor;
                 rrect(r.left, r.top, r.width, r.height, rad);
@@ -3123,7 +3126,12 @@ return '10y';
             if (clip) ctx.restore();
         }
 
-        walk(hdr, 1);
+        if (only) {
+            drawBox(getComputedStyle(root), root.getBoundingClientRect(), 1);
+            walk(only, 1);
+        } else {
+            walk(root, 1);
+        }
         ctx.globalAlpha = 1;
     }
 
@@ -3156,27 +3164,49 @@ return '10y';
 
         var container = document.getElementById('mc-fullscreen-chart');
         var hdr       = overlay.querySelector('.mc-fullscreen-header');
+        var setRow    = document.getElementById('mc-fullscreen-settings');
+        var mktInfo   = document.getElementById('mc-fs-mkt-info');
         var scale     = shot.width / (container.clientWidth || shot.width);   // canvas px per CSS px
-        var hRect     = hdr ? hdr.getBoundingClientRect() : null;
-        var hdrPx     = hRect ? Math.round(hRect.height * scale) : 0;
+
+        // Strip 1: header row, minus the Details / + / x controls.
+        var hdrSkip = [];
+        var detailsBtn = document.getElementById('mc-fullscreen-details-btn');
+        var queueBtn   = document.getElementById('mc-fullscreen-queue-btn');
+        var closeBtn   = hdr ? hdr.querySelector('.mc-fullscreen-close') : null;
+        if (detailsBtn) { hdrSkip.push(detailsBtn); if (detailsBtn.previousElementSibling) hdrSkip.push(detailsBtn.previousElementSibling); }
+        if (queueBtn) hdrSkip.push(queueBtn);
+        if (closeBtn) hdrSkip.push(closeBtn);
+        var hRect = hdr ? hdr.getBoundingClientRect() : null;
+        var hdrPx = hRect ? Math.round(hRect.height * scale) : 0;
+
+        // Strip 2: the settings row's own background, holding ONLY the market info bar
+        // (price/change, ADR, mkt cap, day range, 52W range) at its on-screen position.
+        var sRect = null, setPx = 0;
+        if (setRow && mktInfo && getComputedStyle(mktInfo).display !== 'none') {
+            sRect = setRow.getBoundingClientRect();
+            setPx = Math.round(sRect.height * scale);
+        }
+        var topPx = hdrPx + setPx;
 
         var out = document.createElement('canvas');
         out.width  = shot.width;
-        out.height = hdrPx + shot.height;
+        out.height = topPx + shot.height;
         var ctx = out.getContext('2d');
         ctx.fillStyle = themeColor('bg-page');
         ctx.fillRect(0, 0, out.width, out.height);
-        ctx.drawImage(shot, 0, hdrPx);
+        ctx.drawImage(shot, 0, topPx);
 
-        if (hRect && hdrPx) {
+        function paintStrip(rect, yPx, hPx, root, skip, only) {
             ctx.save();
             ctx.beginPath();
-            ctx.rect(0, 0, out.width, hdrPx);
+            ctx.rect(0, yPx, out.width, hPx);
             ctx.clip();
-            ctx.setTransform(scale, 0, 0, scale, -hRect.left * scale, -hRect.top * scale);
-            try { _mcFsShotDrawHeader(ctx, hdr); } catch (e) { console.warn('[screenshot] header draw failed', e); }
+            ctx.setTransform(scale, 0, 0, scale, -rect.left * scale, yPx - rect.top * scale);
+            try { _mcFsShotPaint(ctx, root, skip, only); } catch (e) { console.warn('[screenshot] draw failed', e); }
             ctx.restore();
         }
+        if (hRect && hdrPx) paintStrip(hRect, 0, hdrPx, hdr, hdrSkip, null);
+        if (sRect && setPx) paintStrip(sRect, hdrPx, setPx, setRow, [], mktInfo);
 
         _mcFsShotBusy = true;
         out.toBlob(function(blob) {
