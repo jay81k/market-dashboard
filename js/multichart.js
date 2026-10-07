@@ -3015,9 +3015,15 @@ return '10y';
     // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes). Not included:
     // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
     // hover OHLC legend, and the crosshair.
+    // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen; the fundamentals
+    // are pushed to the right edge to mirror the symbol on the left.
     // Goes to the clipboard as a PNG. Always captured at the screen's native pixel
     // density, never upscaled; refused if the result would be under the width below.
     var _MC_SHOT_MIN_WIDTH = 1600;   // real pixels
+    // The header row and market info bar are drawn this many times larger than on screen so they
+    // stay readable when the image is shrunk by a chat app / post. The chart itself is not resized.
+    // Automatically reduced (never below 1) if the larger rows wouldn't fit the image width.
+    var _MC_SHOT_STRIP_ZOOM = 1.3;
     var _mcFsShotBusy      = false;
 
     function _mcFsShotToast(msg, ok) {
@@ -3196,7 +3202,6 @@ return '10y';
         if (queueBtn) hdrSkip.push(queueBtn);
         if (closeBtn) hdrSkip.push(closeBtn);
         var hRect = hdr ? hdr.getBoundingClientRect() : null;
-        var hdrPx = hRect ? Math.round(hRect.height * scale) : 0;
 
         // Fundamentals (EPS Q/Q ... MARGIN): on screen they sit left of the Details / + / x controls,
         // which are left out of the image, so they would stop short of the edge. Painted on their own
@@ -3217,11 +3222,36 @@ return '10y';
 
         // Strip 2: the settings row's own background, holding ONLY the market info bar
         // (price/change, ADR, mkt cap, day range, 52W range) at its on-screen position.
-        var sRect = null, setPx = 0;
+        var sRect = null;
         if (setRow && mktInfo && getComputedStyle(mktInfo).display !== 'none') {
             sRect = setRow.getBoundingClientRect();
-            setPx = Math.round(sRect.height * scale);
         }
+
+        // Shared zoom for both strips, so the two rows stay in proportion to each other. Capped so that
+        // (a) the left group (symbol, industry, badges) + a minimum gap + the fundamentals still fit
+        // side by side in the header, and (b) the market info bar still fits in its row.
+        var zoom = _MC_SHOT_STRIP_ZOOM;
+        if (hdr && hRect && fundShow) {
+            var leftRight = hRect.left;
+            ['mc-fullscreen-sym', 'mc-fullscreen-meta', 'mc-fullscreen-rs-badge', 'mc-fullscreen-3mrs-badge'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                var er = el.getBoundingClientRect();
+                if (er.width && er.right > leftRight) leftRight = er.right;
+            });
+            var needHdr = (leftRight - hRect.left) + 16 + fundEl.getBoundingClientRect().width + (parseFloat(getComputedStyle(hdr).paddingRight) || 0);
+            if (needHdr > 0) zoom = Math.min(zoom, hRect.width / needHdr);
+        }
+        if (sRect) {
+            var setPad  = parseFloat(getComputedStyle(setRow).paddingLeft) || 0;
+            var needSet = mktInfo.getBoundingClientRect().width + setPad * 2;
+            if (needSet > 0) zoom = Math.min(zoom, sRect.width / needSet);
+        }
+        zoom = Math.max(1, zoom);
+        var zs = scale * zoom;     // canvas px per CSS px for the two top strips
+
+        var hdrPx = hRect ? Math.round(hRect.height * zs) : 0;
+        var setPx = sRect ? Math.round(sRect.height * zs) : 0;
         var topPx = hdrPx + setPx;
 
         var out = document.createElement('canvas');
@@ -3232,19 +3262,25 @@ return '10y';
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(shot, 0, topPx);
 
-        // dx (optional) = extra horizontal shift in CSS px, used to push the fundamentals to the right edge.
-        function paintStrip(rect, yPx, hPx, root, skip, only, dx) {
+        // Draws a strip at the zoomed size (zs). anchorRight = false: the strip's left edge maps to the
+        // image's left edge, so left-aligned content keeps its (zoomed) inset from the left. true: the
+        // strip's right edge maps to the image's right edge, so right-aligned content keeps the same
+        // inset from the right and can't run off the image. dx (optional) = extra horizontal shift in
+        // CSS px, used to push the fundamentals to the right padding.
+        function paintStrip(rect, yPx, hPx, root, skip, only, dx, anchorRight) {
             ctx.save();
             ctx.beginPath();
             ctx.rect(0, yPx, out.width, hPx);
             ctx.clip();
-            ctx.setTransform(scale, 0, 0, scale, (-rect.left + (dx || 0)) * scale, yPx - rect.top * scale);
+            var tx = anchorRight ? out.width + ((dx || 0) - rect.right) * zs
+                                 : (-rect.left + (dx || 0)) * zs;
+            ctx.setTransform(zs, 0, 0, zs, tx, yPx - rect.top * zs);
             try { _mcFsShotPaint(ctx, root, skip, only); } catch (e) { console.warn('[screenshot] draw failed', e); }
             ctx.restore();
         }
-        if (hRect && hdrPx) paintStrip(hRect, 0, hdrPx, hdr, hdrSkip, null);
-        if (hRect && hdrPx && fundShow) paintStrip(hRect, 0, hdrPx, fundEl, [], null, fundDx);
-        if (sRect && setPx) paintStrip(sRect, hdrPx, setPx, setRow, [], mktInfo);
+        if (hRect && hdrPx) paintStrip(hRect, 0, hdrPx, hdr, hdrSkip, null, 0, false);
+        if (hRect && hdrPx && fundShow) paintStrip(hRect, 0, hdrPx, fundEl, [], null, fundDx, true);
+        if (sRect && setPx) paintStrip(sRect, hdrPx, setPx, setRow, [], mktInfo, 0, true);
 
         _mcFsShotBusy = true;
         out.toBlob(function(blob) {
