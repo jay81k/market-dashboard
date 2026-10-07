@@ -3620,7 +3620,7 @@ return '10y';
 
         // Visible range
         var n = _mcFsOhlcv.length;
-        _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 12 });
+        _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 15 });
 
         // Click handler — AVWAP anchor + AVWAP line selection
         _mcFsChart.subscribeClick(function(param) {
@@ -5319,7 +5319,7 @@ return '10y';
 
         // Visible range
         var n = _wlOhlcv.length;
-        _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 12 });
+        _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 15 });
 
         // Re-render measure overlay on pan/zoom
         _wlChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
