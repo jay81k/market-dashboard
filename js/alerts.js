@@ -2607,7 +2607,7 @@
 
         // Visible range
         var n = _alOhlcv.length;
-        _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 12 });
+        _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 15 });
 
         // Re-render measure overlay on pan/zoom
         _alChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
