@@ -462,7 +462,7 @@
         #industry-list .industry-chips  { flex: 1 1 calc(var(--ind-chips-w) + 32px); padding-left: 20px; }
         /* Header cells must keep the same flex-basis / grow as the row cells above */
         #industry-list-header .ind-hdr-first  { flex: 1 0 calc(36px + var(--ind-name-w) + 16px); min-width: 0; }
-        #industry-list-header .ind-hdr-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); }
+        #industry-list-header .ind-hdr-sector { width: auto; flex: 1 0 calc(var(--ind-sector-w) + 6px); text-align: left; }
         #industry-list-header .ind-hdr-chips  { flex: 1 1 calc(var(--ind-chips-w) + 32px); padding-left: 20px; }
         /* "Leaders" label centred over the chip span (first chip's left edge to last chip's right edge) */
         #industry-list-header .ind-hdr-chips-lbl { display: block; width: var(--ind-chips-w); max-width: 100%; text-align: center; }
