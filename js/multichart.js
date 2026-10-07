@@ -804,12 +804,23 @@ return '10y';
         if (infoEl) infoEl.style.display = 'none';
     }
 
+    // Average bar spacing in seconds — used to project times outside the loaded data.
+    function _measureStepSec(ohlcv) {
+        var n = ohlcv.length;
+        return n > 1 ? (ohlcv[n - 1].time - ohlcv[0].time) / (n - 1) : 86400;
+    }
+    // Bar index for a time, extended past both ends of the data: negative before the first
+    // bar, >= length after the last. (_barIdxByTime returns -1 past the last bar.)
+    function _measureIdxByTime(ohlcv, time) {
+        var n = ohlcv.length;
+        if (time > ohlcv[n - 1].time) return n - 1 + Math.round((time - ohlcv[n - 1].time) / _measureStepSec(ohlcv));
+        if (time < ohlcv[0].time)     return Math.round((time - ohlcv[0].time) / _measureStepSec(ohlcv));
+        return _barIdxByTime(ohlcv, time);
+    }
     function _computeMeasureResult(ohlcv, startTime, startPrice, endTime, endPrice) {
         // bar count = |endIdx - startIdx| (TV-style: intervals between bars)
-        var si = _barIdxByTime(ohlcv, startTime);
-        var ei = _barIdxByTime(ohlcv, endTime);
-        if (si === -1) si = ohlcv.length - 1;
-        if (ei === -1) ei = ohlcv.length - 1;
+        var si = _measureIdxByTime(ohlcv, startTime);
+        var ei = _measureIdxByTime(ohlcv, endTime);
         var barCount = Math.abs(ei - si);
         // calendar days from unix second timestamps
         var dayCount = Math.round(Math.abs(endTime - startTime) / 86400);
@@ -826,15 +837,13 @@ return '10y';
     function _measureGetTimeAtX(chart, ohlcv, lx) {
         var t = chart.timeScale().coordinateToTime(lx);
         if (t != null) return t;
-        // Past last bar — extrapolate
-        var last = ohlcv[ohlcv.length - 1];
-        var prev = ohlcv.length > 1 ? ohlcv[ohlcv.length - 2] : last;
-        var lastX = chart.timeScale().timeToCoordinate(last.time);
-        var prevX = chart.timeScale().timeToCoordinate(prev.time);
-        var pxPer = (lastX != null && prevX != null) ? Math.abs(lastX - prevX) : 8;
-        var barSec = last.time - prev.time;
-        var ahead  = Math.max(1, Math.round((lx - lastX) / pxPer));
-        return last.time + ahead * barSec;
+        // Outside the loaded data. coordinateToTime returns null on BOTH sides (left of the first
+        // bar as well as right of the last), so project from the logical index instead.
+        var li = chart.timeScale().coordinateToLogical(lx);
+        if (li == null) return null;
+        var n = ohlcv.length, step = _measureStepSec(ohlcv);
+        return li > n - 1 ? ohlcv[n - 1].time + (li - (n - 1)) * step
+                          : ohlcv[0].time + li * step;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1885,6 +1894,15 @@ return '10y';
             _renderMeasureOverlay(cfg.chart, cfg.candle, cfg.contRef,
                 cfg.svgOverlay, cfg.svgRect, cfg.hLine, cfg.infoDiv, result);
         }));
+    }
+
+    // Abandon a half-finished measurement (first click placed, second never came) so its anchor
+    // and the live mousemove listener can't leak onto the next symbol or the next open.
+    function _mcFsResetMeasure() {
+        _mcFsMeasureActive = false; _mcFsMeasurePhase = 0; _mcFsMeasureStart = null; _mcFsMeasureResult = null;
+        if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
+        document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
+        _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
     }
 
     // ── mc-fs Measure drag handlers ──────────────────────────────────────────
@@ -4764,6 +4782,8 @@ return '10y';
         _mcFsVwapMode = false; _mcFsVwapSeries = []; _mcFsSelectedVwapIdx = -1;
         var vwapBtn  = document.getElementById('mc-fs-vwap-btn');
         if (vwapBtn)  vwapBtn.classList.remove('active');
+        // Drop any half-finished measurement so its anchor can't leak onto the new symbol
+        _mcFsResetMeasure();
         // Reset trendlines for new symbol (keep mode active if it was on)
         _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         if (_mcFsTrendSvgOverlay) _mcFsTrendSvgOverlay.style.display = 'none';
@@ -4803,6 +4823,7 @@ return '10y';
 
     window.closeMcFullscreen = function() {
         document.getElementById('mc-fullscreen-overlay').classList.remove('open');
+        _mcFsResetMeasure();
         _mcFsDismissCtx();
         _mcFsStopLiveTick();
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
@@ -4907,6 +4928,14 @@ return '10y';
             moveHandler:  _onWlTrendAnchorDragMove,
             endHandler:   _onWlTrendAnchorDragEnd
         });
+    }
+
+    // Abandon a half-finished watchlist measurement (see _mcFsResetMeasure).
+    function _wlResetMeasure() {
+        _wlMeasureActive = false; _wlMeasurePhase = 0; _wlMeasureStart = null; _wlMeasureResult = null;
+        if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
+        document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
+        _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
     }
 
     // ── WL Measure drag handlers ─────────────────────────────────────────────
@@ -5087,6 +5116,7 @@ return '10y';
 
     // ── Core chart builder ────────────────────────────────────────────────
     function _destroyWlChart() {
+        _wlResetMeasure();
         if (_wlChart) { try { _wlChart.remove(); } catch(e) {} _wlChart = null; }
         _wlCandle = null; _wlVol = null; _wlVolMa = null; _wlVolData = null; _wlMaSeries = {}; _wlVwapSeries = [];
         _wlTrendlines = []; _wlTrendlineFirst = null;
