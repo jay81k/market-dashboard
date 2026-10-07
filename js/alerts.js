@@ -2154,6 +2154,14 @@
         );
     };
 
+    // Abandon a half-finished alerts-chart measurement (see _mcFsResetMeasure in multichart.js).
+    function _alResetMeasure() {
+        _alMeasureActive = false; _alMeasurePhase = 0; _alMeasureStart = null; _alMeasureResult = null;
+        if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
+        document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
+        _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
+    }
+
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
         _onMeasureDragMoveCore(evt, {
@@ -2334,6 +2342,7 @@
 
     // ── Core chart destroy / build ────────────────────────────────────────
     function _destroyAlChart() {
+        _alResetMeasure();
         _alStopLiveTick();
         if (_alChart) { try { _alChart.remove(); } catch(e) {} _alChart = null; }
         _alCandle = null; _alVol = null; _alVolMa = null; _alVolData = null; _alVolSmaMap = null;
@@ -2947,6 +2956,7 @@
         });
 
         // Reset per-symbol tool state
+        _alResetMeasure();
         _alTooltipEnabled = false;
         var ttBtn = document.getElementById('al-chart-tooltip-btn');
         if (ttBtn) ttBtn.classList.remove('active');
