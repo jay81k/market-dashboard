@@ -3631,15 +3631,15 @@ return '10y';
                     : 50;
                 var p = pos.toFixed(1);
                 var crSpan = crLabel != null
-                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,calc(-100% - 4.5px));' +
-                      'font-size:10px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
+                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-150%);' +
+                      'font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
                       crLabel.text + '</span>'
                     : '';
-                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:5px;' +
-                    'border-radius:2.5px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">' +
-                    '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2.5px;"></span>' +
+                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;' +
+                    'border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">' +
+                    '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
                     '<span style="position:absolute;top:50%;left:' + p + '%;' +
-                    'transform:translate(-50%,-50%);width:10px;height:10px;' +
+                    'transform:translate(-50%,-50%);width:8px;height:8px;' +
                     'background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>' +
                     crSpan +
                     '</span>';
@@ -3657,8 +3657,8 @@ return '10y';
             if (adrEl) {
                 var adrRaw = sd ? sd.adr_pct : null;
                 if (adrRaw != null) {
-                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
-                                    + '<span style="color:var(--text-primary-alt);font-size:13px;">' + adrRaw.toFixed(1) + '%</span>';
+                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                    + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
                     adrEl.style.display = 'inline-flex';
                 } else {
                     adrEl.style.display = 'none';
@@ -3672,8 +3672,8 @@ return '10y';
                     var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T'
                            : mcapRaw >= 1e9  ? (mcapRaw/1e9).toFixed(2)+'B'
                            : mcapRaw >= 1e6  ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
-                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
-                                     + '<span style="color:var(--text-primary-alt);font-size:13px;">' + mc + '</span>';
+                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
+                                     + '<span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
                     mcapEl.style.display = 'inline-flex';
                 } else {
                     mcapEl.style.display = 'none';
@@ -3681,15 +3681,15 @@ return '10y';
             }
 
             document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:var(--text-emphasis-2);font-size:21px;font-weight:700;">' + fp(close) + '</span>' +
-                '&nbsp;<span style="color:' + chgColor + ';font-size:14px;font-weight:600;">' +
+                '<span style="color:var(--text-emphasis-2);font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
+                '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
                 chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
 
             document.getElementById('mc-fs-mkt-day').innerHTML =
-                '<span style="color:var(--text-muted);font-size:12px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:var(--text-primary-alt);font-size:13px;">' + fp(dayLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
                 mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:var(--text-primary-alt);font-size:13px;">' + fp(dayHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
 
             var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
             var w52HiLabel = yrHigh > 0 ? {
@@ -3697,10 +3697,10 @@ return '10y';
                 color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
             } : null;
             document.getElementById('mc-fs-mkt-52w').innerHTML =
-                '<span style="color:var(--text-muted);font-size:12px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:var(--text-primary-alt);font-size:13px;">' + fp(yrLow) + '</span>' +
+                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
                 mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
-                '<span style="color:var(--text-primary-alt);font-size:13px;">' + fp(yrHigh) + '</span>';
+                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
 
             document.getElementById('mc-fs-mkt-info').style.display = 'flex';
         })();
