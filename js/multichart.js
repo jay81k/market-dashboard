@@ -3015,15 +3015,20 @@ return '10y';
     // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes). Not included:
     // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
     // hover OHLC legend, and the crosshair.
-    // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen; the fundamentals
-    // are pushed to the right edge to mirror the symbol on the left.
+    // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen but keep their combined
+    // on-screen height (image is never taller than before); the fundamentals are pushed to the right
+    // edge to mirror the symbol on the left.
     // Goes to the clipboard as a PNG. Always captured at the screen's native pixel
     // density, never upscaled; refused if the result would be under the width below.
     var _MC_SHOT_MIN_WIDTH = 1600;   // real pixels
     // The header row and market info bar are drawn this many times larger than on screen so they
     // stay readable when the image is shrunk by a chat app / post. The chart itself is not resized.
-    // Automatically reduced (never below 1) if the larger rows wouldn't fit the image width.
-    var _MC_SHOT_STRIP_ZOOM = 1.3;
+    // The two rows keep EXACTLY their on-screen combined height (so the image is never taller than
+    // before); the larger content is centred in each row and the row padding absorbs the difference.
+    // The zoom is automatically reduced (never below 1) if the padding would drop below
+    // _MC_SHOT_STRIP_MIN_PAD, or if the larger rows wouldn't fit the image width.
+    var _MC_SHOT_STRIP_ZOOM    = 1.15;
+    var _MC_SHOT_STRIP_MIN_PAD = 3;    // CSS px of breathing room kept above / below each row's content
     var _mcFsShotBusy      = false;
 
     function _mcFsShotToast(msg, ok) {
@@ -3160,6 +3165,24 @@ return '10y';
         return right;
     }
 
+    // Vertical extent (viewport CSS px) of everything inside the given elements, including parts that
+    // overflow their parent (e.g. the small % labels above the range bars). Hidden elements are ignored.
+    // Returns {top, bottom} or null if nothing is visible.
+    function _mcFsShotExtentY(els) {
+        var top = Infinity, bottom = -Infinity;
+        els.forEach(function(el) {
+            if (!el || getComputedStyle(el).display === 'none') return;
+            var all = [el].concat(Array.prototype.slice.call(el.querySelectorAll('*')));
+            all.forEach(function(n) {
+                var r = n.getBoundingClientRect();
+                if (!r.width && !r.height) return;
+                if (r.top < top) top = r.top;
+                if (r.bottom > bottom) bottom = r.bottom;
+            });
+        });
+        return bottom > top ? { top: top, bottom: bottom } : null;
+    }
+
     window.mcFsScreenshot = function() {
         if (_mcFsShotBusy) return;
         var overlay = document.getElementById('mc-fullscreen-overlay');
@@ -3247,12 +3270,38 @@ return '10y';
             var needSet = mktInfo.getBoundingClientRect().width + setPad * 2;
             if (needSet > 0) zoom = Math.min(zoom, sRect.width / needSet);
         }
+        // Height: the two rows keep exactly the combined height they have on screen, so the image is no
+        // taller than it was before the enlargement and never needs scrolling. The enlarged content is
+        // centred in each row; the row padding shrinks to absorb the difference. Content height is measured
+        // from what is actually painted, including the % labels that overflow above the range bars.
+        function bbPx(el) {
+            var cs = getComputedStyle(el), w = parseFloat(cs.borderBottomWidth) || 0;
+            return (w > 0 && cs.borderBottomStyle !== 'none') ? Math.max(1, Math.round(w * scale)) : 0;
+        }
+        var hExt = null, sExt = null;
+        if (hRect) {
+            hExt = _mcFsShotExtentY(['mc-fullscreen-sym', 'mc-fullscreen-meta', 'mc-fullscreen-rs-badge',
+                                     'mc-fullscreen-3mrs-badge', 'mc-fullscreen-fund-stats'].map(function(id) { return document.getElementById(id); }))
+                   || { top: hRect.top, bottom: hRect.bottom };
+        }
+        if (sRect) sExt = _mcFsShotExtentY([mktInfo]) || { top: sRect.top, bottom: sRect.bottom };
+        var nStrips = (hRect ? 1 : 0) + (sRect ? 1 : 0);
+        var hdrPx0  = hRect ? Math.round(hRect.height * scale) : 0;
+        var setPx0  = sRect ? Math.round(sRect.height * scale) : 0;
+        var totPx   = hdrPx0 + setPx0;                       // combined on-screen height of the two rows
+        var bbH = hRect ? bbPx(hdr) : 0, bbS = sRect ? bbPx(setRow) : 0;
+        var hC  = hExt ? hExt.bottom - hExt.top : 0;         // content heights, CSS px
+        var sC  = sExt ? sExt.bottom - sExt.top : 0;
+        if (nStrips && hC + sC > 0) {
+            zoom = Math.min(zoom, (totPx - bbH - bbS - 2 * nStrips * _MC_SHOT_STRIP_MIN_PAD * scale) / ((hC + sC) * scale));
+        }
         zoom = Math.max(1, zoom);
-        var zs = scale * zoom;     // canvas px per CSS px for the two top strips
-
-        var hdrPx = hRect ? Math.round(hRect.height * zs) : 0;
-        var setPx = sRect ? Math.round(sRect.height * zs) : 0;
-        var topPx = hdrPx + setPx;
+        var zs = scale * zoom;     // canvas px per CSS px for the two top rows
+        var rowPad = nStrips ? Math.max(0, (totPx - bbH - bbS - (hC + sC) * zs) / (2 * nStrips)) : 0;   // px above and below each row's content
+        var hdrPx  = hRect ? Math.round(hC * zs + bbH + 2 * rowPad) : 0;
+        var setPx  = sRect ? totPx - hdrPx : 0;
+        var topPx  = hdrPx + setPx;                          // == totPx: the image is no taller than before
+        console.debug('[screenshot] row zoom ' + zoom.toFixed(3) + ', row padding ' + rowPad.toFixed(1) + 'px, rows ' + hdrPx + '+' + setPx + 'px');
 
         var out = document.createElement('canvas');
         out.width  = shot.width;
@@ -3262,25 +3311,48 @@ return '10y';
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(shot, 0, topPx);
 
-        // Draws a strip at the zoomed size (zs). anchorRight = false: the strip's left edge maps to the
+        // A row's own background and bottom border, drawn crisp at exactly the row's pixel box.
+        function paintBox(root, yPx, hPx) {
+            var cs = getComputedStyle(root), bg = cs.backgroundColor, bb = bbPx(root);
+            if (bg && bg !== 'transparent' && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(bg)) {
+                ctx.fillStyle = bg;
+                ctx.fillRect(0, yPx, out.width, hPx);
+            }
+            if (bb) {
+                ctx.fillStyle = cs.borderBottomColor;
+                ctx.fillRect(0, yPx + hPx - bb, out.width, bb);
+            }
+        }
+        // Draws the given elements at the zoomed size (zs), vertically centred in the row's content area
+        // (midY = CSS y of the content's centre). anchorRight = false: the row's left edge maps to the
         // image's left edge, so left-aligned content keeps its (zoomed) inset from the left. true: the
-        // strip's right edge maps to the image's right edge, so right-aligned content keeps the same
-        // inset from the right and can't run off the image. dx (optional) = extra horizontal shift in
-        // CSS px, used to push the fundamentals to the right padding.
-        function paintStrip(rect, yPx, hPx, root, skip, only, dx, anchorRight) {
+        // row's right edge maps to the image's right edge, so right-aligned content keeps the same inset
+        // from the right and can't run off the image. dx (optional) = extra horizontal shift in CSS px,
+        // used to push the fundamentals to the right padding.
+        function paintStrip(rect, yPx, hPx, bb, midY, roots, skip, dx, anchorRight) {
             ctx.save();
             ctx.beginPath();
-            ctx.rect(0, yPx, out.width, hPx);
+            ctx.rect(0, yPx, out.width, hPx - bb);
             ctx.clip();
             var tx = anchorRight ? out.width + ((dx || 0) - rect.right) * zs
                                  : (-rect.left + (dx || 0)) * zs;
-            ctx.setTransform(zs, 0, 0, zs, tx, yPx - rect.top * zs);
-            try { _mcFsShotPaint(ctx, root, skip, only); } catch (e) { console.warn('[screenshot] draw failed', e); }
+            var ty = yPx + (hPx - bb) / 2 - midY * zs;
+            ctx.setTransform(zs, 0, 0, zs, tx, ty);
+            roots.forEach(function(r) {
+                try { _mcFsShotPaint(ctx, r, skip, null); } catch (e) { console.warn('[screenshot] draw failed', e); }
+            });
             ctx.restore();
         }
-        if (hRect && hdrPx) paintStrip(hRect, 0, hdrPx, hdr, hdrSkip, null, 0, false);
-        if (hRect && hdrPx && fundShow) paintStrip(hRect, 0, hdrPx, fundEl, [], null, fundDx, true);
-        if (sRect && setPx) paintStrip(sRect, hdrPx, setPx, setRow, [], mktInfo, 0, true);
+        if (hRect && hdrPx) {
+            var hMid = (hExt.top + hExt.bottom) / 2;
+            paintBox(hdr, 0, hdrPx);
+            paintStrip(hRect, 0, hdrPx, bbH, hMid, Array.prototype.slice.call(hdr.children), hdrSkip, 0, false);
+            if (fundShow) paintStrip(hRect, 0, hdrPx, bbH, hMid, [fundEl], [], fundDx, true);
+        }
+        if (sRect && setPx) {
+            paintBox(setRow, hdrPx, setPx);
+            paintStrip(sRect, hdrPx, setPx, bbS, (sExt.top + sExt.bottom) / 2, [mktInfo], [], 0, true);
+        }
 
         _mcFsShotBusy = true;
         out.toBlob(function(blob) {
