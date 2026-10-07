@@ -935,6 +935,7 @@
         });
 
         // Reset per-symbol tool state
+        _wlResetMeasure();
         _wlVwapMode = false; _wlVwapSeries = []; _wlSelectedVwapIdx = -1;
         var vwapBtn = document.getElementById('wl-chart-vwap-btn');
         if (vwapBtn) vwapBtn.classList.remove('active');
