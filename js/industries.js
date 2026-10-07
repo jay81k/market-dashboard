@@ -120,9 +120,9 @@
             indSort.dir *= -1;
         } else {
             indSort.col = col;
-            indSort.dir = -1; // default desc (best performers first)
+            indSort.dir = (col === 'sector') ? 1 : -1; // default desc (best performers first); sector is text, so A→Z first
         }
-        // A column sort overrides the Rank / A–Z / Sector presets (renderIndustries ignores
+        // A column sort overrides the Rank / A–Z presets (renderIndustries ignores
         // activeSort while indSort.col is set), so don't leave one of them looking active.
         // setSort() lights the clicked preset again and clears the column sort.
         document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -147,6 +147,7 @@
     // ── Industries render ─────────────────────────────────────────────────
     function getIndSortVal(ind, summary, col) {
         if (!col) return null;
+        if (col === 'sector')    return ind.sector;
         if (col === 'avg_daily') return summary ? summary.avg_daily : null;
         if (col === 'avg_1w')    return summary ? summary.avg_1w    : null;
         if (col === 'avg_1m')    return summary ? summary.avg_1m    : null;
@@ -644,12 +645,12 @@
                 if (va == null && vb == null) return 0;
                 if (va == null) return 1;
                 if (vb == null) return -1;
+                if (indSort.col === 'sector') return (String(va).localeCompare(String(vb)) * indSort.dir) || ((a.rank||999) - (b.rank||999));
                 return (va - vb) * indSort.dir * -1;
             });
         } else {
             if (activeSort === 'rank')   industries.sort(function(a,b){ return (a.rank||999) - (b.rank||999); });
             else if (activeSort === 'name')   industries.sort(function(a,b){ return a.industry.localeCompare(b.industry); });
-            else if (activeSort === 'sector') industries.sort(function(a,b){ return a.sector.localeCompare(b.sector) || (a.rank||999) - (b.rank||999); });
         }
 
         var rcEl = document.getElementById('result-count'); if (rcEl) rcEl.textContent = industries.length + ' industries';
