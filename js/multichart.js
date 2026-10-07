@@ -3008,6 +3008,189 @@ return '10y';
         });
     }
 
+    // ── Fullscreen screenshot (Alt+S) ─────────────────────────────────────────
+    // Output = the fullscreen header row (symbol, industry, RS badges, fundamentals)
+    // stacked on top of the chart exactly as drawn (candles, volume, MAs, AVWAPs,
+    // trendlines, watermark, axes). Not included: the timeframe/MA/tool settings row,
+    // the Details / + / x buttons, the hover OHLC legend, and the crosshair.
+    // Goes to the clipboard as a PNG. Always captured at the screen's native pixel
+    // density, never upscaled; refused if the result would be under the width below.
+    var _MC_SHOT_MIN_WIDTH = 1600;   // real pixels
+    var _mcFsShotBusy      = false;
+
+    function _mcFsShotToast(msg, ok) {
+        var el = document.getElementById('mc-fs-shot-toast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'mc-fs-shot-toast';
+            el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100000;' +
+                'padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;pointer-events:none;' +
+                'background:var(--bg-subtle);border:1px solid var(--bg-surface);box-shadow:0 6px 20px rgba(0,0,0,0.35);';
+            document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.color = ok ? 'var(--success)' : 'var(--danger)';
+        el.style.display = 'block';
+        clearTimeout(el._t);
+        el._t = setTimeout(function() { el.style.display = 'none'; }, ok ? 2200 : 4200);
+    }
+
+    // Paints the live header DOM onto a canvas (no library needed): backgrounds,
+    // borders and text are read from computed styles, and every character is placed
+    // at the x/y the browser itself laid it out at, so the result matches the screen.
+    // ctx must already carry a transform that maps viewport CSS px -> canvas px.
+    function _mcFsShotDrawHeader(ctx, hdr) {
+        var skip = [];
+        var detailsBtn = document.getElementById('mc-fullscreen-details-btn');
+        var queueBtn   = document.getElementById('mc-fullscreen-queue-btn');
+        var closeBtn   = hdr.querySelector('.mc-fullscreen-close');
+        if (detailsBtn) { skip.push(detailsBtn); if (detailsBtn.previousElementSibling) skip.push(detailsBtn.previousElementSibling); }
+        if (queueBtn) skip.push(queueBtn);
+        if (closeBtn) skip.push(closeBtn);
+
+        function px(v) { return parseFloat(v) || 0; }
+        function clear(c) { return !c || c === 'transparent' || /^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(c); }
+        function rrect(x, y, w, h, r) {
+            ctx.beginPath();
+            if (r > 0 && ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+        }
+
+        function drawBox(cs, r, alpha) {
+            ctx.globalAlpha = alpha;
+            var rad = px(cs.borderTopLeftRadius);
+            if (!clear(cs.backgroundColor)) {
+                ctx.fillStyle = cs.backgroundColor;
+                rrect(r.left, r.top, r.width, r.height, rad);
+                ctx.fill();
+            }
+            var bt = px(cs.borderTopWidth), br = px(cs.borderRightWidth), bb = px(cs.borderBottomWidth), bl = px(cs.borderLeftWidth);
+            if (!(bt || br || bb || bl)) return;
+            if (bt && bt === br && br === bb && bb === bl && cs.borderTopStyle !== 'none' && !clear(cs.borderTopColor)) {
+                ctx.strokeStyle = cs.borderTopColor;
+                ctx.lineWidth = bt;
+                rrect(r.left + bt / 2, r.top + bt / 2, r.width - bt, r.height - bt, Math.max(rad - bt / 2, 0));
+                ctx.stroke();
+                return;
+            }
+            if (bt && cs.borderTopStyle    !== 'none' && !clear(cs.borderTopColor))    { ctx.fillStyle = cs.borderTopColor;    ctx.fillRect(r.left, r.top, r.width, bt); }
+            if (bb && cs.borderBottomStyle !== 'none' && !clear(cs.borderBottomColor)) { ctx.fillStyle = cs.borderBottomColor; ctx.fillRect(r.left, r.bottom - bb, r.width, bb); }
+            if (bl && cs.borderLeftStyle   !== 'none' && !clear(cs.borderLeftColor))   { ctx.fillStyle = cs.borderLeftColor;   ctx.fillRect(r.left, r.top, bl, r.height); }
+            if (br && cs.borderRightStyle  !== 'none' && !clear(cs.borderRightColor))  { ctx.fillStyle = cs.borderRightColor;  ctx.fillRect(r.right - br, r.top, br, r.height); }
+        }
+
+        function drawText(tn, alpha) {
+            var txt = tn.nodeValue;
+            if (!txt || !txt.trim()) return;
+            var par = tn.parentElement;
+            if (!par) return;
+            var cs = getComputedStyle(par);
+            if (cs.visibility === 'hidden') return;
+            ctx.globalAlpha = alpha;
+            ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+            ctx.fillStyle = cs.color;
+            ctx.textBaseline = 'alphabetic';
+            var m = ctx.measureText('Hg');
+            var asc = m.fontBoundingBoxAscent, desc = m.fontBoundingBoxDescent;
+            var tt = cs.textTransform;
+            var range = document.createRange();
+            for (var i = 0; i < txt.length; i++) {
+                var ch = txt.charAt(i);
+                if (/\s/.test(ch)) continue;
+                range.setStart(tn, i);
+                range.setEnd(tn, i + 1);
+                var cr = range.getBoundingClientRect();
+                if (!cr.width && !cr.height) continue;
+                if (tt === 'uppercase') ch = ch.toUpperCase(); else if (tt === 'lowercase') ch = ch.toLowerCase();
+                ctx.fillText(ch, cr.left, cr.top + (cr.height - (asc + desc)) / 2 + asc);
+            }
+        }
+
+        function walk(node, alpha) {
+            if (node.nodeType === 3) { drawText(node, alpha); return; }
+            if (node.nodeType !== 1 || skip.indexOf(node) !== -1) return;
+            var tag = node.nodeName.toLowerCase();
+            if (tag === 'svg' || tag === 'img' || tag === 'input' || tag === 'button') return;
+            var cs = getComputedStyle(node);
+            if (cs.display === 'none' || cs.visibility === 'hidden') return;
+            var r = node.getBoundingClientRect();
+            if (!r.width && !r.height) return;
+            var op = parseFloat(cs.opacity);
+            var a  = alpha * (isNaN(op) ? 1 : op);
+            drawBox(cs, r, a);
+            var clip = cs.overflowX !== 'visible' || cs.overflowY !== 'visible';
+            if (clip) { ctx.save(); ctx.beginPath(); ctx.rect(r.left, r.top, r.width, r.height); ctx.clip(); }
+            for (var c = node.firstChild; c; c = c.nextSibling) walk(c, a);
+            if (clip) ctx.restore();
+        }
+
+        walk(hdr, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    window.mcFsScreenshot = function() {
+        if (_mcFsShotBusy) return;
+        var overlay = document.getElementById('mc-fullscreen-overlay');
+        if (!overlay || !overlay.classList.contains('open')) return;
+
+        // Gate 1: the chart must be fully built for the symbol + timeframe currently on screen
+        // (not "Loading…", "No data", "Failed to load", or mid-switch).
+        if (!_mcFsChart || !_mcFsOhlcv || !_mcFsOhlcv.length || _mcFsBuiltSym !== _mcFsSym || _mcFsBuiltTf !== _mcFsTf) {
+            _mcFsShotToast('Screenshot blocked: chart is not fully loaded', false);
+            return;
+        }
+        if (!navigator.clipboard || !window.ClipboardItem) {
+            _mcFsShotToast('Screenshot blocked: image clipboard needs https or localhost', false);
+            return;
+        }
+
+        // Chart canvas at native pixel density: no crosshair, no upscaling.
+        var shot;
+        try { shot = _mcFsChart.takeScreenshot(true, false); } catch (e) { shot = null; }
+        if (!shot || !shot.width || !shot.height) { _mcFsShotToast('Screenshot failed', false); return; }
+
+        // Gate 2: refuse if the saved image would be too small to be sharp.
+        if (shot.width < _MC_SHOT_MIN_WIDTH) {
+            _mcFsShotToast('Screenshot blocked: only ' + shot.width + 'px wide (needs ' + _MC_SHOT_MIN_WIDTH + 'px+ for good quality)', false);
+            return;
+        }
+
+        var container = document.getElementById('mc-fullscreen-chart');
+        var hdr       = overlay.querySelector('.mc-fullscreen-header');
+        var scale     = shot.width / (container.clientWidth || shot.width);   // canvas px per CSS px
+        var hRect     = hdr ? hdr.getBoundingClientRect() : null;
+        var hdrPx     = hRect ? Math.round(hRect.height * scale) : 0;
+
+        var out = document.createElement('canvas');
+        out.width  = shot.width;
+        out.height = hdrPx + shot.height;
+        var ctx = out.getContext('2d');
+        ctx.fillStyle = themeColor('bg-page');
+        ctx.fillRect(0, 0, out.width, out.height);
+        ctx.drawImage(shot, 0, hdrPx);
+
+        if (hRect && hdrPx) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, out.width, hdrPx);
+            ctx.clip();
+            ctx.setTransform(scale, 0, 0, scale, -hRect.left * scale, -hRect.top * scale);
+            try { _mcFsShotDrawHeader(ctx, hdr); } catch (e) { console.warn('[screenshot] header draw failed', e); }
+            ctx.restore();
+        }
+
+        _mcFsShotBusy = true;
+        out.toBlob(function(blob) {
+            if (!blob) { _mcFsShotBusy = false; _mcFsShotToast('Screenshot failed', false); return; }
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
+                _mcFsShotBusy = false;
+                _mcFsShotToast('Screenshot copied (' + out.width + ' × ' + out.height + ')', true);
+            }, function(err) {
+                _mcFsShotBusy = false;
+                _mcFsShotToast('Clipboard write failed' + (err && err.name ? ' (' + err.name + ')' : ''), false);
+            });
+        }, 'image/png');
+    };
+
     function _buildFsChart(sym, ohlcv, tf) {
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '';
@@ -3541,11 +3724,19 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol, S = screenshot
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.mcFsToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.mcFsToggleTrendline(); return; }
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.mcFsToggleVwap(); return; }
+                // Alt+S: copy a hi-res PNG of the header + chart to the clipboard. Same input
+                // guards as Alt+C so typing in the symbol box is never hijacked. evt.code is
+                // checked too because Option+S on a Mac produces a different evt.key.
+                if ((evt.key === 's' || evt.key === 'S' || evt.code === 'KeyS') &&
+                    evt.target.tagName !== 'INPUT' && evt.target.tagName !== 'TEXTAREA' &&
+                    !document.getElementById('mc-fs-sym-input')) {
+                    evt.preventDefault(); window.mcFsScreenshot(); return;
+                }
                 // Alt+C: same as clicking the header's copy-symbol button. Skipped while the
                 // symbol search box (or any input) has focus so typing is never hijacked.
                 if ((evt.key === 'c' || evt.key === 'C' || evt.code === 'KeyC') &&
