@@ -3135,6 +3135,25 @@ return '10y';
         ctx.globalAlpha = 1;
     }
 
+    // Right edge (viewport CSS px) of the last visible character inside el, or null if there is none.
+    // Measures the glyphs themselves, so trailing padding / margins in el can't skew the result.
+    function _mcFsShotInkRight(el) {
+        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        var right = null, tn;
+        while ((tn = walker.nextNode())) {
+            var t = tn.nodeValue;
+            if (!t || !t.trim()) continue;
+            var i = t.length - 1;
+            while (i > 0 && /\s/.test(t.charAt(i))) i--;
+            var rg = document.createRange();
+            rg.setStart(tn, i);
+            rg.setEnd(tn, i + 1);
+            var r = rg.getBoundingClientRect();
+            if (r.width && (right === null || r.right > right)) right = r.right;
+        }
+        return right;
+    }
+
     window.mcFsScreenshot = function() {
         if (_mcFsShotBusy) return;
         var overlay = document.getElementById('mc-fullscreen-overlay');
@@ -3179,6 +3198,23 @@ return '10y';
         var hRect = hdr ? hdr.getBoundingClientRect() : null;
         var hdrPx = hRect ? Math.round(hRect.height * scale) : 0;
 
+        // Fundamentals (EPS Q/Q ... MARGIN): on screen they sit left of the Details / + / x controls,
+        // which are left out of the image, so they would stop short of the edge. Painted on their own
+        // instead, shifted right so the last character ends at the header's right padding: the same
+        // inset the symbol has on the left and the market info bar has on the right.
+        // Screenshot only; the live layout is never touched.
+        var fundEl = document.getElementById('mc-fullscreen-fund-stats');
+        var fundShow = false, fundDx = 0;
+        if (hdr && hRect && fundEl && getComputedStyle(fundEl).display !== 'none') {
+            var fundRight = _mcFsShotInkRight(fundEl);
+            if (fundRight !== null) {
+                var padR = parseFloat(getComputedStyle(hdr).paddingRight) || 0;
+                fundDx   = Math.max(0, (hRect.right - padR) - fundRight);
+                fundShow = true;
+                hdrSkip.push(fundEl);
+            }
+        }
+
         // Strip 2: the settings row's own background, holding ONLY the market info bar
         // (price/change, ADR, mkt cap, day range, 52W range) at its on-screen position.
         var sRect = null, setPx = 0;
@@ -3196,16 +3232,18 @@ return '10y';
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(shot, 0, topPx);
 
-        function paintStrip(rect, yPx, hPx, root, skip, only) {
+        // dx (optional) = extra horizontal shift in CSS px, used to push the fundamentals to the right edge.
+        function paintStrip(rect, yPx, hPx, root, skip, only, dx) {
             ctx.save();
             ctx.beginPath();
             ctx.rect(0, yPx, out.width, hPx);
             ctx.clip();
-            ctx.setTransform(scale, 0, 0, scale, -rect.left * scale, yPx - rect.top * scale);
+            ctx.setTransform(scale, 0, 0, scale, (-rect.left + (dx || 0)) * scale, yPx - rect.top * scale);
             try { _mcFsShotPaint(ctx, root, skip, only); } catch (e) { console.warn('[screenshot] draw failed', e); }
             ctx.restore();
         }
         if (hRect && hdrPx) paintStrip(hRect, 0, hdrPx, hdr, hdrSkip, null);
+        if (hRect && hdrPx && fundShow) paintStrip(hRect, 0, hdrPx, fundEl, [], null, fundDx);
         if (sRect && setPx) paintStrip(sRect, hdrPx, setPx, setRow, [], mktInfo);
 
         _mcFsShotBusy = true;
