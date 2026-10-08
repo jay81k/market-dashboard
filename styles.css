@@ -956,6 +956,19 @@
         .chart-modal-ext-btn svg { opacity: 0.7; flex-shrink: 0; }
         .chart-modal-close { background: transparent; border: none; color: var(--border-muted); cursor: pointer; font-size: 1.32rem; padding: 0 4px; }
         .chart-modal-close:hover { color: var(--text-primary); }
+        /* Borderless expand-arrow button for the watchlist / alerts chart panels (fullscreen) */
+        .chart-expand-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 4px 6px; border: none; background: transparent;
+            color: var(--text-muted-2); cursor: pointer;
+            transition: color 0.12s;
+        }
+        .chart-expand-btn:hover { color: var(--text-primary); }
+        .chart-expand-btn svg { opacity: 0.7; flex-shrink: 0; }
+        .chart-expand-btn:hover svg { opacity: 1; }
+        [data-theme="light"] .chart-expand-btn { color: var(--text-muted); }
+        [data-theme="light"] .chart-expand-btn svg { opacity: 1; }
+        [data-theme="light"] .chart-expand-btn:hover { color: var(--text-primary); }
         .queue-add-btn {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border);
