@@ -137,6 +137,7 @@
     var _mcFsMeasureRafId      = null;   // rAF throttle handle
     var _mcFsMeasureStart      = null;   // { time, price, barIdx }
     var _mcFsMeasureResult     = null;   // persisted after drag ends
+    var _mcFsMeasureList       = [];     // committed measurements — stay until deleted (mutated in place, never reassigned)
     var _mcFsMeasureSvgOverlay = null;
     var _mcFsMeasureSvgRect    = null;
     var _mcFsMeasureHLine      = null;
@@ -276,6 +277,7 @@
     var _wlMeasureRafId      = null;
     var _wlMeasureStart      = null;
     var _wlMeasureResult     = null;
+    var _wlMeasureList       = [];       // committed measurements — stay until deleted (mutated in place, never reassigned)
     var _wlMeasureSvgOverlay = null;
     var _wlMeasureSvgRect    = null;
     var _wlMeasureHLine      = null;
@@ -754,7 +756,6 @@ return '10y';
         var h = bottom - top;
         var isUp = result.endPrice >= result.startPrice;
 
-        var fillClr   = isUp ? 'var(--al-measure-fill-up)'   : 'var(--al-measure-fill-down)';
         var strokeClr = isUp ? 'var(--al-measure-stroke-up)' : 'var(--al-measure-stroke-down)';
         var infoBg    = isUp ? 'var(--al-measure-bg-up)'     : 'var(--al-measure-bg-down)';
 
@@ -762,7 +763,7 @@ return '10y';
         rectEl.setAttribute('y', top);
         rectEl.setAttribute('width',  Math.max(w, 1));
         rectEl.setAttribute('height', Math.max(h, 1));
-        rectEl.setAttribute('fill',   fillClr);
+        rectEl.setAttribute('fill',   'none'); // outline only, so several measurements can overlap on screen
         rectEl.setAttribute('stroke', strokeClr);
         rectEl.setAttribute('stroke-width', '1');
 
@@ -797,11 +798,103 @@ return '10y';
         infoEl.style.top  = iTop  + 'px';
 
         svgEl.style.display = '';
+        return { left: left, right: right, top: top, bottom: bottom };
     }
 
     function _hideMeasureOverlay(svgEl, infoEl) {
         if (svgEl)  svgEl.style.display  = 'none';
         if (infoEl) infoEl.style.display = 'none';
+    }
+
+    // ── Committed (persistent) measurements ──────────────────────────────────
+    // Finishing a measurement (second click) turns it into an item { startTime, startPrice, endTime,
+    // endPrice, rect, hLine, info, sel, box } in a per-chart list. Items are anchored by time + price, so
+    // they stay put through pan/zoom and new bars, and live until deleted (click the outline or label to
+    // select, then Delete). Lists are only ever mutated in place. Lifetime matches the chart's trendlines.
+    function _measureSavedLayer(container) {
+        var layer = container.querySelector('svg.measure-saved-layer');
+        if (!layer) {
+            layer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            layer.setAttribute('class', 'measure-saved-layer');
+            layer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:6;';
+            container.appendChild(layer);
+        }
+        return layer;
+    }
+
+    function _measureCommit(cfg, startTime, startPrice, endTime, endPrice) {
+        var layer = _measureSavedLayer(cfg.contRef);
+        var NS = 'http://www.w3.org/2000/svg';
+        var item = { startTime: startTime, startPrice: startPrice, endTime: endTime, endPrice: endPrice, sel: false, box: null };
+        item.rect  = document.createElementNS(NS, 'rect');
+        item.hLine = document.createElementNS(NS, 'line');
+        layer.appendChild(item.rect);
+        layer.appendChild(item.hLine);
+        item.info = cfg.measureInfoDiv.cloneNode(false); // same inline styling as the live label
+        item.info.setAttribute('class', 'measure-saved-info');
+        item.info.style.display = 'none';
+        cfg.contRef.appendChild(item.info);
+        cfg.measureList.push(item);
+        return item;
+    }
+
+    function _measureRenderAll(list, chart, candle, contRef, ohlcv) {
+        if (!list.length || !chart || !candle || !contRef || !ohlcv || !ohlcv.length) return;
+        var layer = _measureSavedLayer(contRef);
+        for (var i = 0; i < list.length; i++) {
+            var m = list[i];
+            // A chart rebuild wipes the container: put the elements back
+            if (m.rect.parentNode !== layer) { layer.appendChild(m.rect); layer.appendChild(m.hLine); }
+            if (m.info.parentNode !== contRef) contRef.appendChild(m.info);
+            var res = _computeMeasureResult(ohlcv, m.startTime, m.startPrice, m.endTime, m.endPrice);
+            m.box = _renderMeasureOverlay(chart, candle, contRef, layer, m.rect, m.hLine, m.info, res) || null;
+            m.rect.setAttribute('stroke-width', m.sel ? '2' : '1');
+        }
+    }
+
+    // Topmost committed measurement under a click: on its outline (a few px) or on its label
+    function _measureHitTest(list, contRef, clientX, clientY) {
+        var cr = contRef.getBoundingClientRect();
+        var x = clientX - cr.left, y = clientY - cr.top, tol = 5;
+        for (var i = list.length - 1; i >= 0; i--) {
+            var m = list[i], b = m.box;
+            if (b) {
+                var inX = x >= b.left - tol && x <= b.right  + tol;
+                var inY = y >= b.top  - tol && y <= b.bottom + tol;
+                var onVert  = inY && (Math.abs(x - b.left) <= tol || Math.abs(x - b.right)  <= tol);
+                var onHoriz = inX && (Math.abs(y - b.top)  <= tol || Math.abs(y - b.bottom) <= tol);
+                if (onVert || onHoriz) return m;
+            }
+            if (m.info.style.display !== 'none') {
+                var ir = m.info.getBoundingClientRect();
+                if (clientX >= ir.left && clientX <= ir.right && clientY >= ir.top && clientY <= ir.bottom) return m;
+            }
+        }
+        return null;
+    }
+
+    function _measureSelect(list, item) {
+        for (var i = 0; i < list.length; i++) {
+            list[i].sel = (list[i] === item);
+            list[i].rect.setAttribute('stroke-width', list[i].sel ? '2' : '1');
+        }
+    }
+
+    function _measureRemoveEls(m) {
+        if (m.rect.parentNode)  m.rect.parentNode.removeChild(m.rect);
+        if (m.hLine.parentNode) m.hLine.parentNode.removeChild(m.hLine);
+        if (m.info.parentNode)  m.info.parentNode.removeChild(m.info);
+    }
+
+    function _measureDeleteSelected(list) {
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].sel) { _measureRemoveEls(list.splice(i, 1)[0]); return true; }
+        }
+        return false;
+    }
+
+    function _measureClearAll(list) {
+        while (list.length) _measureRemoveEls(list.pop());
     }
 
     // Average bar spacing in seconds — used to project times outside the loaded data.
@@ -1897,9 +1990,11 @@ return '10y';
     }
 
     // Abandon a half-finished measurement (first click placed, second never came) so its anchor
-    // and the live mousemove listener can't leak onto the next symbol or the next open.
+    // and the live mousemove listener can't leak onto the next symbol or the next open, and drop the
+    // committed measurements (same lifetime as the trendlines).
     function _mcFsResetMeasure() {
         _mcFsMeasureActive = false; _mcFsMeasurePhase = 0; _mcFsMeasureStart = null; _mcFsMeasureResult = null;
+        _measureClearAll(_mcFsMeasureList);
         if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
         document.removeEventListener('mousemove', _onMcFsMeasurePreviewMove);
         _hideMeasureOverlay(_mcFsMeasureSvgOverlay, _mcFsMeasureInfoDiv);
@@ -1987,11 +2082,15 @@ return '10y';
 
             if (cfg.getMeasurePhase() === 1) {
                 // Second click — finalise at current cursor position
-                var result = _computeMeasureResult(cfg.ohlcv, cfg.getMeasureStart().time, cfg.getMeasureStart().price, _mT, _mP);
-                cfg.setMeasureResult(result);
-                _renderMeasureOverlay(cfg.chart, cfg.candle, cfg.contRef,
-                    cfg.measureSvgOverlay, cfg.measureSvgRect, cfg.measureHLine,
-                    cfg.measureInfoDiv, result);
+                // Commit: the measurement becomes a persistent item (stays until deleted) and the live preview is hidden.
+                // A second click on the exact anchor point (double-click) would only leave a zero-size box, so it is dropped.
+                var _msA = cfg.getMeasureStart();
+                if (_msA.time !== _mT || _msA.price !== _mP) {
+                    _measureCommit(cfg, _msA.time, _msA.price, _mT, _mP);
+                    _measureRenderAll(cfg.measureList, cfg.chart, cfg.candle, cfg.contRef, cfg.ohlcv);
+                }
+                cfg.setMeasureResult(null);
+                _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
                 cfg.setMeasureActive(false);
                 cfg.setMeasurePhase(0);
                 if (cfg.getMeasureRafId()) { cancelAnimationFrame(cfg.getMeasureRafId()); cfg.setMeasureRafId(null); }
@@ -2021,6 +2120,21 @@ return '10y';
         } else if (cfg.getMeasureResult() && !cfg.getMeasureMode()) {
             _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
             cfg.setMeasureResult(null);
+        }
+
+        // Click on a committed measurement (outline or label) selects it; Delete then removes it. Any other
+        // click deselects. Not while drawing a trendline, so its anchor clicks can't be swallowed.
+        if (cfg.measureList && cfg.measureList.length && !cfg.getTrendlineMode() && !cfg.trendDraw.active) {
+            var _msHit = _measureHitTest(cfg.measureList, cfg.contRef, evt.clientX, evt.clientY);
+            if (_msHit) {
+                evt.stopPropagation();
+                evt.preventDefault();
+                cfg.deselectAllTrendlines();
+                cfg.deselectAllVwaps();
+                _measureSelect(cfg.measureList, _msHit);
+                return;
+            }
+            _measureSelect(cfg.measureList, null);
         }
 
         // ── Phase 1: anchor drag — check selected line first, then all others
@@ -2196,6 +2310,7 @@ return '10y';
             measureSvgRect:    _mcFsMeasureSvgRect,
             measureHLine:      _mcFsMeasureHLine,
             measureInfoDiv:    _mcFsMeasureInfoDiv,
+            measureList:       _mcFsMeasureList,
             measurePreviewMoveHandler: _onMcFsMeasurePreviewMove,
             getSelectedIdx:    function() { return _mcFsSelectedTrendlineIdx; },
             setSelectedIdx:    function(v) { _mcFsSelectedTrendlineIdx = v; },
@@ -3391,6 +3506,7 @@ return '10y';
         if (_mcFsChart) { try { _mcFsChart.remove(); } catch(e) {} _mcFsChart = null; }
         _mcFsCandle = null; _mcFsVol = null; _mcFsVolMa = null; _mcFsVolData = null; _mcFsMaSeries = {}; _mcFsVwapSeries = []; _mcFsTrendlines = []; _mcFsTrendlineFirst = null;
         _mcFsTrendSvgOverlay = null; _mcFsTrendSvgLine = null; // SVG lives inside container.innerHTML = '' above
+        _mcFsResetMeasure(); // committed measurements share the trendlines' lifetime (their DOM went with the container)
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         _mcFsSelectedTrendlineIdx = -1;
         _mcFsSelectedVwapIdx = -1;
@@ -3623,6 +3739,7 @@ return '10y';
                     _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
                     _mcFsMeasureInfoDiv, _mcFsMeasureResult);
             }
+            _measureRenderAll(_mcFsMeasureList, _mcFsChart, _mcFsCandle, _mcFsTrendContRef, _mcFsOhlcv);
         });
 
         // Active MAs
@@ -3943,6 +4060,8 @@ return '10y';
             if (evt.key !== 'Delete') return;
             // Don't steal Delete from the symbol input
             if (document.getElementById('mc-fs-sym-input')) return;
+            // Delete a selected measurement first
+            if (_measureDeleteSelected(_mcFsMeasureList)) { evt.preventDefault(); return; }
             // Delete selected trendline first (takes priority over "delete last")
             if (_mcFsSelectedTrendlineIdx !== -1) {
                 var selTl = _mcFsTrendlines[_mcFsSelectedTrendlineIdx];
@@ -4039,6 +4158,7 @@ return '10y';
         _mcFsTrendDraw.active = false; _mcFsTrendDraw.startTime = null; _mcFsTrendDraw.startPrice = null;
         var tBtn  = document.getElementById('mc-fs-trendline-btn');
         // Reset measure tool
+        _mcFsResetMeasure();
         _mcFsMeasureMode = false; _mcFsMeasureActive = false; _mcFsMeasurePhase = 0; _mcFsMeasureResult = null;
         if (_mcFsMeasureRafId) { cancelAnimationFrame(_mcFsMeasureRafId); _mcFsMeasureRafId = null; }
         var mBtn = document.getElementById('mc-fs-measure-btn');
@@ -4930,9 +5050,10 @@ return '10y';
         });
     }
 
-    // Abandon a half-finished watchlist measurement (see _mcFsResetMeasure).
+    // Abandon a half-finished watchlist measurement and drop the committed ones (see _mcFsResetMeasure).
     function _wlResetMeasure() {
         _wlMeasureActive = false; _wlMeasurePhase = 0; _wlMeasureStart = null; _wlMeasureResult = null;
+        _measureClearAll(_wlMeasureList);
         if (_wlMeasureRafId) { cancelAnimationFrame(_wlMeasureRafId); _wlMeasureRafId = null; }
         document.removeEventListener('mousemove', _onWlMeasurePreviewMove);
         _hideMeasureOverlay(_wlMeasureSvgOverlay, _wlMeasureInfoDiv);
@@ -5008,6 +5129,7 @@ return '10y';
             measureSvgRect:    _wlMeasureSvgRect,
             measureHLine:      _wlMeasureHLine,
             measureInfoDiv:    _wlMeasureInfoDiv,
+            measureList:       _wlMeasureList,
             measurePreviewMoveHandler: _onWlMeasurePreviewMove,
             getSelectedIdx:    function() { return _wlSelectedTrendlineIdx; },
             setSelectedIdx:    function(v) { _wlSelectedTrendlineIdx = v; },
@@ -5358,6 +5480,7 @@ return '10y';
                     _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
                     _wlMeasureInfoDiv, _wlMeasureResult);
             }
+            _measureRenderAll(_wlMeasureList, _wlChart, _wlCandle, _wlTrendContRef, _wlOhlcv);
         });
 
         // Click: AVWAP + selection
@@ -5596,6 +5719,7 @@ return '10y';
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.wlChartToggleVwap(); return; }
             }
             if (evt.key !== 'Delete') return;
+            if (_measureDeleteSelected(_wlMeasureList)) { evt.preventDefault(); return; }
             if (_wlSelectedTrendlineIdx !== -1) {
                 var selTl = _wlTrendlines[_wlSelectedTrendlineIdx];
                 _wlSelectedTrendlineIdx = -1;
