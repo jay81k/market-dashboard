@@ -2256,6 +2256,7 @@
             getTrendlineStyle: function() { return _alTlMenu.getStyle(); },
             getLastCrosshairTime: function() { return _alLastCrosshairTime; },
             addTrendline:      _addAlTrendline,
+            onMeasureCommitted: function(ms) { ms.sym = _alSym; _cdAddMs(ms.sym, ms); },
             doneBtnId:         'al-chart-trendline-btn'
         });
     }
@@ -2920,6 +2921,20 @@
         // Restore alert-backed trendlines and AVWAPs so they're visible when reviewing the chart. The anchor is
         // resolved on THIS chart's timeframe (the old strict time match drew nothing whenever the timeframe differed).
         _restoreAlertLines(sym, tf, _alOhlcv, _addAlTrendline, _addAlVwap);
+        // The measurements you committed on this ticker (by time + price, so any timeframe).
+        (function() {
+            var chartRef = _alChart;
+            _cdRestoreMs(sym, {
+                isStale:     function() { return _alChart !== chartRef || _alSym !== sym || !_alCandle; },
+                getOhlcv:    function() { return _alOhlcv; },
+                getMeasures: function() { return _alMeasureList; },
+                addMeasure:  function(a, b) {
+                    var ms = _measureCommit({ contRef: _alTrendContRef, measureList: _alMeasureList }, a.time, a.price, b.time, b.price);
+                    ms.sym = sym;
+                },
+                render:      function() { _measureRenderAll(_alMeasureList, _alChart, _alCandle, _alTrendContRef, _alOhlcv); }
+            });
+        })();
     }
 
     // ── alSelectChart: open panel + fetch + build ─────────────────────────
