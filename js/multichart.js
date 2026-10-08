@@ -941,7 +941,12 @@ return '10y';
 
     function _measureDeleteSelected(list) {
         for (var i = 0; i < list.length; i++) {
-            if (list[i].sel) { _measureRemoveEls(list.splice(i, 1)[0]); return true; }
+            if (list[i].sel) {
+                var gone = list.splice(i, 1)[0];
+                _measureRemoveEls(gone);
+                if (gone.sym) _cdDropMs(gone.sym, gone);   // explicit delete only: also forget the saved copy
+                return true;
+            }
         }
         return false;
     }
@@ -1502,14 +1507,16 @@ return '10y';
     // Trendlines and AVWAPs drawn by hand used to vanish on a timeframe change, a symbol change or closing the chart;
     // only alert-backed lines came back (_restoreAlertLines). They are now kept per ticker and redrawn the next time
     // that ticker's chart opens, on any timeframe.
-    //   store = { TICKER: { tl: [ { l: {time, price}, r: {time, price}, dotted } ], av: [ anchorUnixSeconds ] } }
+    //   store = { TICKER: { tl: [ { l: {time, price}, r: {time, price}, dotted } ], av: [ anchorUnixSeconds ],
+    //                       ms: [ { a: {time, price}, b: {time, price} } ] } }      (ms = committed measurements, see below)
     //  - Trendlines are saved by their two anchors (absolute time + price), so they don't depend on the timeframe.
     //  - AVWAPs are saved by the anchor bar's TIMESTAMP, never its index: an index only means something on the
     //    timeframe it was placed on. Restore resolves the timestamp on the chart being opened (_chartAnchorIdx). An
     //    anchor that doesn't resolve there (older than the loaded history) is not drawn but is KEPT in the store.
     //  - Changes are applied one entry at a time (add / move / drop). The store is never rebuilt from what is on
     //    screen: a snapshot would silently delete every saved line the current timeframe can't show.
-    //  - The alerts side-panel chart neither draws nor saves these; it still restores alert-backed lines only.
+    //  - The alerts side-panel chart neither draws nor saves hand-drawn trendlines / AVWAPs; it still restores alert-backed
+    //    lines only. It DOES save and restore measurements (_cdAddMs / _cdRestoreMs).
     // Persistence: KV (kvGet/kvSet, like alerts) plus an immediate localStorage mirror. The whole store is ONE key and
     // KV writes are coalesced into one trailing write, because the Worker's KV has a small daily write allowance. The
     // blob carries a timestamp and the NEWER of KV / localStorage wins at load, so a KV write that never landed (tab
@@ -1594,12 +1601,13 @@ return '10y';
     }
     function _cdPrune(store, sym) {
         var e = store[sym];
-        if (e && !(e.tl && e.tl.length) && !(e.av && e.av.length)) delete store[sym];
+        if (e && !(e.tl && e.tl.length) && !(e.av && e.av.length) && !(e.ms && e.ms.length)) delete store[sym];
     }
     function _cdEntry(store, sym) {
         var e = store[sym] || (store[sym] = {});
         if (!e.tl) e.tl = [];
         if (!e.av) e.av = [];
+        if (!e.ms) e.ms = [];
         return e;
     }
 
@@ -1671,6 +1679,68 @@ return '10y';
             if (e.av.length === n) return false;
             _cdPrune(store, sym);
             return true;
+        });
+    }
+
+    // ── Saved measurements ─────────────────────────────────────────────────────────────────────────────
+    // A committed measurement is kept per ticker in the same store, by its two anchors (absolute time + price) in the
+    // order they were drawn: the order is the direction (up / down), so (a, b) and (b, a) are different measurements.
+    // Like the trendlines they therefore don't depend on the timeframe. Each on-screen item carries `.sym`, the ticker
+    // it was drawn on / restored for, so deleting it always drops the right ticker's saved copy. Clearing the screen on
+    // a ticker / timeframe change (_measureClearAll) never touches the store.
+    function _cdMsRec(m) {
+        var a = m && _cdAnch({ time: m.startTime, price: m.startPrice });
+        var b = m && _cdAnch({ time: m.endTime,   price: m.endPrice });
+        return (a && b) ? { a: a, b: b } : null;
+    }
+    function _cdSameMs(x, y) { return _cdSamePt(x.a, y.a) && _cdSamePt(x.b, y.b); }
+    // A measurement was committed (second click).
+    function _cdAddMs(sym, m) {
+        var rec = _cdMsRec(m);
+        if (!sym || !rec) return;
+        _cdMutate(function(store) {
+            var e = _cdEntry(store, sym);
+            if (e.ms.some(function(x) { return _cdSameMs(x, rec); })) { _cdPrune(store, sym); return false; }
+            e.ms.push(rec);
+            return true;
+        });
+    }
+    // A measurement was deleted.
+    function _cdDropMs(sym, m) {
+        var rec = _cdMsRec(m);
+        if (!sym || !rec) return;
+        _cdMutate(function(store) {
+            var e = store[sym];
+            if (!e || !e.ms) return false;
+            var n = e.ms.length;
+            e.ms = e.ms.filter(function(x) { return !_cdSameMs(x, rec); });
+            if (e.ms.length === n) return false;
+            _cdPrune(store, sym);
+            return true;
+        });
+    }
+    // Draw this ticker's saved measurements onto a chart that was just built (fullscreen, watchlist and alerts charts).
+    // Kept apart from _cdRestore because the alerts chart restores measurements but not hand-drawn trendlines / AVWAPs.
+    // cfg: { isStale(), getOhlcv(), getMeasures(), addMeasure(a, b), render() }
+    function _cdRestoreMs(sym, cfg) {
+        _cdLoad().then(function(store) {
+            if (cfg.isStale()) return;                           // the chart was rebuilt / closed while KV was answering
+            var e = store[sym];
+            if (!e || !e.ms || !e.ms.length) return;
+            var ohlcv = cfg.getOhlcv();
+            if (!ohlcv || !ohlcv.length) return;
+            var added = false;
+            e.ms.forEach(function(s) {
+                if (!s || !s.a || !s.b) return;
+                var have = cfg.getMeasures().some(function(m) {
+                    var r = _cdMsRec(m);
+                    return !!r && _cdSameMs(r, s);
+                });
+                if (have) return;
+                cfg.addMeasure(s.a, s.b);
+                added = true;
+            });
+            if (added) cfg.render();
         });
     }
 
@@ -2150,8 +2220,9 @@ return '10y';
                 // A second click on the exact anchor point (double-click) would only leave a zero-size box, so it is dropped.
                 var _msA = cfg.getMeasureStart();
                 if (_msA.time !== _mT || _msA.price !== _mP) {
-                    _measureCommit(cfg, _msA.time, _msA.price, _mT, _mP);
+                    var _msItem = _measureCommit(cfg, _msA.time, _msA.price, _mT, _mP);
                     _measureRenderAll(cfg.measureList, cfg.chart, cfg.candle, cfg.contRef, cfg.ohlcv);
+                    if (cfg.onMeasureCommitted) { try { cfg.onMeasureCommitted(_msItem); } catch (e) {} }   // saved per ticker (_cdAddMs)
                 }
                 cfg.setMeasureResult(null);
                 _hideMeasureOverlay(cfg.measureSvgOverlay, cfg.measureInfoDiv);
@@ -2391,6 +2462,7 @@ return '10y';
             getLastCrosshairTime: function() { return _mcFsLastCrosshairTime; },
             addTrendline:      _addFsTrendline,
             onTrendDrawn:      function(tl) { _cdAddTl(_mcFsSym, tl); },
+            onMeasureCommitted: function(ms) { ms.sym = _mcFsBuiltSym || _mcFsSym; _cdAddMs(ms.sym, ms); },
             doneBtnId:         'mc-fs-trendline-btn'
         });
     }
@@ -4265,6 +4337,20 @@ return '10y';
                 addVwap:        _addFsVwap
             });
         })();
+        // The measurements you committed on this ticker (by time + price, so any timeframe).
+        (function() {
+            var chartRef = _mcFsChart;
+            _cdRestoreMs(sym, {
+                isStale:     function() { return _mcFsChart !== chartRef || _mcFsSym !== sym || !_mcFsCandle; },
+                getOhlcv:    function() { return _mcFsOhlcv; },
+                getMeasures: function() { return _mcFsMeasureList; },
+                addMeasure:  function(a, b) {
+                    var ms = _measureCommit({ contRef: _mcFsTrendContRef, measureList: _mcFsMeasureList }, a.time, a.price, b.time, b.price);
+                    ms.sym = sym;
+                },
+                render:      function() { _measureRenderAll(_mcFsMeasureList, _mcFsChart, _mcFsCandle, _mcFsTrendContRef, _mcFsOhlcv); }
+            });
+        })();
     }
 
     // Fullscreen window-level controls
@@ -5273,6 +5359,7 @@ return '10y';
             getLastCrosshairTime: function() { return _wlLastCrosshairTime; },
             addTrendline:      _addWlTrendline,
             onTrendDrawn:      function(tl) { _cdAddTl(_wlSym, tl); },
+            onMeasureCommitted: function(ms) { ms.sym = _wlSym; _cdAddMs(ms.sym, ms); },
             doneBtnId:         'wl-chart-trendline-btn'
         });
     }
@@ -5912,6 +5999,20 @@ return '10y';
                 getVwapAnchors: function() { return _wlVwapSeries.map(function(v) { return v.anchor; }); },
                 addTrendline:   _addWlTrendline,
                 addVwap:        _addWlVwap
+            });
+        })();
+        // The measurements you committed on this ticker (by time + price, so any timeframe).
+        (function() {
+            var chartRef = _wlChart;
+            _cdRestoreMs(sym, {
+                isStale:     function() { return _wlChart !== chartRef || _wlSym !== sym || !_wlCandle; },
+                getOhlcv:    function() { return _wlOhlcv; },
+                getMeasures: function() { return _wlMeasureList; },
+                addMeasure:  function(a, b) {
+                    var ms = _measureCommit({ contRef: _wlTrendContRef, measureList: _wlMeasureList }, a.time, a.price, b.time, b.price);
+                    ms.sym = sym;
+                },
+                render:      function() { _measureRenderAll(_wlMeasureList, _wlChart, _wlCandle, _wlTrendContRef, _wlOhlcv); }
             });
         })();
     }
