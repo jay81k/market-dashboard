@@ -104,8 +104,8 @@
             --chart-trendline: #b4bcc8;
             --al-measure-fill-up: rgba(8,153,129,0.15);
             --al-measure-fill-down: rgba(178,40,51,0.18);
-            --al-measure-stroke-up: rgba(8,153,129,0.55);
-            --al-measure-stroke-down: rgba(178,40,51,0.6);
+            --al-measure-stroke-up: #22ab91;
+            --al-measure-stroke-down: #d9505c;
             --al-measure-bg-up: rgba(8,153,129,0.88);
             --al-measure-bg-down: rgba(178,40,51,0.88);
             --mc-cell-grid: #171b22;
