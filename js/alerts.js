@@ -12,6 +12,7 @@
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
     var _alActiveTicker  = null; // ticker whose rows are currently selected in the alert list
+    var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };   // single source of truth for the table, the history panel and the fire notification
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
     var _scanReturnState = null;  // saved state to restore when returning to scans/stocks view
     var _alEditIdx       = null;  // index of alert being edited, null when adding new
@@ -835,27 +836,32 @@
             toRemove.push(key);
             anyFired = true;
             if (window.Notification && Notification.permission === 'granted') {
-                var body;
-                if (a.alertType === 'macross') {
-                    var dir = a.condition === 'above' ? '▲' : '▼';
-                    body = dir + ' ' + _maLabel(a.ma1Key) + ' ' + a.condition + ' ' + _maLabel(a.ma2Key) + ' · spread ' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%';
-                } else if (a.alertType === 'ma') {
-                    // (this used to print the live PRICE as "dist 313.40%")
-                    body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + _maLabel(a.maKey) + ' $' + lineAtFire.toFixed(2) +
-                           ' · now $' + hitVal.toFixed(2) + ' (' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%)';
-                } else if (a.alertType === 'rsi14') {
-                    body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
-                } else if (a.alertType === 'pattern') {
-                    var pLabels = triggeredPats.map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' + ');
-                    body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
-                } else if (a.alertType === 'trendline') {
-                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
-                } else if (a.alertType === 'avwap') {
-                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' AVWAP $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
-                } else {
-                    body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' $' + Number(a.price).toFixed(2) + ' · now $' + Number(hitVal).toFixed(2);
-                }
-                new Notification(a.ticker + ' alert triggered', { body: body });
+                // A notification problem (an error while building the text, or the constructor itself throwing, as it does on
+                // some mobile browsers) must not abort the pass: the removal, sound and history save below, and every alert
+                // still to be checked, would all be skipped with it.
+                try {
+                    var body;
+                    if (a.alertType === 'macross') {
+                        var dir = a.condition === 'above' ? '▲' : '▼';
+                        body = dir + ' ' + _maLabel(a.ma1Key) + ' ' + a.condition + ' ' + _maLabel(a.ma2Key) + ' · spread ' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%';
+                    } else if (a.alertType === 'ma') {
+                        // (this used to print the live PRICE as "dist 313.40%")
+                        body = (a.condition === 'above' ? '▲ above ' : '▼ below ') + _maLabel(a.maKey) + ' $' + lineAtFire.toFixed(2) +
+                               ' · now $' + hitVal.toFixed(2) + ' (' + (maDistPct >= 0 ? '+' : '') + maDistPct.toFixed(2) + '%)';
+                    } else if (a.alertType === 'rsi14') {
+                        body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
+                    } else if (a.alertType === 'pattern') {
+                        var pLabels = triggeredPats.map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' + ');
+                        body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
+                    } else if (a.alertType === 'trendline') {
+                        body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
+                    } else if (a.alertType === 'avwap') {
+                        body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' AVWAP $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
+                    } else {
+                        body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' $' + Number(a.price).toFixed(2) + ' · now $' + Number(hitVal).toFixed(2);
+                    }
+                    new Notification(a.ticker + ' alert triggered', { body: body });
+                } catch (e) { console.error('[alerts] notification failed for ' + a.ticker, e); }
             }
         });
         if (toRemove.length) {
@@ -988,7 +994,6 @@
             });
         }
 
-        var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
 
         listEl.innerHTML = displayList.map(function(item) {
             var a = item.a, idx = item.idx;
@@ -1208,7 +1213,6 @@
             var ts = isToday
                 ? t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                 : t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            var AL_HIST_PAT_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };
             var condHtml = f.alertType === 'macross'
                 ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">' +
                   (f.condition === 'above' ? '▲' : '▼') + ' ' +
@@ -1226,12 +1230,14 @@
                         ? f.triggeredPatternKeys
                         : (f.patternKeys && f.patternKeys.length ? f.patternKeys : (f.patternKey ? [f.patternKey] : ['?']));
                     var tf = (f.patternTf||'d').toUpperCase();
-                    var tipText = pKeys.map(function(k){ return AL_HIST_PAT_LABELS[k] || k.replace(/_/g,' '); }).join('\n');
+                    var tipText = pKeys.map(function(k){ return AL_PATTERN_LABELS[k] || k.replace(/_/g,' '); }).join('\n');
                     if (pKeys.length === 1) {
-                        return '<span class="al-hist-cond al-pat-single" style="color:var(--purple);" data-al-tip="' + tipText + '">' + (AL_HIST_PAT_LABELS[pKeys[0]] || pKeys[0].replace(/_/g,' ')) + ' <span class="al-pat-single-tf">' + tf + '</span></span>';
+                        return '<span class="al-hist-cond al-pat-single" style="color:var(--purple);" data-al-tip="' + tipText + '">' + (AL_PATTERN_LABELS[pKeys[0]] || pKeys[0].replace(/_/g,' ')) + ' <span class="al-pat-single-tf">' + tf + '</span></span>';
                     }
                     return '<span class="al-hist-cond al-pat-multi" data-al-tip="' + tipText + '"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" style="flex-shrink:0;vertical-align:middle;margin-right:2px"><polyline points="0,9 3,9 5,3 7,10 9,6 11,7 13,4 16,4" stroke="var(--purple)" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="al-pat-multi-count">' + pKeys.length + '</span><span class="al-pat-multi-tf">' + tf + '</span></span>';
                 })()
+                : f.alertType === 'rsi14'
+                ? '<span class="al-hist-cond" style="color:' + (f.condition === 'above' ? 'var(--success)' : 'var(--danger)') + ';">RSI ' + (f.condition === 'above' ? '▲' : '▼') + ' ' + f.alertPrice + (typeof f.hitPrice === 'number' ? ' · hit ' + f.hitPrice.toFixed(1) : '') + '</span>'
                 : f.condition === 'above'
                     ? '<span class="al-hist-cond" style="color:var(--success);">▲ $' + (f.alertPrice||0).toFixed(2) + '</span>'
                     : '<span class="al-hist-cond" style="color:var(--danger);">▼ $' + (f.alertPrice||0).toFixed(2) + '</span>';
@@ -1242,9 +1248,10 @@
             // Line alerts have no fixed alert price; their level is the line's value when they fired
             // (older history entries without it fall back to the price they fired at).
             // MA alerts use the MA's value when they fired; older MA entries have none (their hitPrice could be a % or a price).
+            // RSI alerts store an RSI level (e.g. 70) in alertPrice, not a price, so there is nothing to measure a % change from.
             var sinceBase = (f.alertType === 'trendline' || f.alertType === 'avwap')
                 ? (typeof f.lineValue === 'number' ? f.lineValue : f.hitPrice)
-                : (f.alertType === 'ma' ? (typeof f.lineValue === 'number' ? f.lineValue : null) : f.alertPrice);
+                : (f.alertType === 'ma' ? (typeof f.lineValue === 'number' ? f.lineValue : null) : (f.alertType === 'rsi14' ? null : f.alertPrice));
             if (curPrice != null && sinceBase > 0) {
                 var chgPct = ((curPrice - sinceBase) / sinceBase) * 100;
                 var chgCls = chgPct > 0.05 ? 'up' : chgPct < -0.05 ? 'dn' : 'flat';
