@@ -3921,17 +3921,24 @@ return '10y';
                 function positionVolLabel() {
                     if (!lbl.isConnected || !_mcFsChart) return;
                     var lastX = _mcFsChart.timeScale().timeToCoordinate(lastBar.time);
-                    if (lastX == null || lastX < 0) {
+                    // Plot area = container minus the right price scale. Anything past
+                    // that bleeds out of the chart (this label is a DOM div, not canvas).
+                    var scaleW = 0;
+                    try { scaleW = _mcFsChart.priceScale('right').width(); } catch (e) {}
+                    var plotW = container.clientWidth - scaleW;
+                    lbl.style.display = 'flex';          // must be visible to measure
+                    if (lastX == null || lastX < 0 || lastX + 10 + lbl.offsetWidth > plotW) {
                         lbl.style.display = 'none';
                         return;
                     }
-                    lbl.style.display = 'flex';
                     lbl.style.left = (lastX + 10) + 'px';
                     lbl.style.top  = lblTop;
                 }
 
                 positionVolLabel(); // initial paint
-                _mcFsChart.timeScale().subscribeVisibleTimeRangeChange(positionVolLabel);
+                // Logical range fires on every pan/zoom step; the time-range event only
+                // fires when the first/last visible bar changes, so the label lagged.
+                _mcFsChart.timeScale().subscribeVisibleLogicalRangeChange(positionVolLabel);
             }, 60);
         })();
 
@@ -5666,13 +5673,21 @@ return '10y';
                 function positionVolLabel() {
                     if (!lbl.isConnected || !_wlChart) return;
                     var lastX = _wlChart.timeScale().timeToCoordinate(lastBar.time);
-                    if (lastX == null || lastX < 0) { lbl.style.display = 'none'; return; }
-                    lbl.style.display = 'flex';
+                    // Plot area = container minus the right price scale. Anything past
+                    // that bleeds into the watchlist panel (DOM div, not canvas).
+                    var scaleW = 0;
+                    try { scaleW = _wlChart.priceScale('right').width(); } catch (e) {}
+                    var plotW = container.clientWidth - scaleW;
+                    lbl.style.display = 'flex';          // must be visible to measure
+                    if (lastX == null || lastX < 0 || lastX + 10 + lbl.offsetWidth > plotW) {
+                        lbl.style.display = 'none'; return;
+                    }
                     lbl.style.left = (lastX + 10) + 'px';
                     lbl.style.top  = lblTop;
                 }
                 positionVolLabel();
-                _wlChart.timeScale().subscribeVisibleTimeRangeChange(positionVolLabel);
+                // Logical range fires on every pan/zoom step (time-range lagged by up to a bar).
+                _wlChart.timeScale().subscribeVisibleLogicalRangeChange(positionVolLabel);
             }, 60);
         })();
 
