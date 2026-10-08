@@ -137,6 +137,13 @@
         if (wlPriceTimer) { clearInterval(wlPriceTimer); wlPriceTimer = null; }
     }
 
+    // Opens the LW fullscreen chart for the symbol currently shown in the watchlist chart panel, at the panel's timeframe.
+    window.wlChartOpenFullscreen = function() {
+        if (!wlChartTicker) return;
+        _mcFsTf = _wlTf;
+        openChartModal(wlChartTicker);
+    };
+
     // ── Watchlist Multichart ──────────────────────────────────────────────
     window.toggleWlMultichart = function() {
         wlMcActive = !wlMcActive;
