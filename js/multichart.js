@@ -756,6 +756,7 @@ return '10y';
         var h = bottom - top;
         var isUp = result.endPrice >= result.startPrice;
 
+        var fillClr   = isUp ? 'var(--al-measure-fill-up)'   : 'var(--al-measure-fill-down)';
         var strokeClr = isUp ? 'var(--al-measure-stroke-up)' : 'var(--al-measure-stroke-down)';
         var infoBg    = isUp ? 'var(--al-measure-bg-up)'     : 'var(--al-measure-bg-down)';
 
@@ -763,7 +764,7 @@ return '10y';
         rectEl.setAttribute('y', top);
         rectEl.setAttribute('width',  Math.max(w, 1));
         rectEl.setAttribute('height', Math.max(h, 1));
-        rectEl.setAttribute('fill',   'none'); // outline only, so several measurements can overlap on screen
+        rectEl.setAttribute('fill',   fillClr);
         rectEl.setAttribute('stroke', strokeClr);
         rectEl.setAttribute('stroke-width', '1');
 
@@ -798,7 +799,6 @@ return '10y';
         infoEl.style.top  = iTop  + 'px';
 
         svgEl.style.display = '';
-        return { left: left, right: right, top: top, bottom: bottom };
     }
 
     function _hideMeasureOverlay(svgEl, infoEl) {
@@ -807,10 +807,11 @@ return '10y';
     }
 
     // ── Committed (persistent) measurements ──────────────────────────────────
-    // Finishing a measurement (second click) turns it into an item { startTime, startPrice, endTime,
-    // endPrice, rect, hLine, info, sel, box } in a per-chart list. Items are anchored by time + price, so
-    // they stay put through pan/zoom and new bars, and live until deleted (click the outline or label to
-    // select, then Delete). Lists are only ever mutated in place. Lifetime matches the chart's trendlines.
+    // Finishing a measurement (second click) turns it into an item in a per-chart list. It is drawn as two
+    // horizontal lines at the start and end price, a dashed arrow between them pointing at the end price,
+    // the duration in days above and the price change below (no box). Items are anchored by time + price, so
+    // they stay put through pan/zoom and new bars, and live until deleted (click a line or label to select it,
+    // then Delete). Lists are only ever mutated in place. Lifetime matches the chart's trendlines.
     function _measureSavedLayer(container) {
         var layer = container.querySelector('svg.measure-saved-layer');
         if (!layer) {
@@ -822,52 +823,105 @@ return '10y';
         return layer;
     }
 
+    function _measureMakeEl(layer, tag, attrs) {
+        var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (var k in attrs) el.setAttribute(k, attrs[k]);
+        layer.appendChild(el);
+        return el;
+    }
+
+    function _measureEls(m) { return [m.topLine, m.botLine, m.vLine, m.head, m.tTop, m.tBot]; }
+
     function _measureCommit(cfg, startTime, startPrice, endTime, endPrice) {
         var layer = _measureSavedLayer(cfg.contRef);
-        var NS = 'http://www.w3.org/2000/svg';
+        var txt = { 'font-size': '11.5', 'font-weight': '600', 'text-anchor': 'middle', 'fill': 'var(--text-primary)' };
         var item = { startTime: startTime, startPrice: startPrice, endTime: endTime, endPrice: endPrice, sel: false, box: null };
-        item.rect  = document.createElementNS(NS, 'rect');
-        item.hLine = document.createElementNS(NS, 'line');
-        layer.appendChild(item.rect);
-        layer.appendChild(item.hLine);
-        item.info = cfg.measureInfoDiv.cloneNode(false); // same inline styling as the live label
-        item.info.setAttribute('class', 'measure-saved-info');
-        item.info.style.display = 'none';
-        cfg.contRef.appendChild(item.info);
+        item.topLine = _measureMakeEl(layer, 'line', {});
+        item.botLine = _measureMakeEl(layer, 'line', {});
+        item.vLine   = _measureMakeEl(layer, 'line', { 'stroke-dasharray': '3,3' });
+        item.head    = _measureMakeEl(layer, 'polygon', {});
+        item.tTop    = _measureMakeEl(layer, 'text', txt);
+        item.tBot    = _measureMakeEl(layer, 'text', txt);
         cfg.measureList.push(item);
         return item;
+    }
+
+    function _measureStyleSel(m) {
+        var big = !!m.sel;
+        m.topLine.setAttribute('stroke-width', big ? '2.5' : '1.5');
+        m.botLine.setAttribute('stroke-width', big ? '2.5' : '1.5');
+        m.vLine.setAttribute('stroke-width',   big ? '1.5' : '1');
+    }
+
+    // Draw one committed measurement. Returns the drawn geometry (used for hit-testing), or null if off-scale.
+    function _measureRenderItem(chart, candle, contRef, m, res) {
+        var ts = chart.timeScale();
+        var x1 = ts.logicalToCoordinate(res.startBarIdx), x2 = ts.logicalToCoordinate(res.endBarIdx);
+        var y1 = candle.priceToCoordinate(res.startPrice), y2 = candle.priceToCoordinate(res.endPrice);
+        if (x1 == null || x2 == null || y1 == null || y2 == null) return null;
+
+        var left = Math.min(x1, x2), right = Math.max(x1, x2), midX = (left + right) / 2;
+        var yTop = Math.min(y1, y2), yBot = Math.max(y1, y2);
+        var clr  = res.endPrice >= res.startPrice ? 'var(--al-measure-stroke-up)' : 'var(--al-measure-stroke-down)';
+
+        m.topLine.setAttribute('x1', left); m.topLine.setAttribute('x2', right);
+        m.topLine.setAttribute('y1', yTop); m.topLine.setAttribute('y2', yTop);
+        m.botLine.setAttribute('x1', left); m.botLine.setAttribute('x2', right);
+        m.botLine.setAttribute('y1', yBot); m.botLine.setAttribute('y2', yBot);
+        m.topLine.setAttribute('stroke', clr);
+        m.botLine.setAttribute('stroke', clr);
+
+        // Dashed arrow from the start-price line to the end-price line, head on the end-price line
+        var dir  = y2 >= y1 ? 1 : -1;                  // +1 = pointing down the screen
+        var hLen = Math.min(13, Math.abs(y2 - y1));    // head length, never longer than the gap
+        m.vLine.setAttribute('x1', midX); m.vLine.setAttribute('x2', midX);
+        m.vLine.setAttribute('y1', y1);   m.vLine.setAttribute('y2', y2 - dir * hLen);
+        m.vLine.setAttribute('stroke', clr);
+        m.head.setAttribute('points', midX + ',' + y2 + ' ' + (midX - 6) + ',' + (y2 - dir * hLen) + ' ' + (midX + 6) + ',' + (y2 - dir * hLen));
+        m.head.setAttribute('fill', clr);
+
+        // Labels: duration above the top line, change below the bottom line (flipped inside if off the edge)
+        var ch = contRef.getBoundingClientRect().height;
+        var dStr = (res.priceDelta >= 0 ? '+' : '') + res.priceDelta.toFixed(2);
+        var pStr = (res.pctDelta   >= 0 ? '+' : '') + res.pctDelta.toFixed(2) + '%';
+        m.tTop.textContent = res.dayCount + (res.dayCount === 1 ? ' day' : ' days');
+        m.tTop.setAttribute('x', midX);
+        m.tTop.setAttribute('y', (yTop - 8 >= 12) ? yTop - 8 : yTop + 16);
+        m.tBot.textContent = dStr + ' (' + pStr + ')';
+        m.tBot.setAttribute('x', midX);
+        m.tBot.setAttribute('y', (yBot + 16 <= ch - 4) ? yBot + 16 : yBot - 8);
+
+        _measureStyleSel(m);
+        return { left: left, right: right, top: yTop, bottom: yBot, midX: midX };
     }
 
     function _measureRenderAll(list, chart, candle, contRef, ohlcv) {
         if (!list.length || !chart || !candle || !contRef || !ohlcv || !ohlcv.length) return;
         var layer = _measureSavedLayer(contRef);
         for (var i = 0; i < list.length; i++) {
-            var m = list[i];
+            var m = list[i], els = _measureEls(m);
             // A chart rebuild wipes the container: put the elements back
-            if (m.rect.parentNode !== layer) { layer.appendChild(m.rect); layer.appendChild(m.hLine); }
-            if (m.info.parentNode !== contRef) contRef.appendChild(m.info);
+            for (var j = 0; j < els.length; j++) if (els[j].parentNode !== layer) layer.appendChild(els[j]);
             var res = _computeMeasureResult(ohlcv, m.startTime, m.startPrice, m.endTime, m.endPrice);
-            m.box = _renderMeasureOverlay(chart, candle, contRef, layer, m.rect, m.hLine, m.info, res) || null;
-            m.rect.setAttribute('stroke-width', m.sel ? '2' : '1');
+            m.box = _measureRenderItem(chart, candle, contRef, m, res);
         }
     }
 
-    // Topmost committed measurement under a click: on its outline (a few px) or on its label
+    // Topmost committed measurement under a click: on either line, on the dashed arrow, or on a label
     function _measureHitTest(list, contRef, clientX, clientY) {
         var cr = contRef.getBoundingClientRect();
         var x = clientX - cr.left, y = clientY - cr.top, tol = 5;
         for (var i = list.length - 1; i >= 0; i--) {
             var m = list[i], b = m.box;
             if (b) {
-                var inX = x >= b.left - tol && x <= b.right  + tol;
-                var inY = y >= b.top  - tol && y <= b.bottom + tol;
-                var onVert  = inY && (Math.abs(x - b.left) <= tol || Math.abs(x - b.right)  <= tol);
-                var onHoriz = inX && (Math.abs(y - b.top)  <= tol || Math.abs(y - b.bottom) <= tol);
-                if (onVert || onHoriz) return m;
+                var inX = x >= b.left - tol && x <= b.right + tol;
+                if (inX && (Math.abs(y - b.top) <= tol || Math.abs(y - b.bottom) <= tol)) return m;
+                if (Math.abs(x - b.midX) <= tol && y >= b.top - tol && y <= b.bottom + tol) return m;
             }
-            if (m.info.style.display !== 'none') {
-                var ir = m.info.getBoundingClientRect();
-                if (clientX >= ir.left && clientX <= ir.right && clientY >= ir.top && clientY <= ir.bottom) return m;
+            var lbls = [m.tTop, m.tBot];
+            for (var j = 0; j < lbls.length; j++) {
+                var r = lbls[j].getBoundingClientRect();
+                if (r.width && clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return m;
             }
         }
         return null;
@@ -876,14 +930,13 @@ return '10y';
     function _measureSelect(list, item) {
         for (var i = 0; i < list.length; i++) {
             list[i].sel = (list[i] === item);
-            list[i].rect.setAttribute('stroke-width', list[i].sel ? '2' : '1');
+            _measureStyleSel(list[i]);
         }
     }
 
     function _measureRemoveEls(m) {
-        if (m.rect.parentNode)  m.rect.parentNode.removeChild(m.rect);
-        if (m.hLine.parentNode) m.hLine.parentNode.removeChild(m.hLine);
-        if (m.info.parentNode)  m.info.parentNode.removeChild(m.info);
+        var els = _measureEls(m);
+        for (var j = 0; j < els.length; j++) if (els[j].parentNode) els[j].parentNode.removeChild(els[j]);
     }
 
     function _measureDeleteSelected(list) {
