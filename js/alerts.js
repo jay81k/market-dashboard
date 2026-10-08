@@ -1886,6 +1886,7 @@
     var _alMeasureRafId      = null;
     var _alMeasureStart      = null;
     var _alMeasureResult     = null;
+    var _alMeasureList       = [];       // committed measurements — stay until deleted (mutated in place, never reassigned)
     var _alMeasureSvgOverlay = null;
     var _alMeasureSvgRect    = null;
     var _alMeasureHLine      = null;
@@ -2161,9 +2162,10 @@
         );
     };
 
-    // Abandon a half-finished alerts-chart measurement (see _mcFsResetMeasure in multichart.js).
+    // Abandon a half-finished alerts-chart measurement and drop the committed ones (see _mcFsResetMeasure in multichart.js).
     function _alResetMeasure() {
         _alMeasureActive = false; _alMeasurePhase = 0; _alMeasureStart = null; _alMeasureResult = null;
+        _measureClearAll(_alMeasureList);
         if (_alMeasureRafId) { cancelAnimationFrame(_alMeasureRafId); _alMeasureRafId = null; }
         document.removeEventListener('mousemove', _onAlMeasurePreviewMove);
         _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
@@ -2238,6 +2240,7 @@
             measureSvgRect:    _alMeasureSvgRect,
             measureHLine:      _alMeasureHLine,
             measureInfoDiv:    _alMeasureInfoDiv,
+            measureList:       _alMeasureList,
             measurePreviewMoveHandler: _onAlMeasurePreviewMove,
             getSelectedIdx:    function() { return _alSelectedTrendlineIdx; },
             setSelectedIdx:    function(v) { _alSelectedTrendlineIdx = v; },
@@ -2632,6 +2635,7 @@
                     _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
                     _alMeasureInfoDiv, _alMeasureResult);
             }
+            _measureRenderAll(_alMeasureList, _alChart, _alCandle, _alTrendContRef, _alOhlcv);
         });
 
         // Click: AVWAP + selection
@@ -2854,6 +2858,7 @@
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.alChartToggleVwap(); return; }
             }
             if (evt.key !== 'Delete') return;
+            if (_measureDeleteSelected(_alMeasureList)) { evt.preventDefault(); evt.stopPropagation(); return; }
             // A line that backs an alert takes the alert with it (after a confirm). Before, the alert stayed armed
             // and the line was redrawn from the alert store the next time the chart opened.
             if (_alSelectedTrendlineIdx !== -1) {
