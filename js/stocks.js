@@ -662,6 +662,8 @@
                 var ticker = r.getAttribute('data-wl-ticker');
                 if (ticker) openChartModal(ticker);
             } else if (e.key === 'Delete' && currentWlIndex >= 0) {
+                // The fullscreen chart sits on top of the list and owns Delete while it's open
+                if (modalOpen) return;
                 // Don't delete ticker if the WL chart has an AVWAP/trendline/measurement selected or trendline mode is consuming the key
                 if (_wlSelectedVwapIdx !== -1 || _wlSelectedTrendlineIdx !== -1 || (_wlTrendlineMode && _wlTrendlines.length) ||
                     _wlMeasureList.some(function(m) { return m.sel; })) return;
