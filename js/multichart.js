@@ -839,6 +839,7 @@ return '10y';
         item.topLine = _measureMakeEl(layer, 'line', {});
         item.botLine = _measureMakeEl(layer, 'line', {});
         item.vLine   = _measureMakeEl(layer, 'line', { 'stroke-dasharray': '3,3' });
+        item.vLine.style.strokeOpacity = 'var(--al-measure-dash-opacity, 1)';   // fainter than the lines; tune in styles.css
         item.head    = _measureMakeEl(layer, 'polygon', {});
         item.tTop    = _measureMakeEl(layer, 'text', txt);
         item.tBot    = _measureMakeEl(layer, 'text', txt);
@@ -3469,6 +3470,8 @@ return '10y';
         function seg(el, width, dash) {
             var c = cs(el, 'stroke');
             if (!c) return;
+            var op = parseFloat(getComputedStyle(el).strokeOpacity);   // the dashed arrow is drawn fainter than the lines
+            ctx.globalAlpha = isFinite(op) ? op : 1;
             ctx.beginPath();
             ctx.moveTo(n(el, 'x1'), n(el, 'y1'));
             ctx.lineTo(n(el, 'x2'), n(el, 'y2'));
@@ -3476,6 +3479,7 @@ return '10y';
             ctx.lineWidth   = width;
             ctx.setLineDash(dash || []);
             ctx.stroke();
+            ctx.globalAlpha = 1;
         }
         ctx.save();
         ctx.setTransform(scale, 0, 0, scale, 0, offY);
