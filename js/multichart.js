@@ -3209,7 +3209,8 @@ return '10y';
     // Output, top to bottom: (1) the fullscreen header row (symbol, industry, RS/EPS
     // badges, fundamentals); (2) the market info bar from the right side of the settings
     // row (price/change, ADR, mkt cap, day range, 52W range); (3) the chart exactly as
-    // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes). Not included:
+    // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes) plus any committed measurements
+    // (an SVG overlay, redrawn onto the image by _mcFsShotPaintMeasures). Not included:
     // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
     // hover OHLC legend, and the crosshair.
     // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen but keep their combined
@@ -3380,6 +3381,67 @@ return '10y';
         return bottom > top ? { top: top, bottom: bottom } : null;
     }
 
+    // The committed measurements are an SVG overlay, which the chart library's takeScreenshot() cannot see (it
+    // only captures its own canvases), so they are redrawn here from the live SVG elements: same geometry, same
+    // resolved colours, same labels. Always drawn at the normal (unselected) thickness so a selected measurement
+    // doesn't come out bold in the image. Items scrolled off the visible scale (box === null) are skipped.
+    // The in-progress drag preview is not included. scale = canvas px per CSS px; offY = canvas y where the
+    // chart image starts.
+    function _mcFsShotPaintMeasures(ctx, list, scale, offY) {
+        if (!list || !list.length) return;
+        function cs(el, prop) {
+            var v = getComputedStyle(el)[prop];
+            return (!v || v === 'none') ? null : v;
+        }
+        function n(el, a) { return parseFloat(el.getAttribute(a)) || 0; }
+        function seg(el, width, dash) {
+            var c = cs(el, 'stroke');
+            if (!c) return;
+            ctx.beginPath();
+            ctx.moveTo(n(el, 'x1'), n(el, 'y1'));
+            ctx.lineTo(n(el, 'x2'), n(el, 'y2'));
+            ctx.strokeStyle = c;
+            ctx.lineWidth   = width;
+            ctx.setLineDash(dash || []);
+            ctx.stroke();
+        }
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, 0, offY);
+        list.forEach(function(m) {
+            if (!m || !m.box || !m.topLine || !m.topLine.isConnected) return;
+            try {
+                seg(m.topLine, 1.5);
+                seg(m.botLine, 1.5);
+                seg(m.vLine, 1, [3, 3]);
+                var hc  = cs(m.head, 'fill');
+                var pts = (m.head.getAttribute('points') || '').trim().split(/\s+/);
+                if (hc && pts.length >= 3) {
+                    ctx.beginPath();
+                    pts.forEach(function(pt, i) {
+                        var xy = pt.split(',');
+                        if (i === 0) ctx.moveTo(parseFloat(xy[0]), parseFloat(xy[1]));
+                        else         ctx.lineTo(parseFloat(xy[0]), parseFloat(xy[1]));
+                    });
+                    ctx.closePath();
+                    ctx.fillStyle = hc;
+                    ctx.fill();
+                }
+                [m.tTop, m.tBot].forEach(function(t) {
+                    var fc = cs(t, 'fill');
+                    if (!fc || !t.textContent) return;
+                    var st = getComputedStyle(t);
+                    ctx.setLineDash([]);
+                    ctx.font         = st.fontStyle + ' ' + st.fontWeight + ' ' + st.fontSize + ' ' + st.fontFamily;
+                    ctx.fillStyle    = fc;
+                    ctx.textAlign    = 'center';
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.fillText(t.textContent, n(t, 'x'), n(t, 'y'));
+                });
+            } catch (e) { console.warn('[screenshot] measurement draw failed', e); }
+        });
+        ctx.restore();
+    }
+
     window.mcFsScreenshot = function() {
         if (_mcFsShotBusy) return;
         var overlay = document.getElementById('mc-fullscreen-overlay');
@@ -3507,6 +3569,7 @@ return '10y';
         ctx.fillStyle = themeColor('bg-page');
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(shot, 0, topPx);
+        _mcFsShotPaintMeasures(ctx, _mcFsMeasureList, scale, topPx);   // SVG overlay: not part of the library's screenshot
 
         // A row's own background and bottom border, drawn crisp at exactly the row's pixel box.
         function paintBox(root, yPx, hPx) {
