@@ -777,7 +777,7 @@ return '10y';
 
         var dStr = (result.priceDelta >= 0 ? '+' : '') + result.priceDelta.toFixed(2);
         var pStr = (result.pctDelta   >= 0 ? '+' : '') + result.pctDelta.toFixed(2)   + '%';
-        infoEl.innerHTML = '<div>' + dStr + ' (' + pStr + ')</div><div>' + result.barCount + ' bars, ' + result.dayCount + 'd</div>';
+        infoEl.innerHTML = '<div>' + dStr + ' (' + pStr + ')</div><div>' + _measureLenLabel(result) + '</div>';
         infoEl.style.background = infoBg;
         infoEl.style.display    = '';
 
@@ -884,7 +884,7 @@ return '10y';
         var ch = contRef.getBoundingClientRect().height;
         var dStr = (res.priceDelta >= 0 ? '+' : '') + res.priceDelta.toFixed(2);
         var pStr = (res.pctDelta   >= 0 ? '+' : '') + res.pctDelta.toFixed(2) + '%';
-        m.tTop.textContent = res.dayCount + (res.dayCount === 1 ? ' day' : ' days');
+        m.tTop.textContent = _measureLenLabel(res);
         m.tTop.setAttribute('x', midX);
         m.tTop.setAttribute('y', (yTop - 8 >= 12) ? yTop - 8 : yTop + 16);
         m.tBot.textContent = dStr + ' (' + pStr + ')';
@@ -963,20 +963,31 @@ return '10y';
         if (time < ohlcv[0].time)     return Math.round((time - ohlcv[0].time) / _measureStepSec(ohlcv));
         return _barIdxByTime(ohlcv, time);
     }
+    // "63 days" / "1 week" / "5 months" -- one wording for the live preview and the committed label.
+    // The count includes BOTH end candles: res.barCount is the number of gaps between the two candles, so the
+    // candles covered are barCount + 1 (9 candles side by side read "9 days"). A measurement inside a single
+    // candle reads "1 day".
+    function _measureLenLabel(res) {
+        var n = res.barCount + 1;
+        return n + ' ' + res.unit + (n === 1 ? '' : 's');
+    }
     function _computeMeasureResult(ohlcv, startTime, startPrice, endTime, endPrice) {
         // bar count = |endIdx - startIdx| (TV-style: intervals between bars)
         var si = _measureIdxByTime(ohlcv, startTime);
         var ei = _measureIdxByTime(ohlcv, endTime);
         var barCount = Math.abs(ei - si);
-        // calendar days from unix second timestamps
-        var dayCount = Math.round(Math.abs(endTime - startTime) / 86400);
-        if (dayCount === 0 && barCount > 0) dayCount = barCount; // fallback
+        // The length is the candle count (barCount gaps + 1, see _measureLenLabel), shown in the chart's own unit: days on the daily chart (every bar
+        // is a trading day -- no bars exist on weekends/holidays), weeks on weekly, months on monthly. The unit is
+        // detected from the average bar spacing (~1.4 days daily, ~7 weekly, ~30 monthly), which keeps this
+        // function independent of which chart calls it.
+        var stepDays = _measureStepSec(ohlcv) / 86400;
+        var unit = stepDays < 3 ? 'day' : (stepDays < 15 ? 'week' : 'month');
         var priceDelta = endPrice - startPrice;
         var pctDelta   = (priceDelta / Math.abs(startPrice)) * 100;
         return { startTime: startTime, startPrice: startPrice,
                  endTime: endTime, endPrice: endPrice,
                  startBarIdx: si, endBarIdx: ei,
-                 barCount: barCount, dayCount: dayCount,
+                 barCount: barCount, unit: unit,
                  priceDelta: priceDelta, pctDelta: pctDelta };
     }
 
