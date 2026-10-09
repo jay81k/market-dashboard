@@ -2274,7 +2274,11 @@
             getDragState:    function() { return _alTrendDragState; },
             getSelectedIdx:  function() { return _alSelectedTrendlineIdx; },
             anchorHitTest:   _alAnchorHitTest,
-            trendlineHitTest: _alTrendlineHitTest
+            trendlineHitTest: _alTrendlineHitTest,
+            ohlcv:           _alOhlcv,
+            getMeasureMode:  function() { return _alMeasureMode; },
+            getMeasurePhase: function() { return _alMeasurePhase; },
+            measureList:     _alMeasureList
         });
     }
 
