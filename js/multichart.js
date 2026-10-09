@@ -839,7 +839,7 @@ return '10y';
         return el;
     }
 
-    function _measureEls(m) { return [m.topLine, m.botLine, m.vLine, m.head, m.tTop, m.tBot]; }
+    function _measureEls(m) { return [m.topLine, m.botLine, m.vLine, m.head, m.tTop, m.tBot, m.hStart, m.hEnd]; }
 
     function _measureCommit(cfg, startTime, startPrice, endTime, endPrice) {
         var layer = _measureSavedLayer(cfg.contRef);
@@ -852,6 +852,11 @@ return '10y';
         item.head    = _measureMakeEl(layer, 'polygon', {});
         item.tTop    = _measureMakeEl(layer, 'text', txt);
         item.tBot    = _measureMakeEl(layer, 'text', txt);
+        // End handles: shown only while the measurement is selected, drag one to adjust that end (see _measureBeginDrag)
+        item.hStart  = _measureMakeEl(layer, 'circle', { 'r': '5', 'stroke-width': '2', 'fill': 'var(--bg-surface)' });
+        item.hEnd    = _measureMakeEl(layer, 'circle', { 'r': '5', 'stroke-width': '2', 'fill': 'var(--bg-surface)' });
+        item.hStart.style.display = 'none';
+        item.hEnd.style.display   = 'none';
         cfg.measureList.push(item);
         return item;
     }
@@ -861,6 +866,8 @@ return '10y';
         m.topLine.setAttribute('stroke-width', big ? '2.5' : '1.5');
         m.botLine.setAttribute('stroke-width', big ? '2.5' : '1.5');
         m.vLine.setAttribute('stroke-width',   big ? '1.5' : '1');
+        if (m.hStart) m.hStart.style.display = big ? '' : 'none';
+        if (m.hEnd)   m.hEnd.style.display   = big ? '' : 'none';
     }
 
     // Draw one committed measurement. Returns the drawn geometry (used for hit-testing), or null if off-scale.
@@ -890,6 +897,10 @@ return '10y';
         m.head.setAttribute('points', midX + ',' + y2 + ' ' + (midX - 6) + ',' + (y2 - dir * hLen) + ' ' + (midX + 6) + ',' + (y2 - dir * hLen));
         m.head.setAttribute('fill', clr);
 
+        // End handles sit exactly on the two anchors: start = (start candle, start price), end = (end candle, end price)
+        m.hStart.setAttribute('cx', x1); m.hStart.setAttribute('cy', y1); m.hStart.setAttribute('stroke', clr);
+        m.hEnd.setAttribute('cx',   x2); m.hEnd.setAttribute('cy',   y2); m.hEnd.setAttribute('stroke',   clr);
+
         // Labels: duration above the top line, change below the bottom line (flipped inside if off the edge)
         var ch = contRef.getBoundingClientRect().height;
         var dStr = (res.priceDelta >= 0 ? '+' : '') + res.priceDelta.toFixed(2);
@@ -902,7 +913,7 @@ return '10y';
         m.tBot.setAttribute('y', (yBot + 16 <= ch - 4) ? yBot + 16 : yBot - 8);
 
         _measureStyleSel(m);
-        return { left: left, right: right, top: yTop, bottom: yBot, midX: midX };
+        return { left: left, right: right, top: yTop, bottom: yBot, midX: midX, x1: x1, y1: y1, x2: x2, y2: y2 };
     }
 
     function _measureRenderAll(list, chart, candle, contRef, ohlcv) {
@@ -1016,6 +1027,123 @@ return '10y';
         var n = ohlcv.length, step = _measureStepSec(ohlcv);
         return li > n - 1 ? ohlcv[n - 1].time + (li - (n - 1)) * step
                           : ohlcv[0].time + li * step;
+    }
+
+    // ── Snapping + adjusting placed measurements ─────────────────────────────
+    // Index of the candle a time belongs to: an exact time match, or the nearest candle within half a bar.
+    // -1 when the time is outside the loaded candles (e.g. a future anchor), so nothing snaps there.
+    function _measureBarAt(ohlcv, time) {
+        var n = ohlcv ? ohlcv.length : 0;
+        if (!n || time == null) return -1;
+        var lo = 0, hi = n - 1;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (ohlcv[mid].time < time) lo = mid + 1; else hi = mid; }
+        var best = lo;
+        if (lo > 0 && Math.abs(ohlcv[lo - 1].time - time) < Math.abs(ohlcv[lo].time - time)) best = lo - 1;
+        return Math.abs(ohlcv[best].time - time) <= _measureStepSec(ohlcv) / 2 ? best : -1;
+    }
+    // Price snapped to the high or low (whichever is nearer) of the candle at `time`. Returned unchanged when
+    // there is no candle there. Used only when an anchor is PLACED (click) or an adjustment is RELEASED -- the live
+    // preview and the drag itself stay free.
+    function _measureSnapPrice(ohlcv, time, price) {
+        if (price == null) return price;
+        var i = _measureBarAt(ohlcv, time);
+        if (i < 0) return price;
+        var b = ohlcv[i];
+        if (typeof b.high !== 'number' || typeof b.low !== 'number') return price;
+        return Math.abs(price - b.high) <= Math.abs(price - b.low) ? b.high : b.low;
+    }
+    // Inverse of _measureIdxByTime: the time of bar index idx, projected past either end of the data.
+    function _measureTimeByIdx(ohlcv, idx) {
+        var n = ohlcv.length;
+        if (idx >= 0 && idx < n) return ohlcv[idx].time;
+        var step = _measureStepSec(ohlcv);
+        return idx >= n ? ohlcv[n - 1].time + (idx - (n - 1)) * step : ohlcv[0].time + idx * step;
+    }
+    // End handle under the cursor on a SELECTED measurement: { m, which: 'start' | 'end' } or null.
+    function _measureHandleHit(list, contRef, clientX, clientY) {
+        var cr = contRef.getBoundingClientRect();
+        var x = clientX - cr.left, y = clientY - cr.top, HIT = 10;
+        for (var i = list.length - 1; i >= 0; i--) {
+            var m = list[i], b = m.box;
+            if (!m.sel || !b) continue;
+            if (Math.hypot(x - b.x2, y - b.y2) <= HIT) return { m: m, which: 'end' };
+            if (Math.hypot(x - b.x1, y - b.y1) <= HIT) return { m: m, which: 'start' };
+        }
+        return null;
+    }
+    // Drag a placed measurement. mode: 'start' / 'end' = move that one anchor (its price snaps to the candle's
+    // high / low when you let go), 'move' = shift the whole measurement (same size, never snapped, so its measured
+    // size stays exact). Nothing changes until the mouse has travelled a few pixels, so a plain click just selects.
+    // The listeners belong to the drag, so no per-chart wiring is needed. On release the saved copy is replaced.
+    function _measureBeginDrag(cfg, m, mode, evt) {
+        var chart = cfg.chart, candle = cfg.candle, contRef = cfg.contRef, ohlcv = cfg.ohlcv;
+        if (!chart || !candle || !contRef || !ohlcv || !ohlcv.length || !m.box) return;
+        var r0    = contRef.getBoundingClientRect();
+        var downX = evt.clientX, downY = evt.clientY;
+        var orig  = { startTime: m.startTime, startPrice: m.startPrice, endTime: m.endTime, endPrice: m.endPrice };
+        var downP = candle.coordinateToPrice(downY - r0.top);
+        var downL = chart.timeScale().coordinateToLogical(downX - r0.left);
+        // Keep the anchor where it was grabbed (the handle is ~10px wide) so it doesn't jump to the cursor
+        var offX = 0, offY = 0;
+        if (mode === 'start') { offX = m.box.x1 - (downX - r0.left); offY = m.box.y1 - (downY - r0.top); }
+        if (mode === 'end')   { offX = m.box.x2 - (downX - r0.left); offY = m.box.y2 - (downY - r0.top); }
+        var moved = false, rafId = null, lastX = downX, lastY = downY;
+
+        function redraw() {
+            var res = _computeMeasureResult(ohlcv, m.startTime, m.startPrice, m.endTime, m.endPrice);
+            m.box = _measureRenderItem(chart, candle, contRef, m, res);
+        }
+        function apply() {
+            if (!m.topLine.isConnected) return;          // the chart was rebuilt under the drag
+            var r  = contRef.getBoundingClientRect();
+            var lx = lastX - r.left, ly = lastY - r.top;
+            if (mode === 'move') {
+                var P = candle.coordinateToPrice(ly), L = chart.timeScale().coordinateToLogical(lx);
+                if (P == null || L == null || downP == null || downL == null) return;
+                var dBars = Math.round(L - downL), dP = P - downP;
+                m.startTime  = _measureTimeByIdx(ohlcv, _measureIdxByTime(ohlcv, orig.startTime) + dBars);
+                m.endTime    = _measureTimeByIdx(ohlcv, _measureIdxByTime(ohlcv, orig.endTime)   + dBars);
+                m.startPrice = orig.startPrice + dP;
+                m.endPrice   = orig.endPrice   + dP;
+            } else {
+                var aP = candle.coordinateToPrice(ly + offY), aT = _measureGetTimeAtX(chart, ohlcv, lx + offX);
+                if (aP == null || aT == null) return;
+                if (mode === 'start') { m.startTime = aT; m.startPrice = aP; }
+                else                  { m.endTime   = aT; m.endPrice   = aP; }
+            }
+            redraw();
+        }
+        function onMove(e) {
+            lastX = e.clientX; lastY = e.clientY;
+            if (!moved) {
+                if (Math.hypot(lastX - downX, lastY - downY) < 3) return;
+                moved = true;
+                contRef.style.cursor = 'grabbing';
+            }
+            if (rafId) return;
+            rafId = requestAnimationFrame(function() { rafId = null; apply(); });
+        }
+        function onUp(e) {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup',   onUp);
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+            contRef.style.cursor = '';
+            if (!moved || !m.topLine.isConnected) return;   // plain click, or the measurement is gone: nothing to change
+            lastX = e.clientX; lastY = e.clientY;
+            apply();                                        // final position
+            if (mode === 'start') m.startPrice = _measureSnapPrice(ohlcv, m.startTime, m.startPrice);
+            if (mode === 'end')   m.endPrice   = _measureSnapPrice(ohlcv, m.endTime,   m.endPrice);
+            if (m.startTime === m.endTime && m.startPrice === m.endPrice) {   // both ends on one point: a zero-size measurement, keep the original
+                m.startTime = orig.startTime; m.startPrice = orig.startPrice;
+                m.endTime   = orig.endTime;   m.endPrice   = orig.endPrice;
+            }
+            redraw();
+            var changed = m.startTime !== orig.startTime || m.startPrice !== orig.startPrice ||
+                          m.endTime   !== orig.endTime   || m.endPrice   !== orig.endPrice;
+            if (changed && m.sym) { _cdDropMs(m.sym, orig); _cdAddMs(m.sym, m); }   // replace the saved copy
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onUp);
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -2208,6 +2336,20 @@ return '10y';
     function _onTrendMouseDownCore(evt, cfg) {
         if (evt.button !== 0 || !cfg.candle || !cfg.chart || !cfg.contRef) return;
 
+        // ── Adjust a placed measurement: grab an end handle of the SELECTED one ──────────────────────────
+        // Checked before the measure-tool intercept so it works with the tool on or off, but never while a new
+        // measurement is half-placed (that click must finish it) or a trendline is being drawn / dragged.
+        if (cfg.measureList && cfg.measureList.length && cfg.getMeasurePhase() !== 1 && !cfg.getDragState() &&
+            !cfg.getTrendlineMode() && !cfg.trendDraw.active) {
+            var _mhHit = _measureHandleHit(cfg.measureList, cfg.contRef, evt.clientX, evt.clientY);
+            if (_mhHit) {
+                evt.stopPropagation();
+                evt.preventDefault();
+                _measureBeginDrag(cfg, _mhHit.m, _mhHit.which, evt);
+                return;
+            }
+        }
+
         // ── Measure tool intercept ───────────────────────────────────────────
         if ((evt.shiftKey || cfg.getMeasureMode()) && !cfg.getDragState()) {
             evt.stopPropagation();
@@ -2222,6 +2364,9 @@ return '10y';
             var _mP    = cfg.candle.coordinateToPrice(_mly);
             var _mT    = _measureGetTimeAtX(cfg.chart, cfg.ohlcv, _mlx);
             if (_mP == null || _mT == null) return;
+            // The click that PLACES an anchor (first or second) snaps its price to the nearest high / low of the
+            // candle under the cursor. The live preview between the clicks stays free.
+            _mP = _measureSnapPrice(cfg.ohlcv, _mT, _mP);
             var _mSi   = _barIdxByTime(cfg.ohlcv, _mT);
 
             if (cfg.getMeasurePhase() === 1) {
@@ -2277,6 +2422,7 @@ return '10y';
                 cfg.deselectAllTrendlines();
                 cfg.deselectAllVwaps();
                 _measureSelect(cfg.measureList, _msHit);
+                _measureBeginDrag(cfg, _msHit, 'move', evt);   // drag from here to move the whole measurement
                 return;
             }
             _measureSelect(cfg.measureList, null);
