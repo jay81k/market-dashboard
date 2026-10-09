@@ -10,6 +10,9 @@
     // stay in sync. Original was 30 / 14; tried 36 / 17 (too big); now halfway between.
     var _MC_WM_SYM_SIZE  = 33;
     var _MC_WM_NAME_SIZE = 15.5;
+    // Weight of the ticker line only (the company name stays regular so long names don't get wider).
+    // Passed to the library as the watermark line's fontStyle. Set to '' to go back to regular weight.
+    var _MC_WM_SYM_STYLE = 'bold';
 
     window.setMcCols = function(n) {
         mcCols = n;
@@ -262,7 +265,7 @@
                     var _wmCompanyName = _wmMeta.longName || _wmMeta.shortName || '';
                     c.watermark.applyOptions({
                         lines: [
-                            { text: c.sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                            { text: c.sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE, fontStyle: _MC_WM_SYM_STYLE },
                             _wmCompanyName ? { text: _wmCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
                         ].filter(Boolean),
                     });
@@ -3844,7 +3847,7 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE, fontStyle: _MC_WM_SYM_STYLE },
                 _fsCompanyName ? { text: _fsCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
             ].filter(Boolean),
         });
@@ -5611,7 +5614,7 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE, fontStyle: _MC_WM_SYM_STYLE },
                 _wlCompanyName ? { text: _wlCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
             ].filter(Boolean),
         });
