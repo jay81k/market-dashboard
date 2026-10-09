@@ -3063,39 +3063,38 @@ return '10y';
         });
     }
 
+    // ── Live quote helper ─────────────────────────────────────────────────────
+    // quotes_batch answers in two shapes: Questrade's {ticker, price, dayHigh, dayLow}, and — when
+    // Questrade has nothing live — Yahoo's {symbol, price: null, regularMarketPrice, ...}. The
+    // watchlist / alerts / scans pollers already accept both; the fullscreen paths below used to read
+    // only q.price and silently ignored the Yahoo shape. Returns { price, dayHigh, dayLow } or null.
+    // (regularMarketDayHigh/Low are Yahoo's standard field names; they are optional here — absent
+    // just means null, same as before.)
+    function _mcQuoteFromBatch(data) {
+        var q = data && data.quotes && data.quotes[0];
+        if (!q) return null;
+        var price = q.price != null ? q.price : q.regularMarketPrice;
+        if (!price) return null;
+        var dh = q.dayHigh != null ? q.dayHigh : (q.regularMarketDayHigh != null ? q.regularMarketDayHigh : null);
+        var dl = q.dayLow  != null ? q.dayLow  : (q.regularMarketDayLow  != null ? q.regularMarketDayLow  : null);
+        return { price: price, dayHigh: dh || null, dayLow: dl || null };
+    }
+
     // ── Live bar injection — fullscreen + WL charts ───────────────────────────
-    // Yahoo's 10y/1d historical feed sometimes omits today's partial bar or
-    // carries a stale snapshot of it.  This helper mirrors _updateMcLiveCandle
-    // but targets a specific candle/vol/ohlcvArr triple rather than a widgets map.
-    // Price is resolved from in-memory live caches (indLivePrices → wlLivePrices
-    // → snapshot); if none is found a lightweight 2-day proxy fetch is issued as
-    // a fallback.  Daily folds into today's bar; Weekly/Monthly fold into the
-    // current period's bar (see _mcApplyLiveWM).
+    // Folds today's price into the chart's last bar (Daily: today's bar; Weekly/Monthly: the current
+    // period's bar, see _mcApplyLiveWM).
+    //
+    // Market OPEN: asks the proxy for ONE fresh quote for this symbol first (the same quotes_batch call
+    // the fullscreen/alerts live ticks make) rather than trusting the in-memory caches. Those caches
+    // (indLivePrices / wlLivePrices / scanLivePrices / alertPrices / snapshot row.price) carry no
+    // freshness check, indLivePrices is never cleared when you leave the Industry-stocks view, and the
+    // others only refresh while their own view is active — so opening fullscreen from Watchlist or
+    // Alerts could seed the chart with a price minutes old. If the fresh quote can't be had (request
+    // failed, nothing usable in the reply) it falls back to the ORIGINAL resolution below (caches, then
+    // a 2-day proxy fetch), so it is never worse than before.
+    // Market CLOSED: unchanged — original resolution only.
     function _injectChartLiveBar(sym, tf, candle, vol, ohlcvArr, isStale) {
         if (!candle || !ohlcvArr || !ohlcvArr.length) return;
-
-        var price = null, dayHigh = null, dayLow = null;
-
-        // 1. indLivePrices — richest: has dayHigh + dayLow
-        if (typeof indLivePrices !== 'undefined' && indLivePrices[sym]) {
-            var _lp = indLivePrices[sym];
-            price   = _lp.price   || null;
-            dayHigh = _lp.dayHigh || null;
-            dayLow  = _lp.dayLow  || null;
-        }
-        // 2. wlLivePrices — price only
-        if (!price && wlLivePrices && wlLivePrices[sym]) {
-            price = wlLivePrices[sym].price || null;
-        }
-        // 3. snapshot row — price only
-        if (!price && snapshot && snapshot.by_industry) {
-            outerILB: for (var _ii in snapshot.by_industry) {
-                var _rr = snapshot.by_industry[_ii];
-                for (var _jj = 0; _jj < _rr.length; _jj++) {
-                    if (_rr[_jj].ticker === sym) { price = _rr[_jj].price || null; break outerILB; }
-                }
-            }
-        }
 
         function _applyLiveBar(p, dh, dl) {
             if (!p || !candle || !ohlcvArr.length) return;
@@ -3133,21 +3132,59 @@ return '10y';
             }
         }
 
-        if (price) {
-            _applyLiveBar(price, dayHigh, dayLow);
-        } else {
-            // Fallback: fresh 2-day proxy quote — guards against a stale close
-            fetch(WL_PROXY + '?symbol=' + encodeURIComponent(sym) + '&interval=1d&range=2d')
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (isStale && isStale()) return; // chart was replaced
-                    var result = data && data.chart && data.chart.result && data.chart.result[0];
-                    if (!result) return;
-                    var meta = result.meta || {};
-                    var lp   = meta.regularMarketPrice;
-                    if (lp) _applyLiveBar(lp, meta.regularMarketDayHigh || null, meta.regularMarketDayLow || null);
-                }).catch(function() {});
+        // Original resolution (unchanged): in-memory live caches, then a 2-day proxy fetch.
+        function _applyFromCaches() {
+            var price = null, dayHigh = null, dayLow = null;
+
+            // 1. indLivePrices — richest: has dayHigh + dayLow
+            if (typeof indLivePrices !== 'undefined' && indLivePrices[sym]) {
+                var _lp = indLivePrices[sym];
+                price   = _lp.price   || null;
+                dayHigh = _lp.dayHigh || null;
+                dayLow  = _lp.dayLow  || null;
+            }
+            // 2. wlLivePrices — price only
+            if (!price && wlLivePrices && wlLivePrices[sym]) {
+                price = wlLivePrices[sym].price || null;
+            }
+            // 3. snapshot row — price only
+            if (!price && snapshot && snapshot.by_industry) {
+                outerILB: for (var _ii in snapshot.by_industry) {
+                    var _rr = snapshot.by_industry[_ii];
+                    for (var _jj = 0; _jj < _rr.length; _jj++) {
+                        if (_rr[_jj].ticker === sym) { price = _rr[_jj].price || null; break outerILB; }
+                    }
+                }
+            }
+
+            if (price) {
+                _applyLiveBar(price, dayHigh, dayLow);
+            } else {
+                // Fallback: fresh 2-day proxy quote — guards against a stale close
+                fetch(WL_PROXY + '?symbol=' + encodeURIComponent(sym) + '&interval=1d&range=2d')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (isStale && isStale()) return; // chart was replaced
+                        var result = data && data.chart && data.chart.result && data.chart.result[0];
+                        if (!result) return;
+                        var meta = result.meta || {};
+                        var lp   = meta.regularMarketPrice;
+                        if (lp) _applyLiveBar(lp, meta.regularMarketDayHigh || null, meta.regularMarketDayLow || null);
+                    }).catch(function() {});
+            }
         }
+
+        if (!wlIsMarketOpen()) { _applyFromCaches(); return; }
+
+        fetch(WL_PROXY + '?action=quotes_batch&tickers=' + encodeURIComponent(sym))
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .catch(function() { return null; })   // network/parse failure -> null -> original fallback below
+            .then(function(data) {
+                if (isStale && isStale()) return; // chart was replaced while the quote was in flight
+                var fq = _mcQuoteFromBatch(data);
+                if (fq) _applyLiveBar(fq.price, fq.dayHigh, fq.dayLow);
+                else    _applyFromCaches();
+            });
     }
 
     // ── Fullscreen live tick ─────────────────────────────────────────────────
@@ -3167,8 +3204,8 @@ return '10y';
             fetch(WL_PROXY + '?action=quotes_batch&tickers=' + encodeURIComponent(sym))
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .then(function(data) {
-                    var q = data && data.quotes && data.quotes[0];
-                    if (!q || !q.price || _mcFsSym !== sym || !_mcFsCandle || !_mcFsOhlcv.length) return;
+                    var q = _mcQuoteFromBatch(data); // accepts both the Questrade and the Yahoo-fallback quote shape
+                    if (!q || _mcFsSym !== sym || !_mcFsCandle || !_mcFsOhlcv.length) return;
                     if (tf !== 'D') {
                         // W/M: fold into the current period's bar; never create one mid-tick
                         var _wm = _mcApplyLiveWM(_mcFsOhlcv, tf, q.price, q.dayHigh, q.dayLow, false);
@@ -5907,6 +5944,11 @@ return '10y';
         // Keyboard: Delete/Escape for trendlines + AVWAP
         if (_wlKeyHandler) { document.removeEventListener('keydown', _wlKeyHandler); }
         _wlKeyHandler = function(evt) {
+            // The fullscreen chart sits on top of this panel; its own handler owns the keyboard while it's open.
+            // Without this, a letter typed in fullscreen also opened THIS panel's symbol box behind the overlay
+            // (which then auto-confirmed and switched the watchlist chart to a random ticker), and Alt+D/T/A,
+            // Delete and Escape reached the watchlist chart too. Same guard as _alKeyHandler in alerts.js.
+            if (document.getElementById('mc-fullscreen-overlay').classList.contains('open')) return;
             if (
                 evt.key.length === 1 && /[a-zA-Z0-9]/.test(evt.key) &&
                 !evt.ctrlKey && !evt.metaKey && !evt.altKey &&
