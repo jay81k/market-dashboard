@@ -5,6 +5,12 @@
     var mcTickers        = [];
     var mcWidgets        = {};
 
+    // Chart watermark font sizes (ticker line / company-name line). Used by the fullscreen chart,
+    // the watchlist chart, and the themechange handler that re-applies the watermark, so all three
+    // stay in sync. Was 30 / 14.
+    var _MC_WM_SYM_SIZE  = 36;
+    var _MC_WM_NAME_SIZE = 17;
+
     window.setMcCols = function(n) {
         mcCols = n;
         document.querySelectorAll('#stocks-multichart-view .mc-col-btn').forEach(function(b){
@@ -256,8 +262,8 @@
                     var _wmCompanyName = _wmMeta.longName || _wmMeta.shortName || '';
                     c.watermark.applyOptions({
                         lines: [
-                            { text: c.sym, color: themeColor('chart-watermark'), fontSize: 30 },
-                            _wmCompanyName ? { text: _wmCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
+                            { text: c.sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                            _wmCompanyName ? { text: _wmCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
                         ].filter(Boolean),
                     });
                 }
@@ -3838,8 +3844,8 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('chart-watermark'), fontSize: 30 },
-                _fsCompanyName ? { text: _fsCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
+                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                _fsCompanyName ? { text: _fsCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
             ].filter(Boolean),
         });
 
@@ -5605,8 +5611,8 @@ return '10y';
             horzAlign: 'right',
             vertAlign: 'bottom',
             lines: [
-                { text: sym, color: themeColor('chart-watermark'), fontSize: 30 },
-                _wlCompanyName ? { text: _wlCompanyName, color: themeColor('chart-watermark'), fontSize: 14 } : null,
+                { text: sym, color: themeColor('chart-watermark'), fontSize: _MC_WM_SYM_SIZE },
+                _wlCompanyName ? { text: _wlCompanyName, color: themeColor('chart-watermark'), fontSize: _MC_WM_NAME_SIZE } : null,
             ].filter(Boolean),
         });
 
