@@ -7,9 +7,9 @@
 
     // Chart watermark font sizes (ticker line / company-name line). Used by the fullscreen chart,
     // the watchlist chart, and the themechange handler that re-applies the watermark, so all three
-    // stay in sync. Was 30 / 14.
-    var _MC_WM_SYM_SIZE  = 36;
-    var _MC_WM_NAME_SIZE = 17;
+    // stay in sync. Original was 30 / 14; tried 36 / 17 (too big); now halfway between.
+    var _MC_WM_SYM_SIZE  = 33;
+    var _MC_WM_NAME_SIZE = 15.5;
 
     window.setMcCols = function(n) {
         mcCols = n;
