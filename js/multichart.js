@@ -928,6 +928,26 @@ return '10y';
         }
     }
 
+    // Keeps the measurement SVG in step with the chart on EVERY repaint. The visible-range event the charts subscribe to
+    // fires BEFORE the price axis has been recalculated, so after a zoom the measurements were drawn against the old
+    // price scale and drifted off the candle they were snapped to; and that event never fires at all for a price-axis
+    // drag, a log/linear switch, or an autoscale change from a new bar. A series primitive's updateAllViews() runs on
+    // every repaint once the price scale is up to date -- the same mechanism the trendlines use to stay put.
+    // syncFn does the actual redraw (it must only READ from the chart, never change it).
+    function _measureAttachSync(candle, syncFn) {
+        if (!candle || typeof candle.attachPrimitive !== 'function') return;
+        var busy = false;
+        try {
+            candle.attachPrimitive({
+                updateAllViews: function() {
+                    if (busy) return;                       // never re-enter, and never let a draw error break the chart's paint
+                    busy = true;
+                    try { syncFn(); } catch (e) {} finally { busy = false; }
+                }
+            });
+        } catch (e) {}
+    }
+
     // Topmost committed measurement under a click: on either line, on the dashed arrow, or on a label
     function _measureHitTest(list, contRef, clientX, clientY) {
         var cr = contRef.getBoundingClientRect();
@@ -4209,15 +4229,18 @@ return '10y';
             }, 60);
         })();
 
-        // Re-render measure overlay on pan/zoom so the rect tracks correctly
-        _mcFsChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+        // Re-render measure overlay on pan/zoom so the rect tracks correctly. Also on every repaint (see _measureAttachSync):
+        // the range event alone sees the old price scale after a zoom and never fires for price-axis changes.
+        var _mcFsSyncMeasures = function() {
             if (_mcFsMeasureResult) {
                 _renderMeasureOverlay(_mcFsChart, _mcFsCandle, _mcFsTrendContRef,
                     _mcFsMeasureSvgOverlay, _mcFsMeasureSvgRect, _mcFsMeasureHLine,
                     _mcFsMeasureInfoDiv, _mcFsMeasureResult);
             }
             _measureRenderAll(_mcFsMeasureList, _mcFsChart, _mcFsCandle, _mcFsTrendContRef, _mcFsOhlcv);
-        });
+        };
+        _mcFsChart.timeScale().subscribeVisibleLogicalRangeChange(_mcFsSyncMeasures);
+        _measureAttachSync(_mcFsCandle, _mcFsSyncMeasures);
 
         // Active MAs
         Object.keys(_mcFsActiveMas).forEach(function(key) {
@@ -5977,15 +6000,17 @@ return '10y';
         var n = _wlOhlcv.length;
         _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 15 });
 
-        // Re-render measure overlay on pan/zoom
-        _wlChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+        // Re-render measure overlay on pan/zoom, and on every repaint (see _measureAttachSync)
+        var _wlSyncMeasures = function() {
             if (_wlMeasureResult) {
                 _renderMeasureOverlay(_wlChart, _wlCandle, _wlTrendContRef,
                     _wlMeasureSvgOverlay, _wlMeasureSvgRect, _wlMeasureHLine,
                     _wlMeasureInfoDiv, _wlMeasureResult);
             }
             _measureRenderAll(_wlMeasureList, _wlChart, _wlCandle, _wlTrendContRef, _wlOhlcv);
-        });
+        };
+        _wlChart.timeScale().subscribeVisibleLogicalRangeChange(_wlSyncMeasures);
+        _measureAttachSync(_wlCandle, _wlSyncMeasures);
 
         // Click: AVWAP + selection
         _wlChart.subscribeClick(function(param) {
