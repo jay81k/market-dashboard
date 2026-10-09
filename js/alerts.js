@@ -2633,15 +2633,17 @@
         var n = _alOhlcv.length;
         _alChart.timeScale().setVisibleLogicalRange({ from: n - _alVisibleBars, to: n + 15 });
 
-        // Re-render measure overlay on pan/zoom
-        _alChart.timeScale().subscribeVisibleLogicalRangeChange(function() {
+        // Re-render measure overlay on pan/zoom, and on every repaint (see _measureAttachSync in multichart.js)
+        var _alSyncMeasures = function() {
             if (_alMeasureResult) {
                 _renderMeasureOverlay(_alChart, _alCandle, _alTrendContRef,
                     _alMeasureSvgOverlay, _alMeasureSvgRect, _alMeasureHLine,
                     _alMeasureInfoDiv, _alMeasureResult);
             }
             _measureRenderAll(_alMeasureList, _alChart, _alCandle, _alTrendContRef, _alOhlcv);
-        });
+        };
+        _alChart.timeScale().subscribeVisibleLogicalRangeChange(_alSyncMeasures);
+        if (typeof _measureAttachSync === 'function') _measureAttachSync(_alCandle, _alSyncMeasures);
 
         // Click: AVWAP + selection
         _alChart.subscribeClick(function(param) {
