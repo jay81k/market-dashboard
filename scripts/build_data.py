@@ -404,7 +404,9 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             for ma_type, period in DIST_MA_COMBOS
         }
 
-        # Slope/MA for all combos (% change of MA over N periods, N = MA period)
+        # Slope/MA for all combos: % change of the MA over a scaled lookback
+        # (15% of period, clamped to 5-20 bars -> 5/5/5/5/8/10/20/20 for periods 5/8/10/21/50/65/150/200).
+        # scans.js slope tooltips quote these lookbacks - update them if the SLOPE_LOOKBACK_* constants change.
         slope_ma = {
             ma_type + str(period): calculate_slope_ma(close, ma_type, period)
             for ma_type, period in DIST_MA_COMBOS
@@ -666,7 +668,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         high_52wk_level = None
         low_52wk_level  = None
         try:
-            prior = hist.iloc[:-1]  # everything except today
+            prior = hist.iloc[-253:-1]  # prior 252 sessions, excluding today
             if len(prior) >= 20:    # need enough history to be meaningful
                 high_52w = prior["High"].max()
                 low_52w  = prior["Low"].min()
@@ -1016,7 +1018,7 @@ def main():
             # PctFrom52WkHigh — % below the 52-week high
             if row.get("PctFrom52WkHigh") is None and len(hist_clean) >= 1:
                 try:
-                    high_52w = hist_clean["High"].max()
+                    high_52w = hist_clean["High"].iloc[-252:].max()
                     current  = hist_clean["Close"].iloc[-1]
                     if high_52w and high_52w > 0:
                         row["PctFrom52WkHigh"] = round((current / high_52w - 1) * 100, 2)
