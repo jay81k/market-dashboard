@@ -368,9 +368,9 @@
                 }).join('');
                 html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Whether the MA is angling up, down, or staying flat.">Direction</span><div class="sf-seg">'+slopeBtns+'</div></div>';
                 if (slopeDir === 'flat') {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum % change per day for the slope to still qualify as flat.">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Maximum total % change of the MA over its lookback window (5 bars for MAs 5/8/10/21, 8 for 50, 10 for 65, 20 for 150/200) for the slope to still qualify as flat.">Max ±</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:0.5)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
                 } else {
-                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum slope steepness required, as % change per day.">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
+                    html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Minimum total % change of the MA over its lookback window (5 bars for MAs 5/8/10/21, 8 for 50, 10 for 65, 20 for 150/200).">Min %</span><input class="sf-input" type="number" step="0.1" value="'+(row.val!=null?row.val:1)+'" oninput="sfPopChange('+id+',\'val\',this.value)"><span style="color:var(--text-muted);font-size:0.748em;margin-left:2px;">%</span></div>';
                 }
             }
             if (cond === 'ma_cluster') {
@@ -1456,6 +1456,7 @@
                         var slopeDir = f.slopeDir || 'rising';
                         var slope = r.slope_ma ? r.slope_ma[key] : null;
                         var thresh = parseFloat(f.val);
+                        if (isNaN(thresh)) thresh = (slopeDir === 'flat' ? 0.5 : 0);   // blank box: no minimum steepness, but direction still enforced
                         if (slope == null) return false;
                         if (slopeDir === 'rising'  && !isNaN(thresh) && slope < thresh)        return false;
                         if (slopeDir === 'falling' && !isNaN(thresh) && slope > -thresh)       return false;
