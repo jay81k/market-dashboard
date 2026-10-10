@@ -1089,6 +1089,39 @@ return '10y';
         }
         return best;
     }
+    // End-anchor snap. By default the END of a measurement takes the exact extreme between its two anchors, so a base's
+    // depth is the true high-to-low however far right the cursor is. The price is the lowest low or the highest high of
+    // every candle from the other anchor to the candle under the cursor (whichever is FARTHER from the other anchor's
+    // price: an anchor on a high gives the lowest low, an anchor on a low gives the highest high); the time is the candle
+    // under the cursor. Same result shape as _measureSnapTip: { time, price, x, y }. Null when the cursor or the other
+    // anchor is outside the loaded candles.
+    function _measureSnapExtreme(chart, candle, ohlcv, lx, otherTime, otherPrice) {
+        if (!chart || !candle || !ohlcv || !ohlcv.length || lx == null || otherTime == null || typeof otherPrice !== 'number') return null;
+        var c = _measureBarAt(ohlcv, _measureGetTimeAtX(chart, ohlcv, lx));   // candle under the cursor
+        var o = _measureBarAt(ohlcv, otherTime);                              // candle of the other anchor
+        if (c < 0 || o < 0) return null;
+        var from = Math.min(c, o), to = Math.max(c, o), loP = Infinity, hiP = -Infinity;
+        for (var i = from; i <= to; i++) {
+            var b = ohlcv[i];
+            if (typeof b.low  === 'number' && b.low  < loP) loP = b.low;
+            if (typeof b.high === 'number' && b.high > hiP) hiP = b.high;
+        }
+        if (loP === Infinity || hiP === -Infinity) return null;
+        var price = Math.abs(otherPrice - loP) >= Math.abs(hiP - otherPrice) ? loP : hiP;
+        var t = ohlcv[c].time;
+        var x = chart.timeScale().timeToCoordinate(t), y = candle.priceToCoordinate(price);
+        if (x == null || y == null) return null;
+        return { time: t, price: price, x: x, y: y };
+    }
+    // Where an END anchor lands: the range extreme above, or (Alt held, or the extreme can't be worked out) the
+    // closest-wick-tip snap, for putting the end on one specific wick.
+    function _measureEndSnap(chart, candle, ohlcv, lx, ly, otherTime, otherPrice, alt) {
+        if (!alt) {
+            var ex = _measureSnapExtreme(chart, candle, ohlcv, lx, otherTime, otherPrice);
+            if (ex) return ex;
+        }
+        return _measureSnapTip(chart, candle, ohlcv, lx, ly);
+    }
     // Snap-target dot: a small ring on the wick tip a click would snap to. Shown while the measure tool is armed
     // (tool on, Shift held, or between the two clicks) and while dragging an end handle. Purely a pointer: it never
     // moves a measurement. One per chart container, kept in the same SVG layer as the placed measurements.
@@ -1130,7 +1163,10 @@ return '10y';
         if (cfg.measureList && cfg.measureList.length && _measureHandleHit(cfg.measureList, contRef, evt.clientX, evt.clientY)) {
             _measureHideSnapDot(contRef); return;
         }
-        _measureShowSnapDot(contRef, _measureSnapTip(cfg.chart, cfg.candle, cfg.ohlcv, lx, ly));
+        var _st = (cfg.getMeasurePhase && cfg.getMeasurePhase() === 1 && cfg.getMeasureStart) ? cfg.getMeasureStart() : null;
+        _measureShowSnapDot(contRef, _st
+            ? _measureEndSnap(cfg.chart, cfg.candle, cfg.ohlcv, lx, ly, _st.time, _st.price, evt.altKey)   // 2nd click: range extreme (Alt = nearest tip)
+            : _measureSnapTip(cfg.chart, cfg.candle, cfg.ohlcv, lx, ly));                                   // 1st click: nearest tip
     }
     // Inverse of _measureIdxByTime: the time of bar index idx, projected past either end of the data.
     function _measureTimeByIdx(ohlcv, idx) {
@@ -1168,6 +1204,13 @@ return '10y';
         if (mode === 'start') { offX = m.box.x1 - (downX - r0.left); offY = m.box.y1 - (downY - r0.top); }
         if (mode === 'end')   { offX = m.box.x2 - (downX - r0.left); offY = m.box.y2 - (downY - r0.top); }
         var moved = false, rafId = null, lastX = downX, lastY = downY, anchorX = null, anchorY = null;
+        var lastAlt = !!evt.altKey;
+        // Where the dragged anchor lands: the END handle takes the range extreme between the anchors (Alt = nearest tip);
+        // the START handle keeps the nearest-tip snap, like the first click.
+        function dragSnap(ax, ay) {
+            if (mode === 'end') return _measureEndSnap(chart, candle, ohlcv, ax, ay, m.startTime, m.startPrice, lastAlt);
+            return _measureSnapTip(chart, candle, ohlcv, ax, ay);
+        }
 
         function redraw() {
             var res = _computeMeasureResult(ohlcv, m.startTime, m.startPrice, m.endTime, m.endPrice);
@@ -1191,12 +1234,12 @@ return '10y';
                 if (aP == null || aT == null) return;
                 if (mode === 'start') { m.startTime = aT; m.startPrice = aP; }
                 else                  { m.endTime   = aT; m.endPrice   = aP; }
-                _measureShowSnapDot(contRef, _measureSnapTip(chart, candle, ohlcv, anchorX, anchorY));   // where it will land on release
+                _measureShowSnapDot(contRef, dragSnap(anchorX, anchorY));   // where it will land on release
             }
             redraw();
         }
         function onMove(e) {
-            lastX = e.clientX; lastY = e.clientY;
+            lastX = e.clientX; lastY = e.clientY; lastAlt = !!e.altKey;
             if (!moved) {
                 if (Math.hypot(lastX - downX, lastY - downY) < 3) return;
                 moved = true;
@@ -1212,11 +1255,11 @@ return '10y';
             contRef.style.cursor = '';
             _measureHideSnapDot(contRef);
             if (!moved || !m.topLine.isConnected) return;   // plain click, or the measurement is gone: nothing to change
-            lastX = e.clientX; lastY = e.clientY;
+            lastX = e.clientX; lastY = e.clientY; lastAlt = !!e.altKey;
             apply();                                        // final position (this also re-shows the snap dot)
             _measureHideSnapDot(contRef);
             if (mode !== 'move' && anchorX != null) {            // closest wick tip to the handle: both its candle and its price
-                var tip = _measureSnapTip(chart, candle, ohlcv, anchorX, anchorY);
+                var tip = dragSnap(anchorX, anchorY);
                 if (tip && mode === 'start') { m.startTime = tip.time; m.startPrice = tip.price; }
                 if (tip && mode === 'end')   { m.endTime   = tip.time; m.endPrice   = tip.price; }
             }
@@ -2454,7 +2497,11 @@ return '10y';
             // The click that PLACES an anchor (first or second) snaps to the closest wick tip (a high or a low of
             // the candles around the cursor, by on-screen distance), moving the anchor to that tip's candle and price.
             // The live preview between the clicks stays free.
-            var _mTip = _measureSnapTip(cfg.chart, cfg.candle, cfg.ohlcv, _mlx, _mly);
+            // 2nd click: the end takes the exact high/low between the two anchors (hold Alt for the nearest tip instead).
+            var _mS   = cfg.getMeasurePhase() === 1 ? cfg.getMeasureStart() : null;
+            var _mTip = _mS
+                ? _measureEndSnap(cfg.chart, cfg.candle, cfg.ohlcv, _mlx, _mly, _mS.time, _mS.price, evt.altKey)
+                : _measureSnapTip(cfg.chart, cfg.candle, cfg.ohlcv, _mlx, _mly);
             if (_mTip) { _mT = _mTip.time; _mP = _mTip.price; }
             var _mSi   = _barIdxByTime(cfg.ohlcv, _mT);
 
@@ -2769,6 +2816,7 @@ return '10y';
             ohlcv:           _mcFsOhlcv,
             getMeasureMode:  function() { return _mcFsMeasureMode; },
             getMeasurePhase: function() { return _mcFsMeasurePhase; },
+            getMeasureStart: function() { return _mcFsMeasureStart; },
             measureList:     _mcFsMeasureList
         });
     }
@@ -5710,6 +5758,7 @@ return '10y';
             ohlcv:           _wlOhlcv,
             getMeasureMode:  function() { return _wlMeasureMode; },
             getMeasurePhase: function() { return _wlMeasurePhase; },
+            getMeasureStart: function() { return _wlMeasureStart; },
             measureList:     _wlMeasureList
         });
     }
