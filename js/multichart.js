@@ -188,136 +188,6 @@
     var _wlCtxAvwap             = null; // {anchorIdx, anchorTime} when right-click lands on an AVWAP line
     var _wlCtxAttached          = false;
 
-    // ── Chart style: candlesticks or OHLC bars ───────────────────────────────
-    // One global choice (saved in the browser) used by every chart this file and
-    // alerts.js draw: the fullscreen chart, the watchlist and alerts side charts,
-    // and the four multichart grids. Candlesticks stay the default; bars only
-    // appear once picked. Both series types take the same {time, open, high, low,
-    // close} data and the same update() / setData() / primitive / price-line calls,
-    // so everything that works on "the candle series" works on either one.
-    var MC_STYLE_KEY  = 'mcChartStyle';
-    var _mcChartStyle = 'candles';
-    try { if (localStorage.getItem(MC_STYLE_KEY) === 'bars') _mcChartStyle = 'bars'; } catch (e) {}
-
-    // How many bars the reset / opening view shows, per timeframe. Bars reset tighter than
-    // candlesticks: the library has no line-width option for bars, so a bar's thickness
-    // follows the spacing between bars, and fewer bars on screen means bolder ones. Tune the
-    // bars row here (candlesticks keep the original 252 / 104 / 60). Used by the fullscreen,
-    // watchlist and alerts charts (alerts.js and watchlists.js call it too).
-    var _MC_RESET_BARS = {
-        candles: { D: 252, W: 104, M: 60 },
-        bars:    { D: 140, W: 58,  M: 33 }
-    };
-    function _mcDefaultVisibleBars(tf) {
-        var t = _MC_RESET_BARS[_mcChartStyle] || _MC_RESET_BARS.candles;
-        return t[tf] || t.M;   // as before, any timeframe other than D / W got the monthly count
-    }
-
-    // Creates the price series in the current style. extraOpts are the per-chart
-    // options each call site already passed (priceLineVisible, lastValueVisible, ...).
-    // Also called from alerts.js (it loads after this file).
-    function _mcAddPriceSeries(chart, extraOpts) {
-        var up = themeColor('al-chart-up'), dn = themeColor('al-chart-down');
-        var type, opts;
-        if (_mcChartStyle === 'bars') {
-            type = LightweightCharts.BarSeries;
-            opts = { upColor: up, downColor: dn, thinBars: false };
-        } else {
-            type = LightweightCharts.CandlestickSeries;
-            opts = { upColor: up, downColor: dn, borderVisible: false, wickUpColor: up, wickDownColor: dn };
-        }
-        Object.keys(extraOpts || {}).forEach(function(k) { opts[k] = extraOpts[k]; });
-        return chart.addSeries(type, opts);
-    }
-
-    // Re-theme a price series of either type. Wick colors only exist on candlesticks.
-    function _mcApplyPriceSeriesTheme(series) {
-        if (!series) return;
-        var up = themeColor('al-chart-up'), dn = themeColor('al-chart-down');
-        var isBar = false;
-        try { isBar = series.seriesType() === 'Bar'; } catch (e) {}
-        if (isBar) series.applyOptions({ upColor: up, downColor: dn });
-        else       series.applyOptions({ upColor: up, downColor: dn, wickUpColor: up, wickDownColor: dn });
-    }
-
-    // The toolbar button shows the CURRENT style; clicking it switches to the other.
-    var _MC_STYLE_ICONS = {
-        candles: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">' +
-                 '<line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
-                 '<rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/>' +
-                 '<line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>' +
-                 '<rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg>',
-        bars:    '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">' +
-                 '<line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                 '<line x1="2" y1="5.5" x2="4.5" y2="5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                 '<line x1="4.5" y1="10.5" x2="7" y2="10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                 '<line x1="11.5" y1="1.5" x2="11.5" y2="12.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                 '<line x1="9" y1="4" x2="11.5" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-                 '<line x1="11.5" y1="9" x2="14" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
-    };
-
-    function _mcSyncStyleButtons() {
-        var title = _mcChartStyle === 'bars' ? 'Chart style: Bars (click for Candlesticks)'
-                                              : 'Chart style: Candlesticks (click for Bars)';
-        document.querySelectorAll('.mc-style-btn').forEach(function(b) {
-            b.innerHTML = _MC_STYLE_ICONS[_mcChartStyle];
-            b.title = title;
-        });
-    }
-
-    // Redraws every rendered cell of one grid in the current style, a few per frame so
-    // a scans grid with a hundred cells doesn't freeze the page. Cells keep their data
-    // (including live-updated bars); a cell the grid has since replaced is skipped.
-    function _mcRestyleGridCells(registry) {
-        if (!registry) return;
-        var syms = Object.keys(registry), i = 0;
-        (function step() {
-            var end = Math.min(i + 6, syms.length);
-            for (; i < end; i++) {
-                var sym = syms[i], inst = registry[sym];
-                if (!inst || !inst.container || !inst.ohlcv) continue;
-                try {
-                    try { inst.chart.remove(); } catch (e) {}
-                    var fresh = renderLwMcCellChart(inst.container, inst.ohlcv);
-                    if (fresh && registry[sym] === inst) { fresh.tf = inst.tf; registry[sym] = fresh; }
-                } catch (e) {
-                    console.warn('[chart style] failed to redraw grid cell ' + sym, e);
-                }
-            }
-            if (i < syms.length) requestAnimationFrame(step);
-        })();
-    }
-
-    window.mcSetChartStyle = function(style) {
-        style = style === 'bars' ? 'bars' : 'candles';
-        if (style === _mcChartStyle) return;
-        _mcChartStyle = style;
-        try { localStorage.setItem(MC_STYLE_KEY, style); } catch (e) {}
-        _mcSyncStyleButtons();
-
-        // The three full charts: rebuild from the data they already hold (same path as
-        // pressing D, minus the fetch) and put the zoom back where it was.
-        if (_mcFsChart && _mcFsSym && _mcFsOhlcv && _mcFsOhlcv.length) mcFsSetTf(_mcFsTf, true);
-        if (_wlChart  && _wlSym  && _wlOhlcv  && _wlOhlcv.length)      wlChartSetTf(_wlTf, true);
-        if (typeof _alChart !== 'undefined' && _alChart && _alSym && _alOhlcv && _alOhlcv.length &&
-            typeof alChartSetTf === 'function') alChartSetTf(_alChartTf, true);
-
-        // The four multichart grids.
-        _mcRestyleGridCells(mcWidgets);
-        _mcRestyleGridCells(typeof wlMcWidgets    !== 'undefined' ? wlMcWidgets    : null);
-        _mcRestyleGridCells(typeof scansMcWidgets !== 'undefined' ? scansMcWidgets : null);
-        _mcRestyleGridCells(typeof alMcWidgets    !== 'undefined' ? alMcWidgets    : null);
-    };
-
-    window.mcToggleChartStyle = function() {
-        mcSetChartStyle(_mcChartStyle === 'bars' ? 'candles' : 'bars');
-    };
-
-    // Buttons live in static HTML, so they exist by the time this script runs (scripts
-    // load at the end of <body>); the listener covers any other load order.
-    _mcSyncStyleButtons();
-    document.addEventListener('DOMContentLoaded', _mcSyncStyleButtons);
-
     // Re-theme one multichart grid's cells. Every grid built by _buildLwMcGrid
     // stores its charts in its own registry object (mcWidgets for industries,
     // wlMcWidgets, scansMcWidgets, alMcWidgets), so the theme handler below has
@@ -337,7 +207,10 @@
                     rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
                     timeScale: { borderColor: themeColor('bg-surface') },
                 });
-                _mcApplyPriceSeriesTheme(inst.candle);
+                inst.candle.applyOptions({
+                    upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                    wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+                });
                 if (inst.vol && inst.ohlcv && inst.ohlcv.length) {
                     inst.vol.setData(inst.ohlcv.map(function(d) {
                         return { time: d.time, value: d.volume, color: d.close >= d.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') };
@@ -374,7 +247,10 @@
                     rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
                     timeScale: { borderColor: themeColor('bg-surface') },
                 });
-                _mcApplyPriceSeriesTheme(c.candle);
+                c.candle.applyOptions({
+                    upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
+                    wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+                });
                 if (c.vol) {
                     c.vol.applyOptions({ color: themeColor('al-chart-volume') });
                     c.vol.priceScale().applyOptions({ borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') });
@@ -1374,7 +1250,11 @@ return '10y';
             timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, rightOffset: 1 },
             handleScroll: false, handleScale: false,
         });
-        var candle = _mcAddPriceSeries(chart, { priceLineVisible: false, lastValueVisible: true });
+        var candle = chart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+            priceLineVisible: false, lastValueVisible: true,
+        });
         candle.setData(ohlcv);
 
         // Active MAs — mirrors fullscreen MA toggle state (EMA8 + SMA150 excluded: too noisy in multichart)
@@ -1425,8 +1305,7 @@ return '10y';
             var vd = p.seriesData.get(vol);
             leg.innerHTML = '<span style="color:var(--text-muted)">O</span><span style="color:'+cl+'">'+fp(d.open)+'</span> <span style="color:var(--text-muted)">H</span><span style="color:'+cl+'">'+fp(d.high)+'</span> <span style="color:var(--text-muted)">L</span><span style="color:'+cl+'">'+fp(d.low)+'</span> <span style="color:var(--text-muted)">C</span><span style="color:'+cl+'">'+fp(d.close)+'</span>'+(vd?'  <span style="color:var(--border-muted)">V</span><span style="color:var(--text-muted)">'+fv(vd.value)+'</span>':'');
         });
-        // container: kept so a chart-style switch can redraw this cell in place
-        return { chart: chart, candle: candle, vol: vol, ohlcv: ohlcv, container: container };
+        return { chart: chart, candle: candle, vol: vol, ohlcv: ohlcv };
     }
 
     // ── Push live intraday price into a rendered multichart cell ──────────────
@@ -4342,7 +4221,11 @@ return '10y';
             ].filter(Boolean),
         });
 
-        _mcFsCandle = _mcAddPriceSeries(_mcFsChart, { priceLineVisible: false, lastValueVisible: true });
+        _mcFsCandle = _mcFsChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+            priceLineVisible: false, lastValueVisible: true,
+        });
         _mcFsCandle.setData(_mcFsOhlcv);
 
         _mcFsVol = _mcFsChart.addSeries(LightweightCharts.HistogramSeries, {
@@ -4799,12 +4682,8 @@ return '10y';
     }
 
     // Fullscreen window-level controls
-    // reuseData (used by the chart-style switch): rebuild from the bars already on screen
-    // instead of fetching, and put the zoom back where it was.
-    window.mcFsSetTf = function(tf, reuseData) {
+    window.mcFsSetTf = function(tf) {
         if (!_mcFsSym) return;
-        var _keepRange = null;
-        if (reuseData && _mcFsChart) { try { _keepRange = _mcFsChart.timeScale().getVisibleLogicalRange(); } catch(e) {} }
         _mcFsTf = tf;
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
@@ -4834,7 +4713,7 @@ return '10y';
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
         // Default viewport per TF
-        _mcFsVisibleBars = _mcDefaultVisibleBars(tf);
+        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
         // No forced cache-clear here anymore — if this TF was already fetched
         // this session, fetchMcOhlcv's cache-hit path serves it instantly with
         // no network round-trip. Today's price still lands via the separate
@@ -4843,11 +4722,6 @@ return '10y';
         // wasn't buying anything on top of that.
         // Fetch + rebuild
         var sym = _mcFsSym;
-        if (reuseData && _mcFsOhlcv && _mcFsOhlcv.length) {
-            _buildFsChart(sym, _mcFsOhlcv, tf);
-            if (_keepRange && _mcFsChart) { try { _mcFsChart.timeScale().setVisibleLogicalRange(_keepRange); } catch(e) {} }
-            return;
-        }
         var container = document.getElementById('mc-fullscreen-chart');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
@@ -5580,7 +5454,7 @@ return '10y';
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        _mcFsVisibleBars = _mcDefaultVisibleBars(tf);
+        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
 
         // Sync MA badge with current state
         _mcFsUpdateMaBadge();
@@ -6021,7 +5895,11 @@ return '10y';
         });
 
         // Candle series
-        _wlCandle = _mcAddPriceSeries(_wlChart, { priceLineVisible: false, lastValueVisible: true });
+        _wlCandle = _wlChart.addSeries(LightweightCharts.CandlestickSeries, {
+            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
+            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
+            priceLineVisible: false, lastValueVisible: true,
+        });
         _wlCandle.setData(_wlOhlcv);
 
         // Volume pane
@@ -6487,11 +6365,8 @@ return '10y';
     }
 
     // ── WL chart controls (exposed to HTML onclick) ───────────────────────
-    // reuseData: same meaning as in mcFsSetTf (chart-style switch — no fetch, zoom kept).
-    window.wlChartSetTf = function(tf, reuseData) {
+    window.wlChartSetTf = function(tf) {
         if (!_wlSym) return;
-        var _keepRange = null;
-        if (reuseData && _wlChart) { try { _keepRange = _wlChart.timeScale().getVisibleLogicalRange(); } catch(e) {} }
         _wlTf = tf;
         document.querySelectorAll('.wl-chart-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
@@ -6513,17 +6388,12 @@ return '10y';
         var maChevron = document.getElementById('wl-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
-        _wlVisibleBars = _mcDefaultVisibleBars(tf);
+        _wlVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
         // No forced cache-clear — fetchMcOhlcv now enforces a 30-min freshness
         // window centrally (see MC_CACHE_TTL_MS), so switching back to a TF
         // already fetched recently serves instantly instead of re-entering
         // the queue, and still gets a real refetch periodically.
         var sym = _wlSym;
-        if (reuseData && _wlOhlcv && _wlOhlcv.length) {
-            _buildWlChart(sym, _wlOhlcv, tf);
-            if (_keepRange && _wlChart) { try { _wlChart.timeScale().setVisibleLogicalRange(_keepRange); } catch(e) {} }
-            return;
-        }
         var container = document.getElementById('wl-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf).then(function(ohlcv) {
