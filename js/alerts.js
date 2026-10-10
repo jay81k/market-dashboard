@@ -1863,10 +1863,7 @@
                 rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
                 timeScale: { borderColor: themeColor('bg-surface') },
             });
-            _alCandle.applyOptions({
-                upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'),
-                wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
-            });
+            _mcApplyPriceSeriesTheme(_alCandle);
             if (_alVol) {
                 _alVol.applyOptions({ color: themeColor('al-chart-volume') });
                 _alVol.priceScale().applyOptions({ borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') });
@@ -2509,11 +2506,7 @@
         _alAttachCtxMenu();
 
         // Candle series
-        _alCandle = _alChart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: themeColor('al-chart-up'), downColor: themeColor('al-chart-down'), borderVisible: false,
-            wickUpColor: themeColor('al-chart-up'), wickDownColor: themeColor('al-chart-down'),
-            priceLineVisible: false, lastValueVisible: true,
-        });
+        _alCandle = _mcAddPriceSeries(_alChart, { priceLineVisible: false, lastValueVisible: true });
         _alCandle.setData(_alOhlcv);
 
         // Volume pane
@@ -3035,8 +3028,12 @@
     };
 
     // ── AL chart controls ─────────────────────────────────────────────────
-    window.alChartSetTf = function(tf) {
+    // reuseData (used by the chart-style switch): rebuild from the bars already on screen
+    // instead of fetching, and put the zoom back where it was.
+    window.alChartSetTf = function(tf, reuseData) {
         if (!_alSym) return;
+        var _keepRange = null;
+        if (reuseData && _alChart) { try { _keepRange = _alChart.timeScale().getVisibleLogicalRange(); } catch(e) {} }
         _alChartTf = tf;
         document.querySelectorAll('.al-chart-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
@@ -3064,6 +3061,11 @@
         if (maChevron) maChevron.style.transform = '';
         _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
         var sym = _alSym;   // (no cache delete: the alert engine reads this same series; a forced fetch replaces it only on success)
+        if (reuseData && _alOhlcv && _alOhlcv.length) {
+            _buildAlChart(sym, _alOhlcv, tf);
+            if (_keepRange && _alChart) { try { _alChart.timeScale().setVisibleLogicalRange(_keepRange); } catch(e) {} }
+            return;
+        }
         var container = document.getElementById('al-chart-widget');
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
         fetchMcOhlcv(sym, tf, false, true).then(function(ohlcv) {
