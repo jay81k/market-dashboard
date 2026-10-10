@@ -102,12 +102,12 @@
             --chart-watermark: rgba(255,255,255,0.22);
             /* Trendline colour: canvas lines + SVG drag preview. Dark = #b4bcc8, softened from pure #ffffff (midway between #c8d0dc and #a0a8b4) */
             --chart-trendline: #b4bcc8;
-            --al-measure-fill-up: rgba(43,165,232,0.15);
-            --al-measure-fill-down: rgba(242,96,63,0.15);
-            --al-measure-stroke-up: #2ba5e8;
-            --al-measure-stroke-down: #f2603f;
-            --al-measure-bg-up: rgba(3,102,166,0.88);
-            --al-measure-bg-down: rgba(170,52,10,0.88);
+            --al-measure-fill-up: rgba(34,132,186,0.15);
+            --al-measure-fill-down: rgba(194,77,50,0.15);
+            --al-measure-stroke-up: #2284ba;
+            --al-measure-stroke-down: #c24d32;
+            --al-measure-bg-up: rgba(2,82,133,0.88);
+            --al-measure-bg-down: rgba(136,42,8,0.88);
             /* Opacity of the dashed arrow between a measurement's two lines (the arrowhead and the lines stay solid). 1 = as strong as the lines. */
             --al-measure-dash-opacity: 0.45;
             --mc-cell-grid: #171b22;
