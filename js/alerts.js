@@ -2999,7 +2999,7 @@
         if (maChevron) maChevron.style.transform = '';
 
         var tf = _alChartTf;
-        _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        _alVisibleBars = _mcDefaultVisibleBars(tf);
         _alSym = ticker;
         var widgetDiv = document.getElementById('al-chart-widget');
         widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading\u2026</div>';
@@ -3059,7 +3059,7 @@
         var maChevron = document.getElementById('al-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
-        _alVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        _alVisibleBars = _mcDefaultVisibleBars(tf);
         var sym = _alSym;   // (no cache delete: the alert engine reads this same series; a forced fetch replaces it only on success)
         if (reuseData && _alOhlcv && _alOhlcv.length) {
             _buildAlChart(sym, _alOhlcv, tf);
