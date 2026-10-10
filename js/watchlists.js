@@ -954,7 +954,7 @@
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
 
-        _wlVisibleBars = _mcDefaultVisibleBars(_wlTf);
+        _wlVisibleBars = _wlTf === 'D' ? 252 : _wlTf === 'W' ? 104 : 60;
         widgetDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--border-muted);font-size:12px;">Loading…</div>';
         // Debounce the fetch itself, not the UI update above. Arrow-keying or
         // click-scrolling through several rows quickly used to fire one real
