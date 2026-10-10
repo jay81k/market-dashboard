@@ -168,11 +168,10 @@
         <!-- Multichart view -->
         <div id="stocks-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
             <div class="multichart-toolbar">
+                <button class="mc-tf-btn" data-tf="5" onclick="setMcTf('5')">5m</button>
                 <button class="mc-tf-btn active" data-tf="D" onclick="setMcTf('D')">Daily</button>
                 <button class="mc-tf-btn" data-tf="W" onclick="setMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setMcTf('M')">Monthly</button>
-                <div class="mc-toolbar-sep"></div>
-                <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
                 <div class="mc-toolbar-sep"></div>
                 <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
                 <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
@@ -285,11 +284,10 @@
         </div>
         <div id="scans-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
             <div class="multichart-toolbar">
+                <button class="mc-tf-btn" data-tf="5" onclick="setScansMcTf('5')">5m</button>
                 <button class="mc-tf-btn active" data-tf="D" onclick="setScansMcTf('D')">Daily</button>
                 <button class="mc-tf-btn" data-tf="W" onclick="setScansMcTf('W')">Weekly</button>
                 <button class="mc-tf-btn" data-tf="M" onclick="setScansMcTf('M')">Monthly</button>
-                <div class="mc-toolbar-sep"></div>
-                <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
                 <div class="mc-toolbar-sep"></div>
                 <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
                 <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
@@ -331,8 +329,6 @@
                     <button class="mc-tf-btn wl-chart-fs-tf-btn"        data-tf="W" onclick="wlChartSetTf('W')">W</button>
                     <button class="mc-tf-btn wl-chart-fs-tf-btn"        data-tf="M" onclick="wlChartSetTf('M')">M</button>
                 </div>
-                <div class="mc-toolbar-sep"></div>
-                <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
                 <div class="mc-toolbar-sep"></div>
                 <div id="wl-chart-ma-wrap" style="position:relative;">
                     <button class="mc-tf-btn" id="wl-chart-ma-toggle-btn" onclick="wlChartToggleMaPanel(event)" title="Moving Averages" style="display:flex;align-items:center;gap:4px;">
@@ -396,11 +392,10 @@
                 <!-- Watchlist multichart view -->
                 <div id="wl-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;height:100%;">
                     <div class="multichart-toolbar" id="wl-multichart-toolbar">
+                        <button class="mc-tf-btn" data-tf="5" onclick="setWlMcTf('5')">5m</button>
                         <button class="mc-tf-btn active" data-tf="D" onclick="setWlMcTf('D')">Daily</button>
                         <button class="mc-tf-btn" data-tf="W" onclick="setWlMcTf('W')">Weekly</button>
                         <button class="mc-tf-btn" data-tf="M" onclick="setWlMcTf('M')">Monthly</button>
-                        <div class="mc-toolbar-sep"></div>
-                        <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
                         <div class="mc-toolbar-sep"></div>
                         <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
                         <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
@@ -565,11 +560,10 @@
     <div id="al-add-form" style="display:none;"></div>
     <div id="al-multichart-view" style="display:none;flex-direction:column;flex:1;min-height:0;">
         <div class="multichart-toolbar">
+            <button class="mc-tf-btn" data-tf="5" onclick="setAlMcTf('5')">5m</button>
             <button class="mc-tf-btn active" data-tf="D" onclick="setAlMcTf('D')">Daily</button>
             <button class="mc-tf-btn" data-tf="W" onclick="setAlMcTf('W')">Weekly</button>
             <button class="mc-tf-btn" data-tf="M" onclick="setAlMcTf('M')">Monthly</button>
-            <div class="mc-toolbar-sep"></div>
-            <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
             <div class="mc-toolbar-sep"></div>
             <button class="mc-col-btn" data-cols="2" onclick="setSharedMcCols(2)">2</button>
             <button class="mc-col-btn" data-cols="3" onclick="setSharedMcCols(3)">3</button>
@@ -640,8 +634,6 @@
                     <button class="mc-tf-btn al-chart-tf-btn"        data-tf="W" onclick="alChartSetTf('W')">W</button>
                     <button class="mc-tf-btn al-chart-tf-btn"        data-tf="M" onclick="alChartSetTf('M')">M</button>
                 </div>
-                <div class="mc-toolbar-sep"></div>
-                <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
                 <div class="mc-toolbar-sep"></div>
                 <div id="al-chart-ma-wrap" style="position:relative;">
                     <button class="mc-tf-btn" id="al-chart-ma-toggle-btn" onclick="alChartToggleMaPanel(event)" title="Moving Averages" style="display:flex;align-items:center;gap:4px;">
@@ -755,8 +747,6 @@
             <button class="mc-tf-btn mc-fs-tf-btn"        data-tf="W" onclick="mcFsSetTf('W')">W</button>
             <button class="mc-tf-btn mc-fs-tf-btn"        data-tf="M" onclick="mcFsSetTf('M')">M</button>
         </div>
-        <div class="mc-toolbar-sep"></div>
-        <button class="mc-tf-btn mc-style-btn" onclick="mcToggleChartStyle()" title="Chart style: Candlesticks (click for Bars)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><line x1="4.5" y1="2" x2="4.5" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="2.5" y="5" width="4" height="6" rx="0.5" fill="currentColor"/><line x1="11.5" y1="1" x2="11.5" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><rect x="9.5" y="3.5" width="4" height="5.5" rx="0.5" fill="currentColor"/></svg></button>
         <div class="mc-toolbar-sep"></div>
         <!-- MA dropdown trigger -->
         <div id="mc-fs-ma-wrap" style="position:relative;">
