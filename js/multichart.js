@@ -199,6 +199,20 @@
     var _mcChartStyle = 'candles';
     try { if (localStorage.getItem(MC_STYLE_KEY) === 'bars') _mcChartStyle = 'bars'; } catch (e) {}
 
+    // How many bars the reset / opening view shows, per timeframe. Bars reset tighter than
+    // candlesticks: the library has no line-width option for bars, so a bar's thickness
+    // follows the spacing between bars, and fewer bars on screen means bolder ones. Tune the
+    // bars row here (candlesticks keep the original 252 / 104 / 60). Used by the fullscreen,
+    // watchlist and alerts charts (alerts.js and watchlists.js call it too).
+    var _MC_RESET_BARS = {
+        candles: { D: 252, W: 104, M: 60 },
+        bars:    { D: 140, W: 58,  M: 33 }
+    };
+    function _mcDefaultVisibleBars(tf) {
+        var t = _MC_RESET_BARS[_mcChartStyle] || _MC_RESET_BARS.candles;
+        return t[tf] || t.M;   // as before, any timeframe other than D / W got the monthly count
+    }
+
     // Creates the price series in the current style. extraOpts are the per-chart
     // options each call site already passed (priceLineVisible, lastValueVisible, ...).
     // Also called from alerts.js (it loads after this file).
@@ -4820,7 +4834,7 @@ return '10y';
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
         // Default viewport per TF
-        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        _mcFsVisibleBars = _mcDefaultVisibleBars(tf);
         // No forced cache-clear here anymore — if this TF was already fetched
         // this session, fetchMcOhlcv's cache-hit path serves it instantly with
         // no network round-trip. Today's price still lands via the separate
@@ -5566,7 +5580,7 @@ return '10y';
         document.querySelectorAll('.mc-fs-tf-btn').forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-tf') === tf);
         });
-        _mcFsVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        _mcFsVisibleBars = _mcDefaultVisibleBars(tf);
 
         // Sync MA badge with current state
         _mcFsUpdateMaBadge();
@@ -6499,7 +6513,7 @@ return '10y';
         var maChevron = document.getElementById('wl-chart-ma-chevron');
         if (maPanel)   maPanel.style.display = 'none';
         if (maChevron) maChevron.style.transform = '';
-        _wlVisibleBars = tf === 'D' ? 252 : tf === 'W' ? 104 : 60;
+        _wlVisibleBars = _mcDefaultVisibleBars(tf);
         // No forced cache-clear — fetchMcOhlcv now enforces a 30-min freshness
         // window centrally (see MC_CACHE_TTL_MS), so switching back to a TF
         // already fetched recently serves instantly instead of re-entering
