@@ -2278,6 +2278,7 @@
             ohlcv:           _alOhlcv,
             getMeasureMode:  function() { return _alMeasureMode; },
             getMeasurePhase: function() { return _alMeasurePhase; },
+            getMeasureStart: function() { return _alMeasureStart; },
             measureList:     _alMeasureList
         });
     }
