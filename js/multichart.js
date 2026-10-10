@@ -3343,7 +3343,10 @@ return '10y';
     // failed, nothing usable in the reply) it falls back to the ORIGINAL resolution below (caches, then
     // a 2-day proxy fetch), so it is never worse than before.
     // Market CLOSED: unchanged — original resolution only.
-    function _injectChartLiveBar(sym, tf, candle, vol, ohlcvArr, isStale) {
+    // Optional 7th argument onApplied: called right after the bar has been written to the chart, so a
+    // caller that shows numbers derived from the last bar (the fullscreen price strip) can redraw them.
+    // Omitted by the watchlist chart, whose behaviour is unchanged.
+    function _injectChartLiveBar(sym, tf, candle, vol, ohlcvArr, isStale, onApplied) {
         if (!candle || !ohlcvArr || !ohlcvArr.length) return;
 
         function _applyLiveBar(p, dh, dl) {
@@ -3355,6 +3358,7 @@ return '10y';
                 if (vol) {
                     try { vol.update({ time: _wm.time, value: _wm.volume, color: p >= _wm.open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
                 }
+                if (onApplied) onApplied();
                 return;
             }
             var now = new Date();
@@ -3380,6 +3384,7 @@ return '10y';
             if (vol) {
                 try { vol.update({ time: todayTs, value: volume, color: p >= open ? themeColor('al-chart-vol-up-alpha') : themeColor('al-chart-vol-down-alpha') }); } catch(e) {}
             }
+            if (onApplied) onApplied();
         }
 
         // Original resolution (unchanged): in-memory live caches, then a 2-day proxy fetch.
@@ -3437,6 +3442,118 @@ return '10y';
             });
     }
 
+    // ── Fullscreen market info strip (price/change, ADR, mkt cap, day range, 52W range) ──
+    // Rendered from _mcFsOhlcv's last bar. Lives at this level (not inline in _buildFsChart) so the
+    // live paths can redraw it: the build draws it once from whatever the daily feed returned, and
+    // neither the open-time live injection nor the 10s tick used to touch it — only a full rebuild
+    // (pressing D) re-read the latest bar, which is why the price stayed frozen until then.
+    function _mcFsRenderMktInfo(sym) {
+        if (_mcFsSym !== sym) return; // chart was replaced or closed since the caller started
+        function fp(v) { return v != null ? v.toFixed(2) : '—'; }
+        var n = _mcFsOhlcv.length;
+        if (!n) return;
+        var last   = _mcFsOhlcv[n - 1];
+        var prev   = n > 1 ? _mcFsOhlcv[n - 2] : null;
+        var close  = last.close;
+        var chg    = prev ? close - prev.close : 0;
+        var pct    = prev ? chg / prev.close * 100 : 0;
+        var dayLow = last.low, dayHigh = last.high;
+
+        // 52W range — lookback adjusted per timeframe
+        var yrBars = _mcFsTf === 'W' ? 52 : _mcFsTf === 'M' ? 12 : 252;
+        var slice  = _mcFsOhlcv.slice(-Math.min(yrBars, n));
+        var yrLow  = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
+        var yrHigh = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
+
+        var chgColor = chg >= 0 ? 'var(--success)' : 'var(--danger)';
+        var chgSign  = chg >= 0 ? '+' : '';
+        var barLabel = _mcFsTf === 'W' ? 'WK' : _mcFsTf === 'M' ? 'MO' : 'DAY';
+
+        // Gradient range bar: red→yellow→green track, dark overlay masks unfilled right,
+        // white dot with dark ring marks current price position
+        var barColor = chg >= 0 ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
+
+        // Shared bar builder — 4px tall, matches 52W style
+        function mkBar(low, high, curr, width, crLabel) {
+            var pos = (high > low)
+                ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100))
+                : 50;
+            var p = pos.toFixed(1);
+            var crSpan = crLabel != null
+                ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-150%);' +
+                  'font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
+                  crLabel.text + '</span>'
+                : '';
+            return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;' +
+                'border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">' +
+                '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
+                '<span style="position:absolute;top:50%;left:' + p + '%;' +
+                'transform:translate(-50%,-50%);width:8px;height:8px;' +
+                'background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>' +
+                crSpan +
+                '</span>';
+        }
+
+        // CR% value computed live from day range
+        var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
+        var crLabel = crRaw != null ? {
+            text:  crRaw + '%',
+            color: crRaw >= 60 ? 'var(--success)' : crRaw >= 30 ? 'var(--warning-alt)' : 'var(--danger)'
+        } : null;
+
+        var adrEl = document.getElementById('mc-fs-mkt-adr');
+        var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
+        if (adrEl) {
+            var adrRaw = sd ? sd.adr_pct : null;
+            if (adrRaw != null) {
+                adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
+                                + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
+                adrEl.style.display = 'inline-flex';
+            } else {
+                adrEl.style.display = 'none';
+            }
+        }
+
+        var mcapEl = document.getElementById('mc-fs-mkt-mcap');
+        if (mcapEl) {
+            var mcapRaw = sd ? sd.MarketCap : null;
+            if (mcapRaw != null) {
+                var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T'
+                       : mcapRaw >= 1e9  ? (mcapRaw/1e9).toFixed(2)+'B'
+                       : mcapRaw >= 1e6  ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
+                mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
+                                 + '<span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
+                mcapEl.style.display = 'inline-flex';
+            } else {
+                mcapEl.style.display = 'none';
+            }
+        }
+
+        document.getElementById('mc-fs-mkt-price').innerHTML =
+            '<span style="color:var(--text-emphasis-2);font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
+            '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
+            chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
+
+        document.getElementById('mc-fs-mkt-day').innerHTML =
+            '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
+            '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
+            mkBar(dayLow, dayHigh, close, 130, crLabel) +
+            '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
+
+        var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
+        var w52HiLabel = yrHigh > 0 ? {
+            text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
+            color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
+        } : null;
+        document.getElementById('mc-fs-mkt-52w').innerHTML =
+            '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
+            '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
+            mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
+            '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
+
+        document.getElementById('mc-fs-mkt-info').style.display = 'flex';
+    }
+
     // ── Fullscreen live tick ─────────────────────────────────────────────────
     // _injectChartLiveBar above fires once, on open, sourcing from indLivePrices
     // / wlLivePrices — but every one of those caches' own pollers explicitly
@@ -3459,18 +3576,29 @@ return '10y';
                     if (tf !== 'D') {
                         // W/M: fold into the current period's bar; never create one mid-tick
                         var _wm = _mcApplyLiveWM(_mcFsOhlcv, tf, q.price, q.dayHigh, q.dayLow, false);
-                        if (_wm) { try { _mcFsCandle.update(_wm); } catch(e) {} }
+                        if (_wm) { try { _mcFsCandle.update(_wm); } catch(e) {} _mcFsRenderMktInfo(sym); }
                         return;
                     }
                     var now = new Date();
                     var todayTs = Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 43200;
                     var last = _mcFsOhlcv[_mcFsOhlcv.length - 1];
                     var lastDayTs = Math.floor(last.time / 86400) * 86400 + 43200;
-                    if (lastDayTs !== todayTs) return; // new trading day — let the next open/reload pick it up
+                    if (lastDayTs !== todayTs) {
+                        // No bar for today yet (the daily feed hadn't produced one when the chart was built,
+                        // or the session rolled over while it stayed open). Create it the way the open-time
+                        // injection does (_injectChartLiveBar: open = high = low = price, volume 0) instead of
+                        // silently doing nothing for the rest of the session. The high/low folding below then
+                        // picks up the quote's day range straight away. Never create a bar older than the last
+                        // one, and never outside market hours.
+                        if (lastDayTs > todayTs || !wlIsMarketOpen()) return;
+                        last = { time: todayTs, open: q.price, high: q.price, low: q.price, close: q.price, volume: 0 };
+                        _mcFsOhlcv.push(last);
+                    }
                     var high = q.dayHigh != null ? Math.max(last.high, q.dayHigh, q.price) : Math.max(last.high, q.price);
                     var low  = q.dayLow  != null ? Math.min(last.low,  q.dayLow,  q.price) : Math.min(last.low,  q.price);
                     last.high = high; last.low = low; last.close = q.price;
                     try { _mcFsCandle.update({ time: todayTs, open: last.open, high: high, low: low, close: q.price, volume: last.volume }); } catch(e) {}
+                    _mcFsRenderMktInfo(sym); // top price / DAY range / 52W strip follows the candle
                 }).catch(function() {});
         }, 10 * 1000);
     }
@@ -4381,110 +4509,8 @@ return '10y';
         });
 
         // ── Market info strip (price/change, day range, 52W range) ──────────────
-        (function() {
-            var n = _mcFsOhlcv.length;
-            if (!n) return;
-            var last   = _mcFsOhlcv[n - 1];
-            var prev   = n > 1 ? _mcFsOhlcv[n - 2] : null;
-            var close  = last.close;
-            var chg    = prev ? close - prev.close : 0;
-            var pct    = prev ? chg / prev.close * 100 : 0;
-            var dayLow = last.low, dayHigh = last.high;
-
-            // 52W range — lookback adjusted per timeframe
-            var yrBars = _mcFsTf === 'W' ? 52 : _mcFsTf === 'M' ? 12 : 252;
-            var slice  = _mcFsOhlcv.slice(-Math.min(yrBars, n));
-            var yrLow  = slice.reduce(function(m, b) { return Math.min(m, b.low);  }, Infinity);
-            var yrHigh = slice.reduce(function(m, b) { return Math.max(m, b.high); }, -Infinity);
-
-            var chgColor = chg >= 0 ? 'var(--success)' : 'var(--danger)';
-            var chgSign  = chg >= 0 ? '+' : '';
-            var barLabel = _mcFsTf === 'W' ? 'WK' : _mcFsTf === 'M' ? 'MO' : 'DAY';
-
-            // Gradient range bar: red→yellow→green track, dark overlay masks unfilled right,
-            // white dot with dark ring marks current price position
-            var barColor = chg >= 0 ? 'var(--al-chart-up)' : 'var(--al-chart-down)';
-
-            // Shared bar builder — 4px tall, matches 52W style
-            function mkBar(low, high, curr, width, crLabel) {
-                var pos = (high > low)
-                    ? Math.max(2, Math.min(98, (curr - low) / (high - low) * 100))
-                    : 50;
-                var p = pos.toFixed(1);
-                var crSpan = crLabel != null
-                    ? '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-150%);' +
-                      'font-size:9px;font-weight:700;color:' + crLabel.color + ';letter-spacing:.02em;pointer-events:none;">' +
-                      crLabel.text + '</span>'
-                    : '';
-                return '<span style="position:relative;display:inline-block;width:' + width + 'px;height:4px;' +
-                    'border-radius:2px;background:var(--bg-surface);vertical-align:middle;flex-shrink:0;overflow:visible;">' +
-                    '<span style="position:absolute;left:0;top:0;height:100%;width:' + p + '%;background:' + barColor + ';border-radius:2px;"></span>' +
-                    '<span style="position:absolute;top:50%;left:' + p + '%;' +
-                    'transform:translate(-50%,-50%);width:8px;height:8px;' +
-                    'background:var(--text-primary-alt);border-radius:50%;box-shadow:0 0 0 1.5px var(--bg-page);"></span>' +
-                    crSpan +
-                    '</span>';
-            }
-
-            // CR% value computed live from day range
-            var crRaw   = (dayHigh > dayLow) ? Math.round((close - dayLow) / (dayHigh - dayLow) * 100) : null;
-            var crLabel = crRaw != null ? {
-                text:  crRaw + '%',
-                color: crRaw >= 60 ? 'var(--success)' : crRaw >= 30 ? 'var(--warning-alt)' : 'var(--danger)'
-            } : null;
-
-            var adrEl = document.getElementById('mc-fs-mkt-adr');
-            var sd = tickerMap && tickerMap[sym] ? tickerMap[sym] : null;
-            if (adrEl) {
-                var adrRaw = sd ? sd.adr_pct : null;
-                if (adrRaw != null) {
-                    adrEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">ADR%</span>'
-                                    + '<span style="color:var(--text-primary-alt);font-size:12px;">' + adrRaw.toFixed(1) + '%</span>';
-                    adrEl.style.display = 'inline-flex';
-                } else {
-                    adrEl.style.display = 'none';
-                }
-            }
-
-            var mcapEl = document.getElementById('mc-fs-mkt-mcap');
-            if (mcapEl) {
-                var mcapRaw = sd ? sd.MarketCap : null;
-                if (mcapRaw != null) {
-                    var mc = mcapRaw >= 1e12 ? (mcapRaw/1e12).toFixed(2)+'T'
-                           : mcapRaw >= 1e9  ? (mcapRaw/1e9).toFixed(2)+'B'
-                           : mcapRaw >= 1e6  ? (mcapRaw/1e6).toFixed(0)+'M' : mcapRaw;
-                    mcapEl.innerHTML = '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">Mkt Cap</span>'
-                                     + '<span style="color:var(--text-primary-alt);font-size:12px;">' + mc + '</span>';
-                    mcapEl.style.display = 'inline-flex';
-                } else {
-                    mcapEl.style.display = 'none';
-                }
-            }
-
-            document.getElementById('mc-fs-mkt-price').innerHTML =
-                '<span style="color:var(--text-emphasis-2);font-size:20px;font-weight:700;">' + fp(close) + '</span>' +
-                '&nbsp;<span style="color:' + chgColor + ';font-size:13px;font-weight:600;">' +
-                chgSign + fp(chg) + '&nbsp;(' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)</span>';
-
-            document.getElementById('mc-fs-mkt-day').innerHTML =
-                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">' + barLabel + '</span>' +
-                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayLow) + '</span>' +
-                mkBar(dayLow, dayHigh, close, 130, crLabel) +
-                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(dayHigh) + '</span>';
-
-            var w52HiPct   = (yrHigh > 0) ? (yrHigh - close) / yrHigh * 100 : 0;
-            var w52HiLabel = yrHigh > 0 ? {
-                text:  w52HiPct < 0.5 ? 'ATH' : ('-' + w52HiPct.toFixed(1) + '%'),
-                color: w52HiPct <= 5 ? 'var(--success)' : w52HiPct <= 15 ? 'var(--warning-alt)' : 'var(--danger)'
-            } : null;
-            document.getElementById('mc-fs-mkt-52w').innerHTML =
-                '<span style="color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.04em;">52W</span>' +
-                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrLow) + '</span>' +
-                mkBar(yrLow, yrHigh, close, 120, w52HiLabel) +
-                '<span style="color:var(--text-primary-alt);font-size:12px;">' + fp(yrHigh) + '</span>';
-
-            document.getElementById('mc-fs-mkt-info').style.display = 'flex';
-        })();
+        // Drawn by _mcFsRenderMktInfo (defined beside the fullscreen live tick) so the live paths can redraw it.
+        _mcFsRenderMktInfo(sym);
 
         // ── Pre/post-market badge content ────────────────────────────────────
         // NOTE: this can no longer be read out of _mcMetaCache[sym] — Yahoo's
@@ -4618,7 +4644,8 @@ return '10y';
         // intraday OHLC is always reflected, even if Yahoo's historical feed
         // returned a stale or missing current-day bar.
         _injectChartLiveBar(sym, tf, _mcFsCandle, _mcFsVol, _mcFsOhlcv,
-            function() { return _mcFsSym !== sym || !_mcFsCandle; });
+            function() { return _mcFsSym !== sym || !_mcFsCandle; },
+            function() { _mcFsRenderMktInfo(sym); }); // the price strip was drawn before this bar landed — redraw it
 
         // Keep it updating for as long as this chart stays open — see
         // _mcFsStartLiveTick for why this can't just reuse the caches above.
