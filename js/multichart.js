@@ -2036,8 +2036,8 @@ return '10y';
     // ── Erase all drawings (Alt+Backspace) ─────────────────────────────────────────────────────────────
     // Wipes the CURRENT ticker's hand-drawn trendlines, AVWAPs and measurements from the chart in use (fullscreen,
     // watchlist panel or alerts panel), on screen AND in the saved store ("Saved chart drawings" above). Other
-    // tickers are never touched. It takes two presses: the first shows what would go, the second (within
-    // _ERASE_WINDOW_MS, same chart, same ticker) does it. Nothing here can be undone and the store change syncs to KV.
+    // tickers are never touched. It runs immediately on a single press, with no confirmation, and a toast reports what
+    // went. Nothing here can be undone and the store change syncs to KV.
     //  - Alerts are never touched. A line that backs an alert (the same test the Delete-key dialog uses:
     //    alLineAlerts) is kept, together with its saved copy, and only counted in the message. It would be redrawn
     //    from the alert store the next time the chart opened anyway.
@@ -2047,25 +2047,6 @@ return '10y';
     //    clears measurements (screen + saved) and any un-alerted line currently on screen, and leaves saved lines alone.
     // cfg (one per chart): { key, storedLines, getSym, getOhlcv, getTf, getChart, getCandle, getTrendlines,
     //   getVwapSeries, getMeasureList, resetMeasure, getTrendDraw, getTrendOverlay, deselect }
-    var _ERASE_WINDOW_MS = 3000;
-    var _eraseArm = null;                                    // { key, sym, timer } while the confirm is pending
-
-    function _eraseDisarm(hideToast) {
-        if (_eraseArm) { clearTimeout(_eraseArm.timer); _eraseArm = null; }
-        if (hideToast) {
-            var t = document.getElementById('mc-fs-shot-toast');
-            if (t && t._erasePrompt) { t.style.display = 'none'; t._erasePrompt = false; }
-        }
-    }
-    // Any key other than the chord itself cancels a pending prompt. A bare modifier does not: pressing Alt is how
-    // the chord starts, so it must not cancel the press it belongs to.
-    document.addEventListener('keydown', function(evt) {
-        if (!_eraseArm) return;
-        var k = evt.key;
-        if (k === 'Alt' || k === 'Shift' || k === 'Control' || k === 'Meta' || k === 'AltGraph') return;
-        if ((k === 'Backspace' || evt.code === 'Backspace') && evt.altKey && !evt.shiftKey && !evt.ctrlKey && !evt.metaKey) return;
-        _eraseDisarm(true);
-    }, true);
 
     function _erasePlural(n, one) { return n + ' ' + one + (n === 1 ? '' : 's'); }
     function _eraseSummary(plan) {
@@ -2182,25 +2163,15 @@ return '10y';
         });
     }
 
-    // Press 1 arms and shows the prompt; press 2 (same chart + ticker, inside the window) erases.
+    // One press erases immediately (no confirmation) and reports what went.
     function _eraseAllDrawings(cfg) {
         var sym = cfg.getSym();
         if (!sym) return;
         var plan = _eraseScan(cfg, sym);
         if (!(plan.nTl + plan.nAv + plan.nMs)) {
-            _eraseDisarm(false);
             _mcFsShotToast('Nothing to erase for ' + sym + _eraseKeptNote(plan), true);
             return;
         }
-        if (!(_eraseArm && _eraseArm.key === cfg.key && _eraseArm.sym === sym)) {
-            _eraseDisarm(false);
-            _eraseArm = { key: cfg.key, sym: sym, timer: setTimeout(function() { _eraseDisarm(true); }, _ERASE_WINDOW_MS) };
-            _mcFsShotToast('Erase ' + _eraseSummary(plan) + ' for ' + sym + '?' + _eraseKeptNote(plan) + ' Press Alt+Backspace again', false, _ERASE_WINDOW_MS);
-            var tp = document.getElementById('mc-fs-shot-toast');
-            if (tp) tp._erasePrompt = true;
-            return;
-        }
-        _eraseDisarm(false);
         _eraseApply(cfg, sym, plan);
         _mcFsShotToast('Erased ' + _eraseSummary(plan) + ' for ' + sym + _eraseKeptNote(plan), true);
     }
@@ -2214,7 +2185,7 @@ return '10y';
         var cm = document.getElementById('al-confirm-overlay');
         if (cm && cm.classList.contains('open')) return false;                    // a confirm dialog owns the keyboard
         evt.preventDefault();
-        if (evt.repeat) return true;                                              // holding the keys is not a second press
+        if (evt.repeat) return true;                                              // holding the keys does not re-fire
         _eraseAllDrawings(cfg);
         return true;
     }
@@ -3991,7 +3962,6 @@ return '10y';
                 'background:var(--bg-subtle);border:1px solid var(--bg-surface);box-shadow:0 6px 20px rgba(0,0,0,0.35);';
             document.body.appendChild(el);
         }
-        el._erasePrompt = false;   // a newer message replaces a pending Alt+Backspace prompt (see _eraseAllDrawings)
         el.textContent = msg;
         el.style.color = ok ? 'var(--success)' : 'var(--danger)';
         el.style.display = 'block';
@@ -4813,7 +4783,7 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol, S = screenshot, Backspace = erase all drawings (press twice)
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol, S = screenshot, Backspace = erase all drawings
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.mcFsToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.mcFsToggleTrendline(); return; }
@@ -6527,7 +6497,7 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, Backspace = erase all drawings (press twice)
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, Backspace = erase all drawings
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.wlToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.wlChartToggleTrendline(); return; }
