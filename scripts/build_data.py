@@ -51,6 +51,10 @@ MIN_MARKET_CAP  = 100_000_000  # MarketCap filter — anything below $100M gets 
 # false-flagging a ticker that's actually still trading normally.
 STALE_MAX_CALENDAR_DAYS = 4
 
+# HV1 (highest volume in 1 year) — lookback window and how many recent bars to scan for a print.
+HV1_WINDOW        = 252   # prior sessions a bar must out-volume (strictly greater than the max)
+HV1_LOOKBACK_BARS = 10    # hv1_age is null if the last print is older than this (ages 0..9)
+
 # Industry trend sparkline — trailing window + sample count
 SPARK_WINDOW = 63   # trading days ≈ 3 months, matches the existing `3m` field
 SPARK_POINTS = 13   # evenly-spaced samples across the window (~weekly cadence)
@@ -685,6 +689,22 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         except Exception:
             pass
 
+        # HV1 recency: sessions since the most recent bar whose volume was strictly greater than
+        # every one of its prior 252 bars (highest volume in 1 year). 0 = today, null = no HV1
+        # print in the last HV1_LOOKBACK_BARS bars. min_periods=252 means a bar with a short or
+        # gappy (NaN) lookback can never qualify, so recent IPOs don't light up.
+        hv1_age = None
+        try:
+            vol       = hist["Volume"]
+            prior_max = vol.shift(1).rolling(HV1_WINDOW, min_periods=HV1_WINDOW).max()
+            is_hv1    = (vol > prior_max).to_numpy()      # NaN comparisons evaluate to False
+            for age in range(min(HV1_LOOKBACK_BARS, len(is_hv1))):
+                if is_hv1[-1 - age]:
+                    hv1_age = age
+                    break
+        except Exception:
+            pass
+
         return {
             "price":      round(float(current), 2),
             "inside_day": inside_day,
@@ -737,6 +757,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "cr_m":      cr_m,
             "adr_pct":   adr_pct,
             "rel_vol":        rel_vol,
+            "hv1_age":        hv1_age,
             "ud_vol_ratio_20": ud_vol_ratio_20,
             "ud_vol_ratio_50": ud_vol_ratio_50,
             "dist_ma":   dist_ma,
