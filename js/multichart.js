@@ -849,6 +849,7 @@ return '10y';
         item.botLine = _measureMakeEl(layer, 'line', {});
         item.vLine   = _measureMakeEl(layer, 'line', { 'stroke-dasharray': '3,3' });
         item.vLine.style.strokeOpacity = 'var(--al-measure-dash-opacity, 1)';   // fainter than the lines; tune in styles.css
+        item.head.style.fillOpacity = 'var(--al-measure-head-opacity, 1)';   // arrowhead; tune in styles.css
         item.head    = _measureMakeEl(layer, 'polygon', {});
         item.tTop    = _measureMakeEl(layer, 'text', txt);
         item.tBot    = _measureMakeEl(layer, 'text', txt);
