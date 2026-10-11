@@ -41,6 +41,7 @@
         { value: 'mcap',  label: 'Market Cap' },
         { value: 'rvol',    label: 'Rel. Volume' },
         { value: 'udv',     label: 'U/D Vol' },
+        { value: 'hv1',     label: 'HV1' },
         { value: 'pattern', label: 'Pattern' },
         { value: 'fund',      label: 'Fundamental' },
         { value: 'valuation', label: 'Valuation' },
@@ -133,6 +134,11 @@
             var vmLabel = vm ? vm.label : (row.valMetric || 'metric');
             var vDir = row.dir === 'gt' ? '>' : '<';
             return vmLabel + ' ' + vDir + ' ' + (row.val !== '' && row.val != null ? row.val : '—');
+        }
+        if (row.type === 'hv1') {
+            var hvW = parseInt(row.hv1Within);
+            if (isNaN(hvW)) hvW = 1;
+            return hvW <= 1 ? 'HV1 · today' : 'HV1 · within ' + hvW + 'D';
         }
         if (row.type === 'gap') {
             var gapDir = row.dir === 'up' ? 'Up' : 'Down';
@@ -249,6 +255,7 @@
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
             valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
             udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
+            hv1:     'HV1 — volume higher than any of the prior 252 sessions (highest volume in 1 year), today or within the last few sessions.',
             perf:    'Price performance over a selected timeframe.',
             gap:     'Filter stocks that gapped up or down at the open.',
             range:   'Filter by where price sits within its 52-week or recent range.',
@@ -420,6 +427,13 @@
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Metric</span><select class="sf-select" style="max-width:160px;" onchange="sfPopChange('+id+',\'valMetric\',this.value)">'+valMetricOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Condition</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+valDirOpts+'</select></div>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Value</span><input class="sf-input" type="number" step="0.1" min="0" value="'+(row.val!=null?row.val:20)+'" oninput="sfPopChange('+id+',\'val\',this.value)"></div>';
+        } else if (row.type === 'hv1') {
+            var hvWithin = parseInt(row.hv1Within);
+            if (isNaN(hvWithin)) hvWithin = 1;
+            var hvBtns = [[1,'Today'],[3,'3'],[5,'5'],[10,'10']].map(function(o){
+                return '<button class="sf-seg-btn'+(hvWithin===o[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'hv1Within\','+o[0]+')">'+o[1]+'</button>';
+            }).join('');
+            html += '<div class="sf-popover-row"><span class="sf-popover-label" data-rs-tip="Show stocks that printed their highest volume in 1 year today, or within the last 3, 5 or 10 sessions (trading days).">Within</span><div class="sf-seg">'+hvBtns+'</div></div>';
         } else if (row.type === 'gap') {
             var gapDirOpts = '<option value="up"'+(row.dir==='up'?' selected':'')+'>Gap Up</option><option value="down"'+(row.dir==='down'?' selected':'')+'>Gap Down</option>';
             html += '<div class="sf-popover-row"><span class="sf-popover-label">Direction</span><select class="sf-select" onchange="sfPopChange('+id+',\'dir\',this.value)">'+gapDirOpts+'</select></div>';
@@ -659,6 +673,7 @@
             row.val     = row.type === 'perf' ? 5 : row.type === 'gap' ? 1 : row.type === 'range' ? 50 : row.type === 'sector' ? null : row.type === 'indrank' ? 15 : 0;
             row.val2    = null;
             row.rangeCondition = row.type === 'range' ? 'relative' : null;
+            if (row.type === 'hv1') row.hv1Within = 1;
             var c = sfPopoverHtml(row, true);
             var contentEl = document.getElementById('sf-popover-content');
             if (contentEl) contentEl.innerHTML = c;
@@ -762,7 +777,7 @@
         var pop = document.getElementById('sf-popover');
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
-        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry', indrank: 'Industry Rank' };
+        var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry', indrank: 'Industry Rank', hv1: 'HV1' };
         document.getElementById('sf-popover-title').textContent = EXTRA_TITLES[row.type] || row.type;
         document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
         var pop = document.getElementById('sf-popover');
@@ -856,6 +871,7 @@
             { value: 'mcap',    label: 'Market Cap' },
             { value: 'rvol',    label: 'Rel. Volume' },
             { value: 'udv',     label: 'U/D Vol' },
+            { value: 'hv1',     label: 'HV1' },
             { value: 'pattern', label: 'Pattern' },
             { value: 'fund',      label: 'Fundamental' },
             { value: 'valuation', label: 'Valuation' },
@@ -882,6 +898,7 @@
             mcap:    'Market Cap — total market value of the company.',
             rvol:    'Relative Volume — today\'s volume vs the average for this time of day.',
             udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
+            hv1:     'HV1 — volume higher than any of the prior 252 sessions (highest volume in 1 year), today or within the last few sessions.',
             pattern: 'Filter by candlestick or price pattern.',
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
             valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
@@ -937,6 +954,7 @@
             wk52NewOnly: type === 'wk52' ? 0 : undefined,
             wk52DistMin: type === 'wk52' ? null : undefined,
             wk52DistMax: type === 'wk52' ? null : undefined,
+            hv1Within: type === 'hv1' ? 1 : undefined,
             indrankMode: type === 'indrank' ? 'top' : undefined,
             val: type === 'rs' ? 70 : type === 'price' ? 5 : type === 'vol' ? '500K' :
                  type === 'adr' ? 3 : type === 'cr' ? 50 : type === 'mcap' ? '1B' :
@@ -1640,6 +1658,14 @@
                         if (f.dir === 'gt' && rsiVal <= rsiThresh) return false;
                         if (f.dir === 'lt' && rsiVal >= rsiThresh) return false;
                     }
+                } else if (f.type === 'hv1') {
+                    // hv1_age (build_data.py) = sessions since the last 1-year-high-volume bar:
+                    // 0 = today, null = none in the last 10. "Within N" keeps ages 0..N-1, so Today (1) = age 0 only.
+                    var hvAge = r.hv1_age;
+                    if (hvAge == null) return false;
+                    var hvWithinF = parseInt(f.hv1Within);
+                    if (isNaN(hvWithinF)) hvWithinF = 1;
+                    if (hvAge >= hvWithinF) return false;
                 }
             }
             return true;
