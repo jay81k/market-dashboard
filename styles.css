@@ -108,9 +108,8 @@
             --al-measure-stroke-down: #a12e21;
             --al-measure-bg-up: rgba(2,68,133,0.88);
             --al-measure-bg-down: rgba(136,8,8,0.88);
-            /* Opacity of the dashed arrow between a measurement's two lines (the arrowhead and the lines stay solid). 1 = as strong as the lines. */
+            /* Opacity of the dashed line between a measurement's two lines (the two lines stay solid). 1 = as strong as the lines. */
             --al-measure-dash-opacity: 0.25;
-            --al-measure-head-opacity: 0.25;
             --mc-cell-grid: #171b22;
 
             /* near-duplicate text tones found only in JS-generated markup */
@@ -220,7 +219,6 @@
             --al-measure-bg-up: rgba(6,122,102,0.88);
             --al-measure-bg-down: rgba(164,34,45,0.88);
             --al-measure-dash-opacity: 0.5;   /* light-mode measure strokes are already semi-transparent */
-            --al-measure-head-opacity: 0.5;   /* arrowhead, same as the dashed line in light mode */
             --mc-cell-grid: #eaeef2;
 
             --text-primary-alt: #1f2328;
