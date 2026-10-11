@@ -2171,6 +2171,26 @@
         _hideMeasureOverlay(_alMeasureSvgOverlay, _alMeasureInfoDiv);
     }
 
+    // Alt+Backspace (erase all drawings) -- see "Erase all drawings" in multichart.js. This chart never saves hand-drawn
+    // trendlines / AVWAPs, so storedLines is false: only measurements (screen + saved) and un-alerted lines on screen go.
+    function _alEraseCfg() {
+        return {
+            key: 'al', storedLines: false,
+            getSym:         function() { return _alSym; },
+            getOhlcv:       function() { return _alOhlcv; },
+            getTf:          function() { return _alChartTf; },
+            getChart:       function() { return _alChart; },
+            getCandle:      function() { return _alCandle; },
+            getTrendlines:  function() { return _alTrendlines; },
+            getVwapSeries:  function() { return _alVwapSeries; },
+            getMeasureList: function() { return _alMeasureList; },
+            resetMeasure:   _alResetMeasure,
+            getTrendDraw:   function() { return _alTrendDraw; },
+            getTrendOverlay:function() { return _alTrendSvgOverlay; },
+            deselect:       function() { _alDeselectAllTrendlines(); _alDeselectAllVwaps(); }
+        };
+    }
+
     // ── AL Measure drag handlers ─────────────────────────────────────────────
     function _onAlMeasureDragMove(evt) {
         _onMeasureDragMoveCore(evt, {
@@ -2859,11 +2879,12 @@
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, Backspace = erase all drawings (press twice)
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.alChartToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.alChartToggleTrendline(); return; }
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.alChartToggleVwap(); return; }
+                if (_eraseHandleKey(evt, _alEraseCfg(), null)) return;
             }
             if (evt.key !== 'Delete') return;
             if (_measureDeleteSelected(_alMeasureList)) { evt.preventDefault(); evt.stopPropagation(); return; }
