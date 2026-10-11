@@ -1959,6 +1959,26 @@
                 '<tr><td colspan="24" style="padding:40px;text-align:center;color:var(--border-muted);font-size:0.935em;">No results</td></tr>';
             allStockRows = [];
             currentStockIndex = -1;
+            // One-shot flags are normally consumed further down; this early
+            // return skips that, so clear them here or they leak into the next render.
+            _scanPreserveScroll = false;
+            _scanLiveRefilterRender = false;
+            // The refresh spinner is only cleared when scanFetchPrices() finishes,
+            // which this early return never reaches — stop it here.
+            var _emptyRefreshBtn = document.getElementById('scans-refresh-btn');
+            if (_emptyRefreshBtn) _emptyRefreshBtn.classList.remove('spinning');
+            // Multichart mode hides the table, so the "No results" row above is
+            // invisible. scansMcTickers is already [], so renderScansMc() destroys
+            // the old charts and bumps the render token (cancelling in-flight loads);
+            // then show the message in the grid itself.
+            if (scansMultichartActive) {
+                renderScansMc();
+                var _mcGridEmpty = document.getElementById('scans-multichart-grid');
+                if (_mcGridEmpty) {
+                    _mcGridEmpty.innerHTML =
+                        '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--border-muted);font-size:0.935em;">No results</div>';
+                }
+            }
             return;
         }
 
