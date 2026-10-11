@@ -2033,6 +2033,227 @@ return '10y';
         });
     }
 
+    // ── Erase all drawings (Alt+Backspace) ─────────────────────────────────────────────────────────────
+    // Wipes the CURRENT ticker's hand-drawn trendlines, AVWAPs and measurements from the chart in use (fullscreen,
+    // watchlist panel or alerts panel), on screen AND in the saved store ("Saved chart drawings" above). Other
+    // tickers are never touched. It takes two presses: the first shows what would go, the second (within
+    // _ERASE_WINDOW_MS, same chart, same ticker) does it. Nothing here can be undone and the store change syncs to KV.
+    //  - Alerts are never touched. A line that backs an alert (the same test the Delete-key dialog uses:
+    //    alLineAlerts) is kept, together with its saved copy, and only counted in the message. It would be redrawn
+    //    from the alert store the next time the chart opened anyway.
+    //  - The store is wiped for the ticker, not just what is on screen, so an AVWAP anchored before the loaded
+    //    history (or a line saved on another timeframe) cannot come back later. The counts include those.
+    //  - The alerts-panel chart passes storedLines:false: its hand-drawn lines are never saved (see above), so there it
+    //    clears measurements (screen + saved) and any un-alerted line currently on screen, and leaves saved lines alone.
+    // cfg (one per chart): { key, storedLines, getSym, getOhlcv, getTf, getChart, getCandle, getTrendlines,
+    //   getVwapSeries, getMeasureList, resetMeasure, getTrendDraw, getTrendOverlay, deselect }
+    var _ERASE_WINDOW_MS = 3000;
+    var _eraseArm = null;                                    // { key, sym, timer } while the confirm is pending
+
+    function _eraseDisarm(hideToast) {
+        if (_eraseArm) { clearTimeout(_eraseArm.timer); _eraseArm = null; }
+        if (hideToast) {
+            var t = document.getElementById('mc-fs-shot-toast');
+            if (t && t._erasePrompt) { t.style.display = 'none'; t._erasePrompt = false; }
+        }
+    }
+    // Any key other than the chord itself cancels a pending prompt. A bare modifier does not: pressing Alt is how
+    // the chord starts, so it must not cancel the press it belongs to.
+    document.addEventListener('keydown', function(evt) {
+        if (!_eraseArm) return;
+        var k = evt.key;
+        if (k === 'Alt' || k === 'Shift' || k === 'Control' || k === 'Meta' || k === 'AltGraph') return;
+        if ((k === 'Backspace' || evt.code === 'Backspace') && evt.altKey && !evt.shiftKey && !evt.ctrlKey && !evt.metaKey) return;
+        _eraseDisarm(true);
+    }, true);
+
+    function _erasePlural(n, one) { return n + ' ' + one + (n === 1 ? '' : 's'); }
+    function _eraseSummary(plan) {
+        var parts = [];
+        if (plan.nTl) parts.push(_erasePlural(plan.nTl, 'trendline'));
+        if (plan.nAv) parts.push(_erasePlural(plan.nAv, 'AVWAP'));
+        if (plan.nMs) parts.push(_erasePlural(plan.nMs, 'measurement'));
+        return parts.join(', ');
+    }
+    function _eraseKeptNote(plan) {
+        return plan.kept ? ' (' + plan.kept + ' alert-backed line' + (plan.kept === 1 ? '' : 's') + ' kept)' : '';
+    }
+
+    // A failed alert lookup counts as "backed": when in doubt a line is kept, never erased.
+    function _eraseTlBacked(sym, ref) {
+        try { return !!(window.alLineAlerts && ref && window.alLineAlerts(sym, 'trendline', ref).length); } catch (e) { return true; }
+    }
+    function _eraseAvEntryBacked(sym, ohlcv, tf, idx) {
+        try { return !!(window.alLineAlerts && window.alLineAlerts(sym, 'avwap', { ohlcv: ohlcv, tf: tf, idx: idx }).length); } catch (e) { return true; }
+    }
+    // A SAVED AVWAP anchor (a bar timestamp). Backed if an AVWAP alert resolves to the same bar on this chart, or, when
+    // the anchor can't be resolved on this chart (older than the loaded history), has exactly the same timestamp.
+    function _eraseAvStoredBacked(sym, ohlcv, tf, u) {
+        if (!window.alGetAvwapAlerts) return false;
+        try {
+            var idx = _chartAnchorIdx(ohlcv, tf, u);
+            if (idx >= 0 && _eraseAvEntryBacked(sym, ohlcv, tf, idx)) return true;
+            return window.alGetAvwapAlerts(sym).some(function(a) {
+                var au = (typeof _alAnchorUnix === 'function') ? _alAnchorUnix(a) : ((a.anchorUnix != null) ? a.anchorUnix : null);
+                return au != null && au === u;
+            });
+        } catch (e) { return true; }
+    }
+
+    // What an erase would remove: on-screen items that are not alert-backed, plus saved items that are not on screen
+    // (and not alert-backed). Pure read: nothing is changed here.
+    function _eraseScan(cfg, sym) {
+        var ohlcv = cfg.getOhlcv() || [], tf = cfg.getTf();
+        var plan = { tlObjs: [], avObjs: [], tlRecs: [], avIdx: [], nTl: 0, nAv: 0, nMs: 0, kept: 0 };
+        (cfg.getTrendlines() || []).forEach(function(tl) {
+            if (tl && tl.alertRef && _eraseTlBacked(sym, tl.alertRef)) { plan.kept++; return; }
+            plan.tlObjs.push(tl);
+            var a = tl && _cdAnch(tl.leftP), b = tl && _cdAnch(tl.rightP);
+            if (a && b) plan.tlRecs.push({ l: a, r: b });
+        });
+        (cfg.getVwapSeries() || []).forEach(function(en) {
+            if (_eraseAvEntryBacked(sym, ohlcv, tf, en.anchor)) { plan.kept++; return; }
+            plan.avObjs.push(en);
+            plan.avIdx.push(en.anchor);
+        });
+        var list = cfg.getMeasureList() || [];
+        var extraTl = 0, extraAv = 0, extraMs = 0;
+        var e = _cdStore && _cdStore[sym];                   // null until the saved store has loaded: then only the screen is counted
+        if (e) {
+            if (cfg.storedLines) {
+                (e.tl || []).forEach(function(x) {
+                    if (!x || !x.l || !x.r) return;
+                    if (_eraseTlBacked(sym, { l: x.l, r: x.r })) return;
+                    if (plan.tlRecs.some(function(r) { return _cdSameLine(r, x); })) return;
+                    extraTl++;
+                });
+                (e.av || []).forEach(function(u) {
+                    if (_eraseAvStoredBacked(sym, ohlcv, tf, u)) return;
+                    var i = _chartAnchorIdx(ohlcv, tf, u);
+                    if (i >= 0 && plan.avIdx.indexOf(i) !== -1) return;
+                    extraAv++;
+                });
+            }
+            (e.ms || []).forEach(function(s) {
+                if (!s || !s.a || !s.b) return;
+                var shown = list.some(function(m) { var r = _cdMsRec(m); return !!r && _cdSameMs(r, s); });
+                if (!shown) extraMs++;
+            });
+        }
+        plan.nTl = plan.tlObjs.length + extraTl;
+        plan.nAv = plan.avObjs.length + extraAv;
+        plan.nMs = list.length + extraMs;
+        return plan;
+    }
+
+    function _eraseApply(cfg, sym, plan) {
+        var ohlcv = cfg.getOhlcv() || [], tf = cfg.getTf();
+        // 1. Abandon a half-finished measurement / trendline and drop the committed measurements from the screen.
+        cfg.resetMeasure();
+        var td = cfg.getTrendDraw();
+        if (td) { td.active = false; td.startTime = null; td.startPrice = null; }
+        var ov = cfg.getTrendOverlay();
+        if (ov) ov.style.display = 'none';
+        // 2. Un-alerted trendlines and AVWAPs on screen.
+        var tls = cfg.getTrendlines(), candle = cfg.getCandle();
+        plan.tlObjs.forEach(function(tl) {
+            var i = tls.indexOf(tl); if (i !== -1) tls.splice(i, 1);
+            try { if (candle) candle.detachPrimitive(tl.primitive); } catch (err) {}
+        });
+        var vs = cfg.getVwapSeries(), chart = cfg.getChart();
+        plan.avObjs.forEach(function(en) {
+            var i = vs.indexOf(en); if (i !== -1) vs.splice(i, 1);
+            try { if (chart) chart.removeSeries(en.series); } catch (err) {}
+        });
+        cfg.deselect();
+        // 3. The saved copies: everything for this ticker except what backs an alert (the alerts panel keeps its lines).
+        _cdMutate(function(store) {
+            var e = store[sym];
+            if (!e) return false;
+            var n0 = (e.tl ? e.tl.length : 0) + (e.av ? e.av.length : 0) + (e.ms ? e.ms.length : 0);
+            if (cfg.storedLines) {
+                e.tl = (e.tl || []).filter(function(x) { return !!(x && x.l && x.r) && _eraseTlBacked(sym, { l: x.l, r: x.r }); });
+                e.av = (e.av || []).filter(function(u) { return _eraseAvStoredBacked(sym, ohlcv, tf, u); });
+            }
+            e.ms = [];
+            var n1 = (e.tl ? e.tl.length : 0) + (e.av ? e.av.length : 0);
+            _cdPrune(store, sym);
+            return n1 !== n0;
+        });
+    }
+
+    // Press 1 arms and shows the prompt; press 2 (same chart + ticker, inside the window) erases.
+    function _eraseAllDrawings(cfg) {
+        var sym = cfg.getSym();
+        if (!sym) return;
+        var plan = _eraseScan(cfg, sym);
+        if (!(plan.nTl + plan.nAv + plan.nMs)) {
+            _eraseDisarm(false);
+            _mcFsShotToast('Nothing to erase for ' + sym + _eraseKeptNote(plan), true);
+            return;
+        }
+        if (!(_eraseArm && _eraseArm.key === cfg.key && _eraseArm.sym === sym)) {
+            _eraseDisarm(false);
+            _eraseArm = { key: cfg.key, sym: sym, timer: setTimeout(function() { _eraseDisarm(true); }, _ERASE_WINDOW_MS) };
+            _mcFsShotToast('Erase ' + _eraseSummary(plan) + ' for ' + sym + '?' + _eraseKeptNote(plan) + ' Press Alt+Backspace again', false, _ERASE_WINDOW_MS);
+            var tp = document.getElementById('mc-fs-shot-toast');
+            if (tp) tp._erasePrompt = true;
+            return;
+        }
+        _eraseDisarm(false);
+        _eraseApply(cfg, sym, plan);
+        _mcFsShotToast('Erased ' + _eraseSummary(plan) + ' for ' + sym + _eraseKeptNote(plan), true);
+    }
+
+    // Called from each chart's Alt-shortcut block. Returns true when the key was the erase chord and was consumed.
+    function _eraseHandleKey(evt, cfg, symInputId) {
+        if (!(evt.key === 'Backspace' || evt.code === 'Backspace') || evt.shiftKey) return false;
+        var tg = evt.target, tag = tg && tg.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (tg && tg.isContentEditable)) return false;
+        if (symInputId && document.getElementById(symInputId)) return false;      // the symbol search box is open
+        var cm = document.getElementById('al-confirm-overlay');
+        if (cm && cm.classList.contains('open')) return false;                    // a confirm dialog owns the keyboard
+        evt.preventDefault();
+        if (evt.repeat) return true;                                              // holding the keys is not a second press
+        _eraseAllDrawings(cfg);
+        return true;
+    }
+
+    function _mcFsEraseCfg() {
+        return {
+            key: 'fs', storedLines: true,
+            getSym:         function() { return _mcFsSym; },
+            getOhlcv:       function() { return _mcFsOhlcv; },
+            getTf:          function() { return _mcFsTf; },
+            getChart:       function() { return _mcFsChart; },
+            getCandle:      function() { return _mcFsCandle; },
+            getTrendlines:  function() { return _mcFsTrendlines; },
+            getVwapSeries:  function() { return _mcFsVwapSeries; },
+            getMeasureList: function() { return _mcFsMeasureList; },
+            resetMeasure:   _mcFsResetMeasure,
+            getTrendDraw:   function() { return _mcFsTrendDraw; },
+            getTrendOverlay:function() { return _mcFsTrendSvgOverlay; },
+            deselect:       function() { _deselectAllTrendlines(); _deselectAllVwaps(); }
+        };
+    }
+    function _wlEraseCfg() {
+        return {
+            key: 'wl', storedLines: true,
+            getSym:         function() { return _wlSym; },
+            getOhlcv:       function() { return _wlOhlcv; },
+            getTf:          function() { return _wlTf; },
+            getChart:       function() { return _wlChart; },
+            getCandle:      function() { return _wlCandle; },
+            getTrendlines:  function() { return _wlTrendlines; },
+            getVwapSeries:  function() { return _wlVwapSeries; },
+            getMeasureList: function() { return _wlMeasureList; },
+            resetMeasure:   _wlResetMeasure,
+            getTrendDraw:   function() { return _wlTrendDraw; },
+            getTrendOverlay:function() { return _wlTrendSvgOverlay; },
+            deselect:       function() { _wlDeselectAllTrendlines(); _wlDeselectAllVwaps(); }
+        };
+    }
+
     // ── Shared hit-test / selection cores — used by fullscreen, watchlist, and
     // alerts charts (alerts.js calls these cross-file, same pattern as fetchMcOhlcv).
     function _trendlineHitTestCore(clientX, clientY, chart, candle, ohlcv, trendlines, contRef) {
@@ -3760,7 +3981,7 @@ return '10y';
     var _MC_SHOT_STRIP_MIN_PAD = 3;    // CSS px of breathing room kept above / below each row's content
     var _mcFsShotBusy      = false;
 
-    function _mcFsShotToast(msg, ok) {
+    function _mcFsShotToast(msg, ok, ms) {
         var el = document.getElementById('mc-fs-shot-toast');
         if (!el) {
             el = document.createElement('div');
@@ -3770,11 +3991,12 @@ return '10y';
                 'background:var(--bg-subtle);border:1px solid var(--bg-surface);box-shadow:0 6px 20px rgba(0,0,0,0.35);';
             document.body.appendChild(el);
         }
+        el._erasePrompt = false;   // a newer message replaces a pending Alt+Backspace prompt (see _eraseAllDrawings)
         el.textContent = msg;
         el.style.color = ok ? 'var(--success)' : 'var(--danger)';
         el.style.display = 'block';
         clearTimeout(el._t);
-        el._t = setTimeout(function() { el.style.display = 'none'; }, ok ? 2200 : 4200);
+        el._t = setTimeout(function() { el.style.display = 'none'; }, ms || (ok ? 2200 : 4200));
     }
 
     // Paints the live header DOM onto a canvas (no library needed): backgrounds,
@@ -4591,11 +4813,12 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol, S = screenshot
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, C = copy symbol, S = screenshot, Backspace = erase all drawings (press twice)
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.mcFsToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.mcFsToggleTrendline(); return; }
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.mcFsToggleVwap(); return; }
+                if (_eraseHandleKey(evt, _mcFsEraseCfg(), 'mc-fs-sym-input')) return;
                 // Alt+S: copy a hi-res PNG of the header + chart to the clipboard. Same input
                 // guards as Alt+C so typing in the symbol box is never hijacked. evt.code is
                 // checked too because Option+S on a Mac produces a different evt.key.
@@ -6304,11 +6527,12 @@ return '10y';
                 }
                 return;
             }
-            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP
+            // Alt shortcuts: D = tooltip, T = trendline, A = AVWAP, Backspace = erase all drawings (press twice)
             if (evt.altKey && !evt.ctrlKey && !evt.metaKey) {
                 if (evt.key === 'd' || evt.key === 'D') { evt.preventDefault(); window.wlToggleTooltip(); return; }
                 if (evt.key === 't' || evt.key === 'T') { evt.preventDefault(); window.wlChartToggleTrendline(); return; }
                 if (evt.key === 'a' || evt.key === 'A') { evt.preventDefault(); window.wlChartToggleVwap(); return; }
+                if (_eraseHandleKey(evt, _wlEraseCfg(), 'wl-chart-sym-input')) return;
             }
             if (evt.key !== 'Delete') return;
             if (_measureDeleteSelected(_wlMeasureList)) { evt.preventDefault(); return; }
