@@ -603,6 +603,25 @@ return '10y';
         }
         return out;
     }
+    // RSI of ONE bar (Wilder: SMA seed over the first `period` changes, then RMA smoothing). Same maths as
+    // calculate_rsi14() in build_data.py, so a hover on the latest completed bar agrees with the snapshot's rsi14.
+    // Runs only up to `idx` (a bar's RSI depends on nothing after it), single pass, called on hover only.
+    function _rsiAt(ohlcv, idx, period) {
+        period = period || 14;
+        if (!ohlcv || idx < period || idx >= ohlcv.length) return null;
+        var g = 0, l = 0, i, ch;
+        for (i = 1; i <= period; i++) {
+            ch = ohlcv[i].close - ohlcv[i - 1].close;
+            if (ch > 0) g += ch; else if (ch < 0) l -= ch;
+        }
+        var ag = g / period, al = l / period;
+        for (i = period + 1; i <= idx; i++) {
+            ch = ohlcv[i].close - ohlcv[i - 1].close;
+            ag = (ag * (period - 1) + (ch > 0 ? ch : 0)) / period;
+            al = (al * (period - 1) + (ch < 0 ? -ch : 0)) / period;
+        }
+        return al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+    }
     // Price input for AVWAP. 'hlc3' = (H+L+C)/3, the conventional VWAP "typical price" (what TradingView's
     // anchored VWAP defaults to). 'ohlc4' was the previous behaviour -- the open is not a traded-volume
     // price, so it skews the line toward gap opens. Flip this one constant to go back.
@@ -697,6 +716,14 @@ return '10y';
                 var vpClr = vp >= 0 ? 'var(--success)' : 'var(--danger)';
                 ohlcvRows += L + 'Vol % Chg' + E + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E;
             }
+        }
+        // RSI(14) of the hovered bar. Colour: >=70 green, <=30 red, in between the same amber as CR%'s middle band.
+        var rsi = _rsiAt(ohlcv, barIdx, 14);
+        if (rsi != null) {
+            var rsiClr = rsi >= 70 ? 'var(--success)' : rsi <= 30 ? 'var(--danger)' : 'var(--warning-alt)';
+            ohlcvRows += L + 'RSI' + E + '<span style="color:' + rsiClr + '">' + rsi.toFixed(2) + E;
+        } else {
+            ohlcvRows += L + 'RSI' + E + L + '\u2014' + E;
         }
         html += '<div style="display:grid;grid-template-columns:auto auto;column-gap:10px;row-gap:0;">' + ohlcvRows + '</div>';
         var maOrder = ['SMA5', 'EMA8', 'EMA21', 'SMA50', 'SMA150', 'SMA200'];
