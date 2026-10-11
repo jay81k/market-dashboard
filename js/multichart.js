@@ -817,7 +817,7 @@ return '10y';
 
     // ── Committed (persistent) measurements ──────────────────────────────────
     // Finishing a measurement (second click) turns it into an item in a per-chart list. It is drawn as two
-    // horizontal lines at the start and end price, a dashed arrow between them pointing at the end price,
+    // horizontal lines at the start and end price, a dashed line between them from the start price to the end price,
     // the duration in days above and the price change below (no box). Items are anchored by time + price, so
     // they stay put through pan/zoom and new bars, and live until deleted (click a line or label to select it,
     // then Delete). Lists are only ever mutated in place. Lifetime matches the chart's trendlines.
@@ -839,7 +839,7 @@ return '10y';
         return el;
     }
 
-    function _measureEls(m) { return [m.topLine, m.botLine, m.vLine, m.head, m.tTop, m.tBot, m.hStart, m.hEnd]; }
+    function _measureEls(m) { return [m.topLine, m.botLine, m.vLine, m.tTop, m.tBot, m.hStart, m.hEnd]; }
 
     function _measureCommit(cfg, startTime, startPrice, endTime, endPrice) {
         var layer = _measureSavedLayer(cfg.contRef);
@@ -849,8 +849,6 @@ return '10y';
         item.botLine = _measureMakeEl(layer, 'line', {});
         item.vLine   = _measureMakeEl(layer, 'line', { 'stroke-dasharray': '3,3' });
         item.vLine.style.strokeOpacity = 'var(--al-measure-dash-opacity, 1)';   // fainter than the lines; tune in styles.css
-        item.head    = _measureMakeEl(layer, 'polygon', {});
-        item.head.style.fillOpacity = 'var(--al-measure-head-opacity, 1)';   // arrowhead; tune in styles.css
         item.tTop    = _measureMakeEl(layer, 'text', txt);
         item.tBot    = _measureMakeEl(layer, 'text', txt);
         // End handles: shown only while the measurement is selected, drag one to adjust that end (see _measureBeginDrag)
@@ -889,14 +887,10 @@ return '10y';
         m.topLine.setAttribute('stroke', clr);
         m.botLine.setAttribute('stroke', clr);
 
-        // Dashed arrow from the start-price line to the end-price line, head on the end-price line
-        var dir  = y2 >= y1 ? 1 : -1;                  // +1 = pointing down the screen
-        var hLen = Math.min(13, Math.abs(y2 - y1));    // head length, never longer than the gap
+        // Dashed line from the start-price line all the way to the end-price line (no arrowhead)
         m.vLine.setAttribute('x1', midX); m.vLine.setAttribute('x2', midX);
-        m.vLine.setAttribute('y1', y1);   m.vLine.setAttribute('y2', y2 - dir * hLen);
+        m.vLine.setAttribute('y1', y1);   m.vLine.setAttribute('y2', y2);
         m.vLine.setAttribute('stroke', clr);
-        m.head.setAttribute('points', midX + ',' + y2 + ' ' + (midX - 6) + ',' + (y2 - dir * hLen) + ' ' + (midX + 6) + ',' + (y2 - dir * hLen));
-        m.head.setAttribute('fill', clr);
 
         // End handles sit exactly on the two anchors: start = (start candle, start price), end = (end candle, end price)
         m.hStart.setAttribute('cx', x1); m.hStart.setAttribute('cy', y1); m.hStart.setAttribute('stroke', clr);
@@ -949,7 +943,7 @@ return '10y';
         } catch (e) {}
     }
 
-    // Topmost committed measurement under a click: on either line, on the dashed arrow, or on a label
+    // Topmost committed measurement under a click: on either line, on the dashed line, or on a label
     function _measureHitTest(list, contRef, clientX, clientY) {
         var cr = contRef.getBoundingClientRect();
         var x = clientX - cr.left, y = clientY - cr.top, tol = 5;
@@ -3934,7 +3928,7 @@ return '10y';
         function seg(el, width, dash) {
             var c = cs(el, 'stroke');
             if (!c) return;
-            var op = parseFloat(getComputedStyle(el).strokeOpacity);   // the dashed arrow is drawn fainter than the lines
+            var op = parseFloat(getComputedStyle(el).strokeOpacity);   // the dashed line is drawn fainter than the lines
             ctx.globalAlpha = isFinite(op) ? op : 1;
             ctx.beginPath();
             ctx.moveTo(n(el, 'x1'), n(el, 'y1'));
@@ -3953,19 +3947,6 @@ return '10y';
                 seg(m.topLine, 1.5);
                 seg(m.botLine, 1.5);
                 seg(m.vLine, 1, [3, 3]);
-                var hc  = cs(m.head, 'fill');
-                var pts = (m.head.getAttribute('points') || '').trim().split(/\s+/);
-                if (hc && pts.length >= 3) {
-                    ctx.beginPath();
-                    pts.forEach(function(pt, i) {
-                        var xy = pt.split(',');
-                        if (i === 0) ctx.moveTo(parseFloat(xy[0]), parseFloat(xy[1]));
-                        else         ctx.lineTo(parseFloat(xy[0]), parseFloat(xy[1]));
-                    });
-                    ctx.closePath();
-                    ctx.fillStyle = hc;
-                    ctx.fill();
-                }
                 [m.tTop, m.tBot].forEach(function(t) {
                     var fc = cs(t, 'fill');
                     if (!fc || !t.textContent) return;
