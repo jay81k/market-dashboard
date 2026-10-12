@@ -25,10 +25,9 @@
     // ── Scan filters (dynamic rows) ───────────────────────────────────────
     var sfRows  = [];   // array of filter rule objects
     var sfRowId = 0;
-    var sfActivePillType = null;
-    var sfActivePopoverId = null;
-    var sfPillWasPreExisting = false;
-    var sfPopoverIsNew = false;
+    var sfActivePillType = null;     // set while a built-in pill's popover is open (mutually exclusive with sfActivePopoverId)
+    var sfActivePopoverId = null;    // set while an extra (+ Filter) row's popover is open
+    var sfPopoverSnapshot = null;    // JSON of the open row as it was before editing; null for a brand-new draft row
 
     var SF_TYPES = [
         { value: 'ma',    label: 'Moving Average' },
@@ -278,7 +277,7 @@
             var xBtn = isActive
                 ? '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemovePillType(\'' + pt.type + '\')">✕</button>'
                 : '';
-            return '<div class="' + cls + '" data-rs-tip="' + tip + '" onclick="sfTogglePill(\'' + pt.type + '\',this,event)">' +
+            return '<div class="' + cls + '" data-sf-type="' + pt.type + '" data-rs-tip="' + tip + '" onclick="sfTogglePill(\'' + pt.type + '\',this,event)">' +
                 '<span class="sf-pill-name">' + pt.label + '</span>' +
                 valHtml +
                 '<span class="sf-pill-caret">' + (isOpen ? '▴' : '▾') + '</span>' +
@@ -297,7 +296,7 @@
         var extraHtml = extraRows.map(function(row) {
             var val = sfPillLabel(row);
             var tip = SF_TOOLTIPS[row.type] || '';
-            return '<div class="sf-pill active" data-rs-tip="' + tip + '" onclick="sfOpenPopover(' + row.id + ',this)">' +
+            return '<div class="sf-pill active" data-sf-id="' + row.id + '" data-rs-tip="' + tip + '" onclick="sfOpenPopover(' + row.id + ',this)">' +
                 '<span class="sf-pill-val" style="padding-left:8px;">' + esc(val) + '</span>' +
                 '<span class="sf-pill-caret">▾</span>' +
                 '<button class="sf-pill-x" onclick="event.stopPropagation();sfRemoveRow(' + row.id + ')">✕</button>' +
@@ -563,31 +562,77 @@
 
     var _sfJustClosed = false;
 
+    // The row whose popover is open right now (built-in pills track a type, extra rows track an id).
+    function sfActiveRow() {
+        if (sfActivePopoverId != null) return sfRows.find(function(r){ return r.id === sfActivePopoverId; }) || null;
+        if (sfActivePillType) return sfRowForType(sfActivePillType);
+        return null;
+    }
+
+    // Called every time a popover opens: remember what the row looked like so cancelling can put it back.
+    // A draft (brand-new, never applied) has nothing to go back to — cancelling removes it instead.
+    function sfBeginEdit(row) {
+        sfPopoverSnapshot = row._draft ? null : JSON.stringify(row);
+    }
+
+    // Throw away everything the open popover changed: remove a draft row, or restore an existing row to its
+    // snapshot. Clears the open-popover state but doesn't touch the DOM. Returns true if an existing row had
+    // actually been changed (the table may have rendered with those half-edits, so the caller re-renders).
+    function sfRevertActive() {
+        var row = sfActiveRow();
+        var changed = false;
+        if (row) {
+            if (row._draft) {
+                sfRows = sfRows.filter(function(r){ return r !== row; });
+            } else if (sfPopoverSnapshot && JSON.stringify(row) !== sfPopoverSnapshot) {
+                var snap = JSON.parse(sfPopoverSnapshot);
+                Object.keys(row).forEach(function(k){ delete row[k]; });
+                Object.keys(snap).forEach(function(k){ row[k] = snap[k]; });
+                changed = true;
+            }
+        }
+        sfPopoverSnapshot = null;
+        sfActivePopoverId = null;
+        sfActivePillType = null;
+        return changed;
+    }
+
+    // Opening one popover while another is still open (clicking a different pill never reaches the click-away
+    // handler): discard the first one's unapplied changes and redraw the pill bar so a discarded draft's pill
+    // doesn't linger. Returns true if the bar was redrawn — pill elements grabbed before are then stale.
+    function sfDropOpenPopover() {
+        if (sfActivePillType === null && sfActivePopoverId === null) return false;
+        var changed = sfRevertActive();
+        sfRenderPills();
+        if (changed) renderScans();
+        return true;
+    }
+
     window.sfTogglePill = function(type, pillEl, e) {
         if (e) e.stopPropagation();
         if (_sfJustClosed) { _sfJustClosed = false; return; }
         if (sfActivePillType === type) {
+            // Clicking the open pill again closes it without applying — same as ×
             _sfJustClosed = true;
-            // If the row was freshly created (never applied), remove it — same as cancel
-            if (!sfPillWasPreExisting) {
-                sfRows = sfRows.filter(function(r){ return r.type !== type; });
-            }
-            document.getElementById('sf-popover').style.display = 'none';
-            sfActivePillType = null;
-            sfPillWasPreExisting = false;
-            sfRenderPills();
-            // Don't call renderScans — nothing was applied
+            sfCancelPill();
             setTimeout(function(){ _sfJustClosed = false; }, 200);
             return;
         }
-        sfActivePillType = type;
+        sfOpenTypePopover(type, pillEl);
+    };
 
-        // Ensure a row exists for this type
+    // Opens the popover for a built-in pill (RS, Price, …). Shared by clicking the pill and by + Filter
+    // when the row it just added is the first of its type (which renders in the built-in pill).
+    function sfOpenTypePopover(type, pillEl) {
+        if (sfDropOpenPopover()) {
+            pillEl = document.querySelector('#sf-pill-bar .sf-pill[data-sf-type="' + type + '"]') || pillEl;
+        }
+
+        // Ensure a row exists for this type — a new one is a draft until Apply
         var row = sfRowForType(type);
-        sfPillWasPreExisting = !!row;
         if (!row) {
             sfRowId++;
-            var defaults = { id: sfRowId, type: type, dir: 'gt',
+            var defaults = { id: sfRowId, _draft: true, type: type, dir: 'gt',
                 maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
                 maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
                 fundMetric: type === 'fund' ? 'eps_next_y_pct' : null,
@@ -607,6 +652,9 @@
             sfRows.push(defaults);
             row = defaults;
         }
+        sfActivePillType = type;
+        sfActivePopoverId = null;
+        sfBeginEdit(row);
 
         var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
@@ -629,7 +677,7 @@
         pop.style.top  = top + 'px';
         pop.style.left = left + 'px';
         pop.style.display = 'block';
-    };
+    }
 
     window.sfClearPillType = function(type) {
         var row = sfRowForType(type);
@@ -685,28 +733,20 @@
         if (sfActivePillType === type) {
             document.getElementById('sf-popover').style.display = 'none';
             sfActivePillType = null;
-            sfPillWasPreExisting = false;
+            sfPopoverSnapshot = null;
         }
         sfRenderPills();
         renderScans();
     };
 
+    // × on the popover, clicking away, or clicking the open pill again: discard whatever wasn't applied —
+    // a draft row is removed, an existing row goes back to how it was when the popover opened.
     window.sfCancelPill = function() {
-        // If row was newly created (never applied), remove it
-        if (!sfPillWasPreExisting && sfActivePillType) {
-            sfRows = sfRows.filter(function(r){ return r.type !== sfActivePillType; });
-        }
-        // Also remove freshly-added extra rows (e.g. U/D Vol via + Filter)
-        if (sfPopoverIsNew && sfActivePopoverId != null) {
-            sfRows = sfRows.filter(function(r){ return r.id !== sfActivePopoverId; });
-        }
+        var changed = sfRevertActive();
         document.getElementById('sf-popover').style.display = 'none';
-        sfActivePopoverId = null;
-        sfActivePillType = null;
-        sfPillWasPreExisting = false;
-        sfPopoverIsNew = false;
         sfRenderPills();
-        // Do NOT call renderScans — nothing changed
+        // Only an existing row that had been edited can have leaked into the table — nothing else to redraw
+        if (changed) renderScans();
     };
     window.sfToggleSectorChip = function(el) {
         var id  = parseInt(el.getAttribute('data-id'));
@@ -773,10 +813,15 @@
     };
 
     window.sfOpenPopover = function(id, pillEl) {
-        sfActivePopoverId = id;
-        var pop = document.getElementById('sf-popover');
+        if (sfActivePopoverId === id) return;   // this pill's popover is already open
         var row = sfRows.find(function(r){ return r.id === id; });
         if (!row) return;
+        if (sfDropOpenPopover()) {
+            pillEl = document.querySelector('#sf-pill-bar .sf-pill[data-sf-id="' + id + '"]') || pillEl;
+        }
+        sfActivePillType = null;
+        sfActivePopoverId = id;
+        sfBeginEdit(row);
         var EXTRA_TITLES = { perf: 'Performance', gap: 'Gap', range: 'Range', sector: 'Sector / Industry', indrank: 'Industry Rank', hv1: 'HV1' };
         document.getElementById('sf-popover-title').textContent = EXTRA_TITLES[row.type] || row.type;
         document.getElementById('sf-popover-content').innerHTML = sfPopoverHtml(row, true);
@@ -788,12 +833,14 @@
         pop.style.display = 'block';
     };
 
+    // Apply: keep what's in the popover. This is the only thing that turns a draft row into a real filter.
     window.sfClosePopover = function() {
+        var row = sfActiveRow();
+        if (row) delete row._draft;
         document.getElementById('sf-popover').style.display = 'none';
         sfActivePopoverId = null;
         sfActivePillType = null;
-        sfPillWasPreExisting = false;
-        sfPopoverIsNew = false;
+        sfPopoverSnapshot = null;
         sfRenderPills();
         renderScans();
     };
@@ -939,8 +986,12 @@
         var picker = document.getElementById('sf-add-picker');
         if (picker) picker.remove();
 
+        // One popover at a time. Normally the + Filter click has already closed it; this covers any other route.
+        if (sfActivePillType !== null || sfActivePopoverId !== null) sfCancelPill();
+
         sfRowId++;
-        var defaults = { id: sfRowId, type: type, dir: type === 'gap' ? 'up' : 'gt',
+        var newId = sfRowId;
+        var defaults = { id: newId, _draft: true, type: type, dir: type === 'gap' ? 'up' : 'gt',
             maCondition: 'above_price', maType: 'SMA', maPeriod: 50,
             maType2: 'SMA', maPeriod1: 5, maPeriod2: 50,
             rangeCondition: type === 'range' ? 'relative' : null,
@@ -962,16 +1013,20 @@
         sfRows.push(defaults);
         sfRenderPills();
 
-        // Open popover for the newly added row using the old popover system
+        // Open the popover for the new row. Delayed so the click that picked the type has finished bubbling —
+        // otherwise the click-away handler would see it and close the popover straight away.
         setTimeout(function() {
-            var pills = document.querySelectorAll('.sf-pill');
-            for (var i = 0; i < pills.length; i++) {
-                if (pills[i].getAttribute('onclick') && pills[i].getAttribute('onclick').indexOf(sfRowId) !== -1) {
-                    sfPopoverIsNew = true;
-                    sfOpenPopover(sfRowId, pills[i]);
-                    return;
-                }
-            }
+            var bar = document.getElementById('sf-pill-bar');
+            if (!bar) return;
+            // An extra row (duplicate type, or a type with no built-in pill) gets its own pill, found by id
+            var extra = bar.querySelector('.sf-pill[data-sf-id="' + newId + '"]');
+            if (extra) { sfOpenPopover(newId, extra); return; }
+            // The first row of a built-in type (RS, Price, …) shows in that type's own pill instead
+            var fixed = bar.querySelector('.sf-pill[data-sf-type="' + type + '"]');
+            if (fixed && sfRowForType(type) === defaults) { sfOpenTypePopover(type, fixed); return; }
+            // No pill to anchor to — don't leave an unconfigured filter behind
+            sfRows = sfRows.filter(function(r){ return r !== defaults; });
+            sfRenderPills();
         }, 30);
     };
 
@@ -1328,8 +1383,7 @@
         if (pop) pop.style.display = 'none';
         sfActivePillType = null;
         sfActivePopoverId = null;
-        sfPillWasPreExisting = false;
-        sfPopoverIsNew = false;
+        sfPopoverSnapshot = null;
         _activePresetName = name;
         sfRows = preset.rows || [];
         sfRowId = sfRows.reduce(function(m, r){ return Math.max(m, r.id||0); }, 0);
@@ -1414,6 +1468,7 @@
         return stocks.filter(function(r) {
             for (var i = 0; i < sfRows.length; i++) {
                 var f = sfRows[i];
+                if (f._draft) continue;   // new filter still being set up in its popover — not applied until Apply
                 if (f.type === 'ma') {
                     var cond = f.maCondition || 'above_price';
                     var key  = (f.maType||'SMA') + (f.maPeriod||50);
@@ -2129,6 +2184,7 @@
                     // Re-apply intraday-sensitive filters now that live data is available.
                     // Stocks that were filtered out using snapshot values get a second pass.
                     var _intradayActive = sfRows.some(function(f) {
+                        if (f._draft) return false;
                         return (f.type === 'perf' && (f.perfTf || '1d') === '1d') ||
                                (f.type === 'cr'   && (!f.crTf || f.crTf === 'd'));
                     });
