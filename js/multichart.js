@@ -3056,6 +3056,13 @@ return '10y';
             cfg.svgLine.setAttribute('y2', curY);
             return;
         }
+        // The last line was deleted while the pointer sat on it: the hover block below only runs while lines exist, so the
+        // cursor it set ('pointer' / 'ns-resize' / 'grab') would stay stuck on the chart. Clear it -- but only a value this
+        // code sets, never anything else, and never mid-draw or mid-drag.
+        if (cfg.contRef && !cfg.trendlines.length && !cfg.getTrendlineMode() && !cfg.getDragState()) {
+            var _stuckCur = cfg.contRef.style.cursor;
+            if (_stuckCur === 'pointer' || _stuckCur === 'ns-resize' || _stuckCur === 'grab') cfg.contRef.style.cursor = '';
+        }
         // Cursor feedback when not drawing
         if (cfg.trendlines.length && cfg.contRef && !cfg.getTrendlineMode()) {
             // Don't interfere while an anchor drag is in progress
