@@ -790,6 +790,12 @@
                 <path d="M 1.5,8.25 C 4,7 6,5.25 8,5.25 C 10,5.25 11.5,8.75 14.5,8.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
             </svg>
         </button>
+        <button class="mc-tf-btn" id="mc-fs-pattern-btn" onclick="mcFsTogglePatterns()" title="Patterns: base / cup / double bottom (daily only)" style="padding:4px 7px;display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+                <line x1="1.5" y1="3" x2="14.5" y2="3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="0.1 2.4"/>
+                <path d="M 2,3.5 C 3,13.5 13,13.5 14,3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+            </svg>
+        </button>
         <!-- Market info: day range bar + 52W range bar + price/change -->
         <div id="mc-fs-mkt-info" style="display:none;margin-left:auto;align-items:center;gap:12px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">
             <span id="mc-fs-mkt-adr" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"></span>
@@ -864,6 +870,8 @@
 <script src="js/yahoo-proxy-pace.js"></script>
 <script src="js/state.js"></script>
 <script src="js/industries.js"></script>
+<script src="js/pattern.js"></script>
+<script src="js/pattern-overlay.js"></script>
 <script src="js/multichart.js"></script>
 <script src="js/stocks.js"></script>
 <script src="js/scans.js"></script>
