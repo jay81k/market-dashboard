@@ -2457,7 +2457,6 @@ return '10y';
         if (!dragState || !cfg.chart || !cfg.candle || !cfg.contRef) return;
         var tl = cfg.trendlines[dragState.tlIdx];
         if (!tl) return;
-        if (dragState.mode === 'move') { _onTrendMoveDragCore(evt, cfg, dragState, tl); return; }   // whole-line vertical move (see _onTrendMoveDragCore)
         cfg.contRef.style.cursor = 'grabbing';
         var rect  = cfg.contRef.getBoundingClientRect();
         var lx    = evt.clientX - rect.left;
@@ -2498,53 +2497,12 @@ return '10y';
         }
     }
 
-    // Whole-line move: dragging the BODY of an already-selected trendline shifts both anchors by the same price
-    // delta (vertical only -- the anchor times never change), so the line stays parallel to itself at any angle.
-    // Same preview mechanism as an anchor drag: the canvas line is hidden (tl.dragging) and the shared SVG overlay
-    // follows the cursor, so there is no Lightweight Charts re-render per mouse move. Nothing happens until the
-    // pointer has travelled 3px, so a plain click on the line still just selects it. The drag-end core commits it
-    // exactly like an anchor drag (alert re-sync, saved-drawing move, alertRef refresh).
-    // Price is shifted by addition, which is parallel on the linear price scale the charts use.
-    function _onTrendMoveDragCore(evt, cfg, ds, tl) {
-        if (!cfg.candle || !cfg.chart || !cfg.contRef || !ds.origL || !ds.origR) return;
-        if (!ds.moved) {
-            if (Math.hypot(evt.clientX - ds.downX, evt.clientY - ds.downY) < 3) return;
-            ds.moved = true;
-            tl.dragging = true; if (tl.requestUpdate) tl.requestUpdate();
-            if (cfg.svgOverlay && cfg.svgLine) {
-                cfg.svgLine.setAttribute('stroke', _TRENDLINE_COLOR());
-                _applyTrendlineDash(cfg.svgLine, !!tl.dotted);
-                cfg.svgOverlay.style.display = '';
-            }
-        }
-        cfg.contRef.style.cursor = 'grabbing';
-        var rect  = cfg.contRef.getBoundingClientRect();
-        var price = cfg.candle.coordinateToPrice(evt.clientY - rect.top);
-        if (price == null || ds.downP == null) return;
-        var dP = price - ds.downP;
-        tl.leftP  = { time: ds.origL.time, price: ds.origL.price + dP };
-        tl.rightP = { time: ds.origR.time, price: ds.origR.price + dP };
-        tl.p1 = tl.leftP; tl.p2 = tl.rightP;
-        if (cfg.svgOverlay && cfg.svgLine) {
-            var x1 = _mcFsTimeToX(cfg.chart, cfg.ohlcv, tl.leftP.time);
-            var x2 = _mcFsTimeToX(cfg.chart, cfg.ohlcv, tl.rightP.time);
-            var y1 = cfg.candle.priceToCoordinate(tl.leftP.price);
-            var y2 = cfg.candle.priceToCoordinate(tl.rightP.price);
-            if (x1 != null && x2 != null && y1 != null && y2 != null) {
-                cfg.svgLine.setAttribute('x1', x1); cfg.svgLine.setAttribute('y1', y1);
-                cfg.svgLine.setAttribute('x2', x2); cfg.svgLine.setAttribute('y2', y2);
-            }
-        }
-    }
-
     function _onTrendAnchorDragEndCore(cfg) {
         var state = cfg.getDragState();
         cfg.setDragState(null);
         document.removeEventListener('mousemove', cfg.moveHandler);
         document.removeEventListener('mouseup',   cfg.endHandler);
         if (cfg.contRef) cfg.contRef.style.cursor = '';
-        // A body-drag that never left the 3px dead zone was only a click on the line: nothing moved, nothing to commit.
-        if (state && state.mode === 'move' && !state.moved) state = null;
         // Re-enable canvas draw and commit final position
         if (state) {
             var tl = cfg.trendlines[state.tlIdx];
@@ -2886,23 +2844,6 @@ return '10y';
                 cfg.setSelectedIdx(hitIdx);
                 cfg.trendlines[hitIdx].selected = true;
                 if (cfg.trendlines[hitIdx].requestUpdate) cfg.trendlines[hitIdx].requestUpdate();
-                // Body of a line that was ALREADY selected before this click: arm a vertical move of the whole line.
-                // (First click only selects, so a stray click-drag near an unselected line can't move it -- or its alert.)
-                if (curSel === hitIdx) {
-                    var _mvTl    = cfg.trendlines[hitIdx];
-                    var _mvRect  = cfg.contRef.getBoundingClientRect();
-                    var _mvDownP = cfg.candle.coordinateToPrice(evt.clientY - _mvRect.top);
-                    if (_mvTl.leftP && _mvTl.rightP && _mvDownP != null && cfg.setDragState && cfg.dragMoveHandler && cfg.dragEndHandler) {
-                        cfg.setDragState({
-                            tlIdx: hitIdx, mode: 'move', moved: false,
-                            downX: evt.clientX, downY: evt.clientY, downP: _mvDownP,
-                            origL: { time: _mvTl.leftP.time,  price: _mvTl.leftP.price },
-                            origR: { time: _mvTl.rightP.time, price: _mvTl.rightP.price }
-                        });
-                        document.addEventListener('mousemove', cfg.dragMoveHandler);
-                        document.addEventListener('mouseup',   cfg.dragEndHandler);
-                    }
-                }
                 return;
             }
             // No hit — deselect
@@ -3056,13 +2997,6 @@ return '10y';
             cfg.svgLine.setAttribute('y2', curY);
             return;
         }
-        // The last line was deleted while the pointer sat on it: the hover block below only runs while lines exist, so the
-        // cursor it set ('pointer' / 'ns-resize' / 'grab') would stay stuck on the chart. Clear it -- but only a value this
-        // code sets, never anything else, and never mid-draw or mid-drag.
-        if (cfg.contRef && !cfg.trendlines.length && !cfg.getTrendlineMode() && !cfg.getDragState()) {
-            var _stuckCur = cfg.contRef.style.cursor;
-            if (_stuckCur === 'pointer' || _stuckCur === 'ns-resize' || _stuckCur === 'grab') cfg.contRef.style.cursor = '';
-        }
         // Cursor feedback when not drawing
         if (cfg.trendlines.length && cfg.contRef && !cfg.getTrendlineMode()) {
             // Don't interfere while an anchor drag is in progress
@@ -3075,8 +3009,7 @@ return '10y';
             }
             // Pointer cursor on any line body
             var hitIdx = cfg.trendlineHitTest(evt.clientX, evt.clientY);
-            // The selected line's body can be dragged up/down; any other line just selects on click.
-            cfg.contRef.style.cursor = hitIdx === -1 ? '' : (hitIdx === selIdx ? 'ns-resize' : 'pointer');
+            cfg.contRef.style.cursor = hitIdx !== -1 ? 'pointer' : '';
         }
     }
 
@@ -4700,6 +4633,11 @@ return '10y';
         // Visible range
         var n = _mcFsOhlcv.length;
         _mcFsChart.timeScale().setVisibleLogicalRange({ from: n - _mcFsVisibleBars, to: n + 15 });
+
+        // Pattern overlay (base / cup / double bottom) — drawn by pattern-overlay.js, toggled from the toolbar
+        if (window.PatternOverlay) {
+            try { window.PatternOverlay.attach(_mcFsChart, _mcFsCandle, function() { return _mcFsOhlcv; }, function() { return _mcFsTf; }); } catch (e) {}
+        }
 
         // Click handler — AVWAP anchor + AVWAP line selection
         _mcFsChart.subscribeClick(function(param) {
