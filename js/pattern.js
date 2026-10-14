@@ -6,9 +6,26 @@
 //   var r = PatternDetector.detect(candles, opts);
 //   candles: [{time, open, high, low, close, volume}, ...] sorted ascending
 //
-// PHASE 1 SCOPE: this is a PORT, bugs included. Nothing has been "fixed".
+// PHASE 1 SCOPE: this is a PORT, bugs included, except for the deliberate
+// deviations listed under DEVIATIONS FROM PINE below.
 // Where Pine behaviour was ambiguous it is listed under ASSUMPTIONS and must
 // be checked against TradingView before the output is trusted.
+//
+// ── DEVIATIONS FROM PINE (deliberate) ────────────────────────────────────
+//  - DETECTION: a double bottom needs at least opts.dbMinLengthWeeks weeks
+//    (default 7 = 35 bars) between the old high (first pivot high of the W)
+//    and the bar where the W is detected. Pine had no minimum, only the
+//    dbLengthWeeks maximum. Same measure as the cup's 30-bar minimum
+//    (n - startBaseBar); detection is delayed until the base is old enough,
+//    and a W whose timing windows close before that is never detected.
+//    Set dbMinLengthWeeks: 0 to get Pine's behaviour back.
+//  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
+//    from the low of the pivot-high candle itself (x 0.99), looked up by
+//    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
+//    pivot highs AND base starts, so its entries drift away from the pivots
+//    and the middle peak of the W could be drawn at the old high's level,
+//    above its own candles. That array is not ported. Detection is unchanged:
+//    it was only ever read when these three lines were created.
 //
 // ── ASSUMPTIONS (UNVERIFIED against TradingView) ─────────────────────────
 //  1. ta.pivothigh/low tie rule (equal highs/lows inside the window).
@@ -24,10 +41,6 @@
 // ── PINE QUIRKS REPRODUCED ON PURPOSE ────────────────────────────────────
 //  - condFourthTwo is never assigned, so the "fourth" cup branch is dead.
 //  - condThirdTwo is assigned twice; only the second (quarter based) counts.
-//  - lowOfpivotHighPrices is fed by pivot highs AND base starts, so its
-//    indices drift away from pivotHighBars. The double-bottom leg lines
-//    ('dbLeg1'/'dbLeg2'/'dbLeg3') use those drifted values for their y
-//    coordinates, exactly as Pine draws them, so they can sit off the pivots.
 //  - The double-bottom "properties" check has an operator-precedence quirk:
 //    (isDB and A) or B.
 //  - Take-profit box is built with top < bottom (20% .. 25% above entry).
@@ -50,6 +63,7 @@
         baseLengthWeeks: 65,       // i_baseLength (weeks, x5 = trading days)
         dbDepthPct: 50,            // i_dbDepth (%)
         dbLengthWeeks: 65,         // i_dbLength (weeks, x5 = trading days)
+        dbMinLengthWeeks: 7,       // NOT in Pine: minimum double-bottom length (weeks, x5); 0 = off
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
         pivotTie: 'both',          // see ASSUMPTION 1
@@ -91,6 +105,7 @@
         var baseLength = o.baseLengthWeeks * 5;
         var dbDepth    = o.dbDepthPct / 100;
         var dbLength   = o.dbLengthWeeks * 5;
+        var dbMinLength = o.dbMinLengthWeeks * 5;
         if (N < 2 * P + 2) return res;
 
         // ── series ───────────────────────────────────────────────────────
@@ -136,7 +151,7 @@
         }
 
         // ── persistent ("var") state ─────────────────────────────────────
-        var pHP = [], pLP = [], lowOfPH = [], pHB = [], pLB = [];  // pivots
+        var pHP = [], pLP = [], pHB = [], pLB = [];  // pivots
         var startBasePrice = [], lowBasePrice = [];
         var lowOfBaseHigh = 0, startBaseBar = 0, lowerBaseBar = 0;
         var bottomDBPrice = [], topDBBar = 0, bottomDBBar = 0;
@@ -203,7 +218,7 @@
             if (n >= 2 * P) {
                 var pc = n - P;
                 if (pivotOK(true, pc)) {
-                    pHP.push(H[pc]); lowOfPH.push(L[pc]); pHB.push(pc);
+                    pHP.push(H[pc]); pHB.push(pc);
                 }
                 if (pivotOK(false, pc)) {
                     pLP.push(L[pc]); pLB.push(pc);
@@ -236,7 +251,6 @@
             if (baseStart) {
                 startBasePrice.push(h25);
                 startBaseBar = n - 25;
-                lowOfPH.push(lAt(n - 25));
                 lowOfBaseHigh = lAt(n - 25);
                 lowBasePrice.push(lowestBaseLow);
                 lowerBaseBar = (lowestBar === lowestBar) ? n - lowestBar : NaN;
@@ -279,8 +293,9 @@
                     var tD = t3 - t1 <= (n - t3) * 2;
                     var tE = t2 - t1 <= 2 * (t3 - t2) && t3 - t2 <= (t2 - t1) * 2;
                     var tF = t4 - t3 <= 2 * (t3 - t2) && t4 - t3 >= 0.5 * (t3 - t2);
+                    var tG = n - t1 >= dbMinLength;   // NOT in Pine: minimum length (old high -> now), 7 weeks by default
 
-                    if (cA && cB && cC && cD && cE && cF && cG && cH && tA && tB && tC && tD && tE && tF) {
+                    if (cA && cB && cC && cD && cE && cF && cG && cH && tA && tB && tC && tD && tE && tF && tG) {
                         // condBothA = ta.highest(high, bar_index - frthPivTime) <= scndPivHigh
                         var spanMax = wMax(H, n, n - t4);
                         if (spanMax <= scndPivHigh) {
@@ -363,9 +378,10 @@
                 bottomDBBar = at(pLB, 0);
                 var dbTop = at(pHP, 0);
                 highLine = newLine('dbHigh', at(pHB, 0), dbTop, n, dbTop, true, 3);
-                dbLine1 = newLine('dbLeg1', at(pHB, 1), at(lowOfPH, 1) * 0.99, at(pLB, 1), at(pLP, 1) * 0.99, false, 2);
-                dbLine2 = newLine('dbLeg2', at(pLB, 1), at(pLP, 1) * 0.99, at(pHB, 0), at(lowOfPH, 0) * 0.99, false, 2);
-                dbLine3 = newLine('dbLeg3', at(pHB, 0), at(lowOfPH, 0) * 0.99, bottomDBBar, at(bottomDBPrice, 0) * 0.99, false, 2);
+                // y of each peak = low of that pivot-high candle x 0.99 (see DEVIATIONS FROM PINE)
+                dbLine1 = newLine('dbLeg1', at(pHB, 1), lAt(at(pHB, 1)) * 0.99, at(pLB, 1), at(pLP, 1) * 0.99, false, 2);
+                dbLine2 = newLine('dbLeg2', at(pLB, 1), at(pLP, 1) * 0.99, at(pHB, 0), lAt(at(pHB, 0)) * 0.99, false, 2);
+                dbLine3 = newLine('dbLeg3', at(pHB, 0), lAt(at(pHB, 0)) * 0.99, bottomDBBar, at(bottomDBPrice, 0) * 0.99, false, 2);
                 lowLine = newLine('dbLow', bottomDBBar, at(bottomDBPrice, 0) * 0.99, n, curL * 0.99, false, 2);
                 var select2 = o.displayHistoricalBoxes ? false : boxOver;
                 if (select2) { deleteBoxes(); isBox = false; boxOver = true; }
@@ -511,7 +527,7 @@
         return pts;
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, DEFAULTS: DEFAULTS, VERSION: '0.1.0-faithful-port' };
+    var api = { detect: detect, cupCurve: cupCurve, DEFAULTS: DEFAULTS, VERSION: '0.2.0-db-min-length' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
