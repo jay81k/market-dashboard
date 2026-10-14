@@ -52,6 +52,23 @@
 //    low of the bar before the last one, which swallowed the handle).
 //    The handle itself is drawn as one straight line from the lip candle's low
 //    down to the handle's lowest low (see handleCurve()).
+//    BUY POINT: a cup with a handle is bought through the handle high (= the
+//    lip high, the price that has to be taken out), not through the old high.
+//    For such a cup:
+//      line:   the dotted line ('handleHigh') sits on the handle high, from the
+//              lip bar to the bar that takes it out (or to the latest bar while
+//              the handle is still open). The old-high 'baseHigh' line is dropped
+//      event:  the 'breakout' event moves to the bar that takes the lip high out
+//              (extra field handle: true); the old-high one is removed
+//      boxes:  entry / stop / target boxes start on that bar, anchored to the lip
+//              high (same 1.05 / 0.95-0.92 / 1.20-1.25 levels and the same
+//              extension rule as Pine). They are only drawn where the old-high
+//              boxes would still have been on the chart, or for a live cup
+//    Cups without a handle keep the old-high line, event and boxes.
+//    NOT changed (still describe the old-high version): res.state (baseTop,
+//    inTradeBox) and the base lifecycle itself. A cup is still only recorded
+//    when price takes out the old high or while it is live on the latest bar, so
+//    a handle breakout that fails before reaching the old high is not drawn.
 //    Not checkable here: the "no more than 2.5x the market's correction" rule
 //    (the detector only sees one stock). Set handles: false for Pine's output.
 //
@@ -591,6 +608,75 @@
             sThird[n] = condThird; sThirdTwo[n] = condThirdTwo; sFourth[n] = condFourth; sFourthTwo[n] = condFourthTwo;
         }
 
+        // ── handle cups: the buy point is the handle high ────────────────
+        // NOT in Pine (see BUY POINT under CUP HANDLES in the header). The handle
+        // is only found when the cup is recorded, which is after the bars it
+        // describes, so this is done here on what the bar loop produced instead
+        // of inside it. For every cup with a handle:
+        //  - the old-high dotted line ('baseHigh') is dropped and a 'handleHigh'
+        //    dotted line is drawn on the lip high, from the lip bar to the bar
+        //    that takes it out (or to the latest bar while the handle is open)
+        //  - the old-high 'breakout' event is removed and a 'breakout' event
+        //    (handle: true) is put on the bar that takes the lip high out
+        //  - the entry / stop / target boxes start on that bar and are anchored
+        //    to the lip high, extended with the same rule Pine uses (while the
+        //    bar stays inside 0.92x .. 1.25x of the buy point). They are only
+        //    drawn where the old-high boxes would still have been on the chart
+        //    (or for a live cup that has not reached the old high yet)
+        (function applyHandleBuyPoints() {
+            var done = {}, ci, k, cp, hd, key, top, brk, broke, hadOldBreak, survived, right, kept, ev1;
+            for (ci = 0; ci < cupList.length; ci++) {
+                cp = cupList[ci]; hd = cp.handle;
+                if (!cp.valid || !hd) continue;
+                key = cp.startIdx + '|' + hd.lipIdx;
+                if (done[key]) continue;                  // a cup can be recorded twice on the breakout bar
+                done[key] = true;
+                top = hd.lipHigh;
+                brk = hd.endIdx + 1;                      // first bar that takes the lip high out
+                broke = brk <= cp.endIdx;                 // false while the handle is still open on the latest bar
+
+                // dotted line
+                for (k = 0; k < lineList.length; k++) {
+                    if (lineList[k].kind === 'baseHigh' && lineList[k].x1 === cp.startIdx) lineList[k].deleted = true;
+                }
+                newLine('handleHigh', hd.lipIdx, top, broke ? brk : cp.endIdx, top, true, 3);
+
+                // the old-high breakout of this cup (event + boxes), if price got that far
+                hadOldBreak = false; kept = [];
+                for (k = 0; k < res.events.length; k++) {
+                    ev1 = res.events[k];
+                    if (ev1.type === 'breakout' && ev1.cup && ev1.idx === cp.endIdx) hadOldBreak = true;
+                    else kept.push(ev1);
+                }
+                res.events = kept;
+                survived = !hadOldBreak;                  // live cup still inside the base: nothing was ever drawn
+                if (hadOldBreak) {
+                    for (k = 0; k < boxList.length; k++) {
+                        if (boxList[k].left === cp.endIdx - 1) {
+                            if (!boxList[k].deleted) survived = true;
+                            boxList[k].deleted = true;
+                        }
+                    }
+                }
+                if (!broke) continue;
+
+                res.events.push({ type: 'breakout', idx: brk, time: T[brk], top: top, fromDoubleBottom: false, cup: true, handle: true });
+                if (o.displayBoxes && survived) {
+                    right = brk;
+                    for (k = brk; k < N; k++) {
+                        if (H[k] <= top * 1.25 && L[k] >= top * 0.92) right = k; else break;
+                    }
+                    newBox('entry',      brk - 1, top * 1.05, right, top);
+                    newBox('stopLoss',   brk - 1, top * 0.95, right, top * 0.92);
+                    newBox('takeProfit', brk - 1, top * 1.20, right, top * 1.25);
+                }
+            }
+            // the re-anchored breakout events can now be out of order: sort by bar (stable)
+            res.events = res.events.map(function(e, i) { return { e: e, i: i }; })
+                .sort(function(x, y) { return (x.e.idx - y.e.idx) || (x.i - y.i); })
+                .map(function(x) { return x.e; });
+        })();
+
         // ── build the result ─────────────────────────────────────────────
         function tm(i) { return (i === i && i >= 0 && i < N) ? T[Math.round(i)] : null; }
         var i, ln, bx;
@@ -608,6 +694,7 @@
                              top: Math.max(bx.top, bx.bottom), bottom: Math.min(bx.top, bx.bottom) });
         }
         res.cups = cupList;
+
         res.state = {
             isBase: sBase[N - 1], isDoubleBottom: sDB[N - 1], inTradeBox: sBox[N - 1], baseCount: baseCount,
             baseStartIdx: sBase[N - 1] ? startBaseBar : null,
@@ -650,7 +737,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.2-handle-tuning' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.4-handle-buypoint-boxes' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
