@@ -90,7 +90,7 @@
             }
         };
 
-        // Base lines, double-bottom legs and cup curves sit on top of the candles
+        // Base lines, double-bottom legs, cup curves and cup handles sit on top of the candles
         var linesView = {
             zOrder: function() { return 'normal'; },
             renderer: function() {
@@ -117,9 +117,8 @@
                             });
                             ctx.setLineDash([]);
                             ctx.lineCap = 'round';
-                            r.cups.forEach(function(c) {
-                                var pts = window.PatternDetector.cupCurve(c);
-                                if (pts.length < 2) return;
+                            function strokeCurve(pts) {
+                                if (!pts || pts.length < 2) return;
                                 ctx.beginPath();
                                 ctx.lineWidth = 3 * rx;
                                 var pen = false;
@@ -130,6 +129,11 @@
                                     else ctx.lineTo(x * rx, y * ry);
                                 });
                                 ctx.stroke();
+                            }
+                            r.cups.forEach(function(c) {
+                                strokeCurve(window.PatternDetector.cupCurve(c));
+                                // handle after the cup's right side (empty when the cup has none)
+                                if (window.PatternDetector.handleCurve) strokeCurve(window.PatternDetector.handleCurve(c));
                             });
                             ctx.restore();
                         });
