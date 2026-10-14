@@ -48,6 +48,8 @@
 //              Volume is ignored on purpose.
 //    With a handle the cup's right side ends at the lip (Pine ended it at the
 //    low of the bar before the last one, which swallowed the handle).
+//    The handle itself is drawn as one straight line from the lip candle's low
+//    down to the handle's lowest low (see handleCurve()).
 //    Not checkable here: the "no more than 2.5x the market's correction" rule
 //    (the detector only sees one stock). Set handles: false for Pine's output.
 //
@@ -612,25 +614,17 @@
         return pts;
     }
 
-    // NOT in Pine: polyline for a cup's handle, a small version of the cup
-    // curve (down from the lip to the handle low, back up to the handle's last
-    // bar), drawn at 0.99 x the lows like the cup. Returns [] when no handle.
+    // NOT in Pine: a cup's handle, drawn as one straight line sloping down from
+    // the lip candle's low to the handle's lowest low (the decline only; the
+    // move back up is not drawn), both at 0.99 x the low like the cup.
+    // Returns [] when the cup has no handle.
     function handleCurve(cup) {
-        var pts = [], i;
         var h = (cup && cup.valid) ? cup.handle : null;
-        if (!h) return pts;
-        var Lf = h.lowIdx - h.lipIdx, Rt = h.endIdx - h.lowIdx;
-        var sU = h.lipPrice, b = h.lowPrice, eU = h.endPrice;
-        for (i = 0; i <= Lf; i++) {
-            pts.push({ idx: h.lipIdx + i, price: i === Lf ? b : b + (sU - b) / Math.exp(i * 6 / Lf) });
-        }
-        for (i = 1; i <= Rt; i++) {
-            pts.push({ idx: h.lowIdx + i, price: b + (Math.exp(i * 6 / Rt) - 1) * (eU - b) / Math.exp(6) });
-        }
-        return pts;
+        if (!h) return [];
+        return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.0-cup-handle' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.1-handle-line' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
