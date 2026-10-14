@@ -26,6 +26,30 @@
 //    and the middle peak of the W could be drawn at the old high's level,
 //    above its own candles. That array is not ported. Detection is unchanged:
 //    it was only ever read when these three lines were created.
+//  - CUP HANDLES (drawing only): Pine never draws a handle. When a cup is
+//    recorded (live on the last bar, or on the breakout bar), cupRecord() also
+//    looks for a handle and stores it as cup.handle (null when there is none).
+//    Cup detection itself is NOT changed: a cup that fails the handle tests is
+//    still recorded and drawn exactly as before, just without a handle.
+//    A handle is only accepted when ALL of these hold (opts.handle*):
+//      cup:    at least 7 weeks (35 bars) from the old high to now, depth
+//              12%..33%, and at least a 30% prior uptrend, measured as the old
+//              high vs the lowest low of the 78 bars up to and including it
+//              (Pine's legUpCond looks at a 103-bar window that includes the
+//              base itself, so it is NOT a real prior-uptrend test and is left
+//              alone because it also drives base detection)
+//      lip:    a running peak of the highs after the cup low; it must be above
+//              the middle of the cup and within 15% of the old high
+//      handle: the bars after the lip, up to the bar before price takes out
+//              the lip high (the pivot), or up to the latest bar if it has not
+//              been taken out yet; at least 5 bars; its lowest low is below
+//              the lip candle's low and stays above the middle of the cup.
+//              If several candidates qualify, the latest one is used.
+//              Volume is ignored on purpose.
+//    With a handle the cup's right side ends at the lip (Pine ended it at the
+//    low of the bar before the last one, which swallowed the handle).
+//    Not checkable here: the "no more than 2.5x the market's correction" rule
+//    (the detector only sees one stock). Set handles: false for Pine's output.
 //
 // ── ASSUMPTIONS (UNVERIFIED against TradingView) ─────────────────────────
 //  1. ta.pivothigh/low tie rule (equal highs/lows inside the window).
@@ -67,6 +91,14 @@
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
         pivotTie: 'both',          // see ASSUMPTION 1
+        handles: true,             // NOT in Pine: look for a handle on recorded cups (false = Pine output)
+        handleMinCupBars: 35,      // NOT in Pine: cup length old high -> now (7 weeks x5)
+        handleMinCupDepthPct: 12,  // NOT in Pine: cup depth range for a handle (%)
+        handleMaxCupDepthPct: 33,
+        handleMinUptrendPct: 30,   // NOT in Pine: real prior uptrend, old high vs lowest low of handleUptrendBars
+        handleUptrendBars: 78,     // 103 (Pine's leg window) - 25 (base bars)
+        handleLipWithinPct: 15,    // right lip must be within this % of the old high
+        handleMinBars: 5,          // minimum handle length (bars, 1 week)
         debug: false               // include pivots + per-bar flags in result
     };
 
@@ -197,13 +229,64 @@
             var endUp   = lAt(n - 1) * 0.99;
             var left = lowerBaseBar - startBaseBar, right = n - lowerBaseBar;
             var valid = lowBasePrice.length > 0 && startUp > bottom && left >= 1 && right >= 1 && endUp === endUp;
-            return {
+            var rec = {
                 live: live, valid: valid,
                 startIdx: startBaseBar, lowIdx: lowerBaseBar, endIdx: n,
                 tStart: T[startBaseBar], tLow: T[lowerBaseBar], tEnd: T[n],
                 startUpPrice: startUp, bottomPrice: bottom, endUpPrice: endUp,
-                lengthLeft: left, lengthRight: right
+                lengthLeft: left, lengthRight: right,
+                handle: null
             };
+            if (o.handles && valid) rec.handle = findHandle(rec, live, n);
+            return rec;
+        }
+
+        // NOT in Pine: handle after the cup's right side (see CUP HANDLES under
+        // DEVIATIONS FROM PINE). Returns the handle, or null when there is none.
+        function findHandle(rec, live, n) {
+            var sIdx = rec.startIdx, k;
+            var oldHigh = H[sIdx];
+            var cupLow = at(lowBasePrice, 0);
+            if (!(oldHigh > 0) || !(cupLow === cupLow)) return null;
+
+            // cup: length, depth, real prior uptrend
+            if (n - sIdx < o.handleMinCupBars) return null;
+            var depth = 1 - cupLow / oldHigh;
+            if (depth < o.handleMinCupDepthPct / 100 || depth > o.handleMaxCupDepthPct / 100) return null;
+            var priorLow = wMin(L, sIdx, o.handleUptrendBars);
+            if (!(priorLow === priorLow) || oldHigh < priorLow * (1 + o.handleMinUptrendPct / 100)) return null;
+
+            // Walk the right side bar by bar. A handle candidate is a running
+            // peak (the right lip) plus the bars after it that stay at or below
+            // it. A bar whose high takes out the peak ends that candidate on
+            // the bar before (the pivot) and starts a new peak. Candidates that
+            // pass the tests are kept; the latest one wins. (strict >, so the
+            // first of equal highs is the lip.)
+            var middle = cupLow + (oldHigh - cupLow) * 0.5;
+            var best = null, lipIdx = -1, lipHigh = -Infinity;
+            function tryHandle(endIdx) {
+                if (endIdx - lipIdx < o.handleMinBars) return;
+                if (!(lipHigh > middle && lipHigh >= oldHigh * (1 - o.handleLipWithinPct / 100))) return;
+                var hLowIdx = -1, hLow = Infinity, j;
+                for (j = lipIdx + 1; j <= endIdx; j++) {
+                    if (L[j] < hLow) { hLow = L[j]; hLowIdx = j; }
+                }
+                if (hLowIdx < 0 || !(hLow < L[lipIdx]) || !(hLow > middle)) return;
+                best = {
+                    lipIdx: lipIdx, tLip: T[lipIdx], lipHigh: lipHigh, lipPrice: L[lipIdx] * 0.99,
+                    lowIdx: hLowIdx, tLow: T[hLowIdx], lowPrice: hLow * 0.99,
+                    endIdx: endIdx, tEnd: T[endIdx], endPrice: L[endIdx] * 0.99,
+                    length: endIdx - lipIdx
+                };
+            }
+            for (k = rec.lowIdx + 1; k <= n; k++) {
+                if (H[k] > lipHigh) {
+                    if (lipIdx >= 0) tryHandle(k - 1);
+                    lipIdx = k; lipHigh = H[k];
+                }
+            }
+            if (lipIdx >= 0) tryHandle(n);   // candidate still open on the latest bar
+            return best;
         }
 
         // ── the bar loop: one pass == one Pine execution per bar ─────────
@@ -518,6 +601,8 @@
         if (!cup || !cup.valid) return pts;
         var Lf = cup.lengthLeft, Rt = cup.lengthRight;
         var sU = cup.startUpPrice, b = cup.bottomPrice, eU = cup.endUpPrice;
+        // NOT in Pine: with a handle the right side stops at the right lip
+        if (cup.handle) { Rt = cup.handle.lipIdx - cup.lowIdx; eU = cup.handle.lipPrice; }
         for (i = 0; i <= Lf; i++) {
             pts.push({ idx: cup.startIdx + i, price: i === Lf ? b : b + (sU - b) / Math.exp(i * 6 / Lf) });
         }
@@ -527,7 +612,25 @@
         return pts;
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, DEFAULTS: DEFAULTS, VERSION: '0.2.0-db-min-length' };
+    // NOT in Pine: polyline for a cup's handle, a small version of the cup
+    // curve (down from the lip to the handle low, back up to the handle's last
+    // bar), drawn at 0.99 x the lows like the cup. Returns [] when no handle.
+    function handleCurve(cup) {
+        var pts = [], i;
+        var h = (cup && cup.valid) ? cup.handle : null;
+        if (!h) return pts;
+        var Lf = h.lowIdx - h.lipIdx, Rt = h.endIdx - h.lowIdx;
+        var sU = h.lipPrice, b = h.lowPrice, eU = h.endPrice;
+        for (i = 0; i <= Lf; i++) {
+            pts.push({ idx: h.lipIdx + i, price: i === Lf ? b : b + (sU - b) / Math.exp(i * 6 / Lf) });
+        }
+        for (i = 1; i <= Rt; i++) {
+            pts.push({ idx: h.lowIdx + i, price: b + (Math.exp(i * 6 / Rt) - 1) * (eU - b) / Math.exp(6) });
+        }
+        return pts;
+    }
+
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.0-cup-handle' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
