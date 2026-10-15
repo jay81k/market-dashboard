@@ -27,19 +27,28 @@
 //    above its own candles. That array is not ported. Detection is unchanged:
 //    it was only ever read when these three lines were created.
 //  - DOUBLE BOTTOM LEGS (drawing only): the W ('dbLeg1'..'dbLeg3' + 'dbLow') is
-//    moved as one rigid piece to the closest position where every leg stays
-//    below every candle it spans, so it is no longer drawn through the bars.
-//    Down by exactly what the worst candle needs, or up until it touches the
-//    tightest one. The shape and the span are the W's; the vertices are NOT on
-//    the pivots any more (they sit below them), so read pivot prices off the
-//    candles, not off the W. The dotted 'dbHigh' buy line is not moved.
+//    placed again so that no leg runs through a candle: each of its five
+//    vertices sits as high as the others allow, below every candle its legs
+//    span. Each vertex starts on the clear level of its own candle and can
+//    only move down; every candle under a leg pushes the two vertices of that
+//    leg down far enough to clear it; every leg keeps at least
+//    opts.dbLegKeepPct (50) of its original height so the W stays a W; and of
+//    all placements that do this, the one with the smallest total downward
+//    movement is used (an exact linear programme, see minSumShifts()).
+//    The vertices are therefore NOT on the pivots (they sit at or below them),
+//    so read pivot prices off the candles, not off the W. The dotted 'dbHigh'
+//    buy line is not moved.
 //    opts.dbLegGapPct (0.3) is the gap kept to the candles, opts.dbLegClear
 //    ('wick' | 'body') says whether wick tips count, opts.priceScale ('linear'
 //    | 'log') must match the chart's scale for the legs to clear in both.
-//    A straight W that also stays ON its pivots and below the candles does not
-//    exist: the candles next to a trough sit just above it, which flattens any
-//    straight leg that clears them. The W is recomputed on every call, so it
-//    can move slightly when a new bar changes the tightest candle.
+//    A straight W that sits ON its pivots and also stays below the candles
+//    does not exist: the candles next to a trough sit just above it, which
+//    flattens any straight leg that clears them. On a clean W this lands within
+//    a few percent of the pivots; on a messy one (a steep drop right after the
+//    middle peak) it can be much further, and dbLegKeepPct trades that against
+//    how much of a W is left. If the solver ever fails the W is moved down as
+//    one rigid piece, which always clears. Recomputed on every call, so it can
+//    move when a new bar changes the tightest candle.
 //  - CUP HANDLES (drawing only): Pine never draws a handle. When a cup is
 //    recorded (live on the last bar, or on the breakout bar), cupRecord() also
 //    looks for a handle and stores it as cup.handle (null when there is none;
@@ -136,6 +145,7 @@
         handleMinBars: 5,          // minimum handle length (bars, 1 week)
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
         dbLegGapPct: 0.3,          // NOT in Pine: gap (% of price) between the drawn double-bottom W and the candles it clears
+        dbLegKeepPct: 50,          // NOT in Pine: share of each double-bottom leg's original height that must be kept (0 = legs may flatten, 100 = full height)
         dbLegClear: 'wick',        // NOT in Pine: 'wick' = the W stays below every candle low; 'body' = only below the bodies (closer, crosses wick tips)
         priceScale: 'linear',      // NOT in Pine: 'log' when the chart is log-scaled, so the W is placed for the scale it is drawn on
         debug: false               // include pivots + per-bar flags in result
@@ -162,6 +172,57 @@
         if (!isFinite(from) || !isFinite(to)) return;
         if (from <= to) { for (i = from; i <= to; i += 1) fn(i); }
         else            { for (i = from; i >= to; i -= 1) fn(i); }
+    }
+
+    // Smallest-total-shift solver for the double-bottom W. Solves
+    //     minimise sum(s)   subject to   A s >= r,  s >= 0
+    // (A has n columns, rows may have negative entries) through its dual
+    //     maximise r.y      subject to   A' y <= 1,  y >= 0
+    // whose all-slack starting point is feasible, so a plain one-phase simplex
+    // (Bland's rule, so it cannot cycle) is enough. The primal answer is read
+    // off the objective row under the slack columns. Returns null on failure.
+    function minSumShifts(A, r, n) {
+        var m = A.length, cols = m + n, i, j, f, piv, enter, leave, best, ratio, iter, T = [], row, obj = [], basis = [], s = [];
+        var scale = 0;
+        for (j = 0; j < m; j++) scale = Math.max(scale, Math.abs(r[j]));
+        if (!(scale > 0)) scale = 1;
+        for (i = 0; i < n; i++) {                       // one dual constraint per primal variable
+            row = new Array(cols + 1);
+            for (j = 0; j < m; j++) row[j] = A[j][i];
+            for (j = 0; j < n; j++) row[m + j] = (i === j) ? 1 : 0;
+            row[cols] = 1;
+            T.push(row);
+            basis.push(m + i);
+        }
+        for (j = 0; j < m; j++) obj.push(-r[j] / scale);
+        for (j = m; j <= cols; j++) obj.push(0);
+        for (iter = 0; iter < 5000; iter++) {
+            enter = -1;
+            for (j = 0; j < cols; j++) { if (obj[j] < -1e-12) { enter = j; break; } }
+            if (enter < 0) break;
+            leave = -1; best = Infinity;
+            for (i = 0; i < n; i++) {
+                if (T[i][enter] > 1e-12) {
+                    ratio = T[i][cols] / T[i][enter];
+                    if (ratio < best - 1e-15 || (Math.abs(ratio - best) <= 1e-15 && basis[i] < basis[leave])) { best = ratio; leave = i; }
+                }
+            }
+            if (leave < 0) return null;
+            piv = T[leave][enter];
+            for (j = 0; j <= cols; j++) T[leave][j] /= piv;
+            for (i = 0; i < n; i++) {
+                if (i !== leave && T[i][enter] !== 0) {
+                    f = T[i][enter];
+                    for (j = 0; j <= cols; j++) T[i][j] -= f * T[leave][j];
+                }
+            }
+            f = obj[enter];
+            for (j = 0; j <= cols; j++) obj[j] -= f * T[leave][j];
+            basis[leave] = enter;
+        }
+        if (iter >= 5000) return null;
+        for (i = 0; i < n; i++) s.push(Math.max(0, obj[m + i]) * scale);
+        return s;
     }
 
     function detect(ohlcv, userOpts) {
@@ -715,23 +776,29 @@
         // ── double bottoms: keep the W below the candles ─────────────────
         // NOT in Pine (see DOUBLE BOTTOM LEGS in the header). The four legs are
         // created with their vertices on the low of each vertex candle (x 0.99),
-        // so a straight leg can run through the candles in between. Here the
-        // whole W is moved as ONE rigid piece (all five vertices by the same
-        // amount, so the shape stays a W and the legs stay connected) to the
-        // closest position where every leg is below every candle it spans: it
-        // moves down by exactly as much as the worst candle needs, and up until
-        // it touches the tightest candle if nothing is in the way. "Below"
-        // means below the candle low (opts.dbLegClear 'wick') or the body
-        // ('body'), minus opts.dbLegGapPct. Done in the scale the chart is drawn
-        // on (opts.priceScale), because a straight line on screen is straight in
-        // that scale, not in price.
-        // This only edits the OUTPUT lines (res.lines), after they were built,
-        // so nothing the detector reports (state, events, cups) can change.
+        // so a straight leg can run through the candles in between. Here the five
+        // vertices are placed again, each one as high as the others allow, so
+        // that every leg is below every candle it spans:
+        //   - each vertex starts on the clear level of its own candle (its low, or
+        //     body, minus opts.dbLegGapPct) and may only move DOWN from there
+        //   - every candle under a leg forces the two vertices of that leg down far
+        //     enough to clear it
+        //   - every leg has to keep at least opts.dbLegKeepPct of its original
+        //     height, so a steep drop after the middle peak cannot flatten the W
+        //   - among all placements that satisfy this, the one with the smallest
+        //     total downward movement is used (an exact linear programme)
+        // Done in the scale the chart is drawn on (opts.priceScale), because a
+        // straight line on screen is straight in that scale, not in price. If the
+        // solver ever fails or returns something that does not verify, all five
+        // vertices are moved down by the same amount instead, which always clears.
+        // This only edits the OUTPUT lines (res.lines), after they were built, so
+        // nothing the detector reports (state, events, cups) can change.
         (function placeDoubleBottomLegs() {
             var log = o.priceScale === 'log';
             var tr  = log ? Math.log : function(v) { return v; };
             var inv = log ? Math.exp : function(v) { return v; };
             var keep = 1 - o.dbLegGapPct / 100;
+            var alpha = Math.min(1, Math.max(0, o.dbLegKeepPct / 100));
             function find(kind, idx1) {
                 for (var q2 = 0; q2 < res.lines.length; q2++) {
                     if (res.lines[q2].kind === kind && res.lines[q2].idx1 === idx1) return res.lines[q2];
@@ -744,7 +811,19 @@
                 return v;
             }
             function positive(v) { return v === v && v > 0; }
-            var li, a, b, c, d, xs, ys, tv, ny, seg, k, t, line, lv, s;
+            function feasibleShifts(sv, rows, rhs, tol) {   // does sv satisfy sv >= 0 and every row?
+                var q3, q4, tot;
+                if (!sv) return false;
+                for (q3 = 0; q3 < 5; q3++) { if (!(sv[q3] >= 0) || !isFinite(sv[q3])) return false; }
+                for (q3 = 0; q3 < rows.length; q3++) {
+                    tot = 0;
+                    for (q4 = 0; q4 < 5; q4++) tot += rows[q3][q4] * sv[q4];
+                    if (tot < rhs[q3] - tol) return false;
+                }
+                return true;
+            }
+            var floors = [[1, 0], [1, 2], [3, 2], [3, 4]];     // [trough, the vertex it hangs from]
+            var li, a, b, c, d, xs, base, rows, rhs, seg, k, t, lv, rk, j, D, row, sh, uni, ok, tol, scale, ny, i2;
             for (li = 0; li < res.lines.length; li++) {
                 a = res.lines[li];
                 if (a.kind !== 'dbLeg1') continue;
@@ -753,22 +832,39 @@
                 d = c && find('dbLow', c.idx2);
                 if (!d) continue;
                 xs = [a.idx1, a.idx2, b.idx2, c.idx2, d.idx2];   // the five vertices of the W (bars)
-                ys = [a.p1, a.p2, b.p2, c.p2, d.p2];             // ... and their prices
-                if (!ys.every(positive)) continue;
-                tv = ys.map(tr);
-                s = Infinity;
+                if (!(xs[1] > xs[0] && xs[2] > xs[1] && xs[3] > xs[2] && xs[4] > xs[3])) continue;
+                base = []; ok = true;
+                for (j = 0; j < 5; j++) {
+                    lv = clearLevel(xs[j]);
+                    if (!positive(lv)) { ok = false; break; }
+                    base.push(tr(lv * keep));
+                }
+                if (!ok) continue;
+                rows = []; rhs = []; uni = 0; scale = 0;
                 for (seg = 0; seg < 4; seg++) {
-                    if (!(xs[seg + 1] > xs[seg])) { s = Infinity; break; }
                     for (k = xs[seg]; k <= xs[seg + 1]; k++) {
                         lv = clearLevel(k);
-                        if (!(lv > 0)) continue;
+                        if (!positive(lv)) continue;
                         t = (k - xs[seg]) / (xs[seg + 1] - xs[seg]);
-                        line = tv[seg] + (tv[seg + 1] - tv[seg]) * t;
-                        s = Math.min(s, tr(lv * keep) - line);
+                        rk = (1 - t) * base[seg] + t * base[seg + 1] - tr(lv * keep);   // how far the leg would sit above this candle
+                        scale = Math.max(scale, Math.abs(rk));
+                        if (rk > 0) {
+                            row = [0, 0, 0, 0, 0]; row[seg] = 1 - t; row[seg + 1] = t;
+                            rows.push(row); rhs.push(rk); uni = Math.max(uni, rk);
+                        }
                     }
                 }
-                if (!isFinite(s)) continue;
-                ny = tv.map(function(v) { return inv(v + s); });
+                for (j = 0; j < floors.length; j++) {
+                    D = Math.max(base[floors[j][1]] - base[floors[j][0]], 0);
+                    row = [0, 0, 0, 0, 0]; row[floors[j][0]] = 1; row[floors[j][1]] = -1;
+                    rows.push(row); rhs.push(-(1 - alpha) * D);
+                    scale = Math.max(scale, D);
+                }
+                tol = 1e-9 * (scale > 0 ? scale : 1);
+                sh = rows.length ? minSumShifts(rows, rhs, 5) : [0, 0, 0, 0, 0];
+                if (!feasibleShifts(sh, rows, rhs, tol)) sh = [uni, uni, uni, uni, uni];
+                ny = [];
+                for (i2 = 0; i2 < 5; i2++) ny.push(inv(base[i2] - sh[i2]));
                 if (!ny.every(positive)) continue;
                 a.p1 = ny[0]; a.p2 = ny[1];
                 b.p1 = ny[1]; b.p2 = ny[2];
@@ -819,7 +915,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.5-db-legs-below-candles' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.6-db-legs-lp' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
