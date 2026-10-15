@@ -24,6 +24,16 @@
 //    firstPivLow > scndPivLow >= firstPivLow * (1 - 7/100). Pine instead required the
 //    second low to be MORE than 3% below the first (firstPivLow * 0.97 > scndPivLow)
 //    with no upper limit. That 3% minimum is gone; dbMaxUndercutPct: 0 removes the cap.
+//  - PATTERN SUMMARIES (output only): result.patterns lists every pattern that is
+//    on the chart, for the hover tooltip: { id, type, label, startIdx, endIdx, bars,
+//    weeks, top, bottom, depthPct, status, lineIdx, cupIdx, ... }. type is 'flatBase'
+//    (a plain base up to opts.flatBaseMaxDepthPct deep, 15 by default), 'deepBase'
+//    (a plain base deeper than that), 'cup', 'cupHandle' or 'doubleBottom'. bars is
+//    trading days from the old high to the last bar of the pattern; depthPct is
+//    measured from the old high (double bottom: from the first high to the second
+//    low) and rounded to 0.1. status is 'forming', 'brokeOut' or null (ended).
+//    lineIdx / cupIdx point into result.lines / result.cups so the drawn geometry can
+//    be hit-tested. Nothing here feeds back into detection.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
 //    from the low of the pivot-high candle itself (x 0.99), looked up by
 //    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
@@ -137,6 +147,7 @@
         dbDepthPct: 50,            // i_dbDepth (%)
         dbLengthWeeks: 65,         // i_dbLength (weeks, x5 = trading days)
         dbMinLengthWeeks: 7,       // NOT in Pine: minimum double-bottom length (weeks, x5); 0 = off
+        flatBaseMaxDepthPct: 15,   // NOT in Pine: label only. A plain base up to this deep (%) is a 'Flat Base', deeper is a 'Deep Base'
         dbMaxUndercutPct: 7,       // NOT in Pine: the W's second low may be at most this % below the first low (it must still be lower); 0 = no cap
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
@@ -234,7 +245,7 @@
     function detect(ohlcv, userOpts) {
         var o = assign(assign({}, DEFAULTS), userOpts || {});
         var N = (ohlcv && ohlcv.length) ? ohlcv.length : 0;
-        var res = { supported: true, bars: N, lines: [], boxes: [], cups: [], events: [], state: null };
+        var res = { supported: true, bars: N, lines: [], boxes: [], cups: [], patterns: [], events: [], state: null };
 
         if (o.timeframe !== 'D') { res.supported = false; return res; }  // timeframe.isdaily
 
@@ -344,6 +355,9 @@
                 lengthLeft: left, lengthRight: right,
                 handle: null, handleReject: null
             };
+            // NOT in Pine: old high, lowest low and depth of the cup, for result.patterns
+            rec.top = at(startBasePrice, 0); rec.bottom = at(lowBasePrice, 0);
+            rec.depthPct = (rec.top > 0 && rec.bottom === rec.bottom) ? (1 - rec.bottom / rec.top) * 100 : NaN;
             if (o.handles && valid) rec.handle = findHandle(rec, live, n);
             return rec;
         }
@@ -405,7 +419,8 @@
                     lipIdx: lipIdx, tLip: T[lipIdx], lipHigh: lipHigh, lipPrice: L[lipIdx] * 0.99,
                     lowIdx: hLowIdx, tLow: T[hLowIdx], lowPrice: hLow * 0.99,
                     endIdx: endIdx, tEnd: T[endIdx], endPrice: L[endIdx] * 0.99,
-                    length: endIdx - lipIdx
+                    length: endIdx - lipIdx,
+                    pullbackPct: pullback * 100
                 };
             }
             for (k = rec.lowIdx + 1; k <= n; k++) {
@@ -880,6 +895,108 @@
             }
         })();
 
+        // ── pattern summaries (output only, for the hover tooltip) ───────
+        // NOT in Pine (see PATTERN SUMMARIES in the header). Describes what was
+        // already detected and drawn above; changes no detection and no drawing.
+        res.patterns = (function buildPatterns() {
+            var out = [], q, k, flatMax = o.flatBaseMaxDepthPct;
+
+            function r1(x) { return Math.round(x * 10) / 10; }
+            function lineAt(kind, idx1) {
+                for (var z = 0; z < res.lines.length; z++) {
+                    if (res.lines[z].kind === kind && res.lines[z].idx1 === idx1) return z;
+                }
+                return -1;
+            }
+            function samePrice(a, b) { return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)); }
+            // first breakout at or after fromIdx whose buy point is top
+            function breakoutOf(top, fromIdx, fromDB) {
+                for (var z = 0; z < res.events.length; z++) {
+                    var e = res.events[z];
+                    if (e.type === 'breakout' && e.idx >= fromIdx && samePrice(e.top, top) && (!fromDB || e.fromDoubleBottom)) return e;
+                }
+                return null;
+            }
+            function make(type, label, startIdx, endIdx, top, bottom, status, lineIdx, cupIdx) {
+                var bars = Math.max(0, endIdx - startIdx);
+                return {
+                    id: type + ':' + startIdx, type: type, label: label,
+                    startIdx: startIdx, endIdx: endIdx, startTime: T[startIdx], endTime: T[endIdx],
+                    bars: bars, weeks: Math.round(bars / 5),
+                    top: top, bottom: bottom,
+                    depthPct: (top > 0 && bottom === bottom) ? r1((1 - bottom / top) * 100) : NaN,
+                    status: status, lineIdx: lineIdx, cupIdx: cupIdx,
+                    handleBars: null, handlePullbackPct: null, undercutPct: null
+                };
+            }
+            function statusOf(broke, endIdx) { return broke ? 'brokeOut' : (endIdx >= N - 1 ? 'forming' : null); }
+
+            // cups, with or without a handle
+            var cupStart = {}, seenCup = {}, cp, hd, key, broke, endIdx, li, lines, p, e;
+            for (k = 0; k < res.cups.length; k++) {
+                cp = res.cups[k];
+                if (!cp.valid || seenCup[cp.startIdx]) continue;   // a cup can be recorded twice on the breakout bar
+                seenCup[cp.startIdx] = true; cupStart[cp.startIdx] = true;
+                hd = cp.handle;
+                endIdx = hd ? hd.endIdx : cp.endIdx;
+                broke = false;
+                if (hd) broke = hd.endIdx + 1 <= cp.endIdx;
+                else for (q = 0; q < res.events.length; q++) {
+                    e = res.events[q];
+                    if (e.type === 'breakout' && e.cup && e.idx === cp.endIdx) { broke = true; break; }
+                }
+                lines = [];
+                li = lineAt('baseHigh', cp.startIdx); if (li >= 0) lines.push(li);
+                if (hd) { li = lineAt('handleHigh', hd.lipIdx); if (li >= 0) lines.push(li); }
+                p = make(hd ? 'cupHandle' : 'cup', hd ? 'Cup with Handle' : 'Cup', cp.startIdx, endIdx,
+                         cp.top, cp.bottom, statusOf(broke, endIdx), lines, k);
+                if (hd) { p.handleBars = hd.length; p.handlePullbackPct = r1(hd.pullbackPct); }
+                out.push(p);
+            }
+
+            // plain bases: a high line with a low line on the same start bar (a cup has no low line)
+            var hi, lo, top, bot, depth, brk;
+            for (q = 0; q < res.lines.length; q++) {
+                hi = res.lines[q];
+                if (hi.kind !== 'baseHigh' || cupStart[hi.idx1]) continue;
+                li = lineAt('baseLow', hi.idx1);
+                if (li < 0) continue;
+                lo = res.lines[li];
+                top = hi.p1; bot = lo.p1;
+                depth = r1((1 - bot / top) * 100);
+                if (!(depth === depth)) continue;
+                brk = breakoutOf(top, hi.idx2, false);
+                out.push(make(depth <= flatMax ? 'flatBase' : 'deepBase', depth <= flatMax ? 'Flat Base' : 'Deep Base',
+                              hi.idx1, hi.idx2, top, bot, statusOf(!!brk, hi.idx2), [q, li], -1));
+            }
+
+            // double bottoms: dbLeg1 -> dbLeg2 -> dbLeg3 -> dbLow, plus the dotted dbHigh buy line
+            var l1, l2, l3, i2, i3, iLow, iHigh, firstLow, secondLow;
+            for (q = 0; q < res.lines.length; q++) {
+                l1 = res.lines[q];
+                if (l1.kind !== 'dbLeg1') continue;
+                i2 = lineAt('dbLeg2', l1.idx2); if (i2 < 0) continue;
+                l2 = res.lines[i2];
+                i3 = lineAt('dbLeg3', l2.idx2); if (i3 < 0) continue;
+                l3 = res.lines[i3];
+                iLow = lineAt('dbLow', l3.idx2);
+                iHigh = lineAt('dbHigh', l2.idx2);
+                endIdx = iHigh >= 0 ? res.lines[iHigh].idx2 : (iLow >= 0 ? res.lines[iLow].idx2 : l3.idx2);
+                brk = iHigh >= 0 ? breakoutOf(res.lines[iHigh].p1, endIdx, true) : null;
+                lines = [q, i2, i3];
+                if (iLow >= 0) lines.push(iLow);
+                if (iHigh >= 0) lines.push(iHigh);
+                p = make('doubleBottom', 'Double Bottom', l1.idx1, endIdx, H[l1.idx1], L[l3.idx2],
+                         statusOf(!!brk, endIdx), lines, -1);
+                firstLow = L[l1.idx2]; secondLow = L[l3.idx2];
+                p.undercutPct = r1((1 - secondLow / firstLow) * 100);
+                out.push(p);
+            }
+
+            out.sort(function(a, b) { return (a.startIdx - b.startIdx) || (a.endIdx - b.endIdx); });
+            return out;
+        })();
+
         res.state = {
             isBase: sBase[N - 1], isDoubleBottom: sDB[N - 1], inTradeBox: sBox[N - 1], baseCount: baseCount,
             baseStartIdx: sBase[N - 1] ? startBaseBar : null,
@@ -922,7 +1039,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.8-db-undercut-cap' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.0-pattern-summaries' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
