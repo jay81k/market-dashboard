@@ -19,6 +19,11 @@
 //    (n - startBaseBar); detection is delayed until the base is old enough,
 //    and a W whose timing windows close before that is never detected.
 //    Set dbMinLengthWeeks: 0 to get Pine's behaviour back.
+//  - DETECTION: the second low of a double bottom must be LOWER than the first low
+//    (any amount) but no more than opts.dbMaxUndercutPct (5) % below it, i.e.
+//    firstPivLow > scndPivLow >= firstPivLow * (1 - 5/100). Pine instead required the
+//    second low to be MORE than 3% below the first (firstPivLow * 0.97 > scndPivLow)
+//    with no upper limit. That 3% minimum is gone; dbMaxUndercutPct: 0 removes the cap.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
 //    from the low of the pivot-high candle itself (x 0.99), looked up by
 //    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
@@ -132,6 +137,7 @@
         dbDepthPct: 50,            // i_dbDepth (%)
         dbLengthWeeks: 65,         // i_dbLength (weeks, x5 = trading days)
         dbMinLengthWeeks: 7,       // NOT in Pine: minimum double-bottom length (weeks, x5); 0 = off
+        dbMaxUndercutPct: 5,       // NOT in Pine: the W's second low may be at most this % below the first low (it must still be lower); 0 = no cap
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
         pivotTie: 'both',          // see ASSUMPTION 1
@@ -238,6 +244,7 @@
         var dbDepth    = o.dbDepthPct / 100;
         var dbLength   = o.dbLengthWeeks * 5;
         var dbMinLength = o.dbMinLengthWeeks * 5;
+        var dbMaxUndercut = o.dbMaxUndercutPct / 100;
         if (N < 2 * P + 2) return res;
 
         // ── series ───────────────────────────────────────────────────────
@@ -481,7 +488,7 @@
                 if (pHP.length > 1 && pLP.length > 1) {
                     var firstPivHigh = at(pHP, 1), scndPivHigh = at(pHP, 0);
                     var firstPivLow = at(pLP, 1), scndPivLow = at(pLP, 0);
-                    var cA = firstPivHigh > scndPivHigh && firstPivLow * 0.97 > scndPivLow && firstPivLow < scndPivHigh;
+                    var cA = firstPivHigh > scndPivHigh && firstPivLow > scndPivLow && (dbMaxUndercut <= 0 || scndPivLow >= firstPivLow * (1 - dbMaxUndercut)) && firstPivLow < scndPivHigh;   // NOT in Pine: Pine needed firstPivLow * 0.97 > scndPivLow
                     var cB = scndPivLow >= (1 - dbDepth) * firstPivHigh;
                     var cC = scndPivLow <= 0.9 * firstPivHigh;
                     var cD = (firstPivHigh - scndPivLow) * 0.6 + scndPivLow <= scndPivHigh;
@@ -915,7 +922,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.6-db-legs-lp' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.7-db-undercut-cap' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
