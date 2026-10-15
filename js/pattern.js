@@ -20,8 +20,8 @@
 //    and a W whose timing windows close before that is never detected.
 //    Set dbMinLengthWeeks: 0 to get Pine's behaviour back.
 //  - DETECTION: the second low of a double bottom must be LOWER than the first low
-//    (any amount) but no more than opts.dbMaxUndercutPct (5) % below it, i.e.
-//    firstPivLow > scndPivLow >= firstPivLow * (1 - 5/100). Pine instead required the
+//    (any amount) but no more than opts.dbMaxUndercutPct (7) % below it, i.e.
+//    firstPivLow > scndPivLow >= firstPivLow * (1 - 7/100). Pine instead required the
 //    second low to be MORE than 3% below the first (firstPivLow * 0.97 > scndPivLow)
 //    with no upper limit. That 3% minimum is gone; dbMaxUndercutPct: 0 removes the cap.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
@@ -137,7 +137,7 @@
         dbDepthPct: 50,            // i_dbDepth (%)
         dbLengthWeeks: 65,         // i_dbLength (weeks, x5 = trading days)
         dbMinLengthWeeks: 7,       // NOT in Pine: minimum double-bottom length (weeks, x5); 0 = off
-        dbMaxUndercutPct: 5,       // NOT in Pine: the W's second low may be at most this % below the first low (it must still be lower); 0 = no cap
+        dbMaxUndercutPct: 7,       // NOT in Pine: the W's second low may be at most this % below the first low (it must still be lower); 0 = no cap
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
         pivotTie: 'both',          // see ASSUMPTION 1
@@ -922,7 +922,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.7-db-undercut-cap' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.8-db-undercut-cap' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
