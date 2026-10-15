@@ -41,12 +41,17 @@
 //    top: the old high, or the lip high for a cup with a handle). peakPct / peakDays:
 //    the highest high since the breakout bar, as % above the level, and how many trading
 //    days after the breakout bar it was made (0 = the breakout bar itself). failed:
-//    true once a later bar's LOW is opts.breakoutFailPct (7) % or more below the level.
+//    true once a later bar's LOW is opts.breakoutFailPct (7) % or more below the level,
+//    EXCEPT that once the peak has reached opts.breakoutSuccessPct (10) % above the level
+//    the breakout counts as successful and a later drop is not a failure (the peak then
+//    keeps tracking to the last bar), unless that drop comes within
+//    opts.breakoutQuickFailBars (5) bars of the breakout bar: a quick reversal is a failure.
 //    The failure bar is looked at from the bar after the breakout bar, and its own high
 //    is not counted in the peak (the order of its high and low is unknown). When failed,
 //    the peak only covers the bars before the failure (what a stop would have caught),
 //    failDays is the trading days after the breakout bar it happened on, and failPct is
-//    that bar's low vs the level (so it can be worse than -7 after a gap down). Later
+//    that bar's low vs the level, capped at -opts.breakoutFailPct (-7) so a gap down
+//    does not read worse than the stop. Later
 //    recoveries are ignored. opts.breakoutMaxBars (0 = no limit) stops the scan that
 //    many bars after the breakout. These fields are null for patterns that have not
 //    broken out. Nothing here feeds back into detection.
@@ -179,6 +184,8 @@
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
         breakoutFailPct: 7,        // NOT in Pine: a broken-out pattern counts as failed once a bar's low is this % below the breakout level
         breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
+        breakoutSuccessPct: 10,    // NOT in Pine: once the peak is this % above the breakout level the breakout counts as successful and a later drop is not a failure (0 = off)
+        breakoutQuickFailBars: 5,  // NOT in Pine: ...unless the drop to the failure level comes within this many bars of the breakout bar (a quick sharp reversal is still a failure)
         dbLegGapPct: 0.3,          // NOT in Pine: gap (% of price) between the drawn double-bottom W and the candles it clears
         dbLegKeepPct: 50,          // NOT in Pine: share of each double-bottom leg's original height that must be kept (0 = legs may flatten, 100 = full height)
         dbLegClear: 'wick',        // NOT in Pine: 'wick' = the W stays below every candle low; 'body' = only below the bodies (closer, crosses wick tips)
@@ -954,20 +961,24 @@
             // How the breakout went (see AFTER THE BREAKOUT in the header). brk = { idx, top }: the
             // breakout bar and the level it broke. Fills the peak / failure fields on p.
             function afterBreakout(p, brk) {
-                var b = brk.idx, level = brk.top, stop, peak, peakIdx, failIdx = -1, z;
+                var b = brk.idx, level = brk.top, stop, win, peak, peakIdx, failIdx = -1, z;
                 if (!(level > 0) || !(H[b] > 0)) return;
                 stop = level * (1 - o.breakoutFailPct / 100);
+                win = level * (1 + o.breakoutSuccessPct / 100);   // peak at or above this = successful breakout
                 peak = H[b]; peakIdx = b;                    // the breakout bar's own high counts; its low is not tested
                 for (z = b + 1; z < N; z++) {
                     if (o.breakoutMaxBars > 0 && z - b > o.breakoutMaxBars) break;
-                    if (L[z] <= stop) { failIdx = z; break; }   // failure bar: its high is left out of the peak
+                    if (L[z] <= stop) {
+                        // a drop after the quick-reversal window is not a failure once the peak (bars before this one) has reached the success level
+                        if (!(o.breakoutSuccessPct > 0) || z - b <= o.breakoutQuickFailBars || peak < win) { failIdx = z; break; }   // failure bar: its high is left out of the peak
+                    }
                     if (H[z] > peak) { peak = H[z]; peakIdx = z; }
                 }
                 p.breakoutIdx = b; p.breakoutLevel = level;
                 p.peakPct = r1((peak / level - 1) * 100); p.peakDays = peakIdx - b;
                 if (failIdx >= 0) {
                     p.failed = true; p.failDays = failIdx - b;
-                    p.failPct = r1((L[failIdx] / level - 1) * 100);
+                    p.failPct = r1(Math.max((L[failIdx] / level - 1) * 100, -o.breakoutFailPct));   // capped at the stop: a gap down does not read worse
                 }
             }
 
