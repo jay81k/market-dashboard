@@ -21,7 +21,8 @@
 // Hover tooltip (only while the patterns toggle is on):
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
 //     card with the pattern's name, length in trading days, depth, price range
-//     and status (Forming / Broke out); the pattern also gets a soft highlight
+//     and status (Forming / Broke out); the pattern also gets a soft highlight.
+//     Double bottoms also show their buy point (the middle peak's pivot high)
 //   - what is shown comes from result.patterns (pattern.js); this file only
 //     hit-tests the same geometry it draws, so the two can never disagree
 //   - the card is a child of the chart's own element (chart.chartElement()), so
@@ -230,6 +231,9 @@
             }
             if (p.type === 'doubleBottom' && p.undercutPct != null) {
                 row('Second low', p.undercutPct.toFixed(1) + '% below first');
+            }
+            if (p.type === 'doubleBottom' && p.buyPoint != null) {
+                row('Buy point', fmtPrice(p.buyPoint));   // middle peak's real pivot high (the dotted line), not the lowered W vertex
             }
         }
 
