@@ -11,6 +11,8 @@
 //     primitive goes away with the chart, so there is nothing to clean up)
 //   - the detector only re-runs when the last candle changes, so the
 //     10-second live tick keeps the current pattern up to date
+//   - the detector also re-runs when the chart's price scale mode changes
+//     (linear <-> log), because the double-bottom W is placed for that scale
 //
 // Colours and line weights follow the Pine script (green lines, blue / red /
 // green trade boxes). They are fixed on purpose so the chart matches
@@ -50,14 +52,24 @@
         var handle = { series: series, primitive: null, requestUpdate: null, lastResult: null };
         var cacheKey = '';
 
+        // The double-bottom W is placed below the candles for the scale the chart
+        // is drawn on, so the detector has to know it. 'log' for a logarithmic
+        // price scale; percentage / indexed-to-100 are linear in price. The mode
+        // is part of the cache key, so switching scale re-places the W.
+        function scaleMode() {
+            try { return series.priceScale().options().mode === 1 ? 'log' : 'linear'; }
+            catch (e) { return 'linear'; }
+        }
+
         function compute() {
             var o = getOhlcv();
             if (!o || o.length < 40 || getTf() !== 'D' || !window.PatternDetector) return null;
             var last = o[o.length - 1];
-            var key = o.length + '|' + last.time + '|' + last.high + '|' + last.low + '|' + last.close;
+            var mode = scaleMode();
+            var key = mode + '|' + o.length + '|' + last.time + '|' + last.high + '|' + last.low + '|' + last.close;
             if (key !== cacheKey) {
                 cacheKey = key;
-                try { handle.lastResult = window.PatternDetector.detect(o, { timeframe: 'D' }); }
+                try { handle.lastResult = window.PatternDetector.detect(o, { timeframe: 'D', priceScale: mode }); }
                 catch (e) { handle.lastResult = null; if (window.console) console.warn('PatternDetector failed', e); }
             }
             return handle.lastResult;
