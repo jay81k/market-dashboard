@@ -43,9 +43,11 @@
 //    days after the breakout bar it was made (0 = the breakout bar itself). failed:
 //    true once a later bar's LOW is opts.breakoutFailPct (7) % or more below the level,
 //    EXCEPT that once the peak has reached opts.breakoutSuccessPct (10) % above the level
-//    the breakout counts as successful and a later drop is not a failure (the peak then
-//    keeps tracking to the last bar), unless that drop comes within
-//    opts.breakoutQuickFailBars (5) bars of the breakout bar: a quick reversal is a failure.
+//    the breakout counts as successful and a later drop is not a failure, unless that drop
+//    comes within opts.breakoutQuickFailBars (5) bars of the breakout bar: a quick reversal
+//    is a failure. Both the peak and the failure test stop at the start of the NEXT BASE:
+//    the earliest pattern (any type) whose start bar (its old high) is on or after the
+//    breakout bar, that bar included. With no later base they run to the last bar.
 //    The failure bar is looked at from the bar after the breakout bar, and its own high
 //    is not counted in the peak (the order of its high and low is unknown). When failed,
 //    the peak only covers the bars before the failure (what a stop would have caught),
@@ -924,7 +926,7 @@
         // NOT in Pine (see PATTERN SUMMARIES in the header). Describes what was
         // already detected and drawn above; changes no detection and no drawing.
         res.patterns = (function buildPatterns() {
-            var out = [], q, k, flatMax = o.flatBaseMaxDepthPct;
+            var out = [], pending = [], q, k, flatMax = o.flatBaseMaxDepthPct;
 
             function r1(x) { return Math.round(x * 10) / 10; }
             function lineAt(kind, idx1) {
@@ -960,7 +962,7 @@
 
             // How the breakout went (see AFTER THE BREAKOUT in the header). brk = { idx, top }: the
             // breakout bar and the level it broke. Fills the peak / failure fields on p.
-            function afterBreakout(p, brk) {
+            function afterBreakout(p, brk, lastIdx) {   // lastIdx: last bar to look at (the next base's start), null = to the last bar
                 var b = brk.idx, level = brk.top, stop, win, peak, peakIdx, failIdx = -1, z;
                 if (!(level > 0) || !(H[b] > 0)) return;
                 stop = level * (1 - o.breakoutFailPct / 100);
@@ -968,6 +970,7 @@
                 peak = H[b]; peakIdx = b;                    // the breakout bar's own high counts; its low is not tested
                 for (z = b + 1; z < N; z++) {
                     if (o.breakoutMaxBars > 0 && z - b > o.breakoutMaxBars) break;
+                    if (lastIdx != null && z > lastIdx) break;   // the next base has started: this breakout's run is over
                     if (L[z] <= stop) {
                         // a drop after the quick-reversal window is not a failure once the peak (bars before this one) has reached the success level
                         if (!(o.breakoutSuccessPct > 0) || z - b <= o.breakoutQuickFailBars || peak < win) { failIdx = z; break; }   // failure bar: its high is left out of the peak
@@ -1004,7 +1007,7 @@
                 p = make(hd ? 'cupHandle' : 'cup', hd ? 'Cup with Handle' : 'Cup', cp.startIdx, endIdx,
                          cp.top, cp.bottom, statusOf(broke, endIdx), lines, k);
                 if (hd) { p.handleBars = hd.length; p.handlePullbackPct = r1(hd.pullbackPct); }
-                if (cupBrk) afterBreakout(p, cupBrk);
+                if (cupBrk) pending.push([p, cupBrk]);   // measured after the sort, once the next base is known
                 out.push(p);
             }
 
@@ -1022,7 +1025,7 @@
                 brk = breakoutOf(top, hi.idx2, false);
                 p = make(depth <= flatMax ? 'flatBase' : 'consolidation', depth <= flatMax ? 'Flat Base' : 'Consolidation',
                          hi.idx1, hi.idx2, top, bot, statusOf(!!brk, hi.idx2), [q, li], -1);
-                if (brk) afterBreakout(p, brk);
+                if (brk) pending.push([p, brk]);
                 out.push(p);
             }
 
@@ -1049,11 +1052,23 @@
                 // true buy point: the middle peak's real pivot high, the price the dotted 'dbHigh' line sits on
                 // (NOT the lowered W vertex drawn by placeDoubleBottomLegs)
                 if (iHigh >= 0) p.buyPoint = res.lines[iHigh].p1;
-                if (brk) afterBreakout(p, brk);
+                if (brk) pending.push([p, brk]);
                 out.push(p);
             }
 
             out.sort(function(a, b) { return (a.startIdx - b.startIdx) || (a.endIdx - b.endIdx); });
+
+            // how each breakout went, now that every pattern is known: the peak and the failure test stop at the
+            // start of the next base = the earliest pattern whose start bar is on or after the breakout bar
+            // (out is sorted by startIdx, so the first match is it); no later base -> to the last bar
+            var pb, nextStart;
+            for (q = 0; q < pending.length; q++) {
+                pb = pending[q][1]; nextStart = null;
+                for (k = 0; k < out.length; k++) {
+                    if (out[k].startIdx >= pb.idx) { nextStart = out[k].startIdx; break; }
+                }
+                afterBreakout(pending[q][0], pb, nextStart);
+            }
             return out;
         })();
 
