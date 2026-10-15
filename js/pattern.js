@@ -27,13 +27,15 @@
 //  - PATTERN SUMMARIES (output only): result.patterns lists every pattern that is
 //    on the chart, for the hover tooltip: { id, type, label, startIdx, endIdx, bars,
 //    weeks, top, bottom, depthPct, status, lineIdx, cupIdx, ... }. type is 'flatBase'
-//    (a plain base up to opts.flatBaseMaxDepthPct deep, 15 by default), 'deepBase'
+//    (a plain base up to opts.flatBaseMaxDepthPct deep, 15 by default), 'consolidation'
 //    (a plain base deeper than that), 'cup', 'cupHandle' or 'doubleBottom'. bars is
 //    trading days from the old high to the last bar of the pattern; depthPct is
 //    measured from the old high (double bottom: from the first high to the second
 //    low) and rounded to 0.1. status is 'forming', 'brokeOut' or null (ended).
 //    lineIdx / cupIdx point into result.lines / result.cups so the drawn geometry can
-//    be hit-tested. Nothing here feeds back into detection.
+//    be hit-tested. buyPoint is set for double bottoms only (null for every other
+//    type): the real pivot high of the middle peak, i.e. the price of the dotted
+//    'dbHigh' line, not the lowered W vertex. Nothing here feeds back into detection.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
 //    from the low of the pivot-high candle itself (x 0.99), looked up by
 //    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
@@ -147,7 +149,7 @@
         dbDepthPct: 50,            // i_dbDepth (%)
         dbLengthWeeks: 65,         // i_dbLength (weeks, x5 = trading days)
         dbMinLengthWeeks: 7,       // NOT in Pine: minimum double-bottom length (weeks, x5); 0 = off
-        flatBaseMaxDepthPct: 15,   // NOT in Pine: label only. A plain base up to this deep (%) is a 'Flat Base', deeper is a 'Deep Base'
+        flatBaseMaxDepthPct: 15,   // NOT in Pine: label only. A plain base up to this deep (%) is a 'Flat Base', deeper is a 'Consolidation'
         dbMaxUndercutPct: 7,       // NOT in Pine: the W's second low may be at most this % below the first low (it must still be lower); 0 = no cap
         displayBoxes: true,        // i_displayBoxes
         displayHistoricalBoxes: false, // i_displayHistoricalBoxes
@@ -926,7 +928,7 @@
                     top: top, bottom: bottom,
                     depthPct: (top > 0 && bottom === bottom) ? r1((1 - bottom / top) * 100) : NaN,
                     status: status, lineIdx: lineIdx, cupIdx: cupIdx,
-                    handleBars: null, handlePullbackPct: null, undercutPct: null
+                    handleBars: null, handlePullbackPct: null, undercutPct: null, buyPoint: null
                 };
             }
             function statusOf(broke, endIdx) { return broke ? 'brokeOut' : (endIdx >= N - 1 ? 'forming' : null); }
@@ -966,7 +968,7 @@
                 depth = r1((1 - bot / top) * 100);
                 if (!(depth === depth)) continue;
                 brk = breakoutOf(top, hi.idx2, false);
-                out.push(make(depth <= flatMax ? 'flatBase' : 'deepBase', depth <= flatMax ? 'Flat Base' : 'Deep Base',
+                out.push(make(depth <= flatMax ? 'flatBase' : 'consolidation', depth <= flatMax ? 'Flat Base' : 'Consolidation',
                               hi.idx1, hi.idx2, top, bot, statusOf(!!brk, hi.idx2), [q, li], -1));
             }
 
@@ -990,6 +992,9 @@
                          statusOf(!!brk, endIdx), lines, -1);
                 firstLow = L[l1.idx2]; secondLow = L[l3.idx2];
                 p.undercutPct = r1((1 - secondLow / firstLow) * 100);
+                // true buy point: the middle peak's real pivot high, the price the dotted 'dbHigh' line sits on
+                // (NOT the lowered W vertex drawn by placeDoubleBottomLegs)
+                if (iHigh >= 0) p.buyPoint = res.lines[iHigh].p1;
                 out.push(p);
             }
 
@@ -1039,7 +1044,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.0-pattern-summaries' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.1-pattern-summaries' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
