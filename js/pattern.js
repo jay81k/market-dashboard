@@ -35,7 +35,21 @@
 //    lineIdx / cupIdx point into result.lines / result.cups so the drawn geometry can
 //    be hit-tested. buyPoint is set for double bottoms only (null for every other
 //    type): the real pivot high of the middle peak, i.e. the price of the dotted
-//    'dbHigh' line, not the lowered W vertex. Nothing here feeds back into detection.
+//    'dbHigh' line, not the lowered W vertex.
+//    AFTER THE BREAKOUT: for a pattern with status 'brokeOut' (any type), the summary also
+//    says how the breakout went, measured from the breakout level (the 'breakout' event's
+//    top: the old high, or the lip high for a cup with a handle). peakPct / peakDays:
+//    the highest high since the breakout bar, as % above the level, and how many trading
+//    days after the breakout bar it was made (0 = the breakout bar itself). failed:
+//    true once a later bar's LOW is opts.breakoutFailPct (7) % or more below the level.
+//    The failure bar is looked at from the bar after the breakout bar, and its own high
+//    is not counted in the peak (the order of its high and low is unknown). When failed,
+//    the peak only covers the bars before the failure (what a stop would have caught),
+//    failDays is the trading days after the breakout bar it happened on, and failPct is
+//    that bar's low vs the level (so it can be worse than -7 after a gap down). Later
+//    recoveries are ignored. opts.breakoutMaxBars (0 = no limit) stops the scan that
+//    many bars after the breakout. These fields are null for patterns that have not
+//    broken out. Nothing here feeds back into detection.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
 //    from the low of the pivot-high candle itself (x 0.99), looked up by
 //    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
@@ -163,6 +177,8 @@
         handleLipWithinPct: 15,    // right lip must be within this % of the old high
         handleMinBars: 5,          // minimum handle length (bars, 1 week)
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
+        breakoutFailPct: 7,        // NOT in Pine: a broken-out pattern counts as failed once a bar's low is this % below the breakout level
+        breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
         dbLegGapPct: 0.3,          // NOT in Pine: gap (% of price) between the drawn double-bottom W and the candles it clears
         dbLegKeepPct: 50,          // NOT in Pine: share of each double-bottom leg's original height that must be kept (0 = legs may flatten, 100 = full height)
         dbLegClear: 'wick',        // NOT in Pine: 'wick' = the W stays below every candle low; 'body' = only below the bodies (closer, crosses wick tips)
@@ -928,24 +944,48 @@
                     top: top, bottom: bottom,
                     depthPct: (top > 0 && bottom === bottom) ? r1((1 - bottom / top) * 100) : NaN,
                     status: status, lineIdx: lineIdx, cupIdx: cupIdx,
-                    handleBars: null, handlePullbackPct: null, undercutPct: null, buyPoint: null
+                    handleBars: null, handlePullbackPct: null, undercutPct: null, buyPoint: null,
+                    breakoutIdx: null, breakoutLevel: null, peakPct: null, peakDays: null,
+                    failed: false, failDays: null, failPct: null
                 };
             }
             function statusOf(broke, endIdx) { return broke ? 'brokeOut' : (endIdx >= N - 1 ? 'forming' : null); }
 
+            // How the breakout went (see AFTER THE BREAKOUT in the header). brk = { idx, top }: the
+            // breakout bar and the level it broke. Fills the peak / failure fields on p.
+            function afterBreakout(p, brk) {
+                var b = brk.idx, level = brk.top, stop, peak, peakIdx, failIdx = -1, z;
+                if (!(level > 0) || !(H[b] > 0)) return;
+                stop = level * (1 - o.breakoutFailPct / 100);
+                peak = H[b]; peakIdx = b;                    // the breakout bar's own high counts; its low is not tested
+                for (z = b + 1; z < N; z++) {
+                    if (o.breakoutMaxBars > 0 && z - b > o.breakoutMaxBars) break;
+                    if (L[z] <= stop) { failIdx = z; break; }   // failure bar: its high is left out of the peak
+                    if (H[z] > peak) { peak = H[z]; peakIdx = z; }
+                }
+                p.breakoutIdx = b; p.breakoutLevel = level;
+                p.peakPct = r1((peak / level - 1) * 100); p.peakDays = peakIdx - b;
+                if (failIdx >= 0) {
+                    p.failed = true; p.failDays = failIdx - b;
+                    p.failPct = r1((L[failIdx] / level - 1) * 100);
+                }
+            }
+
             // cups, with or without a handle
-            var cupStart = {}, seenCup = {}, cp, hd, key, broke, endIdx, li, lines, p, e;
+            var cupStart = {}, seenCup = {}, cp, hd, key, broke, cupBrk, endIdx, li, lines, p, e;
             for (k = 0; k < res.cups.length; k++) {
                 cp = res.cups[k];
                 if (!cp.valid || seenCup[cp.startIdx]) continue;   // a cup can be recorded twice on the breakout bar
                 seenCup[cp.startIdx] = true; cupStart[cp.startIdx] = true;
                 hd = cp.handle;
                 endIdx = hd ? hd.endIdx : cp.endIdx;
-                broke = false;
-                if (hd) broke = hd.endIdx + 1 <= cp.endIdx;
-                else for (q = 0; q < res.events.length; q++) {
+                broke = false; cupBrk = null;
+                if (hd) {
+                    broke = hd.endIdx + 1 <= cp.endIdx;
+                    if (broke) cupBrk = { idx: hd.endIdx + 1, top: hd.lipHigh };   // a handle cup is bought through the lip high
+                } else for (q = 0; q < res.events.length; q++) {
                     e = res.events[q];
-                    if (e.type === 'breakout' && e.cup && e.idx === cp.endIdx) { broke = true; break; }
+                    if (e.type === 'breakout' && e.cup && e.idx === cp.endIdx) { broke = true; cupBrk = e; break; }
                 }
                 lines = [];
                 li = lineAt('baseHigh', cp.startIdx); if (li >= 0) lines.push(li);
@@ -953,6 +993,7 @@
                 p = make(hd ? 'cupHandle' : 'cup', hd ? 'Cup with Handle' : 'Cup', cp.startIdx, endIdx,
                          cp.top, cp.bottom, statusOf(broke, endIdx), lines, k);
                 if (hd) { p.handleBars = hd.length; p.handlePullbackPct = r1(hd.pullbackPct); }
+                if (cupBrk) afterBreakout(p, cupBrk);
                 out.push(p);
             }
 
@@ -968,8 +1009,10 @@
                 depth = r1((1 - bot / top) * 100);
                 if (!(depth === depth)) continue;
                 brk = breakoutOf(top, hi.idx2, false);
-                out.push(make(depth <= flatMax ? 'flatBase' : 'consolidation', depth <= flatMax ? 'Flat Base' : 'Consolidation',
-                              hi.idx1, hi.idx2, top, bot, statusOf(!!brk, hi.idx2), [q, li], -1));
+                p = make(depth <= flatMax ? 'flatBase' : 'consolidation', depth <= flatMax ? 'Flat Base' : 'Consolidation',
+                         hi.idx1, hi.idx2, top, bot, statusOf(!!brk, hi.idx2), [q, li], -1);
+                if (brk) afterBreakout(p, brk);
+                out.push(p);
             }
 
             // double bottoms: dbLeg1 -> dbLeg2 -> dbLeg3 -> dbLow, plus the dotted dbHigh buy line
@@ -995,6 +1038,7 @@
                 // true buy point: the middle peak's real pivot high, the price the dotted 'dbHigh' line sits on
                 // (NOT the lowered W vertex drawn by placeDoubleBottomLegs)
                 if (iHigh >= 0) p.buyPoint = res.lines[iHigh].p1;
+                if (brk) afterBreakout(p, brk);
                 out.push(p);
             }
 
