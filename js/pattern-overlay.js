@@ -15,8 +15,12 @@
 //     (linear <-> log), because the double-bottom W is placed for that scale
 //
 // Colours and line weights follow the Pine script (green lines, blue / red /
-// green trade boxes). They are fixed on purpose so the chart matches
-// TradingView in both themes.
+// green trade boxes) so the chart matches TradingView. Exception: in DARK mode
+// only, the pattern lines / curves and the hover tint + glow use #8499b8
+// instead of green (light mode keeps the Pine green). Trade boxes are the same
+// in both themes. The active theme is read from the data-theme attribute
+// (absent / anything but "light" = dark), at draw time, and a MutationObserver
+// on that attribute repaints the overlay the moment the theme is toggled.
 //
 // Hover tooltip (only while the patterns toggle is on):
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
@@ -37,6 +41,7 @@
 (function() {
     var STORAGE_KEY = 'dashboard-patterns-on';
     var LINE_COLOR  = 'rgb(146, 193, 131)';
+    var LINE_COLOR_DARK = '#8499b8';                // dark mode only (rgb 132, 153, 184)
     var BOX_FILL = {
         entry:      'rgba(0, 0, 255, 0.08)',
         stopLoss:   'rgba(255, 0, 0, 0.08)',
@@ -45,8 +50,10 @@
 
     // Hover tooltip
     var HIT_TOLERANCE = 8;                          // px: how close the cursor must be to a drawn line / curve
-    var HOVER_FILL    = 'rgba(146, 193, 131, 0.09)';
+    var HOVER_FILL    = 'rgba(146, 193, 131, 0.06)';
     var HOVER_GLOW    = 'rgba(146, 193, 131, 0.30)';
+    var HOVER_FILL_DARK = 'rgba(132, 153, 184, 0.06)';   // same alpha as light, tinted from #8499b8
+    var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.30)';
     var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
     var CSS_ID        = 'mc-pattern-tip-style';
@@ -89,6 +96,17 @@
         var ex = px - (a.x + t * dx), ey = py - (a.y + t * dy);
         return Math.sqrt(ex * ex + ey * ey);
     }
+
+    // Dark is the default theme; light mode is [data-theme="light"] (set on <html> or <body>)
+    function isLight() {
+        try {
+            return document.documentElement.getAttribute('data-theme') === 'light' ||
+                   (!!document.body && document.body.getAttribute('data-theme') === 'light');
+        } catch (e) { return false; }
+    }
+    function lineColor()  { return isLight() ? LINE_COLOR  : LINE_COLOR_DARK; }
+    function hoverFill()  { return isLight() ? HOVER_FILL  : HOVER_FILL_DARK; }
+    function hoverGlow()  { return isLight() ? HOVER_GLOW  : HOVER_GLOW_DARK; }
 
     var enabled = false;
     try { enabled = localStorage.getItem(STORAGE_KEY) === '1'; } catch (e) {}
@@ -313,9 +331,18 @@
         if (host) host.addEventListener('mousedown', onDown);
         window.addEventListener('mouseup', onUp);
 
+        // repaint instantly when the light / dark toggle flips data-theme
+        var themeObs = null;
+        try {
+            themeObs = new MutationObserver(function() { if (handle.requestUpdate) handle.requestUpdate(); });
+            themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+            if (document.body) themeObs.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+        } catch (e) { themeObs = null; }
+
         handle.cleanup = function() {
             if (cleaned) return;
             cleaned = true;
+            if (themeObs) { try { themeObs.disconnect(); } catch (e) {} themeObs = null; }
             try { chart.unsubscribeCrosshairMove(onMove); } catch (e) {}
             try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange); } catch (e) {}
             if (host) host.removeEventListener('mousedown', onDown);
@@ -349,7 +376,7 @@
                         if (!b) return;
                         target.useBitmapCoordinateSpace(function(scope) {
                             var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
-                            ctx.fillStyle = HOVER_FILL;
+                            ctx.fillStyle = hoverFill();
                             ctx.fillRect((b.x1 - 4) * rx, (b.y1 - 6) * ry, (b.x2 - b.x1 + 8) * rx, (b.y2 - b.y1 + 12) * ry);
                         });
                     }
@@ -370,7 +397,7 @@
                         target.useBitmapCoordinateSpace(function(scope) {
                             var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
                             ctx.save();
-                            ctx.strokeStyle = HOVER_GLOW;
+                            ctx.strokeStyle = hoverGlow();
                             ctx.lineWidth = 7 * rx;
                             ctx.lineCap = 'round';
                             ctx.lineJoin = 'round';
@@ -425,7 +452,7 @@
                         target.useBitmapCoordinateSpace(function(scope) {
                             var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
                             ctx.save();
-                            ctx.strokeStyle = LINE_COLOR;
+                            ctx.strokeStyle = lineColor();
                             ctx.lineJoin = 'round';
                             r.lines.forEach(function(l) {
                                 var x1 = xOf(o, l.idx1), x2 = xOf(o, l.idx2), y1 = yOf(l.p1), y2 = yOf(l.p2);
