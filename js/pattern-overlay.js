@@ -43,7 +43,7 @@
     var HIT_TOLERANCE = 8;                          // px: how close the cursor must be to a drawn line / curve
     var HOVER_FILL    = 'rgba(146, 193, 131, 0.09)';
     var HOVER_GLOW    = 'rgba(146, 193, 131, 0.30)';
-    var TYPE_COLOR    = { flatBase: '#8fc27f', deepBase: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
+    var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
     var CSS_ID        = 'mc-pattern-tip-style';
     var CSS = [
@@ -224,7 +224,7 @@
             if (p.weeks >= 1) len += ' (' + p.weeks + (p.weeks === 1 ? ' wk)' : ' wks)');
             row('Length', len);
             row('Depth', p.depthPct.toFixed(1) + '%');
-            row('Range', fmtPrice(p.top) + ' \u2013 ' + fmtPrice(p.bottom));
+            row('Range', fmtPrice(Math.min(p.top, p.bottom)) + ' \u2013 ' + fmtPrice(Math.max(p.top, p.bottom)));   // low to high
             if (p.type === 'cupHandle' && p.handleBars != null) {
                 row('Handle', p.handleBars + (p.handleBars === 1 ? ' day, ' : ' days, ') + p.handlePullbackPct.toFixed(1) + '% pullback');
             }
