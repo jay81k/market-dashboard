@@ -22,7 +22,10 @@
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
 //     card with the pattern's name, length in trading days, depth, price range
 //     and status (Forming / Broke out); the pattern also gets a soft highlight.
-//     Double bottoms also show their buy point (the middle peak's pivot high)
+//     Double bottoms also show their buy point (the middle peak's pivot high).
+//     Patterns that broke out add the peak since the breakout (% and days after it);
+//     once price has hit opts.breakoutFailPct (7%) below the breakout level the "Broke
+//     out" chip turns red and the card adds a Failed row (rules live in pattern.js)
 //   - what is shown comes from result.patterns (pattern.js); this file only
 //     hit-tests the same geometry it draws, so the two can never disagree
 //   - the card is a child of the chart's own element (chart.chartElement()), so
@@ -60,9 +63,13 @@
         '.mcpt-chip{font-size:11px;line-height:1;padding:3px 7px;border-radius:999px;border:1px solid transparent}',
         '.mcpt-chip.forming{color:#e6b95c;border-color:rgba(230,185,92,.45)}',
         '.mcpt-chip.brokeOut{color:#9bd58b;background:rgba(155,213,139,.14)}',
+        '.mcpt-chip.brokeOut.failed{color:#f19a9a;background:rgba(241,154,154,.16)}',
         '.mcpt-row{display:flex;justify-content:space-between;gap:18px;padding:1.5px 0}',
         '.mcpt-k{color:#8b94a5}',
         '.mcpt-v{color:#e8ebf1;text-align:right}',
+        '.mcpt-up{color:#9bd58b}',
+        '.mcpt-dn{color:#f19a9a}',
+        '.mcpt-sep{height:1px;background:rgba(255,255,255,.08);margin:6px 0 5px}',
         '@media (prefers-reduced-motion:reduce){.mc-pattern-tip{transition:none}}'
     ].join('');
 
@@ -213,12 +220,13 @@
             tip.style.setProperty('--mcpt-accent', TYPE_COLOR[p.type] || LINE_COLOR);
             var head = el('div', 'mcpt-head');
             head.appendChild(el('span', 'mcpt-name', p.label));
-            if (STATUS_TEXT[p.status]) head.appendChild(el('span', 'mcpt-chip ' + p.status, STATUS_TEXT[p.status]));
+            // a broken-out pattern that has since failed (see pattern.js, AFTER THE BREAKOUT) keeps the text "Broke out", in red
+            if (STATUS_TEXT[p.status]) head.appendChild(el('span', 'mcpt-chip ' + p.status + (p.failed ? ' failed' : ''), STATUS_TEXT[p.status]));
             tip.appendChild(head);
-            function row(k, v) {
+            function row(k, v, cls) {
                 var rw = el('div', 'mcpt-row');
                 rw.appendChild(el('span', 'mcpt-k', k));
-                rw.appendChild(el('span', 'mcpt-v', v));
+                rw.appendChild(el('span', 'mcpt-v' + (cls ? ' ' + cls : ''), v));
                 tip.appendChild(rw);
             }
             var len = p.bars + (p.bars === 1 ? ' day' : ' days');
@@ -234,6 +242,17 @@
             }
             if (p.type === 'doubleBottom' && p.buyPoint != null) {
                 row('Buy point', fmtPrice(p.buyPoint));   // middle peak's real pivot high (the dotted line), not the lowered W vertex
+            }
+            // how the breakout went: peak since the breakout (up to the failure, if there was one), % above the breakout level
+            if (p.status === 'brokeOut' && p.peakPct != null && isFinite(p.peakPct)) {
+                tip.appendChild(el('div', 'mcpt-sep'));
+                var peakTxt = '+' + p.peakPct.toFixed(1) + '% · day ' + p.peakDays;
+                if (p.failed && p.failPct != null) {
+                    row('Peak before failing', peakTxt, 'mcpt-up');
+                    row('Failed', 'day ' + p.failDays + ' · −' + Math.abs(p.failPct).toFixed(1) + '%', 'mcpt-dn');
+                } else {
+                    row('Peak', peakTxt, 'mcpt-up');
+                }
             }
         }
 
@@ -275,7 +294,7 @@
                 tip.className = 'mc-pattern-tip';
                 host.appendChild(tip);
             }
-            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars;
+            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars + '|' + hit.peakPct + '|' + hit.failed;   // the live tick can move the peak / flip to failed
             if (handle.hoverId !== hit.id) {
                 handle.hoverId = hit.id;
                 if (handle.requestUpdate) handle.requestUpdate();
