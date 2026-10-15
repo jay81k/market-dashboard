@@ -26,6 +26,20 @@
 //    and the middle peak of the W could be drawn at the old high's level,
 //    above its own candles. That array is not ported. Detection is unchanged:
 //    it was only ever read when these three lines were created.
+//  - DOUBLE BOTTOM LEGS (drawing only): the W ('dbLeg1'..'dbLeg3' + 'dbLow') is
+//    moved as one rigid piece to the closest position where every leg stays
+//    below every candle it spans, so it is no longer drawn through the bars.
+//    Down by exactly what the worst candle needs, or up until it touches the
+//    tightest one. The shape and the span are the W's; the vertices are NOT on
+//    the pivots any more (they sit below them), so read pivot prices off the
+//    candles, not off the W. The dotted 'dbHigh' buy line is not moved.
+//    opts.dbLegGapPct (0.3) is the gap kept to the candles, opts.dbLegClear
+//    ('wick' | 'body') says whether wick tips count, opts.priceScale ('linear'
+//    | 'log') must match the chart's scale for the legs to clear in both.
+//    A straight W that also stays ON its pivots and below the candles does not
+//    exist: the candles next to a trough sit just above it, which flattens any
+//    straight leg that clears them. The W is recomputed on every call, so it
+//    can move slightly when a new bar changes the tightest candle.
 //  - CUP HANDLES (drawing only): Pine never draws a handle. When a cup is
 //    recorded (live on the last bar, or on the breakout bar), cupRecord() also
 //    looks for a handle and stores it as cup.handle (null when there is none;
@@ -121,6 +135,9 @@
         handleLipWithinPct: 15,    // right lip must be within this % of the old high
         handleMinBars: 5,          // minimum handle length (bars, 1 week)
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
+        dbLegGapPct: 0.3,          // NOT in Pine: gap (% of price) between the drawn double-bottom W and the candles it clears
+        dbLegClear: 'wick',        // NOT in Pine: 'wick' = the W stays below every candle low; 'body' = only below the bodies (closer, crosses wick tips)
+        priceScale: 'linear',      // NOT in Pine: 'log' when the chart is log-scaled, so the W is placed for the scale it is drawn on
         debug: false               // include pivots + per-bar flags in result
     };
 
@@ -163,11 +180,11 @@
         if (N < 2 * P + 2) return res;
 
         // ── series ───────────────────────────────────────────────────────
-        var T = new Array(N), H = new Array(N), L = new Array(N), C = new Array(N);
+        var T = new Array(N), H = new Array(N), L = new Array(N), C = new Array(N), O = new Array(N);
         var q, bar;
         for (q = 0; q < N; q++) {
             bar = ohlcv[q];
-            T[q] = bar.time; H[q] = num(bar.high); L[q] = num(bar.low); C[q] = num(bar.close);
+            T[q] = bar.time; H[q] = num(bar.high); L[q] = num(bar.low); C[q] = num(bar.close); O[q] = num(bar.open);
         }
         function hAt(i) { return (i >= 0 && i < N) ? H[i] : NaN; }
         function lAt(i) { return (i >= 0 && i < N) ? L[i] : NaN; }
@@ -695,6 +712,71 @@
         }
         res.cups = cupList;
 
+        // ── double bottoms: keep the W below the candles ─────────────────
+        // NOT in Pine (see DOUBLE BOTTOM LEGS in the header). The four legs are
+        // created with their vertices on the low of each vertex candle (x 0.99),
+        // so a straight leg can run through the candles in between. Here the
+        // whole W is moved as ONE rigid piece (all five vertices by the same
+        // amount, so the shape stays a W and the legs stay connected) to the
+        // closest position where every leg is below every candle it spans: it
+        // moves down by exactly as much as the worst candle needs, and up until
+        // it touches the tightest candle if nothing is in the way. "Below"
+        // means below the candle low (opts.dbLegClear 'wick') or the body
+        // ('body'), minus opts.dbLegGapPct. Done in the scale the chart is drawn
+        // on (opts.priceScale), because a straight line on screen is straight in
+        // that scale, not in price.
+        // This only edits the OUTPUT lines (res.lines), after they were built,
+        // so nothing the detector reports (state, events, cups) can change.
+        (function placeDoubleBottomLegs() {
+            var log = o.priceScale === 'log';
+            var tr  = log ? Math.log : function(v) { return v; };
+            var inv = log ? Math.exp : function(v) { return v; };
+            var keep = 1 - o.dbLegGapPct / 100;
+            function find(kind, idx1) {
+                for (var q2 = 0; q2 < res.lines.length; q2++) {
+                    if (res.lines[q2].kind === kind && res.lines[q2].idx1 === idx1) return res.lines[q2];
+                }
+                return null;
+            }
+            function clearLevel(k) {          // the price the W has to stay below on bar k
+                var v = L[k], bd;
+                if (o.dbLegClear === 'body') { bd = Math.min(O[k], C[k]); if (bd === bd) v = bd; }
+                return v;
+            }
+            function positive(v) { return v === v && v > 0; }
+            var li, a, b, c, d, xs, ys, tv, ny, seg, k, t, line, lv, s;
+            for (li = 0; li < res.lines.length; li++) {
+                a = res.lines[li];
+                if (a.kind !== 'dbLeg1') continue;
+                b = find('dbLeg2', a.idx2);
+                c = b && find('dbLeg3', b.idx2);
+                d = c && find('dbLow', c.idx2);
+                if (!d) continue;
+                xs = [a.idx1, a.idx2, b.idx2, c.idx2, d.idx2];   // the five vertices of the W (bars)
+                ys = [a.p1, a.p2, b.p2, c.p2, d.p2];             // ... and their prices
+                if (!ys.every(positive)) continue;
+                tv = ys.map(tr);
+                s = Infinity;
+                for (seg = 0; seg < 4; seg++) {
+                    if (!(xs[seg + 1] > xs[seg])) { s = Infinity; break; }
+                    for (k = xs[seg]; k <= xs[seg + 1]; k++) {
+                        lv = clearLevel(k);
+                        if (!(lv > 0)) continue;
+                        t = (k - xs[seg]) / (xs[seg + 1] - xs[seg]);
+                        line = tv[seg] + (tv[seg + 1] - tv[seg]) * t;
+                        s = Math.min(s, tr(lv * keep) - line);
+                    }
+                }
+                if (!isFinite(s)) continue;
+                ny = tv.map(function(v) { return inv(v + s); });
+                if (!ny.every(positive)) continue;
+                a.p1 = ny[0]; a.p2 = ny[1];
+                b.p1 = ny[1]; b.p2 = ny[2];
+                c.p1 = ny[2]; c.p2 = ny[3];
+                d.p1 = ny[3]; d.p2 = ny[4];
+            }
+        })();
+
         res.state = {
             isBase: sBase[N - 1], isDoubleBottom: sDB[N - 1], inTradeBox: sBox[N - 1], baseCount: baseCount,
             baseStartIdx: sBase[N - 1] ? startBaseBar : null,
@@ -737,7 +819,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.4-handle-buypoint-boxes' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.3.5-db-legs-below-candles' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
