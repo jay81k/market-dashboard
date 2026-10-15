@@ -4027,7 +4027,8 @@ return '10y';
     // badges, fundamentals); (2) the market info bar from the right side of the settings
     // row (price/change, ADR, mkt cap, day range, 52W range); (3) the chart exactly as
     // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes) plus any committed measurements
-    // (an SVG overlay, redrawn onto the image by _mcFsShotPaintMeasures). Not included:
+    // (an SVG overlay, redrawn onto the image by _mcFsShotPaintMeasures) and the vol % vs 50-SMA label
+    // (a DOM label over the volume pane, painted from the live element when it is visible). Not included:
     // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
     // hover OHLC legend, and the crosshair.
     // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen but keep their combined
@@ -4377,6 +4378,18 @@ return '10y';
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(shot, 0, topPx);
         _mcFsShotPaintMeasures(ctx, _mcFsMeasureList, scale, topPx);   // SVG overlay: not part of the library's screenshot
+
+        // Vol % vs 50-SMA label: a DOM div sitting over the volume pane, so the library's screenshot cannot see
+        // it either. Painted from the live element (same position, colour and text as on screen). Skipped when
+        // it is hidden (last bar scrolled off, or too close to the price axis), exactly as it is on screen.
+        var volLbl = document.getElementById('mc-fs-vol-pct-label');
+        if (volLbl && volLbl.isConnected && getComputedStyle(volLbl).display !== 'none') {
+            var cRect = container.getBoundingClientRect();
+            ctx.save();
+            ctx.setTransform(scale, 0, 0, scale, -cRect.left * scale, topPx - cRect.top * scale);   // viewport CSS px -> canvas px
+            try { _mcFsShotPaint(ctx, volLbl, [], null); } catch (e) { console.warn('[screenshot] vol % label draw failed', e); }
+            ctx.restore();
+        }
 
         // A row's own background and bottom border, drawn crisp at exactly the row's pixel box.
         function paintBox(root, yPx, hPx) {
