@@ -264,10 +264,10 @@
             // how the breakout went: peak since the breakout (up to the failure, if there was one), % above the breakout level
             if (p.status === 'brokeOut' && p.peakPct != null && isFinite(p.peakPct)) {
                 tip.appendChild(el('div', 'mcpt-sep'));
-                var peakTxt = '+' + p.peakPct.toFixed(1) + '% · day ' + p.peakDays;
+                var peakTxt = '+' + p.peakPct.toFixed(1) + '% | Day ' + p.peakDays;
                 if (p.failed && p.failPct != null) {
                     row('Peak before failing', peakTxt, 'mcpt-up');
-                    row('Failed', 'day ' + p.failDays + ' · −' + Math.abs(p.failPct).toFixed(1) + '%', 'mcpt-dn');
+                    row('Failed', '−' + Math.abs(p.failPct).toFixed(1) + '% | Day ' + p.failDays, 'mcpt-dn');
                 } else {
                     row('Peak', peakTxt, 'mcpt-up');
                 }
