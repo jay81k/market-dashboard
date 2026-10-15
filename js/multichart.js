@@ -4028,7 +4028,8 @@ return '10y';
     // row (price/change, ADR, mkt cap, day range, 52W range); (3) the chart exactly as
     // drawn (candles, volume, MAs, AVWAPs, trendlines, watermark, axes) plus any committed measurements
     // (an SVG overlay, redrawn onto the image by _mcFsShotPaintMeasures) and the vol % vs 50-SMA label
-    // (a DOM label over the volume pane, painted from the live element when it is visible). Not included:
+    // (a DOM label over the volume pane, painted from the live element when it is visible) and the pattern
+    // hover card while one is showing (also a DOM element, painted the same way). Not included:
     // the timeframe/MA/trendline/measure/AVWAP buttons, the Details / + / x buttons, the
     // hover OHLC legend, and the crosshair.
     // The two top rows are drawn _MC_SHOT_STRIP_ZOOM times larger than on screen but keep their combined
@@ -4382,12 +4383,41 @@ return '10y';
         // Vol % vs 50-SMA label: a DOM div sitting over the volume pane, so the library's screenshot cannot see
         // it either. Painted from the live element (same position, colour and text as on screen). Skipped when
         // it is hidden (last bar scrolled off, or too close to the price axis), exactly as it is on screen.
+        var cRect = container.getBoundingClientRect();   // the chart image's top-left corner, in viewport CSS px
         var volLbl = document.getElementById('mc-fs-vol-pct-label');
         if (volLbl && volLbl.isConnected && getComputedStyle(volLbl).display !== 'none') {
-            var cRect = container.getBoundingClientRect();
             ctx.save();
             ctx.setTransform(scale, 0, 0, scale, -cRect.left * scale, topPx - cRect.top * scale);   // viewport CSS px -> canvas px
             try { _mcFsShotPaint(ctx, volLbl, [], null); } catch (e) { console.warn('[screenshot] vol % label draw failed', e); }
+            ctx.restore();
+        }
+
+        // Pattern hover card (pattern-overlay.js): also a DOM element over the chart. It only carries the class
+        // mcpt-on while patterns are on and a pattern is hovered, so highlighting a pattern and pressing Alt+S
+        // keeps the card in the image, exactly where it sits on screen. The pattern's highlight tint and glow
+        // are drawn on the chart canvas, so they are already in the library's screenshot. The card is clipped to its
+        // rounded corners (the generic painter draws borders as plain rectangles) and gets its drop shadow here,
+        // because the generic painter skips blurred shadows.
+        var tipEl = container.querySelector('.mc-pattern-tip.mcpt-on');
+        if (tipEl && getComputedStyle(tipEl).visibility !== 'hidden') {
+            ctx.save();
+            ctx.setTransform(scale, 0, 0, scale, -cRect.left * scale, topPx - cRect.top * scale);
+            try {
+                var tR = tipEl.getBoundingClientRect(), tCs = getComputedStyle(tipEl), tRad = parseFloat(tCs.borderTopLeftRadius) || 0;
+                var tPath = function() {
+                    ctx.beginPath();
+                    if (tRad > 0 && ctx.roundRect) ctx.roundRect(tR.left, tR.top, tR.width, tR.height, tRad); else ctx.rect(tR.left, tR.top, tR.width, tR.height);
+                };
+                ctx.save();                                   // shadow: shadowBlur / offset are canvas px, not affected by the transform
+                ctx.shadowColor = 'rgba(0,0,0,0.38)'; ctx.shadowBlur = 22 * scale; ctx.shadowOffsetY = 8 * scale;
+                ctx.fillStyle = tCs.backgroundColor;
+                tPath(); ctx.fill();
+                ctx.restore();
+                ctx.save();
+                tPath(); ctx.clip();
+                _mcFsShotPaint(ctx, tipEl, [], null);
+                ctx.restore();
+            } catch (e) { console.warn('[screenshot] pattern card draw failed', e); }
             ctx.restore();
         }
 
