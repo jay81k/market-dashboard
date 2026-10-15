@@ -51,9 +51,9 @@
     // Hover tooltip
     var HIT_TOLERANCE = 8;                          // px: how close the cursor must be to a drawn line / curve
     var HOVER_FILL    = 'rgba(146, 193, 131, 0.06)';
-    var HOVER_GLOW    = 'rgba(146, 193, 131, 0.30)';
+    var HOVER_GLOW    = 'rgba(146, 193, 131, 0.20)';
     var HOVER_FILL_DARK = 'rgba(132, 153, 184, 0.06)';   // same alpha as light, tinted from #8499b8
-    var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.30)';
+    var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.20)';
     var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
     var CSS_ID        = 'mc-pattern-tip-style';
