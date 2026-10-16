@@ -452,6 +452,9 @@
         .industry-breadth-col.positive { color: var(--success); }
         .industry-breadth-col.negative { color: var(--danger); }
         .industry-breadth-col.neutral  { color: var(--border-muted); }
+        .ind-breadth-arrow { font-size: 6px; line-height: 0; vertical-align: middle; margin-right: 3px; }
+        .ind-breadth-arrow.up   { color: var(--success); }
+        .ind-breadth-arrow.down { color: var(--danger); }
 
         /* ── Main Industries list only: content-fit columns ──────────────────
            Order: Rank | Industry | Sector | Leaders | Trend | # | metrics.
