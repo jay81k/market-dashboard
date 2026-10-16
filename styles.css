@@ -591,6 +591,8 @@
             background: var(--bg-page); flex-direction: row;
         }
         .mc-fullscreen-overlay.open { display: flex; }
+        /* Hide the top search box while the fullscreen chart is open - it filters nothing behind the overlay */
+        body:has(.mc-fullscreen-overlay.open) .toolbar .search-wrap { display: none; }
         .mc-fs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .mc-fullscreen-header {
             display: flex; align-items: center; gap: 10px;
