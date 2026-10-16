@@ -3421,6 +3421,72 @@ return '10y';
         } catch (e) {}
     }
 
+    // ── "Alert above pivot" row in the chart right-click menu ───────────────────
+    // Shown ONLY when pattern recognition is on and the click lands inside a FORMING pattern whose pivot is still above
+    // the last price (PatternOverlay.pivotAt decides all of that); in every other case the row stays hidden. It sits right
+    // under "Alert below", so the two normal alert rows never move. Clicking it sets a price alert ABOVE the pivot
+    // directly, with no form (alerts.js: alAddPriceAlert). Built here, once per menu element, like the watchlist rows,
+    // so the three copies of the menu markup in index.html don't change. Wrapped in try/catch: a problem here must
+    // never stop the normal alert items from working.
+    function _ctxPivotHide(menu) {
+        try {
+            var row = menu && menu.querySelector('.ctx-pivot');
+            if (row) { row.style.display = 'none'; row._pivot = null; }
+        } catch (e) {}
+    }
+
+    function _ctxPivotCreate(sym, price) {
+        var res = null;
+        try { res = (sym && price > 0 && window.alAddPriceAlert) ? window.alAddPriceAlert(sym, 'above', price) : null; } catch (e) { res = null; }
+        if (!res) { _mcFsShotToast('Could not set the alert', false); return; }
+        _mcFsShotToast((res.created ? 'Alert set: ' : 'Alert already set: ') + sym + ' above $' + Number(res.alert.price).toFixed(2), true);
+    }
+
+    function _ctxPivotEnsure(menu, belowTxtId) {
+        var row = menu.querySelector('.ctx-pivot');
+        if (row) return row;
+        row = document.createElement('div');
+        row.className = 'ctx-pivot';
+        row.style.display = 'none';
+        row.innerHTML =
+            '<div style="height:1px;background:var(--bg-surface);margin:4px 0;"></div>' +
+            '<button type="button" class="ctx-item"><span class="ctx-dot" style="background:var(--accent);"></span><span class="ctx-pivot-txt"></span></button>';
+        row.querySelector('button').addEventListener('click', function() {
+            var st = row._pivot;
+            if (!st) return;
+            row._pivot = null;   // one click, one alert
+            st.dismiss();
+            _ctxPivotCreate(st.sym, st.price);
+        });
+        // right under the "Alert below" item, wherever the menu markup puts it; failing that, just before the watchlist rows
+        var belowTxt  = document.getElementById(belowTxtId);
+        var belowItem = belowTxt && belowTxt.closest ? belowTxt.closest('button, .ctx-item') : null;
+        if (belowItem && belowItem.parentNode) belowItem.parentNode.insertBefore(row, belowItem.nextSibling);
+        else {
+            var wl = menu.querySelector('.ctx-wl');
+            if (wl) menu.insertBefore(row, wl); else menu.appendChild(row);
+        }
+        return row;
+    }
+
+    // Called by _attachCtxMenuCore for a plain price / MA right-click, BEFORE it shows + measures the menu
+    // (the trendline and AVWAP right-clicks call _ctxPivotHide instead). evt = the contextmenu event.
+    function _ctxPivotSync(menu, cfg, evt) {
+        try {
+            var hit = null;
+            if (cfg.patternSlot && window.PatternOverlay && window.PatternOverlay.isEnabled() && window.PatternOverlay.pivotAt) {
+                var rect = document.getElementById(cfg.chartDivId).getBoundingClientRect();
+                hit = window.PatternOverlay.pivotAt(cfg.patternSlot, evt.clientX - rect.left, evt.clientY - rect.top);
+            }
+            var price = hit ? Math.round(hit.pivot * 100) / 100 : 0;   // the same 2-decimal price the other alert rows use
+            if (!hit || !(price > hit.last) || !cfg.getSym()) { _ctxPivotHide(menu); return; }
+            var row = _ctxPivotEnsure(menu, cfg.ctxBelowTxtId);
+            row.querySelector('.ctx-pivot-txt').textContent = 'Alert above pivot $' + price.toFixed(2);
+            row._pivot = { sym: cfg.getSym(), price: price, dismiss: cfg.dismissCtx };
+            row.style.display = 'block';
+        } catch (e) { _ctxPivotHide(menu); }
+    }
+
     // ── Shared right-click context-menu core — used by all three charts.
     // IMPORTANT: the attach wrapper only runs its setup once (guarded by
     // getAttached/setAttached); the actual 'contextmenu' listener it registers
@@ -3488,6 +3554,7 @@ return '10y';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below trendline';
                 var _tlMenu = document.getElementById(cfg.ctxMenuId);
                 _ctxWlSync(_tlMenu, cfg.getSym());
+                _ctxPivotHide(_tlMenu);
                 _tlMenu.style.display = 'block';
                 var mw = _tlMenu.offsetWidth  || 185;
                 var mh = _tlMenu.offsetHeight || 90;
@@ -3529,6 +3596,7 @@ return '10y';
                 document.getElementById(cfg.ctxBelowTxtId).textContent  = 'Alert below AVWAP';
                 var _avMenu = document.getElementById(cfg.ctxMenuId);
                 _ctxWlSync(_avMenu, cfg.getSym());
+                _ctxPivotHide(_avMenu);
                 _avMenu.style.display = 'block';
                 var avMw = _avMenu.offsetWidth  || 185;
                 var avMh = _avMenu.offsetHeight || 90;
@@ -3603,6 +3671,7 @@ return '10y';
             }
             var menu  = document.getElementById(cfg.ctxMenuId);
             _ctxWlSync(menu, cfg.getSym());
+            _ctxPivotSync(menu, cfg, evt);
             menu.style.display = 'block';
             var mw = menu.offsetWidth  || 185;
             var mh = menu.offsetHeight || 90;
@@ -3662,6 +3731,7 @@ return '10y';
             ctxAboveTxtId:  'mc-fs-ctx-above-txt',
             ctxBelowTxtId:  'mc-fs-ctx-below-txt',
             ctxMenuId:      'mc-fs-ctx-menu',
+            patternSlot:    'fs',   // PatternOverlay slot, for the "Alert above pivot" row
             setCtxTrendline: function(v) { _mcFsCtxTrendline = v; },
             setCtxPrice:     function(v) { _mcFsCtxPrice = v; },
             setCtxMa:        function(v) { _mcFsCtxMa = v; },
@@ -6169,6 +6239,7 @@ return '10y';
             ctxAboveTxtId:  'wl-chart-ctx-above-txt',
             ctxBelowTxtId:  'wl-chart-ctx-below-txt',
             ctxMenuId:      'wl-chart-ctx-menu',
+            patternSlot:    'wl',   // PatternOverlay slot, for the "Alert above pivot" row
             setCtxTrendline: function(v) { _wlCtxTrendline = v; },
             setCtxPrice:     function(v) { _wlCtxPrice = v; },
             setCtxMa:        function(v) { _wlCtxMa = v; },
