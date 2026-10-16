@@ -244,6 +244,7 @@
             try {
                 c.chart.applyOptions({
                     layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
+                    grid:    { vertLines: { color: themeColor('mc-fs-grid') }, horzLines: { color: themeColor('mc-fs-grid') } },
                     rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted') },
                     timeScale: { borderColor: themeColor('bg-surface') },
                 });
@@ -4586,7 +4587,7 @@ return '10y';
         _mcFsChart = LightweightCharts.createChart(container, {
             autoSize: true,
             layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
-            grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
+            grid:    { vertLines: { color: themeColor('mc-fs-grid') }, horzLines: { color: themeColor('mc-fs-grid') } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
@@ -6273,7 +6274,7 @@ return '10y';
         _wlChart = LightweightCharts.createChart(container, {
             autoSize: true,
             layout: { background: { color: themeColor('bg-page') }, textColor: themeColor('text-muted'), panes: { separatorColor: themeColor('bg-subtle'), separatorHoverColor: themeColor('bg-surface-alpha') } },
-            grid:    { vertLines: { visible: false }, horzLines: { visible: false } },
+            grid:    { vertLines: { color: themeColor('mc-fs-grid') }, horzLines: { color: themeColor('mc-fs-grid') } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
             rightPriceScale: { borderColor: themeColor('bg-surface'), textColor: themeColor('text-muted'), scaleMargins: { top: 0.05, bottom: 0.02 } },
             timeScale: { borderColor: themeColor('bg-surface'), timeVisible: false, secondsVisible: false, rightOffset: 24 },
