@@ -30,6 +30,10 @@
 //     Patterns that broke out add the peak since the breakout (% and days after it);
 //     once price has hit opts.breakoutFailPct (7%) below the breakout level the "Broke
 //     out" chip turns red and the card adds a Failed row (rules live in pattern.js)
+//     While a breakout is still being tracked (not failed, no later base, at most
+//     opts.breakoutTrackBars = 40 trading days after the breakout bar) a "Now" row sits above
+//     Peak: the last close vs the breakout level, the day count and a zone word (Buy zone /
+//     Extended / Back under pivot). Past the cap the card shows Peak only, as before
 //   - what is shown comes from result.patterns (pattern.js); this file only
 //     hit-tests the same geometry it draws, so the two can never disagree
 //   - the card is a child of the chart's own element (chart.chartElement()), so
@@ -56,6 +60,7 @@
     var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.20)';
     var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
+    var NOW_ZONE_TEXT = { buy: 'Buy zone', extended: 'Extended', under: 'Back under pivot' };
     var CSS_ID        = 'mc-pattern-tip-style';
     var CSS = [
         '.mc-pattern-tip{position:absolute;left:0;top:0;z-index:30;pointer-events:none;box-sizing:border-box;',
@@ -76,6 +81,7 @@
         '.mcpt-v{color:#e8ebf1;text-align:right}',
         '.mcpt-up{color:#9bd58b}',
         '.mcpt-dn{color:#f19a9a}',
+        '.mcpt-zone{color:#8b94a5}',
         '.mcpt-sep{height:1px;background:rgba(255,255,255,.08);margin:6px 0 5px}',
         '@media (prefers-reduced-motion:reduce){.mc-pattern-tip{transition:none}}'
     ].join('');
@@ -264,6 +270,17 @@
             // how the breakout went: peak since the breakout (up to the failure, if there was one), % above the breakout level
             if (p.status === 'brokeOut' && p.peakPct != null && isFinite(p.peakPct)) {
                 tip.appendChild(el('div', 'mcpt-sep'));
+                // Now: where it stands on the last bar (only while pattern.js is still tracking this breakout)
+                if (p.nowPct != null && isFinite(p.nowPct) && p.nowDays != null) {
+                    var nowRow = el('div', 'mcpt-row');
+                    nowRow.appendChild(el('span', 'mcpt-k', 'Now'));
+                    var nowVal = el('span', 'mcpt-v');
+                    nowVal.appendChild(el('span', p.nowPct < 0 ? 'mcpt-dn' : 'mcpt-up',
+                        (p.nowPct < 0 ? '−' : '+') + Math.abs(p.nowPct).toFixed(1) + '% | Day ' + p.nowDays));
+                    if (NOW_ZONE_TEXT[p.nowZone]) nowVal.appendChild(el('span', 'mcpt-zone', ' · ' + NOW_ZONE_TEXT[p.nowZone]));
+                    nowRow.appendChild(nowVal);
+                    tip.appendChild(nowRow);
+                }
                 var peakTxt = '+' + p.peakPct.toFixed(1) + '% | Day ' + p.peakDays;
                 if (p.failed && p.failPct != null) {
                     row('Peak before failing', peakTxt, 'mcpt-up');
@@ -312,7 +329,7 @@
                 tip.className = 'mc-pattern-tip';
                 host.appendChild(tip);
             }
-            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars + '|' + hit.peakPct + '|' + hit.failed;   // the live tick can move the peak / flip to failed
+            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars + '|' + hit.peakPct + '|' + hit.failed + '|' + hit.nowPct + '|' + hit.nowDays + '|' + hit.nowZone;   // the live tick can move the peak / the Now row / flip to failed
             if (handle.hoverId !== hit.id) {
                 handle.hoverId = hit.id;
                 if (handle.requestUpdate) handle.requestUpdate();
