@@ -111,6 +111,8 @@
             /* Opacity of the dashed line between a measurement's two lines (the two lines stay solid). 1 = as strong as the lines. */
             --al-measure-dash-opacity: 0.25;
             --mc-cell-grid: #171b22;
+            /* Grid lines on the fullscreen / watchlist / alerts charts. Fully transparent in dark mode = no visible grid (unchanged look). */
+            --mc-fs-grid: rgba(0,0,0,0);
 
             /* near-duplicate text tones found only in JS-generated markup */
             --text-primary-alt: #c9d1d9;
@@ -220,6 +222,7 @@
             --al-measure-bg-down: rgba(164,34,45,0.88);
             --al-measure-dash-opacity: 0.5;   /* light-mode measure strokes are already semi-transparent */
             --mc-cell-grid: #eaeef2;
+            --mc-fs-grid: #eaeef2;   /* light mode only: same faint line as the multichart cells */
 
             --text-primary-alt: #1f2328;
             --text-emphasis-2: #1f2328;
