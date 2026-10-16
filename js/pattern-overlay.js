@@ -38,6 +38,9 @@
 //     opts.breakoutTrackBars = 40 trading days after the breakout bar) a "Now" row sits above
 //     Peak: the last close vs the breakout level and the day count. Past the cap the
 //     card shows Peak only, as before
+//   - right-click menu: PatternOverlay.pivotAt(slot, x, y) tells multichart.js which live (forming)
+//     pattern's box (the hover tint's rectangle) holds the click and the pivot price above which the
+//     "Alert above pivot" row would set an alert (null = show nothing); see _ctxPivotSync there
 //   - what is shown comes from result.patterns (pattern.js); this file only
 //     hit-tests the same geometry it draws, so the two can never disagree
 //   - the card is a child of the chart's own element (chart.chartElement()), so
@@ -89,6 +92,17 @@
         st.id = CSS_ID;
         st.textContent = CSS;
         (document.head || document.documentElement).appendChild(st);
+    }
+
+    // The price a pattern breaks out through (the same level pattern.js measures a breakout from):
+    // cup with handle = the handle's lip high, double bottom = its buy point, everything else = the old high
+    function pivotOf(p, r) {
+        if (p.type === 'doubleBottom') return p.buyPoint;
+        if (p.type === 'cupHandle') {
+            var c = (p.cupIdx != null && p.cupIdx >= 0) ? r.cups[p.cupIdx] : null;
+            return c && c.handle ? c.handle.lipHigh : null;
+        }
+        return p.top;
     }
 
     // shortest distance from (px, py) to the segment a-b
@@ -233,6 +247,34 @@
             }
             return null;
         }
+
+        // For the chart right-click "Alert above pivot" row. The live (forming) pattern whose box holds the point
+        // (px, py in chart pixels), with the price to alert above, or null = offer nothing. "Box" = the very rectangle
+        // the hover tint covers (bounds of the drawn lines / curves plus the same padding). A pattern only qualifies
+        // while it is still forming AND its pivot is above the last close: an "above" alert at a price already passed
+        // would fire at once. If more than one qualifying box holds the point the pivot is ambiguous, so nothing is
+        // offered rather than guessing (the alert is created with no form to catch a wrong pick).
+        // Overlay off / not Daily -> null.
+        handle.pivotAt = function(px, py) {
+            if (!enabled) return null;
+            var r = compute();
+            if (!r || !r.patterns) return null;
+            var o = getOhlcv(), lastBar = o && o.length ? o[o.length - 1] : null, last = lastBar ? lastBar.close : null;
+            if (!(last > 0)) return null;
+            var found = null, count = 0;
+            r.patterns.forEach(function(p) {
+                if (p.status !== 'forming') return;
+                var b = boundsOf(project(p, r, o));
+                if (!b) return;
+                var x1 = b.x1 - 4, x2 = b.x2 + 4, y1 = b.y1 - 6, y2 = b.y2 + 6;
+                if (px < x1 || px > x2 || py < y1 || py > y2) return;
+                var pv = pivotOf(p, r);
+                if (!(pv > 0) || !(pv > last)) return;
+                count++;
+                found = { id: p.id, type: p.type, label: p.label, pivot: pv, last: last };
+            });
+            return count === 1 ? found : null;
+        };
 
         var host = null, tip = null, dragging = false, cleaned = false;
         try { host = chart.chartElement ? chart.chartElement() : null; } catch (e) { host = null; }
@@ -519,7 +561,8 @@
         detach: detach,
         isEnabled: function() { return enabled; },
         last: function(slot) { var h = handles[slot || 'fs']; return h ? h.lastResult : null; },
-        hovered: function(slot) { var h = handles[slot || 'fs']; return h ? h.hoverId : null; }
+        hovered: function(slot) { var h = handles[slot || 'fs']; return h ? h.hoverId : null; },
+        pivotAt: function(slot, px, py) { var h = handles[slot || 'fs']; return h && h.pivotAt ? h.pivotAt(px, py) : null; }
     };
 
     syncButton();
