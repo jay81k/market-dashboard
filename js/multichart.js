@@ -6164,6 +6164,7 @@ return '10y';
     // ── Core chart builder ────────────────────────────────────────────────
     function _destroyWlChart() {
         _wlResetMeasure();
+        if (window.PatternOverlay) { try { window.PatternOverlay.detach('wl'); } catch(e) {} }
         if (_wlChart) { try { _wlChart.remove(); } catch(e) {} _wlChart = null; }
         _wlCandle = null; _wlVol = null; _wlVolMa = null; _wlVolData = null; _wlMaSeries = {}; _wlVwapSeries = [];
         _wlTrendlines = []; _wlTrendlineFirst = null;
@@ -6405,6 +6406,12 @@ return '10y';
         // Visible range
         var n = _wlOhlcv.length;
         _wlChart.timeScale().setVisibleLogicalRange({ from: n - _wlVisibleBars, to: n + 15 });
+
+        // Pattern overlay (base / cup / double bottom) — same overlay and same on/off toggle as the fullscreen
+        // chart. Own slot ('wl') so opening the fullscreen chart from here doesn't detach these patterns.
+        if (window.PatternOverlay) {
+            try { window.PatternOverlay.attach(_wlChart, _wlCandle, function() { return _wlOhlcv; }, function() { return _wlTf; }, 'wl'); } catch (e) {}
+        }
 
         // Re-render measure overlay on pan/zoom, and on every repaint (see _measureAttachSync)
         var _wlSyncMeasures = function() {
