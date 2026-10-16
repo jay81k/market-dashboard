@@ -78,6 +78,14 @@
 
             function _parseSnap(str) { try { return str ? JSON.parse(str) : null; } catch(e) { return null; } }
 
+            // Prev-snapshot loader: sets both the rank deltas and the breadth (UPTR/50MA/21EMA) arrows
+            function _setPrevSnap(s) { indPrevRanks = s.ranks; indPrevBreadth = s.breadth || {}; }
+            function _saveIndSnap(snap) {
+                var str = JSON.stringify(snap);
+                kvSet('ind_rank_snapshot', str);
+                try { localStorage.setItem(LS_IND_SNAP, str); } catch(e) {}
+            }
+
             // Load current snapshot — KV first, localStorage fallback
             var prevSnap = _parseSnap(kvIndSnap) || _parseSnap(localStorage.getItem(LS_IND_SNAP));
 
@@ -100,12 +108,12 @@
                         // Weekend/holiday: load _prev (e.g. Thursday) so delta reflects Friday's move
                         var lsPrevWknd = _parseSnap(localStorage.getItem(LS_IND_SNAP_PREV));
                         if (lsPrevWknd && lsPrevWknd.ranks) {
-                            indPrevRanks = lsPrevWknd.ranks;
+                            _setPrevSnap(lsPrevWknd);
                         } else {
                             kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
                                 var ySnap = _parseSnap(kvIndSnapPrev);
                                 if (ySnap && ySnap.ranks) {
-                                    indPrevRanks = ySnap.ranks;
+                                    _setPrevSnap(ySnap);
                                     try { localStorage.setItem(LS_IND_SNAP_PREV, JSON.stringify(ySnap)); } catch(e) {}
                                     renderIndustries();
                                 }
@@ -113,19 +121,19 @@
                         }
                     } else {
                         // Normal weekday — snapshot is genuinely yesterday's, use it directly
-                        indPrevRanks = prevSnap.ranks;
+                        _setPrevSnap(prevSnap);
                     }
                 } else {
                     // Snapshot is already today's — load the archived yesterday snapshot.
                     // Try localStorage first (instant, reliable for same-browser reloads).
                     var lsPrev = _parseSnap(localStorage.getItem(LS_IND_SNAP_PREV));
                     if (lsPrev && lsPrev.ranks) {
-                        indPrevRanks = lsPrev.ranks;
+                        _setPrevSnap(lsPrev);
                     } else {
                         kvGet('ind_rank_snapshot_prev').then(function(kvIndSnapPrev) {
                             var yesterdaySnap = _parseSnap(kvIndSnapPrev);
                             if (yesterdaySnap && yesterdaySnap.ranks) {
-                                indPrevRanks = yesterdaySnap.ranks;
+                                _setPrevSnap(yesterdaySnap);
                                 try { localStorage.setItem(LS_IND_SNAP_PREV, JSON.stringify(yesterdaySnap)); } catch(e) {}
                                 renderIndustries();
                             }
@@ -141,6 +149,15 @@
                     if (ind.rank != null) newRanks[ind.industry] = ind.rank;
                 });
 
+                // Breadth (UPTR% / 50MA% / 21EMA%) per industry, stored alongside the ranks
+                var newBreadth = {};
+                if (snapshot && snapshot.industry_summary) {
+                    Object.keys(snapshot.industry_summary).forEach(function(k) {
+                        var bs = snapshot.industry_summary[k];
+                        newBreadth[k] = [bs.pct_confirmed_uptrend, bs.pct_above_50sma, bs.pct_above_21ema];
+                    });
+                }
+
                 // Fix 3: only archive + overwrite when ranks actually changed.
                 // This keeps Friday's snapshot as _prev through the whole weekend
                 // so deltas remain visible until Monday's data brings real changes.
@@ -154,7 +171,7 @@
                         kvSet('ind_rank_snapshot_prev', prevStr);
                         try { localStorage.setItem(LS_IND_SNAP_PREV, prevStr); } catch(e) {}
                     }
-                    var newSnap = { date: today, ranks: newRanks };
+                    var newSnap = { date: today, ranks: newRanks, breadth: newBreadth };
                     var newSnapStr = JSON.stringify(newSnap);
                     kvSet('ind_rank_snapshot', newSnapStr);
                     try { localStorage.setItem(LS_IND_SNAP, newSnapStr); } catch(e) {}
@@ -165,11 +182,18 @@
                     // Sunday treat Saturday's snap as "yesterday", wiping the Friday delta.
                     var _dow = new Date().getDay();
                     if (_dow !== 0 && _dow !== 6) {
-                        var updatedSnap = { date: today, ranks: newRanks };
+                        var updatedSnap = { date: today, ranks: newRanks, breadth: newBreadth };
                         var updatedSnapStr = JSON.stringify(updatedSnap);
                         kvSet('ind_rank_snapshot', updatedSnapStr);
                         try { localStorage.setItem(LS_IND_SNAP, updatedSnapStr); } catch(e) {}
+                    } else if (prevSnap && prevSnap.ranks && !prevSnap.breadth) {
+                        // Weekend, stored snapshot predates breadth: add it, keep its date, leave _prev alone
+                        _saveIndSnap({ date: prevSnap.date, ranks: prevSnap.ranks, breadth: newBreadth });
                     }
+                } else if (prevSnap && prevSnap.ranks && !prevSnap.breadth) {
+                    // Same-day reload, ranks unchanged, stored snapshot predates breadth: one-time
+                    // backfill (keeps its date, does NOT archive to _prev) so tomorrow has something to compare to
+                    _saveIndSnap({ date: prevSnap.date, ranks: prevSnap.ranks, breadth: newBreadth });
                 }
             }
 
