@@ -12,7 +12,7 @@
     var alertOpenTimer   = null;  // setTimeout handle for market-open retry
     var _alertFiredSess  = {};   // prevents re-firing in same session
     var _alActiveTicker  = null; // ticker whose rows are currently selected in the alert list
-    var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };   // single source of truth for the table, the history panel and the fire notification
+    var AL_PATTERN_LABELS = { inside_day: 'Inside Day', double_inside_day: 'Double Inside Day', outside_day: 'Outside Day', hammer: 'Hammer', doji: 'Doji', bullish_reversal_bar: 'Bullish Reversal Bar', upside_reversal: 'Upside Reversal', oops_reversal: 'Oops Reversal', pocket_pivot: 'Pocket Pivot' };   // single source of truth for the table, the history panel and the fire notification
     var _alReturnState   = null;  // saved state to restore after adding alert from chart modal
     var _scanReturnState = null;  // saved state to restore when returning to scans/stocks view
     var _alEditIdx       = null;  // index of alert being edited, null when adding new
