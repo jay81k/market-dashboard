@@ -622,6 +622,21 @@ return '10y';
         }
         return al === 0 ? 100 : 100 - 100 / (1 + ag / al);
     }
+    // U/D volume ratio of ONE bar: volume on up-close bars / volume on down-close bars over the `period` bars ending at
+    // `idx` (IBD's 50-day Up/Down Volume Ratio). Same maths as ud_vol_ratio_50 in build_data.py: needs period+1 bars (the
+    // first only supplies the prior close), an unchanged close counts as neither side, no down volume -> null.
+    // Single pass over `period` bars, called on hover only.
+    function _udRatioAt(ohlcv, idx, period) {
+        period = period || 50;
+        if (!ohlcv || idx < period || idx >= ohlcv.length) return null;
+        var up = 0, dn = 0, i, v, ch;
+        for (i = idx - period + 1; i <= idx; i++) {
+            v  = ohlcv[i].volume || 0;
+            ch = ohlcv[i].close - ohlcv[i - 1].close;
+            if (ch > 0) up += v; else if (ch < 0) dn += v;
+        }
+        return dn > 0 ? up / dn : null;
+    }
     // Price input for AVWAP. 'hlc3' = (H+L+C)/3, the conventional VWAP "typical price" (what TradingView's
     // anchored VWAP defaults to). 'ohlc4' was the previous behaviour -- the open is not a traded-volume
     // price, so it skews the line toward gap opens. Flip this one constant to go back.
@@ -716,6 +731,14 @@ return '10y';
                 var vpClr = vp >= 0 ? 'var(--success)' : 'var(--danger)';
                 ohlcvRows += L + 'Vol % Chg' + E + '<span style="color:' + vpClr + '">' + (vp >= 0 ? '+' : '') + vp.toFixed(2) + '%' + E;
             }
+        }
+        // U/D Ratio (IBD 50-bar up/down volume ratio) of the hovered bar. Neutral colour, green only when above 2.0.
+        var udr = _udRatioAt(ohlcv, barIdx, 50);
+        if (udr != null) {
+            var udrClr = udr > 2 ? 'var(--success)' : 'var(--text-primary-alt)';
+            ohlcvRows += L + 'U/D Ratio' + E + '<span style="color:' + udrClr + '">' + udr.toFixed(2) + E;
+        } else {
+            ohlcvRows += L + 'U/D Ratio' + E + L + '\u2014' + E;
         }
         // RSI(14) of the hovered bar. Colour: >=70 green, <=30 red, in between the same amber as CR%'s middle band.
         var rsi = _rsiAt(ohlcv, barIdx, 14);
