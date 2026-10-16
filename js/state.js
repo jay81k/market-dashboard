@@ -3,6 +3,7 @@
     var tickerMap     = {};
     var industriesData= null;
     var indPrevRanks  = {};   // { "Industry Name": rank } from previous day's snapshot
+    var indPrevBreadth = {};  // { "Industry Name": [uptrend%, above50%, above21%] } from previous snapshot
     var currentView   = 'industries';
     var _lastIndustryName        = null;
     var _lastIndustryScrollTop   = 0;
