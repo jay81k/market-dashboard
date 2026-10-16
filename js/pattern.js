@@ -118,7 +118,8 @@
 //      handle: the bars after the lip, up to the bar before price takes out
 //              the lip high (the pivot), or up to the latest bar if it has not
 //              been taken out yet; at least 5 bars; its lowest low is at least
-//              3% below the lip high and stays above the middle of the cup.
+//              3% below the lip high and stays above the middle of the cup, less
+//              a slack of opts.handleMidSlackPct (1) % of the old high.
 //              If several candidates qualify, the latest one is used.
 //              Volume is ignored on purpose.
 //    With a handle the cup's right side ends at the lip (Pine ended it at the
@@ -196,6 +197,7 @@
         handleLipWithinPct: 15,    // right lip must be within this % of the old high
         handleMinBars: 5,          // minimum handle length (bars, 1 week)
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
+        handleMidSlackPct: 1,      // NOT in Pine: the handle's lowest low may dip this % (of the old high) below the middle of the cup (0 = it must stay above the middle)
         breakoutFailPct: 7,        // NOT in Pine: a broken-out pattern counts as failed once a bar's low is this % below the breakout level
         breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
         breakoutSuccessPct: 10,    // NOT in Pine: once the peak is this % above the breakout level the breakout counts as successful and a later drop is not a failure (0 = off)
@@ -437,6 +439,7 @@
             // first of equal highs is the lip.) For the reject reason, the
             // latest candidate that was long enough to be judged is reported.
             var middle = cupLow + (oldHigh - cupLow) * 0.5;
+            var handleFloor = middle - oldHigh * ((o.handleMidSlackPct || 0) / 100);   // the handle's lowest low must stay above this: the middle of the cup, less the slack
             var best = null, reason = null, lipIdx = -1, lipHigh = -Infinity;
             function tryHandle(endIdx) {
                 if (endIdx - lipIdx < o.handleMinBars) return;
@@ -455,7 +458,10 @@
                     reason = 'handle pullback ' + pc(pullback) + ' < ' + o.handleMinPullbackPct + '%';
                     return;
                 }
-                if (!(hLow > middle)) { reason = 'handle low below the middle of the cup'; return; }
+                if (!(hLow > handleFloor)) {
+                    reason = 'handle low below the middle of the cup' + (o.handleMidSlackPct > 0 ? ' (less ' + o.handleMidSlackPct + '% slack)' : '');
+                    return;
+                }
                 best = {
                     lipIdx: lipIdx, tLip: T[lipIdx], lipHigh: lipHigh, lipPrice: L[lipIdx] * 0.99,
                     lowIdx: hLowIdx, tLow: T[hLowIdx], lowPrice: hLow * 0.99,
