@@ -57,6 +57,18 @@
 //    recoveries are ignored. opts.breakoutMaxBars (0 = no limit) stops the scan that
 //    many bars after the breakout. These fields are null for patterns that have not
 //    broken out. Nothing here feeds back into detection.
+//    NOW (live progress): while a breakout is still being tracked, the summary also says
+//    where it stands right now: nowPct = the LAST bar's close vs the breakout level (%,
+//    0.1), nowDays = trading days from the breakout bar to the last bar (0 = the
+//    breakout bar is the last bar), nowZone = 'buy' (0 .. opts.breakoutBuyZonePct (5) %
+//    above the level), 'extended' (more than that above it) or 'under' (below the level
+//    but not failed). The zone is decided on the rounded nowPct, so it always agrees with
+//    the number shown. A breakout is tracked only while ALL of these hold: it has not
+//    failed, no later base has started (the same NEXT BASE rule as above), and the last
+//    bar is at most opts.breakoutTrackBars (40, 0 = no limit) trading days after the
+//    breakout bar (day 40 still counts, day 41 does not). Otherwise nowPct / nowDays /
+//    nowZone are null. The cap only switches these three fields off: the peak and the
+//    failure test above keep measuring exactly as before. Output only, like the rest.
 //  - DRAWING ONLY: the double-bottom leg lines ('dbLeg1'/'dbLeg2'/'dbLeg3') take their y
 //    from the low of the pivot-high candle itself (x 0.99), looked up by
 //    pivotHighBars. Pine read them from lowOfpivotHighPrices, which is fed by
@@ -188,6 +200,8 @@
         breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
         breakoutSuccessPct: 10,    // NOT in Pine: once the peak is this % above the breakout level the breakout counts as successful and a later drop is not a failure (0 = off)
         breakoutQuickFailBars: 5,  // NOT in Pine: ...unless the drop to the failure level comes within this many bars of the breakout bar (a quick sharp reversal is still a failure)
+        breakoutTrackBars: 40,     // NOT in Pine: the live "Now" fields (nowPct / nowDays / nowZone) are only filled while the last bar is at most this many bars after the breakout bar (0 = no limit); peak / failure are not affected
+        breakoutBuyZonePct: 5,     // NOT in Pine: nowZone is 'buy' from the breakout level up to this % above it (matches the 5% entry box), 'extended' above that
         dbLegGapPct: 0.3,          // NOT in Pine: gap (% of price) between the drawn double-bottom W and the candles it clears
         dbLegKeepPct: 50,          // NOT in Pine: share of each double-bottom leg's original height that must be kept (0 = legs may flatten, 100 = full height)
         dbLegClear: 'wick',        // NOT in Pine: 'wick' = the W stays below every candle low; 'body' = only below the bodies (closer, crosses wick tips)
@@ -955,7 +969,8 @@
                     status: status, lineIdx: lineIdx, cupIdx: cupIdx,
                     handleBars: null, handlePullbackPct: null, undercutPct: null, buyPoint: null,
                     breakoutIdx: null, breakoutLevel: null, peakPct: null, peakDays: null,
-                    failed: false, failDays: null, failPct: null
+                    failed: false, failDays: null, failPct: null,
+                    nowPct: null, nowDays: null, nowZone: null
                 };
             }
             function statusOf(broke, endIdx) { return broke ? 'brokeOut' : (endIdx >= N - 1 ? 'forming' : null); }
@@ -982,6 +997,13 @@
                 if (failIdx >= 0) {
                     p.failed = true; p.failDays = failIdx - b;
                     p.failPct = r1(Math.max((L[failIdx] / level - 1) * 100, -o.breakoutFailPct));   // capped at the stop: a gap down does not read worse
+                }
+                // NOW (see the header): the last bar's close vs the level, only while the breakout is still tracked
+                var nowDays = (N - 1) - b, lastClose = C[N - 1];
+                if (!p.failed && lastIdx == null && !(o.breakoutTrackBars > 0 && nowDays > o.breakoutTrackBars) && lastClose > 0) {
+                    p.nowPct = r1((lastClose / level - 1) * 100);
+                    p.nowDays = nowDays;
+                    p.nowZone = p.nowPct < 0 ? 'under' : (p.nowPct <= o.breakoutBuyZonePct ? 'buy' : 'extended');   // on the rounded number, so it matches what is shown
                 }
             }
 
@@ -1114,7 +1136,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.1-pattern-summaries' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.2-breakout-now' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
