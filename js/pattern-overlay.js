@@ -18,11 +18,11 @@
 //   - the detector also re-runs when the chart's price scale mode changes
 //     (linear <-> log), because the double-bottom W is placed for that scale
 //
-// Colours and line weights follow the Pine script (green lines, blue / red /
-// green trade boxes) so the chart matches TradingView. Exception: in DARK mode
-// only, the pattern lines / curves and the hover tint + glow use #8499b8
-// instead of green (light mode keeps the Pine green). Trade boxes are the same
-// in both themes. The active theme is read from the data-theme attribute
+// Line colours and weights follow the Pine script (green lines) so the chart
+// matches TradingView. Exception: in DARK mode only, the pattern lines / curves
+// and the hover tint + glow use #8499b8 instead of green (light mode keeps the
+// Pine green). The Pine buy / stop-loss / take-profit boxes are not drawn here.
+// The active theme is read from the data-theme attribute
 // (absent / anything but "light" = dark), at draw time, and a MutationObserver
 // on that attribute repaints the overlay the moment the theme is toggled.
 //
@@ -36,8 +36,8 @@
 //     out" chip turns red and the card adds a Failed row (rules live in pattern.js)
 //     While a breakout is still being tracked (not failed, no later base, at most
 //     opts.breakoutTrackBars = 40 trading days after the breakout bar) a "Now" row sits above
-//     Peak: the last close vs the breakout level, the day count and a zone word (Buy zone /
-//     Extended / Back under pivot). Past the cap the card shows Peak only, as before
+//     Peak: the last close vs the breakout level and the day count. Past the cap the
+//     card shows Peak only, as before
 //   - what is shown comes from result.patterns (pattern.js); this file only
 //     hit-tests the same geometry it draws, so the two can never disagree
 //   - the card is a child of the chart's own element (chart.chartElement()), so
@@ -50,11 +50,6 @@
     var STORAGE_KEY = 'dashboard-patterns-on';
     var LINE_COLOR  = 'rgb(146, 193, 131)';
     var LINE_COLOR_DARK = '#8499b8';                // dark mode only (rgb 132, 153, 184)
-    var BOX_FILL = {
-        entry:      'rgba(0, 0, 255, 0.08)',
-        stopLoss:   'rgba(255, 0, 0, 0.08)',
-        takeProfit: 'rgba(60, 243, 4, 0.12)'
-    };
 
     // Hover tooltip
     var HIT_TOLERANCE = 8;                          // px: how close the cursor must be to a drawn line / curve
@@ -64,7 +59,6 @@
     var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.20)';
     var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
-    var NOW_ZONE_TEXT = { buy: 'Buy zone', extended: 'Extended', under: 'Back under pivot' };
     var CSS_ID        = 'mc-pattern-tip-style';
     var CSS = [
         '.mc-pattern-tip{position:absolute;left:0;top:0;z-index:30;pointer-events:none;box-sizing:border-box;',
@@ -85,7 +79,6 @@
         '.mcpt-v{color:#e8ebf1;text-align:right}',
         '.mcpt-up{color:#9bd58b}',
         '.mcpt-dn{color:#f19a9a}',
-        '.mcpt-zone{color:#8b94a5}',
         '.mcpt-sep{height:1px;background:rgba(255,255,255,.08);margin:6px 0 5px}',
         '@media (prefers-reduced-motion:reduce){.mc-pattern-tip{transition:none}}'
     ].join('');
@@ -292,7 +285,6 @@
                     var nowVal = el('span', 'mcpt-v');
                     nowVal.appendChild(el('span', p.nowPct < 0 ? 'mcpt-dn' : 'mcpt-up',
                         (p.nowPct < 0 ? '−' : '+') + Math.abs(p.nowPct).toFixed(1) + '% | Day ' + p.nowDays));
-                    if (NOW_ZONE_TEXT[p.nowZone]) nowVal.appendChild(el('span', 'mcpt-zone', ' · ' + NOW_ZONE_TEXT[p.nowZone]));
                     nowRow.appendChild(nowVal);
                     tip.appendChild(nowRow);
                 }
@@ -344,7 +336,7 @@
                 tip.className = 'mc-pattern-tip';
                 host.appendChild(tip);
             }
-            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars + '|' + hit.peakPct + '|' + hit.failed + '|' + hit.nowPct + '|' + hit.nowDays + '|' + hit.nowZone;   // the live tick can move the peak / the Now row / flip to failed
+            var key = hit.id + '|' + hit.endIdx + '|' + hit.status + '|' + hit.bars + '|' + hit.peakPct + '|' + hit.failed + '|' + hit.nowPct + '|' + hit.nowDays;   // the live tick can move the peak / the Now row / flip to failed
             if (handle.hoverId !== hit.id) {
                 handle.hoverId = hit.id;
                 if (handle.requestUpdate) handle.requestUpdate();
@@ -448,30 +440,6 @@
             }
         };
 
-        // Trade boxes sit behind the candles
-        var boxesView = {
-            zOrder: function() { return 'bottom'; },
-            renderer: function() {
-                return {
-                    draw: function(target) {
-                        var r = compute();
-                        if (!r || !r.boxes.length) return;
-                        var o = getOhlcv();
-                        target.useBitmapCoordinateSpace(function(scope) {
-                            var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
-                            r.boxes.forEach(function(b) {
-                                var x1 = xOf(o, b.idx1), x2 = xOf(o, b.idx2), y1 = yOf(b.top), y2 = yOf(b.bottom);
-                                if (x1 == null || x2 == null || y1 == null || y2 == null) return;
-                                ctx.fillStyle = BOX_FILL[b.kind] || BOX_FILL.entry;
-                                ctx.fillRect(Math.min(x1, x2) * rx, Math.min(y1, y2) * ry,
-                                             Math.max(Math.abs(x2 - x1), 1) * rx, Math.abs(y2 - y1) * ry);
-                            });
-                        });
-                    }
-                };
-            }
-        };
-
         // Base lines, double-bottom legs, cup curves and cup handles sit on top of the candles
         var linesView = {
             zOrder: function() { return 'normal'; },
@@ -527,7 +495,7 @@
         var primitive = {
             attached: function(param) { handle.requestUpdate = function() { try { param.requestUpdate(); } catch (e) {} }; },
             detached: function() { handle.requestUpdate = null; if (handle.cleanup) handle.cleanup(); },
-            paneViews: function() { return enabled ? [boxesView, hoverFillView, hoverGlowView, linesView] : []; }
+            paneViews: function() { return enabled ? [hoverFillView, hoverGlowView, linesView] : []; }
         };
 
         handle.primitive = primitive;
