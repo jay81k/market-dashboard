@@ -45,9 +45,15 @@
 //    EXCEPT that once the peak has reached opts.breakoutSuccessPct (10) % above the level
 //    the breakout counts as successful and a later drop is not a failure, unless that drop
 //    comes within opts.breakoutQuickFailBars (5) bars of the breakout bar: a quick reversal
-//    is a failure. Both the peak and the failure test stop at the start of the NEXT BASE:
-//    the earliest pattern (any type) whose start bar (its old high) is on or after the
-//    breakout bar, that bar included. With no later base they run to the last bar.
+//    is a failure. The peak stops at the start of the NEXT BASE: the earliest pattern
+//    (any type) whose start bar (its old high) is on or after the breakout bar, that bar
+//    included. With no later base it runs to the last bar. The failure test also runs to
+//    the last bar when there is no later base; when there is one it keeps going past that
+//    start, until the next base itself breaks out or opts.breakoutFailMaxBars (25) bars
+//    after the breakout bar, whichever comes first (0 = stop at the next base's start, as
+//    before). It never ends earlier than that start. The success exemption above uses the
+//    highest high over that whole stretch, but the reported peakPct / peakDays still stop
+//    at the next base's start.
 //    The failure bar is looked at from the bar after the breakout bar, and its own high
 //    is not counted in the peak (the order of its high and low is unknown). When failed,
 //    the peak only covers the bars before the failure (what a stop would have caught),
@@ -200,6 +206,7 @@
         handleMidSlackPct: 1,      // NOT in Pine: the handle's lowest low may dip this % (of the old high) below the middle of the cup (0 = it must stay above the middle)
         breakoutFailPct: 7,        // NOT in Pine: a broken-out pattern counts as failed once a bar's low is this % below the breakout level
         breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
+        breakoutFailMaxBars: 25,   // NOT in Pine: once a later base has started, the failure test (not the peak) keeps going until this many bars after the breakout or until that base breaks out, whichever is first (0 = stop at the later base's start)
         breakoutSuccessPct: 10,    // NOT in Pine: once the peak is this % above the breakout level the breakout counts as successful and a later drop is not a failure (0 = off)
         breakoutQuickFailBars: 5,  // NOT in Pine: ...unless the drop to the failure level comes within this many bars of the breakout bar (a quick sharp reversal is still a failure)
         breakoutTrackBars: 40,     // NOT in Pine: the live "Now" fields (nowPct / nowDays / nowZone) are only filled while the last bar is at most this many bars after the breakout bar (0 = no limit); peak / failure are not affected
@@ -983,20 +990,22 @@
 
             // How the breakout went (see AFTER THE BREAKOUT in the header). brk = { idx, top }: the
             // breakout bar and the level it broke. Fills the peak / failure fields on p.
-            function afterBreakout(p, brk, lastIdx) {   // lastIdx: last bar to look at (the next base's start), null = to the last bar
-                var b = brk.idx, level = brk.top, stop, win, peak, peakIdx, failIdx = -1, z;
+            function afterBreakout(p, brk, lastIdx, failEnd) {   // lastIdx: last bar of the peak (the next base's start), null = to the last bar; failEnd: last bar of the failure test (>= lastIdx)
+                var b = brk.idx, level = brk.top, stop, win, peak, peakIdx, runPeak, failIdx = -1, z;
                 if (!(level > 0) || !(H[b] > 0)) return;
                 stop = level * (1 - o.breakoutFailPct / 100);
                 win = level * (1 + o.breakoutSuccessPct / 100);   // peak at or above this = successful breakout
                 peak = H[b]; peakIdx = b;                    // the breakout bar's own high counts; its low is not tested
+                runPeak = peak;                              // highest high of the whole failure scan: only the success exemption uses it, past lastIdx peak stays put
                 for (z = b + 1; z < N; z++) {
                     if (o.breakoutMaxBars > 0 && z - b > o.breakoutMaxBars) break;
-                    if (lastIdx != null && z > lastIdx) break;   // the next base has started: this breakout's run is over
+                    if (lastIdx != null && z > failEnd) break;   // the failure test is over (without a later base: the last bar)
                     if (L[z] <= stop) {
                         // a drop after the quick-reversal window is not a failure once the peak (bars before this one) has reached the success level
-                        if (!(o.breakoutSuccessPct > 0) || z - b <= o.breakoutQuickFailBars || peak < win) { failIdx = z; break; }   // failure bar: its high is left out of the peak
+                        if (!(o.breakoutSuccessPct > 0) || z - b <= o.breakoutQuickFailBars || runPeak < win) { failIdx = z; break; }   // failure bar: its high is left out of the peak
                     }
-                    if (H[z] > peak) { peak = H[z]; peakIdx = z; }
+                    if (H[z] > runPeak) runPeak = H[z];
+                    if ((lastIdx == null || z <= lastIdx) && H[z] > peak) { peak = H[z]; peakIdx = z; }   // the next base has started: this breakout's run is over
                 }
                 p.breakoutIdx = b; p.breakoutLevel = level;
                 p.peakPct = r1((peak / level - 1) * 100); p.peakDays = peakIdx - b;
@@ -1086,16 +1095,30 @@
 
             out.sort(function(a, b) { return (a.startIdx - b.startIdx) || (a.endIdx - b.endIdx); });
 
-            // how each breakout went, now that every pattern is known: the peak and the failure test stop at the
-            // start of the next base = the earliest pattern whose start bar is on or after the breakout bar
-            // (out is sorted by startIdx, so the first match is it); no later base -> to the last bar
-            var pb, nextStart;
+            // how each breakout went, now that every pattern is known: the peak stops at the start of the next
+            // base = the earliest pattern whose start bar is on or after the breakout bar (out is sorted by
+            // startIdx, so the first match is it); no later base -> to the last bar. The failure test goes on
+            // past that start until the next base breaks out or breakoutFailMaxBars bars after this breakout
+            // (never ending before that start); no later base -> to the last bar
+            var pb, nextStart, nextBrk, failEnd, m;
             for (q = 0; q < pending.length; q++) {
-                pb = pending[q][1]; nextStart = null;
+                pb = pending[q][1]; nextStart = null; nextBrk = null; failEnd = null;
                 for (k = 0; k < out.length; k++) {
-                    if (out[k].startIdx >= pb.idx) { nextStart = out[k].startIdx; break; }
+                    if (out[k].startIdx >= pb.idx) {
+                        nextStart = out[k].startIdx;
+                        for (m = 0; m < pending.length; m++) if (pending[m][0] === out[k]) { nextBrk = pending[m][1].idx; break; }
+                        break;
+                    }
                 }
-                afterBreakout(pending[q][0], pb, nextStart);
+                if (nextStart != null) {
+                    failEnd = nextStart;
+                    if (o.breakoutFailMaxBars > 0) {
+                        failEnd = pb.idx + o.breakoutFailMaxBars;
+                        if (nextBrk != null && nextBrk - 1 < failEnd) failEnd = nextBrk - 1;   // the next base has broken out: this breakout's stop no longer matters
+                        if (failEnd < nextStart) failEnd = nextStart;
+                    }
+                }
+                afterBreakout(pending[q][0], pb, nextStart, failEnd);
             }
             return out;
         })();
