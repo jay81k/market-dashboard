@@ -2033,6 +2033,46 @@
         return { alert: newAlert, created: true };
     };
 
+    // Direct creation of a plain price alert, no form: used by the chart right-click "Alert above pivot" row.
+    // Same entry shape and duplicate rule as the form's price branch. Returns { alert, created } or null (bad input).
+    window.alAddPriceAlert = function(ticker, condition, price) {
+        price = Number(price);
+        if (!ticker || (condition !== 'above' && condition !== 'below') || !isFinite(price) || price <= 0) return null;
+        var entry = {
+            ticker:    ticker,
+            condition: condition,
+            price:     price,
+            alertType: 'price',
+            name:      (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '',
+            addedAt:   new Date().toISOString()
+        };
+        var key = _alKey(entry);
+        var existing = alertsList.filter(function(x) { return _alKey(x) === key; })[0];
+        if (existing) return { alert: existing, created: false };
+        alertsList.push(entry);
+        delete _alertFiredSess[key];
+        _alLoaded = true;
+        alSave();
+        alStartBackgroundPolling();
+        if (currentView === 'alerts') renderAlerts();
+        alStampBadges();
+        // the form looks the name up when the ticker isn't in the ticker map; do the same here
+        if (!entry.name) {
+            fetch(WL_PROXY + '?symbol=' + encodeURIComponent(ticker) + '&interval=1d&range=2d')
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+                    var resolvedName = (meta && (meta.shortName || meta.longName)) || '';
+                    if (resolvedName && !entry.name && alertsList.indexOf(entry) !== -1) {
+                        entry.name = resolvedName;
+                        alSave();
+                        renderAlerts();
+                    }
+                }).catch(function() {});
+        }
+        return { alert: entry, created: true };
+    };
+
     // Accessor for other chart contexts (fullscreen, watchlist) to read trendline alerts
     window.alGetTrendlineAlerts = function(ticker) {
         return alertsList.filter(function(a) {
