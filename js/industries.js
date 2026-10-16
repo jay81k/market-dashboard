@@ -84,9 +84,9 @@
             html += '<span class="industry-rs-col ' + rsColClass(rs6m)  + '">' + (rs6m  != null ? rs6m  : '—') + '</span>';
             html += '</div>';
             html += '<div class="industry-breadth-cols">';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctUptrend) + '">' + (pctUptrend != null ? pctUptrend + '%' : '—') + '</span>';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove50) + '">' + (pctAbove50 != null ? pctAbove50 + '%' : '—') + '</span>';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove21) + '">' + (pctAbove21 != null ? pctAbove21 + '%' : '—') + '</span>';
+            html += breadthCellHtml(ind.industry, 0, pctUptrend);
+            html += breadthCellHtml(ind.industry, 1, pctAbove50);
+            html += breadthCellHtml(ind.industry, 2, pctAbove21);
             html += '</div>';
             html += '</div>';
         });
@@ -210,6 +210,26 @@
         var cls = delta > 0 ? 'up' : 'down';
         var sign = delta > 0 ? '+' : '';
         return '<span class="ind-rank-delta ' + cls + '">' + sign + delta + '</span>';
+    }
+
+    // Breadth cell (UPTR% / 50MA% / 21EMA%) with a tiny ▲/▼ when the value moved
+    // at least BREADTH_ARROW_MIN points vs the previous snapshot (indPrevBreadth).
+    // The arrow sits inline to the LEFT of the right-aligned number, so the number
+    // never shifts and no column width changes.
+    var BREADTH_ARROW_MIN = 5;
+    function breadthCellHtml(industryName, idx, val) {
+        var arrow = '', tip = '';
+        var prevArr = indPrevBreadth[industryName];
+        var prev = prevArr ? prevArr[idx] : null;
+        if (prev != null && val != null) {
+            var d = Math.round((val - prev) * 10) / 10;
+            if (Math.abs(d) >= BREADTH_ARROW_MIN) {
+                var up = d > 0;
+                arrow = '<span class="ind-breadth-arrow ' + (up ? 'up' : 'down') + '">' + (up ? '\u25B2' : '\u25BC') + '</span>';
+                tip = ' title="' + (up ? '+' : '') + d.toFixed(1) + ' pts vs prior"';
+            }
+        }
+        return '<span class="industry-breadth-col ' + rsColClass(val) + '"' + tip + '>' + arrow + (val != null ? val + '%' : '\u2014') + '</span>';
     }
 
     function perfCol(val) {
@@ -695,9 +715,9 @@
             var pctAbove50 = _indSum ? _indSum.pct_above_50sma       : null;
             var pctAbove21 = _indSum ? _indSum.pct_above_21ema       : null;
             html += '<div class="industry-breadth-cols">';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctUptrend) + '">' + (pctUptrend != null ? pctUptrend + '%' : '—') + '</span>';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove50) + '">' + (pctAbove50 != null ? pctAbove50 + '%' : '—') + '</span>';
-            html += '<span class="industry-breadth-col ' + rsColClass(pctAbove21) + '">' + (pctAbove21 != null ? pctAbove21 + '%' : '—') + '</span>';
+            html += breadthCellHtml(ind.industry, 0, pctUptrend);
+            html += breadthCellHtml(ind.industry, 1, pctAbove50);
+            html += breadthCellHtml(ind.industry, 2, pctAbove21);
             html += '</div>';
 
             html += '</div>';
