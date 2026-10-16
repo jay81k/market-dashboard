@@ -1,14 +1,18 @@
-// ── Pattern overlay: base / cup / double bottom on the fullscreen chart ──
+// ── Pattern overlay: base / cup / double bottom on the fullscreen + watchlist charts ──
 // Phase 2: draws the output of pattern.js (PatternDetector) as a Lightweight
-// Charts v5 series primitive. Fullscreen chart only, daily timeframe only
-// (like the Pine script). Off by default; the toolbar button
-// (#mc-fs-pattern-btn) toggles it and remembers the choice.
+// Charts v5 series primitive. Fullscreen and watchlist charts, daily timeframe only
+// (like the Pine script). Off by default; the toolbar buttons (#mc-fs-pattern-btn
+// and #wl-chart-pattern-btn) toggle it - one shared setting - and remember the choice.
 //
 // Wiring:
 //   - index.html loads pattern.js and this file before multichart.js
 //   - _buildFsChart() in multichart.js calls PatternOverlay.attach(...) once
 //     the chart and candle series exist (one primitive per chart build; the
 //     primitive goes away with the chart, so there is nothing to clean up)
+//   - _buildWlChart() in multichart.js attaches the same overlay to the watchlist chart in its
+//     own slot ('wl'; the fullscreen chart uses the default slot 'fs'), so both can be attached
+//     at once: opening the fullscreen chart from the watchlist does not detach the watchlist's
+//     patterns. _destroyWlChart() detaches the 'wl' slot.
 //   - the detector only re-runs when the last candle changes, so the
 //     10-second live tick keeps the current pattern up to date
 //   - the detector also re-runs when the chart's price scale mode changes
@@ -116,25 +120,36 @@
 
     var enabled = false;
     try { enabled = localStorage.getItem(STORAGE_KEY) === '1'; } catch (e) {}
-    var current = null;   // { series, primitive, requestUpdate, lastResult } for the chart on screen
+    // One attachment per chart slot: 'fs' = fullscreen chart (the default), 'wl' = watchlist chart.
+    // Each value: { series, primitive, requestUpdate, lastResult, hoverId, ... }
+    var handles = {};
+    var BUTTON_IDS = ['mc-fs-pattern-btn', 'wl-chart-pattern-btn'];
 
     function syncButton() {
-        var b = document.getElementById('mc-fs-pattern-btn');
-        if (b) b.classList.toggle('active', enabled);
+        BUTTON_IDS.forEach(function(id) {
+            var b = document.getElementById(id);
+            if (b) b.classList.toggle('active', enabled);
+        });
     }
 
-    function detach() {
-        if (!current) return;
-        if (current.cleanup) current.cleanup();
-        try { current.series.detachPrimitive(current.primitive); } catch (e) {}
-        current = null;
+    // detach('wl') drops one slot; detach() with no argument drops every slot
+    function detach(slot) {
+        if (slot === undefined) { Object.keys(handles).forEach(function(k) { detach(k); }); return; }
+        var h = handles[slot];
+        if (!h) return;
+        if (h.cleanup) h.cleanup();
+        try { h.series.detachPrimitive(h.primitive); } catch (e) {}
+        delete handles[slot];
     }
 
-    // chart/series: the fullscreen chart and its candle series
+    // chart/series: the chart and its candle series
     // getOhlcv():   the live candle array (mutated in place by the live tick)
     // getTf():      current timeframe ('D' | 'W' | 'M' ...)
-    function attach(chart, series, getOhlcv, getTf) {
-        detach();
+    // slot:         optional, 'fs' (default, the fullscreen chart) or 'wl' (the watchlist chart);
+    //               re-attaching a slot replaces only that slot's previous attachment
+    function attach(chart, series, getOhlcv, getTf, slot) {
+        slot = slot || 'fs';
+        detach(slot);
         var handle = { series: series, primitive: null, requestUpdate: null, lastResult: null,
                        hoverId: null, hoverKey: '', cleanup: null, clearHover: null };
         var cacheKey = '';
@@ -517,23 +532,26 @@
 
         handle.primitive = primitive;
         series.attachPrimitive(primitive);
-        current = handle;
+        handles[slot] = handle;
     }
 
     window.mcFsTogglePatterns = function() {
         enabled = !enabled;
         try { localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0'); } catch (e) {}
         syncButton();
-        if (!enabled && current && current.clearHover) current.clearHover();
-        if (current && current.requestUpdate) current.requestUpdate();
+        Object.keys(handles).forEach(function(k) {
+            var h = handles[k];
+            if (!enabled && h.clearHover) h.clearHover();
+            if (h.requestUpdate) h.requestUpdate();
+        });
     };
 
     window.PatternOverlay = {
         attach: attach,
         detach: detach,
         isEnabled: function() { return enabled; },
-        last: function() { return current ? current.lastResult : null; },
-        hovered: function() { return current ? current.hoverId : null; }
+        last: function(slot) { var h = handles[slot || 'fs']; return h ? h.lastResult : null; },
+        hovered: function(slot) { var h = handles[slot || 'fs']; return h ? h.hoverId : null; }
     };
 
     syncButton();
