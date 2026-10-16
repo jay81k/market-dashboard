@@ -557,6 +557,39 @@ var _mmPopup = (function () {
         });
     }
 
+    // quotes_batch answers in Questrade's {price} shape or, when it falls back, Yahoo's
+    // {price: null, regularMarketPrice} — accept both (same rule as the fullscreen live quote).
+    function quotePriceFromBatch(data) {
+        var q = data && data.quotes && data.quotes[0];
+        if (!q) return null;
+        var p = q.price != null ? q.price : q.regularMarketPrice;
+        return p || null;
+    }
+
+    // Pure: which daily bars the header chg is measured between — same recipe as the fullscreen chart
+    // (live price vs the PREVIOUS DAILY bar's close). ohlcv = chronological daily bars, raw timestamps.
+    //  - market closed: last bar vs the one before it (barPrice = last bar's final close)
+    //  - market open, last bar is today's: prev = the bar before it; price comes from the fresh quote
+    //    (barPrice = that bar's close, used only if the quote failed)
+    //  - market open, no bar for today yet: fullscreen starts a new bar, so prev = the last bar; no
+    //    barPrice, so chg stays blank unless the fresh quote arrives
+    function tickerChgBaseline(ohlcv, mktOpen, nowMs) {
+        var n = ohlcv.length;
+        var last = n ? ohlcv[n - 1] : null;
+        var lastIsToday = !!last && Math.floor(last.time / 86400) === Math.floor(nowMs / 86400000);
+        if (mktOpen && !lastIsToday) return { prevClose: last ? last.close : null, barPrice: null };
+        return { prevClose: n > 1 ? ohlcv[n - 2].close : null, barPrice: last ? last.close : null };
+    }
+
+    function setTickerChg(price, prevClose) {
+        if (!popupChg) return;
+        if (price == null || prevClose == null || !(prevClose > 0)) { popupChg.textContent = ''; return; }
+        var chgAbs = price - prevClose;
+        var chgPct = (chgAbs / prevClose) * 100;
+        popupChg.textContent = (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) + ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)';
+        popupChg.style.color = chgPct > 0 ? 'var(--success)' : chgPct < 0 ? 'var(--danger)' : 'var(--border-muted)';
+    }
+
     function showTickerPopup(el, ticker) {
         if (!ready) init();
         if (!popup) return;
@@ -564,12 +597,6 @@ var _mmPopup = (function () {
         var _td = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
         var name     = _td.name || '';
         var industry = _td.industry || '';
-        var price    = _td.price != null ? _td.price : null;
-        var prevClose = _td.prevClose != null ? _td.prevClose : null;
-
-        var chgAbs = (price != null && prevClose != null) ? price - prevClose : null;
-        var chgPct = (chgAbs != null && prevClose > 0) ? (chgAbs / prevClose) * 100 : null;
-        var dir    = chgPct == null ? 'flat' : chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
 
         popupSym.textContent = ticker;
         activeYfSym = null;
@@ -579,26 +606,11 @@ var _mmPopup = (function () {
         if (popupIndName) { popupIndName.textContent = industry; }
         if (popupIndSep)  { popupIndSep.style.display = industry ? '' : 'none'; }
 
-        var chgAbsStr = chgAbs != null ? (chgAbs >= 0 ? '+' : '') + chgAbs.toFixed(2) : '';
-        var chgPctStr = chgPct != null ? ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)' : '';
-        popupChg.textContent = chgAbsStr + chgPctStr;
-        popupChg.style.color = dir === 'up' ? 'var(--success)' : dir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
-
+        // chg is filled in once the daily fetch below resolves (setTickerChg) — not from the
+        // _getTickerPopupData caches, which can be stale or on a different baseline than fullscreen.
+        popupChg.textContent = '';
         clearInterval(liveRefreshTimer);
-        liveRefreshTimer = setInterval(function() {
-            var ltd = (typeof window._getTickerPopupData === 'function') ? window._getTickerPopupData(ticker) : {};
-            var livePrice     = ltd.price != null ? ltd.price : null;
-            var livePrevClose = ltd.prevClose != null ? ltd.prevClose : null;
-            var liveChgAbs = (livePrice != null && livePrevClose != null) ? livePrice - livePrevClose : null;
-            var liveChgPct = (liveChgAbs != null && livePrevClose > 0) ? (liveChgAbs / livePrevClose) * 100 : null;
-            var liveDir    = liveChgPct == null ? 'flat' : liveChgPct > 0 ? 'up' : liveChgPct < 0 ? 'down' : 'flat';
-            var liveAbsStr = liveChgAbs != null ? (liveChgAbs >= 0 ? '+' : '') + liveChgAbs.toFixed(2) : '';
-            var livePctStr = liveChgPct != null ? ' (' + (liveChgPct >= 0 ? '+' : '') + liveChgPct.toFixed(2) + '%)' : '';
-            if (liveAbsStr || livePctStr) {
-                popupChg.textContent = liveAbsStr + livePctStr;
-                popupChg.style.color = liveDir === 'up' ? 'var(--success)' : liveDir === 'down' ? 'var(--danger)' : 'var(--border-muted)';
-            }
-        }, 5000);
+        liveRefreshTimer = null;
 
         // Industry rank
         if (popupIndRank) {
@@ -646,6 +658,16 @@ var _mmPopup = (function () {
             return;
         }
 
+        // Market open: ONE fresh quote in parallel with the daily fetch — the same quotes_batch call the
+        // fullscreen live tick makes. Closed: no quote needed, the last daily close is final.
+        var _mktOpenNow = (typeof wlIsMarketOpen === 'function') && wlIsMarketOpen();
+        var quoteP = _mktOpenNow
+            ? fetch(WL_PROXY + '?action=quotes_batch&tickers=' + encodeURIComponent(ticker))
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(quotePriceFromBatch)
+                .catch(function() { return null; })
+            : Promise.resolve(null);
+
         var url = WL_PROXY + '?symbol=' +
                   encodeURIComponent(ticker) + '&interval=1d&range=6mo';
 
@@ -675,6 +697,13 @@ var _mmPopup = (function () {
                         volume: q.volume[i] || 0,
                     });
                 }
+                // Header chg first, from the full daily series (before today's bar is popped below).
+                var _base = tickerChgBaseline(ohlcv, _mktOpenNow, Date.now());
+                quoteP.then(function(livePx) {
+                    if (el !== activeCard) return;
+                    setTickerChg(livePx != null ? livePx : _base.barPrice, _base.prevClose);
+                });
+
                 // The last entry is always the most recent trading day's
                 // daily bar (ohlcv is chronological, oldest first) — no need
                 // to compare it against the clock at all. Just pull it out
