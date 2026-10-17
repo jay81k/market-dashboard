@@ -34,6 +34,10 @@
 // Ticks are black in light mode (Pine's colour) and the same blue-grey as the pattern lines in dark mode.
 //
 // Hover tooltip (only while the patterns toggle is on):
+//   - not shown (no card, no tint, no glow) while a measurement is in progress: attach() takes an optional
+//     isToolBusy() that multichart.js answers (anchor placed and waiting for the 2nd click, or an anchor / the
+//     whole measurement being dragged). The measure tool's mousedown stops propagation, so this overlay never
+//     sees that mouse press and could not tell on its own
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
 //     card with the pattern's name, length in trading days, depth, price range
 //     and status (Forming / Broke out); the pattern also gets a soft highlight.
@@ -173,7 +177,9 @@
     // getTf():      current timeframe ('D' | 'W' | 'M' ...)
     // slot:         optional, 'fs' (default, the fullscreen chart) or 'wl' (the watchlist chart);
     //               re-attaching a slot replaces only that slot's previous attachment
-    function attach(chart, series, getOhlcv, getTf, slot) {
+    // isToolBusy(): optional, true while a measurement is in progress on this chart; the hover card / tint / glow
+    //               stay hidden meanwhile (the pattern lines still draw)
+    function attach(chart, series, getOhlcv, getTf, slot, isToolBusy) {
         slot = slot || 'fs';
         detach(slot);
         var handle = { series: series, primitive: null, requestUpdate: null, lastResult: null,
@@ -412,8 +418,10 @@
         }
         handle.clearHover = clearHover;
 
+        function toolBusy() { try { return !!(isToolBusy && isToolBusy()); } catch (e) { return false; } }
+
         function onMove(param) {
-            if (!enabled || dragging || !param || !param.point) { clearHover(); return; }
+            if (!enabled || dragging || toolBusy() || !param || !param.point) { clearHover(); return; }
             if (param.paneIndex !== undefined) {
                 var ok = true;
                 try { ok = series.getPane().paneIndex() === param.paneIndex; } catch (e) { ok = param.paneIndex === 0; }
