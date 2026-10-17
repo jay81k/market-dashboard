@@ -28,14 +28,15 @@
 //    on the chart, for the hover tooltip: { id, type, label, startIdx, endIdx, bars,
 //    weeks, top, bottom, depthPct, status, lineIdx, cupIdx, ... }. type is 'flatBase'
 //    (a plain base up to opts.flatBaseMaxDepthPct deep, 15 by default), 'consolidation'
-//    (a plain base deeper than that), 'cup', 'cupHandle' or 'doubleBottom'. bars is
+//    (a plain base deeper than that), 'cup', 'cupHandle', 'doubleBottom' or 'highTightFlag'. bars is
 //    trading days from the old high to the last bar of the pattern; depthPct is
 //    measured from the old high (double bottom: from the first high to the second
 //    low) and rounded to 0.1. status is 'forming', 'brokeOut' or null (ended).
 //    lineIdx / cupIdx point into result.lines / result.cups so the drawn geometry can
-//    be hit-tested. buyPoint is set for double bottoms only (null for every other
-//    type): the real pivot high of the middle peak, i.e. the price of the dotted
-//    'dbHigh' line, not the lowered W vertex.
+//    be hit-tested. buyPoint is set for double bottoms and high tight flags only (null
+//    for every other type). Double bottom: the real pivot high of the middle peak, i.e.
+//    the price of the dotted 'dbHigh' line, not the lowered W vertex. High tight flag:
+//    the flag high (see HIGH TIGHT FLAG below).
 //    AFTER THE BREAKOUT: for a pattern with status 'brokeOut' (any type), the summary also
 //    says how the breakout went, measured from the breakout level (the 'breakout' event's
 //    top: the old high, or the lip high for a cup with a handle). peakPct / peakDays:
@@ -151,6 +152,34 @@
 //    a handle breakout that fails before reaching the old high is not drawn.
 //    Not checkable here: the "no more than 2.5x the market's correction" rule
 //    (the detector only sees one stock). Set handles: false for Pine's output.
+//  - HIGH TIGHT FLAG (a new pattern, NOT in Pine): a pass of its own over the candles, run last
+//    (after the bar loop and the handle-cup step), so it only ever APPENDS lines and events. It
+//    reads nothing the base / cup / double-bottom state machine decides and changes none of it
+//    (that machinery needs a base at least 25 bars old, so a 3-5 week flag never reaches it).
+//    Switch it off with htf: false. Every bar s is tried as the flag high (the top of the run-up):
+//      run:    the high of s is strictly above every high of the opts.htfRunWeeks (8) weeks =
+//              40 bars before it, and at least opts.htfMinRunPct (80) % above the LOWEST LOW of
+//              those bars (fewer bars are used if the data is shorter). A faster run passes
+//              too: 80% in 2 weeks is stronger, so there is no minimum run time
+//      flag:   the bars after s, up to the bar before the first bar whose high is ABOVE the
+//              high of s (or up to the latest bar if none has taken it out yet). It has to
+//              last opts.htfMinFlagWeeks (3) .. opts.htfMaxFlagWeeks (5) weeks = 15..25 bars.
+//              A flag still inside after 25 bars is not one (it is a base)
+//      depth:  (flag high - lowest low of the flag bars) / flag high, from
+//              opts.htfMinDepthPct (0) to opts.htfMaxDepthPct (25) %
+//    BUY POINT: the flag high, which is also the high of the run-up. The breakout is the first
+//    bar whose high is above it (the same strict rule as the base top break).
+//    Output: type 'highTightFlag', label 'High Tight Flag', buyPoint = the flag high, runUpPct /
+//    runUpBars (lowest low of the run -> flag high; null for every other type), lines 'flagHigh'
+//    (dotted: flag high bar -> the bar that takes it out, or the latest bar while forming) and
+//    'flagLow' (the flag's lowest low: flag high bar -> last flag bar; dotted when the flag is
+//    more than 15% deep, like a base's low line), event 'flagBreakout' { top, startIdx,
+//    startTime } (a separate type, so the number of 'breakout' events does not change). No
+//    entry / stop / target boxes are made. A flag that lasts exactly 25 bars is ALSO found by
+//    the plain base detection (a Flat Base or Consolidation with the same start and high):
+//    both are reported. Flags are NOT counted as the "next base" of another pattern when its
+//    breakout is measured (see AFTER THE BREAKOUT), so nothing the other types report moves;
+//    a flag's own breakout is measured like any other.
 //
 // ── ASSUMPTIONS (UNVERIFIED against TradingView) ─────────────────────────
 //  1. ta.pivothigh/low tie rule (equal highs/lows inside the window).
@@ -204,6 +233,13 @@
         handleMinBars: 5,          // minimum handle length (bars, 1 week)
         handleMinPullbackPct: 3,   // handle's lowest low must be at least this % below the lip high
         handleMidSlackPct: 1,      // NOT in Pine: the handle's lowest low may dip this % (of the old high) below the middle of the cup (0 = it must stay above the middle)
+        htf: true,                 // NOT in Pine: look for high tight flags (false = none in the output)
+        htfRunWeeks: 8,            // NOT in Pine: the run-up is measured over the 8 weeks (x5 = 40 bars) before the flag high
+        htfMinRunPct: 80,          // NOT in Pine: the flag high must be at least this % above the lowest low of those bars
+        htfMinFlagWeeks: 3,        // NOT in Pine: flag length (flag high -> last bar before the breakout) at least this many weeks (x5 bars)
+        htfMaxFlagWeeks: 5,        // NOT in Pine: ...and at most this many weeks (x5 bars)
+        htfMinDepthPct: 0,         // NOT in Pine: flag depth (flag high -> lowest low in the flag), at least this % ...
+        htfMaxDepthPct: 25,        // NOT in Pine: ...and at most this %
         breakoutFailPct: 7,        // NOT in Pine: a broken-out pattern counts as failed once a bar's low is this % below the breakout level
         breakoutMaxBars: 0,        // NOT in Pine: stop measuring peak / failure this many bars after the breakout (0 = no limit)
         breakoutFailMaxBars: 25,   // NOT in Pine: once a later base has started, the failure test (not the peak) keeps going until this many bars after the breakout or until that base breaks out, whichever is first (0 = stop at the later base's start)
@@ -831,6 +867,70 @@
                 .map(function(x) { return x.e; });
         })();
 
+        // ── high tight flags ─────────────────────────────────────────────
+        // NOT in Pine (see HIGH TIGHT FLAG under DEVIATIONS FROM PINE in the header). A pass
+        // of its own on the candles: it reads no state of the loop above and changes none.
+        // It runs LAST on purpose, so everything the other types produced (lines, events,
+        // boxes, cups, line indices) stays exactly as it was and flag data is only appended.
+        // Adds drawing lines ('flagHigh', 'flagLow') and 'flagBreakout' events (events are
+        // put back in bar order); the pattern summaries are built from htfList further down.
+        var htfList = [];
+        (function detectHighTightFlags() {
+            if (!o.htf) return;
+            var runBars = o.htfRunWeeks * 5, minFlag = o.htfMinFlagWeeks * 5, maxFlag = o.htfMaxFlagWeeks * 5;
+            var minRun = o.htfMinRunPct / 100, minDepth = o.htfMinDepthPct / 100, maxDepth = o.htfMaxDepthPct / 100;
+            var EPS = 1e-9;
+            var s, k, z, top, runLow, runLowIdx, ok, brk, scanEnd, flagEnd, flagLow, flagLowIdx, depth, lastX, lowLn, addedEv = false;
+            for (s = 1; s < N; s++) {
+                top = H[s];
+                if (!(top > 0)) continue;
+
+                // the run: the flag high is above every high of the bars before it (it is the run top) and
+                // far enough above the lowest low of those bars
+                runLow = Infinity; runLowIdx = -1; ok = true;
+                for (k = Math.max(0, s - runBars); k < s; k++) {
+                    if (H[k] !== H[k] || L[k] !== L[k] || H[k] >= top) { ok = false; break; }
+                    if (L[k] <= runLow) { runLow = L[k]; runLowIdx = k; }   // on a tie the latest bar
+                }
+                if (!ok || !(runLow > 0) || top / runLow - 1 < minRun - EPS) continue;
+
+                // the flag: up to the bar before the first bar that trades above the flag high
+                brk = -1; scanEnd = Math.min(N - 1, s + maxFlag + 1);
+                for (z = s + 1; z <= scanEnd; z++) {
+                    if (H[z] !== H[z]) { brk = -2; break; }
+                    if (H[z] > top) { brk = z; break; }
+                }
+                if (brk === -2) continue;
+                if (brk < 0 && s + maxFlag + 1 <= N - 1) continue;      // still inside after maxFlag + 1 bars: too long
+                flagEnd = brk >= 0 ? brk - 1 : N - 1;                    // no breakout yet: the flag runs to the latest bar
+                if (flagEnd - s < minFlag || flagEnd - s > maxFlag) continue;
+
+                // depth: the lowest low of the flag bars (the flag high bar itself is not part of the flag)
+                flagLow = Infinity; flagLowIdx = -1;
+                for (k = s + 1; k <= flagEnd; k++) {
+                    if (L[k] !== L[k]) { flagLow = NaN; break; }
+                    if (L[k] < flagLow) { flagLow = L[k]; flagLowIdx = k; }
+                }
+                if (!(flagLow > 0) || flagLow === Infinity) continue;
+                depth = 1 - flagLow / top;
+                if (depth > maxDepth + EPS || depth < minDepth - EPS) continue;
+
+                htfList.push({ startIdx: s, endIdx: flagEnd, top: top, bottom: flagLow, lowIdx: flagLowIdx,
+                               broke: brk >= 0, brkIdx: brk, runLow: runLow, runLowIdx: runLowIdx });
+                lastX = brk >= 0 ? brk : N - 1;
+                newLine('flagHigh', s, top, lastX, top, true, 3);
+                lowLn = newLine('flagLow', s, flagLow, flagEnd, flagLow, false, 2);
+                if (top * 0.85 >= flagLow) { lowLn.dotted = true; lowLn.width = 3; }   // same look as a deep base's low line
+                if (brk >= 0) { ev('flagBreakout', brk, { top: top, startIdx: s, startTime: T[s] }); addedEv = true; }
+            }
+            // the flag events were appended at the end: put the log back in bar order (stable)
+            if (addedEv) {
+                res.events = res.events.map(function(e, i) { return { e: e, i: i }; })
+                    .sort(function(x, y) { return (x.e.idx - y.e.idx) || (x.i - y.i); })
+                    .map(function(x) { return x.e; });
+            }
+        })();
+
         // ── build the result ─────────────────────────────────────────────
         function tm(i) { return (i === i && i >= 0 && i < N) ? T[Math.round(i)] : null; }
         var i, ln, bx;
@@ -981,6 +1081,7 @@
                     depthPct: (top > 0 && bottom === bottom) ? r1((1 - bottom / top) * 100) : NaN,
                     status: status, lineIdx: lineIdx, cupIdx: cupIdx,
                     handleBars: null, handlePullbackPct: null, undercutPct: null, buyPoint: null,
+                    runUpPct: null, runUpBars: null,
                     breakoutIdx: null, breakoutLevel: null, peakPct: null, peakDays: null,
                     failed: false, failDays: null, failPct: null,
                     nowPct: null, nowDays: null, nowZone: null
@@ -1093,6 +1194,21 @@
                 out.push(p);
             }
 
+            // high tight flags: the dotted flagHigh buy line + the flagLow line, found by detectHighTightFlags above
+            var hf, hfHi, hfLo;
+            for (q = 0; q < htfList.length; q++) {
+                hf = htfList[q];
+                hfHi = lineAt('flagHigh', hf.startIdx); hfLo = lineAt('flagLow', hf.startIdx);
+                if (hfHi < 0 || hfLo < 0) continue;
+                p = make('highTightFlag', 'High Tight Flag', hf.startIdx, hf.endIdx, hf.top, hf.bottom,
+                         statusOf(hf.broke, hf.endIdx), [hfHi, hfLo], -1);
+                p.buyPoint = hf.top;                                          // the flag high = the high of the run-up
+                p.runUpPct = r1((hf.top / hf.runLow - 1) * 100);
+                p.runUpBars = hf.startIdx - hf.runLowIdx;
+                if (hf.broke) pending.push([p, { idx: hf.brkIdx, top: hf.top }]);
+                out.push(p);
+            }
+
             out.sort(function(a, b) { return (a.startIdx - b.startIdx) || (a.endIdx - b.endIdx); });
 
             // how each breakout went, now that every pattern is known: the peak stops at the start of the next
@@ -1104,7 +1220,7 @@
             for (q = 0; q < pending.length; q++) {
                 pb = pending[q][1]; nextStart = null; nextBrk = null; failEnd = null;
                 for (k = 0; k < out.length; k++) {
-                    if (out[k].startIdx >= pb.idx) {
+                    if (out[k].startIdx >= pb.idx && out[k].type !== 'highTightFlag') {   // a flag is never the "next base" (see HIGH TIGHT FLAG in the header)
                         nextStart = out[k].startIdx;
                         for (m = 0; m < pending.length; m++) if (pending[m][0] === out[k]) { nextBrk = pending[m][1].idx; break; }
                         break;
@@ -1165,7 +1281,7 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.4.2-breakout-now' };
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.5.0-high-tight-flag' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
