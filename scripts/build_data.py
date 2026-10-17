@@ -543,10 +543,11 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _upper_shadow <= 0.1 * _candle_range
         )
 
-        # Doji (long-legged): open ~= close, body sitting mid-range, on a wide bar. All must hold:
+        # Doji (long-legged cross): small body, centered, balanced wicks, on a normal-sized bar. All must hold:
         #   1. body <= 5% of the bar's range
-        #   2. upper AND lower wick each >= 30% of range (rejects gravestone / dragonfly)
-        #   3. range >= average high-low range of the prior 10 bars (rejects quiet bars)
+        #   2. both wicks > 0 AND shorter wick >= 0.70 x longer wick (centered; rejects gravestone / dragonfly)
+        #   3. range between 0.5x and 2x the average high-low range of the prior 10 bars
+        #      (rejects flat bars below the band and blowout bars above it)
         # Needs 10 prior bars; with less history it returns False.
         # NOTE: weekly/monthly version lives in detect_patterns() below -- keep both in sync.
         _avg_prior_range = (
@@ -556,9 +557,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _avg_prior_range is not None and
             _candle_range > 0 and
             _body <= 0.05 * _candle_range and
-            _upper_shadow >= 0.30 * _candle_range and
-            _lower_shadow >= 0.30 * _candle_range and
-            _candle_range >= _avg_prior_range
+            _upper_shadow > 0 and
+            _lower_shadow > 0 and
+            min(_upper_shadow, _lower_shadow) >= 0.70 * max(_upper_shadow, _lower_shadow) and
+            0.5 * _avg_prior_range <= _candle_range <= 2.0 * _avg_prior_range
         )
 
         _prev_low   = hist["Low"].iloc[-2]
@@ -640,15 +642,16 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                     candle_range > 0 and body <= 0.3 * candle_range and
                     lower_shadow >= 2 * body and upper_shadow <= 0.1 * candle_range
                 )
-                # Long-legged doji -- same rule as the daily one above (keep in sync).
+                # Long-legged cross doji -- same rule as the daily one above (keep in sync).
                 prior_rng = (h["High"] - h["Low"]).iloc[-11:-1].mean() if len(h) >= 11 else None
                 out["doji"]           = bool(
                     prior_rng is not None and
                     candle_range > 0 and
                     body <= 0.05 * candle_range and
-                    upper_shadow >= 0.30 * candle_range and
-                    lower_shadow >= 0.30 * candle_range and
-                    candle_range >= prior_rng
+                    upper_shadow > 0 and
+                    lower_shadow > 0 and
+                    min(upper_shadow, lower_shadow) >= 0.70 * max(upper_shadow, lower_shadow) and
+                    0.5 * prior_rng <= candle_range <= 2.0 * prior_rng
                 )
                 out["bullish_reversal_bar"] = bool(lo < p_lo and c > p_close)
                 out["upside_reversal"]      = bool(
