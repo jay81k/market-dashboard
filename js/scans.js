@@ -41,7 +41,7 @@
         { value: 'rvol',    label: 'Rel. Volume' },
         { value: 'udv',     label: 'U/D Vol' },
         { value: 'hv1',     label: 'HV1' },
-        { value: 'pattern', label: 'Pattern' },
+        { value: 'pattern', label: 'Candlestick' },
         { value: 'fund',      label: 'Fundamental' },
         { value: 'valuation', label: 'Valuation' },
         { value: 'gap',     label: 'Gap' },
@@ -236,7 +236,7 @@
             { type: 'cr',      label: 'CR%' },
             { type: 'mcap',    label: 'Mkt Cap' },
             { type: 'rvol',    label: 'Rel. Vol' },
-            { type: 'pattern', label: 'Pattern' },
+            { type: 'pattern', label: 'Candlestick' },
             { type: 'ma',      label: 'MA' },
             { type: 'fund',    label: 'Fundamental' },
         ];
@@ -249,7 +249,7 @@
             cr:      'Closing Range % — where price closed within the day\'s high/low. 100% = closed at the high.',
             mcap:    'Market Cap — total market value of the company.',
             rvol:    'Relative Volume — today\'s volume vs the average for this time of day.',
-            pattern: 'Filter by candlestick or price pattern.',
+            pattern: 'Filter by candlestick pattern.',
             ma:      'Moving Average — filter by price position relative to a moving average.',
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
             valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
@@ -405,7 +405,7 @@
                 ['oops_reversal',       'Oops Reversal'],
                 ['pocket_pivot',        'Pocket Pivot'],
             ].map(function(o){ return '<option value="'+o[0]+'"'+(row.val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
-            html += '<div class="sf-popover-row"><span class="sf-popover-label">Pattern</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
+            html += '<div class="sf-popover-row"><span class="sf-popover-label">Candlestick</span><select class="sf-select" onchange="sfPopChange('+id+',\'val\',this.value)">'+patOpts+'</select></div>';
             var ptf = row.patternTf || 'd';
             var ptfBtns = [['d','D'],['w','W'],['m','M']].map(function(t){
                 return '<button class="sf-seg-btn'+(ptf===t[0]?' active':'')+'" onclick="event.stopPropagation();sfPopChange('+id+',\'patternTf\',\''+t[0]+'\')">'+t[1]+'</button>';
@@ -659,7 +659,7 @@
 
         var TITLES = { rs: 'RS', price: 'Price', vol: 'Avg Volume',
                        adr: 'ADR%', cr: 'Closing Range %', mcap: 'Market Cap',
-                       rvol: 'Relative Volume', udv: 'U/D Vol', pattern: 'Pattern', ma: 'Moving Average',
+                       rvol: 'Relative Volume', udv: 'U/D Vol', pattern: 'Candlestick', ma: 'Moving Average',
                        fund: 'Fundamental', valuation: 'Valuation', gap: 'Gap', perf: 'Performance', sector: 'Sector / Industry',
                        indrank: 'Industry Rank' };
         document.getElementById('sf-popover-title').textContent = TITLES[type] || type;
@@ -920,7 +920,7 @@
             { value: 'rvol',    label: 'Rel. Volume' },
             { value: 'udv',     label: 'U/D Vol' },
             { value: 'hv1',     label: 'HV1' },
-            { value: 'pattern', label: 'Pattern' },
+            { value: 'pattern', label: 'Candlestick' },
             { value: 'fund',      label: 'Fundamental' },
             { value: 'valuation', label: 'Valuation' },
             { value: 'gap',     label: 'Gap' },
@@ -947,7 +947,7 @@
             rvol:    'Relative Volume — today\'s volume vs the average for this time of day.',
             udv:     'Up/Down Volume ratio — compares volume on up days vs down days over a selected period.',
             hv1:     'HV1 — volume higher than any of the prior 252 sessions (highest volume in 1 year), today or within the last few sessions.',
-            pattern: 'Filter by candlestick or price pattern.',
+            pattern: 'Filter by candlestick pattern.',
             fund:    'Fundamental metrics — EPS growth, sales growth, margins and more.',
             valuation: 'Valuation ratios — Forward P/E, P/S, and PEG.',
             gap:     'Filter stocks that gapped up or down at the open.',
