@@ -1015,6 +1015,8 @@
                             ? (a.condition === 'above'
                                 ? '<span style="color:var(--success);">▲ AVWAP</span>'
                                 : '<span style="color:var(--danger);">▼ AVWAP</span>')
+                        : a.isPivot
+                        ? '<span style="color:var(--success);">▲ pivot</span>'
                         : a.isPrevDay === 'high'
                         ? '<span style="color:var(--success);">▲ PDH</span>'
                         : a.isPrevDay === 'low'
@@ -1645,7 +1647,7 @@
                             ae.price         = pdPrice;
                             ae.isPrevDay     = is52wkE ? (isPrevDayHighE ? '52wk-high' : '52wk-low') : (isPrevDayHighE ? 'high' : 'low');
                             ae.prevDayCandle = is52wkE ? null : candleOffsetE;
-                            delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key;
+                            delete ae.maKey; delete ae.ma1Key; delete ae.ma2Key; delete ae.isPivot;
                             delete ae.patternKey; delete ae.patternKeys; delete ae.patternTf;
                             ae.editedAt = new Date().toISOString();
                             delete ae.armed;
@@ -1666,6 +1668,8 @@
             var a = alertsList[_alEditIdx];
             if (a) {
                 delete _alertFiredSess[alKey(a)];
+                // The pivot tag only describes the alert as created: a changed price, condition or type makes it a different alert.
+                if (a.isPivot && (alertType !== 'price' || a.condition !== cond || a.price !== price)) delete a.isPivot;
                 a.condition = cond;
                 a.alertType = alertType;
                 if (alertType === 'macross') { a.ma1Key = ma1Key; a.ma2Key = ma2Key; delete a.maKey; delete a.patternKey; delete a.patternKeys; delete a.patternTf; a.price = 0; }
@@ -2035,7 +2039,8 @@
 
     // Direct creation of a plain price alert, no form: used by the chart right-click "Alert above pivot" row.
     // Same entry shape and duplicate rule as the form's price branch. Returns { alert, created } or null (bad input).
-    window.alAddPriceAlert = function(ticker, condition, price) {
+    // isPivot (optional): tags the entry so the Alerts table's Condition column reads "▲ pivot" instead of "▲ above".
+    window.alAddPriceAlert = function(ticker, condition, price, isPivot) {
         price = Number(price);
         if (!ticker || (condition !== 'above' && condition !== 'below') || !isFinite(price) || price <= 0) return null;
         var entry = {
@@ -2046,6 +2051,7 @@
             name:      (tickerMap && tickerMap[ticker] && tickerMap[ticker].name) ? tickerMap[ticker].name : '',
             addedAt:   new Date().toISOString()
         };
+        if (isPivot) entry.isPivot = true;
         var key = _alKey(entry);
         var existing = alertsList.filter(function(x) { return _alKey(x) === key; })[0];
         if (existing) return { alert: existing, created: false };
