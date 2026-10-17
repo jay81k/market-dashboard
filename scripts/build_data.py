@@ -543,11 +543,22 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _upper_shadow <= 0.1 * _candle_range
         )
 
-        # Doji (basic): open and close nearly equal -- body is at most 7% of the bar's range.
-        # Wick length is irrelevant, so dragonfly / gravestone / long-legged dojis all count.
+        # Doji (long-legged): open ~= close, body sitting mid-range, on a wide bar. All must hold:
+        #   1. body <= 5% of the bar's range
+        #   2. upper AND lower wick each >= 30% of range (rejects gravestone / dragonfly)
+        #   3. range >= average high-low range of the prior 10 bars (rejects quiet bars)
+        # Needs 10 prior bars; with less history it returns False.
+        # NOTE: weekly/monthly version lives in detect_patterns() below -- keep both in sync.
+        _avg_prior_range = (
+            (hist["High"] - hist["Low"]).iloc[-11:-1].mean() if len(hist) >= 11 else None
+        )
         doji = bool(
+            _avg_prior_range is not None and
             _candle_range > 0 and
-            _body <= 0.07 * _candle_range
+            _body <= 0.05 * _candle_range and
+            _upper_shadow >= 0.30 * _candle_range and
+            _lower_shadow >= 0.30 * _candle_range and
+            _candle_range >= _avg_prior_range
         )
 
         _prev_low   = hist["Low"].iloc[-2]
@@ -629,7 +640,16 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                     candle_range > 0 and body <= 0.3 * candle_range and
                     lower_shadow >= 2 * body and upper_shadow <= 0.1 * candle_range
                 )
-                out["doji"]           = bool(candle_range > 0 and body <= 0.07 * candle_range)
+                # Long-legged doji -- same rule as the daily one above (keep in sync).
+                prior_rng = (h["High"] - h["Low"]).iloc[-11:-1].mean() if len(h) >= 11 else None
+                out["doji"]           = bool(
+                    prior_rng is not None and
+                    candle_range > 0 and
+                    body <= 0.05 * candle_range and
+                    upper_shadow >= 0.30 * candle_range and
+                    lower_shadow >= 0.30 * candle_range and
+                    candle_range >= prior_rng
+                )
                 out["bullish_reversal_bar"] = bool(lo < p_lo and c > p_close)
                 out["upside_reversal"]      = bool(
                     candle_range > 0 and
