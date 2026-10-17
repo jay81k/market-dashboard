@@ -1237,6 +1237,9 @@ return '10y';
     // when you let go), 'move' = shift the whole measurement (same size, never snapped, so its measured
     // size stays exact). Nothing changes until the mouse has travelled a few pixels, so a plain click just selects.
     // The listeners belong to the drag, so no per-chart wiring is needed. On release the saved copy is replaced.
+    // True while an existing measurement is being dragged (an anchor or the whole thing). Read by the pattern overlay's
+    // isToolBusy() below so its hover card stays away; the drag lives in a closure and keeps no state of its own.
+    var _measureHandleDrag = false;
     function _measureBeginDrag(cfg, m, mode, evt) {
         var chart = cfg.chart, candle = cfg.candle, contRef = cfg.contRef, ohlcv = cfg.ohlcv;
         if (!chart || !candle || !contRef || !ohlcv || !ohlcv.length || !m.box) return;
@@ -1295,6 +1298,7 @@ return '10y';
             rafId = requestAnimationFrame(function() { rafId = null; apply(); });
         }
         function onUp(e) {
+            _measureHandleDrag = false;
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup',   onUp);
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -1318,6 +1322,7 @@ return '10y';
                           m.endTime   !== orig.endTime   || m.endPrice   !== orig.endPrice;
             if (changed && m.sym) { _cdDropMs(m.sym, orig); _cdAddMs(m.sym, m); }   // replace the saved copy
         }
+        _measureHandleDrag = true;
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup',   onUp);
     }
@@ -4852,7 +4857,9 @@ return '10y';
 
         // Pattern overlay (base / cup / double bottom) — drawn by pattern-overlay.js, toggled from the toolbar
         if (window.PatternOverlay) {
-            try { window.PatternOverlay.attach(_mcFsChart, _mcFsCandle, function() { return _mcFsOhlcv; }, function() { return _mcFsTf; }); } catch (e) {}
+            // last argument: no hover card while a measurement is in progress (2nd click pending, or a measurement being dragged)
+            try { window.PatternOverlay.attach(_mcFsChart, _mcFsCandle, function() { return _mcFsOhlcv; }, function() { return _mcFsTf; }, undefined,
+                                               function() { return _mcFsMeasurePhase === 1 || _mcFsMeasureActive || _measureHandleDrag; }); } catch (e) {}
         }
 
         // Click handler — AVWAP anchor + AVWAP line selection
@@ -6505,7 +6512,9 @@ return '10y';
         // Pattern overlay (base / cup / double bottom) — same overlay and same on/off toggle as the fullscreen
         // chart. Own slot ('wl') so opening the fullscreen chart from here doesn't detach these patterns.
         if (window.PatternOverlay) {
-            try { window.PatternOverlay.attach(_wlChart, _wlCandle, function() { return _wlOhlcv; }, function() { return _wlTf; }, 'wl'); } catch (e) {}
+            // last argument: no hover card while a measurement is in progress (2nd click pending, or a measurement being dragged)
+            try { window.PatternOverlay.attach(_wlChart, _wlCandle, function() { return _wlOhlcv; }, function() { return _wlTf; }, 'wl',
+                                               function() { return _wlMeasurePhase === 1 || _wlMeasureActive || _measureHandleDrag; }); } catch (e) {}
         }
 
         // Re-render measure overlay on pan/zoom, and on every repaint (see _measureAttachSync)

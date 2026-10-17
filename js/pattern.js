@@ -6,6 +6,9 @@
 //   var r = PatternDetector.detect(candles, opts);
 //   candles: [{time, open, high, low, close, volume}, ...] sorted ascending
 //
+//   PatternDetector.ants(candles, opts) is a SEPARATE indicator ("Full ANTS", Signal 1 of another Pine script):
+//   one boolean per candle, independent of detect(). See ants() near the bottom of this file.
+//
 // PHASE 1 SCOPE: this is a PORT, bugs included, except for the deliberate
 // deviations listed under DEVIATIONS FROM PINE below.
 // Where Pine behaviour was ambiguous it is listed under ASSUMPTIONS and must
@@ -1281,7 +1284,57 @@
         return [{ idx: h.lipIdx, price: h.lipPrice }, { idx: h.lowIdx, price: h.lowPrice }];
     }
 
-    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, DEFAULTS: DEFAULTS, VERSION: '0.5.0-high-tight-flag' };
+    // ── ANTS indicator ───────────────────────────────────────────────────────
+    // NOT part of the pattern detection above: a port of "Signal 1: Full ANTS" from a separate Pine script,
+    // as its own pure function (one boolean per candle). Daily candles only (the overlay enforces that).
+    //   ants(ohlcv, opts) -> [true | false, ...], same length and order as ohlcv
+    // A bar signals when ALL of these hold (L = opts.lookback):
+    //   up days: at least opts.minUpDays of the last L closes are above the close before them
+    //   price:   the close is at least opts.minPriceGainPct % above the close L bars back
+    //   volume:  the average volume of the last L bars is at least opts.minVolumeGainPct % above the average of
+    //            the L bars before those, AND the average of the newest floor(L/2) bars is above the average of
+    //            the floor(L/2) bars before them
+    // Pine quirk kept on purpose (so the marks match TradingView): with an odd L the two halves cover
+    // 2 * floor(L/2) = L - 1 bars, so the oldest bar of the L-bar window is in neither half.
+    // Like Pine's na, a bar with a missing / non-finite input, with fewer than 2L bars of history, or with a
+    // prior average volume of 0 never signals.
+    var ANTS_DEFAULTS = { lookback: 15, minUpDays: 12, minPriceGainPct: 20, minVolumeGainPct: 20 };
+
+    function ants(ohlcv, userOpts) {
+        var o = assign(assign({}, ANTS_DEFAULTS), userOpts || {});
+        var L = Math.max(1, Math.floor(o.lookback));
+        var half = Math.floor(L / 2);
+        var N = ohlcv ? ohlcv.length : 0;
+        var C = new Array(N), V = new Array(N), out = new Array(N), i, k;
+        for (i = 0; i < N; i++) { C[i] = num(ohlcv[i].close); V[i] = num(ohlcv[i].volume); out[i] = false; }
+
+        // average volume of the n bars ending at bar `end` (NaN if any of them is missing: Pine's ta.sma)
+        function avgV(end, n) {
+            var s = 0, j;
+            for (j = 0; j < n; j++) { s += V[end - j]; }
+            return s / n;
+        }
+
+        for (i = 2 * L - 1; i < N; i++) {          // first bar with a full prior window
+            var up = 0;
+            for (k = 0; k < L; k++) { if (C[i - k] > C[i - k - 1]) up++; }
+            if (!(up >= o.minUpDays)) continue;
+
+            var base = C[i - L];
+            if (!(base > 0)) continue;
+            if (!(((C[i] - base) / base) * 100 >= o.minPriceGainPct)) continue;
+
+            var prior = avgV(i - L, L);
+            if (!(prior > 0)) continue;
+            if (!(((avgV(i, L) - prior) / prior) * 100 >= o.minVolumeGainPct)) continue;
+            if (!(avgV(i, half) > avgV(i - half, half))) continue;
+
+            out[i] = true;
+        }
+        return out;
+    }
+
+    var api = { detect: detect, cupCurve: cupCurve, handleCurve: handleCurve, ants: ants, ANTS_DEFAULTS: ANTS_DEFAULTS, DEFAULTS: DEFAULTS, VERSION: '0.5.0-high-tight-flag' };
     if (typeof window !== 'undefined') window.PatternDetector = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
