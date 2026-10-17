@@ -1685,9 +1685,11 @@
                         if (wNewOnly && !r.new_52wk_high) return false;
                         if (!wNewOnly && (wDistMin !== null || wDistMax !== null)) {
                             var pct = r.PctFrom52WkHigh != null ? r.PctFrom52WkHigh : null;
-                            if (pct == null || pct >= 0) return false;
-                            if (wDistMin !== null && !isNaN(wDistMin) && pct > -wDistMin) return false;
-                            if (wDistMax !== null && !isNaN(wDistMax) && pct < -wDistMax) return false;
+                            if (pct == null) return false;
+                            // 0 or above = at / past the 52-week high: count it as 0% away instead of dropping it
+                            var wDist = pct >= 0 ? 0 : -pct;
+                            if (wDistMin !== null && !isNaN(wDistMin) && wDist < wDistMin) return false;
+                            if (wDistMax !== null && !isNaN(wDistMax) && wDist > wDistMax) return false;
                         }
                     } else {
                         if (wNewOnly && !r.new_52wk_low) return false;
@@ -1867,9 +1869,12 @@
             ? '<span class="' + (_distDisplay > 0 ? 'up' : _distDisplay < 0 ? 'down' : '') + '">' + fmt(_distDisplay, 2, '%') + '</span>'
             : '<span style="color:var(--border)">\u2014</span>';
         var pct52Val = '\u2014', pct52Color = 'var(--border-muted)';
-        if (row.PctFrom52WkHigh != null) {
-            pct52Val   = (row.PctFrom52WkHigh > 0 ? '+' : '') + row.PctFrom52WkHigh.toFixed(1) + '%';
-            pct52Color = row.PctFrom52WkHigh >= -5 ? 'var(--success)' : row.PctFrom52WkHigh >= -15 ? 'var(--warning-alt)' : 'var(--danger)';
+        // 52Wk%: during market hours use the live quote the page already holds (no extra requests); else the stored value
+        var _pct52Now = _scanLive52Pct(row.ticker, row.high_52wk);
+        if (_pct52Now == null) _pct52Now = row.PctFrom52WkHigh;
+        if (_pct52Now != null) {
+            pct52Val   = _scanFmt52(_pct52Now);
+            pct52Color = _pct52Now >= -5 ? 'var(--success)' : _pct52Now >= -15 ? 'var(--warning-alt)' : 'var(--danger)';
         }
         var crColor = 'var(--border-muted)';
         if (_crDisplay != null) { if (_crDisplay >= 60) crColor = 'var(--success)'; else if (_crDisplay >= 30) crColor = 'var(--warning-alt)'; else crColor = 'var(--danger)'; }
@@ -1900,7 +1905,7 @@
         h += '<td class="' + cc(row.vs_spy_3m) + '">' + (row.vs_spy_3m != null ? fmt(row.vs_spy_3m,2,'%') : '\u2014') + '</td>';
         h += '<td class="dist-ma-cell" data-dist-all="' + esc(JSON.stringify(distAll)) + '">' + _distHtml + '</td>';
         h += '<td class="avg-vol-cell">' + volVal + '</td>';
-        h += '<td><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
+        h += '<td class="pct52-cell" data-hi52="' + (row.high_52wk != null ? row.high_52wk : '') + '"><span style="color:' + pct52Color + ';font-weight:600;">' + pct52Val + '</span></td>';
         h += '<td><span style="color:' + adrColor   + ';font-weight:600;">' + adrVal   + '</span></td>';
         h += '<td><span style="color:' + crColor    + ';font-weight:600;">' + crVal    + '</span></td>';
         h += '<td class="' + cc(row.eps_this_y_pct)    + '">' + (row.eps_this_y_pct    != null ? fmt(row.eps_this_y_pct,2,'%')    : '\u2014') + '</td>';
@@ -2209,6 +2214,23 @@
         runRound();
     }
 
+    // -- Live 52Wk% (high side) --
+    // Uses the quote scanFetchPrices() already fetched (price + dayHigh), so it adds NO extra requests.
+    // Returns null when it can't be computed (market closed, no live quote, or no stored 52-week high);
+    // callers then keep the stored value. Always <= 0.
+    function _scanLive52Pct(ticker, storedHigh) {
+        if (!wlIsMarketOpen()) return null;
+        var lv = scanLivePrices[ticker];
+        if (!lv || !(lv.price > 0) || !(storedHigh > 0)) return null;
+        var effHigh = Math.max(storedHigh, lv.dayHigh != null ? lv.dayHigh : 0, lv.price);
+        return (lv.price / effHigh - 1) * 100;
+    }
+    function _scanFmt52(v) {
+        var t = v.toFixed(1);
+        if (t === '-0.0') t = '0.0';
+        return (v > 0 ? '+' : '') + t + '%';
+    }
+
     function scanUpdatePriceRows() {
         var marketOpen = wlIsMarketOpen();
         document.querySelectorAll('#scans-tbody .stock-row').forEach(function(tr) {
@@ -2243,6 +2265,16 @@
             tr.setAttribute('data-price', price);
             if (chgAbs != null) tr.setAttribute('data-chg', chgAbs.toFixed(4));
             if (chgPct != null) tr.setAttribute('data-daily', chgPct);
+            // -- Live 52Wk% (high side): from the quote already fetched above, so no extra requests --
+            var _p52Td = tr.querySelector('.pct52-cell');
+            if (_p52Td) {
+                var _p52Live = _scanLive52Pct(ticker, parseFloat(_p52Td.getAttribute('data-hi52')));
+                var _p52Span = _p52Td.querySelector('span');
+                if (_p52Live != null && _p52Span) {
+                    _p52Span.textContent = _scanFmt52(_p52Live);
+                    _p52Span.style.color = _p52Live >= -5 ? 'var(--success)' : _p52Live >= -15 ? 'var(--warning-alt)' : 'var(--danger)';
+                }
+            }
             // ── Live Dist/MA ──────────────────────────────────────────────
             var distCell = tr.querySelector('.dist-ma-cell');
             if (distCell) {
