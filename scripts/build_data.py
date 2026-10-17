@@ -62,6 +62,10 @@ SPARK_POINTS = 13   # evenly-spaced samples across the window (~weekly cadence)
 # Ticker suffixes that indicate ETFs/funds — drop these
 ETF_SUFFIXES = ()  # yfinance universe shouldn't have ETFs, but just in case
 
+# Industries removed from the universe entirely (lower-case; matched against each ticker's FINAL industry,
+# i.e. its industry_overrides.csv value if it has one, otherwise the CSV's Industry)
+EXCLUDED_INDUSTRIES = {"shell companies"}
+
 # Columns to pass through from CSV into snapshot as-is (if present)
 CSV_PASSTHROUGH = [
     "Rank", "Percentile",
@@ -959,6 +963,17 @@ def main():
             print(f"Supplemental tickers added: {[r['Ticker'] for r in new_rows]}")
         else:
             print("Supplemental tickers: all already present in CSV")
+
+    # Drop excluded industries entirely (uses the override industry when a ticker has one). Runs after the
+    # supplemental injection so supplemental tickers are covered, and before price histories are fetched.
+    if EXCLUDED_INDUSTRIES and len(universe):
+        def _final_industry(row):
+            ov = INDUSTRY_OVERRIDES.get(str(row["Ticker"]).strip())
+            return str(ov["industry"] if ov else row["Industry"]).strip().lower()
+        excl_mask = universe.apply(_final_industry, axis=1).isin(EXCLUDED_INDUSTRIES)
+        if excl_mask.any():
+            print(f"Excluded industries {sorted(EXCLUDED_INDUSTRIES)}: removed {int(excl_mask.sum())} tickers")
+            universe = universe[~excl_mask].reset_index(drop=True)
 
     tickers  = universe["Ticker"].tolist()
     print(f"Universe after filters: {len(tickers)} stocks\n")
