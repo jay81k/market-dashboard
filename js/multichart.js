@@ -3437,7 +3437,7 @@ return '10y';
 
     function _ctxPivotCreate(sym, price) {
         var res = null;
-        try { res = (sym && price > 0 && window.alAddPriceAlert) ? window.alAddPriceAlert(sym, 'above', price) : null; } catch (e) { res = null; }
+        try { res = (sym && price > 0 && window.alAddPriceAlert) ? window.alAddPriceAlert(sym, 'above', price, true) : null; } catch (e) { res = null; }
         if (!res) { _mcFsShotToast('Could not set the alert', false); return; }
         _mcFsShotToast((res.created ? 'Alert set: ' : 'Alert already set: ') + sym + ' above $' + Number(res.alert.price).toFixed(2), true);
     }
