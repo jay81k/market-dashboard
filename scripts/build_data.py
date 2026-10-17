@@ -545,7 +545,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
 
         # Doji (long-legged cross): small body, centered, balanced wicks, on a normal-sized bar. All must hold:
         #   1. body <= 5% of the bar's range
-        #   2. both wicks > 0 AND shorter wick >= 0.70 x longer wick (centered; rejects gravestone / dragonfly)
+        #   2. both wicks > 0 AND shorter wick >= 0.60 x longer wick (centered; rejects gravestone / dragonfly)
         #   3. range between 0.5x and 2x the average high-low range of the prior 10 bars
         #      (rejects flat bars below the band and blowout bars above it)
         # Needs 10 prior bars; with less history it returns False.
@@ -559,7 +559,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             _body <= 0.05 * _candle_range and
             _upper_shadow > 0 and
             _lower_shadow > 0 and
-            min(_upper_shadow, _lower_shadow) >= 0.70 * max(_upper_shadow, _lower_shadow) and
+            min(_upper_shadow, _lower_shadow) >= 0.60 * max(_upper_shadow, _lower_shadow) and
             0.5 * _avg_prior_range <= _candle_range <= 2.0 * _avg_prior_range
         )
 
@@ -650,7 +650,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                     body <= 0.05 * candle_range and
                     upper_shadow > 0 and
                     lower_shadow > 0 and
-                    min(upper_shadow, lower_shadow) >= 0.70 * max(upper_shadow, lower_shadow) and
+                    min(upper_shadow, lower_shadow) >= 0.60 * max(upper_shadow, lower_shadow) and
                     0.5 * prior_rng <= candle_range <= 2.0 * prior_rng
                 )
                 out["bullish_reversal_bar"] = bool(lo < p_lo and c > p_close)
@@ -708,6 +708,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
         new_52wk_high = False
         new_52wk_low  = False
         pct_from_52wk_low = None
+        pct_from_52wk_high = None
         high_52wk_level = None
         low_52wk_level  = None
         try:
@@ -725,6 +726,10 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
                 low_52wk_level  = round(float(min(low_52w,  today_low)),  4)
                 if low_52w and low_52w > 0:
                     pct_from_52wk_low = round((current / low_52w - 1) * 100, 2)
+                # % from 52-week high, from our own history (same high as new_52wk_high, includes today's bar).
+                # Overrides the CSV feed's value, which can lag / use a different basis. Always <= 0.
+                if high_52wk_level and high_52wk_level > 0:
+                    pct_from_52wk_high = round((current / high_52wk_level - 1) * 100, 2)
         except Exception:
             pass
 
@@ -780,6 +785,7 @@ def compute_metrics(ticker: str, hist: pd.DataFrame, spy_hist: pd.DataFrame) -> 
             "high_52wk":            high_52wk_level,
             "low_52wk":             low_52wk_level,
             "PctFrom52WkLow":       pct_from_52wk_low,
+            "PctFrom52WkHigh":      pct_from_52wk_high,
             "daily":      round(daily, 2),
             "1w":         round(one_week, 2)    if one_week    is not None else None,
             "1m":         round(one_month, 2)   if one_month   is not None else None,
@@ -1040,6 +1046,10 @@ def main():
             **passthrough,
             **metrics,
         }
+        # PctFrom52WkHigh: our own calculation wins; use the CSV feed value only if we couldn't calculate one
+        # (e.g. not enough history), so a None from metrics never wipes out the feed value.
+        if row.get("PctFrom52WkHigh") is None and passthrough.get("PctFrom52WkHigh") is not None:
+            row["PctFrom52WkHigh"] = passthrough["PctFrom52WkHigh"]
 
         # Merge fundamental fields if available
         fund = fundamentals_cache.get(ticker)
