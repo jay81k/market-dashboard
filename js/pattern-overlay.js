@@ -1,4 +1,4 @@
-// ── Pattern overlay: base / cup / double bottom on the fullscreen + watchlist charts ──
+// ── Pattern overlay: base / cup / double bottom / high tight flag on the fullscreen + watchlist charts ──
 // Phase 2: draws the output of pattern.js (PatternDetector) as a Lightweight
 // Charts v5 series primitive. Fullscreen and watchlist charts, daily timeframe only
 // (like the Pine script). Off by default; the toolbar buttons (#mc-fs-pattern-btn
@@ -30,7 +30,8 @@
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
 //     card with the pattern's name, length in trading days, depth, price range
 //     and status (Forming / Broke out); the pattern also gets a soft highlight.
-//     Double bottoms also show their buy point (the middle peak's pivot high).
+//     Double bottoms also show their buy point (the middle peak's pivot high); high tight flags
+//     show the prior run-up (% and days) and their buy point (the flag high).
 //     Patterns that broke out add the peak since the breakout (% and days after it);
 //     once price has hit opts.breakoutFailPct (7%) below the breakout level the "Broke
 //     out" chip turns red and the card adds a Failed row (rules live in pattern.js)
@@ -60,7 +61,7 @@
     var HOVER_GLOW    = 'rgba(146, 193, 131, 0.20)';
     var HOVER_FILL_DARK = 'rgba(132, 153, 184, 0.06)';   // same alpha as light, tinted from #8499b8
     var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.20)';
-    var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
+    var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2', highTightFlag: '#e8956b' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
     var CSS_ID        = 'mc-pattern-tip-style';
     var CSS = [
@@ -96,6 +97,7 @@
 
     // The price a pattern breaks out through (the same level pattern.js measures a breakout from):
     // cup with handle = the handle's lip high, double bottom = its buy point, everything else = the old high
+    // (for a high tight flag that is the flag high, which is also its buy point)
     function pivotOf(p, r) {
         if (p.type === 'doubleBottom') return p.buyPoint;
         if (p.type === 'cupHandle') {
@@ -308,14 +310,20 @@
             row('Length', len);
             row('Depth', p.depthPct.toFixed(1) + '%');
             row('Range', fmtPrice(Math.min(p.top, p.bottom)) + ' \u2013 ' + fmtPrice(Math.max(p.top, p.bottom)));   // low to high
+            if (p.type === 'highTightFlag' && p.runUpPct != null && p.runUpBars != null) {
+                var runTxt = '+' + p.runUpPct.toFixed(1) + '% in ' + p.runUpBars + (p.runUpBars === 1 ? ' day' : ' days');
+                var runWks = Math.round(p.runUpBars / 5);
+                if (runWks >= 1) runTxt += ' (' + runWks + (runWks === 1 ? ' wk)' : ' wks)');
+                row('Prior run', runTxt);
+            }
             if (p.type === 'cupHandle' && p.handleBars != null) {
                 row('Handle', p.handleBars + (p.handleBars === 1 ? ' day, ' : ' days, ') + p.handlePullbackPct.toFixed(1) + '% pullback');
             }
             if (p.type === 'doubleBottom' && p.undercutPct != null) {
                 row('Second low', p.undercutPct.toFixed(1) + '% below first');
             }
-            if (p.type === 'doubleBottom' && p.buyPoint != null) {
-                row('Buy point', fmtPrice(p.buyPoint));   // middle peak's real pivot high (the dotted line), not the lowered W vertex
+            if ((p.type === 'doubleBottom' || p.type === 'highTightFlag') && p.buyPoint != null) {
+                row('Buy point', fmtPrice(p.buyPoint));   // double bottom: the middle peak's real pivot high (the dotted line), not the lowered W vertex; flag: the flag high
             }
             // how the breakout went: peak since the breakout (up to the failure, if there was one), % above the breakout level
             if (p.status === 'brokeOut' && p.peakPct != null && isFinite(p.peakPct)) {
