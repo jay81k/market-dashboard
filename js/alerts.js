@@ -852,7 +852,7 @@
                         body = 'RSI ' + (a.condition === 'above' ? '▲' : '▼') + ' ' + a.price + ' · now ' + hitVal.toFixed(1);
                     } else if (a.alertType === 'pattern') {
                         var pLabels = triggeredPats.map(function(k){ return (AL_PATTERN_LABELS[k] || k).replace(/_/g,' '); }).join(' + ');
-                        body = 'Pattern detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
+                        body = 'Candlestick detected: ' + pLabels + ' (' + (a.patternTf || 'd').toUpperCase() + ')';
                     } else if (a.alertType === 'trendline') {
                         body = (a.condition === 'above' ? '▲ above' : '▼ below') + ' trendline $' + lineAtFire.toFixed(2) + ' · now $' + hitVal.toFixed(2);
                     } else if (a.alertType === 'avwap') {
@@ -1006,7 +1006,7 @@
                     ? '<span style="color:var(--success);">▲ MA above</span>'
                     : '<span style="color:var(--danger);">▼ MA below</span>')
                 : a.alertType === 'pattern'
-                    ? '<span style="color:var(--text-muted-2);">⬡ Pattern</span>'
+                    ? '<span style="color:var(--text-muted-2);">⬡ Candlestick</span>'
                     : a.alertType === 'trendline'
                         ? (a.condition === 'above'
                             ? '<span style="color:var(--success);">▲ trendline</span>'
