@@ -1,4 +1,4 @@
-// ── Pattern overlay: base / cup / double bottom on the fullscreen + watchlist charts ──
+// ── Pattern overlay: base / cup / double bottom / high tight flag on the fullscreen + watchlist charts ──
 // Phase 2: draws the output of pattern.js (PatternDetector) as a Lightweight
 // Charts v5 series primitive. Fullscreen and watchlist charts, daily timeframe only
 // (like the Pine script). Off by default; the toolbar buttons (#mc-fs-pattern-btn
@@ -26,11 +26,19 @@
 // (absent / anything but "light" = dark), at draw time, and a MutationObserver
 // on that attribute repaints the overlay the moment the theme is toggled.
 //
+// ANTS (separate from the patterns): a small vertical tick above every candle that passes PatternDetector.ants()
+// (Signal 1 of the "ANTS" Pine script). ON by default, independent of the patterns toggle, daily timeframe only,
+// and never drawn on the in-progress candle while the market is open (the live tick updates price but not volume,
+// so its volume test would be wrong). Press and hold either pattern button, drag onto the menu row and release to
+// hide / show them; a quick click still toggles the patterns exactly as before. The choice is remembered.
+// Ticks are black in light mode (Pine's colour) and light grey in dark mode.
+//
 // Hover tooltip (only while the patterns toggle is on):
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
 //     card with the pattern's name, length in trading days, depth, price range
 //     and status (Forming / Broke out); the pattern also gets a soft highlight.
-//     Double bottoms also show their buy point (the middle peak's pivot high).
+//     Double bottoms also show their buy point (the middle peak's pivot high); high tight flags
+//     show the prior run-up (% and days) and their buy point (the flag high).
 //     Patterns that broke out add the peak since the breakout (% and days after it);
 //     once price has hit opts.breakoutFailPct (7%) below the breakout level the "Broke
 //     out" chip turns red and the card adds a Failed row (rules live in pattern.js)
@@ -54,13 +62,20 @@
     var LINE_COLOR  = 'rgb(146, 193, 131)';
     var LINE_COLOR_DARK = '#8499b8';                // dark mode only (rgb 132, 153, 184)
 
+    // ANTS ticks
+    var ANTS_KEY        = 'dashboard-ants-on';      // '0' = hidden; anything else (including never saved) = shown
+    var ANTS_COLOR      = '#000000';                // Pine's colour (light mode)
+    var ANTS_COLOR_DARK = '#c9d1d9';                // dark mode: black would be invisible
+    var ANTS_GAP = 5, ANTS_LEN = 8, ANTS_W = 1.5;   // px: gap above the candle's high, tick height, tick width
+    var ANTS_HOLD_MS    = 400;                      // press-and-hold time on a pattern button (same as the trendline button)
+
     // Hover tooltip
     var HIT_TOLERANCE = 8;                          // px: how close the cursor must be to a drawn line / curve
     var HOVER_FILL    = 'rgba(146, 193, 131, 0.06)';
     var HOVER_GLOW    = 'rgba(146, 193, 131, 0.20)';
     var HOVER_FILL_DARK = 'rgba(132, 153, 184, 0.06)';   // same alpha as light, tinted from #8499b8
     var HOVER_GLOW_DARK = 'rgba(132, 153, 184, 0.20)';
-    var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2' };
+    var TYPE_COLOR    = { flatBase: '#8fc27f', consolidation: '#d9a441', cup: '#5aa6e0', cupHandle: '#5aa6e0', doubleBottom: '#b48af2', highTightFlag: '#e8956b' };
     var STATUS_TEXT   = { forming: 'Forming', brokeOut: 'Broke out' };
     var CSS_ID        = 'mc-pattern-tip-style';
     var CSS = [
@@ -96,6 +111,7 @@
 
     // The price a pattern breaks out through (the same level pattern.js measures a breakout from):
     // cup with handle = the handle's lip high, double bottom = its buy point, everything else = the old high
+    // (for a high tight flag that is the flag high, which is also its buy point)
     function pivotOf(p, r) {
         if (p.type === 'doubleBottom') return p.buyPoint;
         if (p.type === 'cupHandle') {
@@ -124,9 +140,12 @@
     function lineColor()  { return isLight() ? LINE_COLOR  : LINE_COLOR_DARK; }
     function hoverFill()  { return isLight() ? HOVER_FILL  : HOVER_FILL_DARK; }
     function hoverGlow()  { return isLight() ? HOVER_GLOW  : HOVER_GLOW_DARK; }
+    function antsColor()  { return isLight() ? ANTS_COLOR  : ANTS_COLOR_DARK; }
 
     var enabled = false;
     try { enabled = localStorage.getItem(STORAGE_KEY) === '1'; } catch (e) {}
+    var antsOn = true;      // ANTS are shown unless the saved choice is off
+    try { antsOn = localStorage.getItem(ANTS_KEY) !== '0'; } catch (e) {}
     // One attachment per chart slot: 'fs' = fullscreen chart (the default), 'wl' = watchlist chart.
     // Each value: { series, primitive, requestUpdate, lastResult, hoverId, ... }
     var handles = {};
@@ -182,6 +201,32 @@
                 catch (e) { handle.lastResult = null; if (window.console) console.warn('PatternDetector failed', e); }
             }
             return handle.lastResult;
+        }
+
+        // ANTS flags, one per candle, recomputed only when the candles change (the chart is re-attached for every
+        // ticker, so this cache never outlives its data). Daily timeframe only.
+        var antsKey = '', antsRes = null;
+        function antsFlags() {
+            var o = getOhlcv();
+            if (!o || o.length < 2 || getTf() !== 'D' || !window.PatternDetector || !window.PatternDetector.ants) return null;
+            var last = o[o.length - 1];
+            var key = o.length + '|' + last.time + '|' + last.close + '|' + last.volume;
+            if (key !== antsKey) {
+                antsKey = key;
+                try { antsRes = window.PatternDetector.ants(o); }
+                catch (e) { antsRes = null; if (window.console) console.warn('PatternDetector.ants failed', e); }
+            }
+            return antsRes;
+        }
+
+        // True while the last candle is today's and the market is open: the live tick never updates volume, so the
+        // volume test on that candle would be wrong. wlIsMarketOpen lives in another file; if it is missing the
+        // candle is treated as complete.
+        function lastBarInProgress(o) {
+            try {
+                if (typeof wlIsMarketOpen !== 'function' || !wlIsMarketOpen()) return false;
+                return Math.floor(o[o.length - 1].time / 86400) === Math.floor(Date.now() / 86400000);
+            } catch (e) { return false; }
         }
 
         function xOf(o, idx) { var b = o[idx]; return b ? chart.timeScale().timeToCoordinate(b.time) : null; }
@@ -308,14 +353,20 @@
             row('Length', len);
             row('Depth', p.depthPct.toFixed(1) + '%');
             row('Range', fmtPrice(Math.min(p.top, p.bottom)) + ' \u2013 ' + fmtPrice(Math.max(p.top, p.bottom)));   // low to high
+            if (p.type === 'highTightFlag' && p.runUpPct != null && p.runUpBars != null) {
+                var runTxt = '+' + p.runUpPct.toFixed(1) + '% in ' + p.runUpBars + (p.runUpBars === 1 ? ' day' : ' days');
+                var runWks = Math.round(p.runUpBars / 5);
+                if (runWks >= 1) runTxt += ' (' + runWks + (runWks === 1 ? ' wk)' : ' wks)');
+                row('Prior run', runTxt);
+            }
             if (p.type === 'cupHandle' && p.handleBars != null) {
                 row('Handle', p.handleBars + (p.handleBars === 1 ? ' day, ' : ' days, ') + p.handlePullbackPct.toFixed(1) + '% pullback');
             }
             if (p.type === 'doubleBottom' && p.undercutPct != null) {
                 row('Second low', p.undercutPct.toFixed(1) + '% below first');
             }
-            if (p.type === 'doubleBottom' && p.buyPoint != null) {
-                row('Buy point', fmtPrice(p.buyPoint));   // middle peak's real pivot high (the dotted line), not the lowered W vertex
+            if ((p.type === 'doubleBottom' || p.type === 'highTightFlag') && p.buyPoint != null) {
+                row('Buy point', fmtPrice(p.buyPoint));   // double bottom: the middle peak's real pivot high (the dotted line), not the lowered W vertex; flag: the flag high
             }
             // how the breakout went: peak since the breakout (up to the failure, if there was one), % above the breakout level
             if (p.status === 'brokeOut' && p.peakPct != null && isFinite(p.peakPct)) {
@@ -534,10 +585,47 @@
             }
         };
 
+        // ANTS: a short vertical tick above the high of every candle that passes the ANTS test (visible bars only)
+        var antsView = {
+            zOrder: function() { return 'normal'; },
+            renderer: function() {
+                return {
+                    draw: function(target) {
+                        var flags = antsFlags();
+                        if (!flags) return;
+                        var o = getOhlcv();
+                        var range = null;
+                        try { range = chart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+                        if (!range) return;
+                        var from = Math.max(0, Math.floor(range.from) - 1);
+                        var to   = Math.min(o.length - 1, Math.ceil(range.to) + 1);
+                        var skipLast = lastBarInProgress(o);
+                        target.useBitmapCoordinateSpace(function(scope) {
+                            var ctx = scope.context, rx = scope.horizontalPixelRatio, ry = scope.verticalPixelRatio;
+                            var w = Math.max(1, Math.round(ANTS_W * rx)), h = Math.max(1, Math.round(ANTS_LEN * ry));
+                            ctx.save();
+                            ctx.fillStyle = antsColor();
+                            for (var i = from; i <= to; i++) {
+                                if (!flags[i] || (skipLast && i === o.length - 1)) continue;
+                                var x = xOf(o, i), y = yOf(o[i].high);
+                                if (x == null || y == null) continue;
+                                ctx.fillRect(Math.round(x * rx - w / 2), Math.round((y - ANTS_GAP) * ry) - h, w, h);
+                            }
+                            ctx.restore();
+                        });
+                    }
+                };
+            }
+        };
+
         var primitive = {
             attached: function(param) { handle.requestUpdate = function() { try { param.requestUpdate(); } catch (e) {} }; },
             detached: function() { handle.requestUpdate = null; if (handle.cleanup) handle.cleanup(); },
-            paneViews: function() { return enabled ? [hoverFillView, hoverGlowView, linesView] : []; }
+            paneViews: function() {
+                var v = enabled ? [hoverFillView, hoverGlowView, linesView] : [];
+                if (antsOn) v.push(antsView);       // independent of the patterns toggle
+                return v;
+            }
         };
 
         handle.primitive = primitive;
@@ -556,10 +644,96 @@
         });
     };
 
+    // ── ANTS on / off: press and hold a pattern button ───────────────────────────
+    // A quick click still just runs mcFsTogglePatterns() (patBtnClick). Holding the button for ANTS_HOLD_MS opens a
+    // one-row menu under it ("Hide ANTS" / "Show ANTS", styled like the trendline button's Solid / Dotted menu);
+    // release over the row to flip ANTS, release anywhere else to cancel. A hold never also toggles the patterns.
+    // Wired from index.html: onmousedown="patBtnDown(event)" onclick="patBtnClick()" on both pattern buttons.
+    function setAnts(on) {
+        antsOn = !!on;
+        try { localStorage.setItem(ANTS_KEY, antsOn ? '1' : '0'); } catch (e) {}
+        Object.keys(handles).forEach(function(k) { var h = handles[k]; if (h.requestUpdate) h.requestUpdate(); });
+    }
+
+    var hold = { timer: null, fired: false, pop: null };
+
+    function popClose() {
+        if (hold.pop && hold.pop.parentNode) hold.pop.parentNode.removeChild(hold.pop);
+        hold.pop = null;
+    }
+
+    function popOpen(btn) {
+        popClose();
+        var pop = document.createElement('div');
+        pop.className = 'mc-tl-style-pop';
+        pop.innerHTML =
+            '<div class="mc-tl-style-opt" data-ants="toggle">' +
+                '<svg width="30" height="8" viewBox="0 0 30 8">' +
+                    '<line x1="7" y1="0.5" x2="7" y2="7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+                    '<line x1="15" y1="0.5" x2="15" y2="7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+                    '<line x1="23" y1="0.5" x2="23" y2="7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+                '</svg>' +
+                '<span>' + (antsOn ? 'Hide ANTS' : 'Show ANTS') + '</span></div>';
+        var r = btn.getBoundingClientRect();
+        pop.style.left = r.left + 'px';
+        pop.style.top  = (r.bottom + 6) + 'px';
+        document.body.appendChild(pop);
+        hold.pop = pop;
+    }
+
+    // Row under the pointer (elementFromPoint, not event.target, so it doesn't depend on mouse capture while the button is held)
+    function optAt(x, y) {
+        if (!hold.pop) return null;
+        var el = document.elementFromPoint(x, y);
+        var opt = el && el.closest ? el.closest('.mc-tl-style-opt') : null;
+        return (opt && hold.pop.contains(opt)) ? opt : null;
+    }
+
+    function holdMove(evt) {
+        if (!hold.pop) return;
+        var hot = optAt(evt.clientX, evt.clientY);
+        var opts = hold.pop.querySelectorAll('.mc-tl-style-opt');
+        for (var i = 0; i < opts.length; i++) opts[i].classList.toggle('hot', opts[i] === hot);
+    }
+
+    function holdUp(evt) {
+        document.removeEventListener('mouseup',   holdUp, true);
+        document.removeEventListener('mousemove', holdMove, true);
+        clearTimeout(hold.timer); hold.timer = null;
+        if (!hold.fired) return;   // quick press: the button's own click handler does the normal toggle
+        var picked = !!optAt(evt.clientX, evt.clientY);
+        popClose();
+        if (picked) setAnts(!antsOn);
+        // Keep `fired` set just long enough to swallow the click that follows this mouseup, then clear it
+        setTimeout(function() { hold.fired = false; }, 50);
+    }
+
+    window.patBtnDown = function(evt) {
+        if (evt.button !== 0) return;
+        var btn = evt.currentTarget;
+        clearTimeout(hold.timer);
+        hold.fired = false;
+        hold.timer = setTimeout(function() {
+            hold.timer = null;
+            hold.fired = true;
+            popOpen(btn);
+        }, ANTS_HOLD_MS);
+        document.addEventListener('mouseup',   holdUp, true);
+        document.addEventListener('mousemove', holdMove, true);
+    };
+
+    // onclick on a pattern button: ignored when the press was a hold (the menu handled it)
+    window.patBtnClick = function() {
+        if (hold.fired) return;
+        window.mcFsTogglePatterns();
+    };
+
     window.PatternOverlay = {
         attach: attach,
         detach: detach,
         isEnabled: function() { return enabled; },
+        antsEnabled: function() { return antsOn; },
+        setAnts: setAnts,
         last: function(slot) { var h = handles[slot || 'fs']; return h ? h.lastResult : null; },
         hovered: function(slot) { var h = handles[slot || 'fs']; return h ? h.hoverId : null; },
         pivotAt: function(slot, px, py) { var h = handles[slot || 'fs']; return h && h.pivotAt ? h.pivotAt(px, py) : null; }
