@@ -31,7 +31,7 @@
 // and never drawn on the in-progress candle while the market is open (the live tick updates price but not volume,
 // so its volume test would be wrong). Press and hold either pattern button, drag onto the menu row and release to
 // hide / show them; a quick click still toggles the patterns exactly as before. The choice is remembered.
-// Ticks are black in light mode (Pine's colour) and light grey in dark mode.
+// Ticks are black in light mode (Pine's colour) and the same blue-grey as the pattern lines in dark mode.
 //
 // Hover tooltip (only while the patterns toggle is on):
 //   - moving the cursor within 8px of a drawn pattern line / cup curve shows a
@@ -65,7 +65,7 @@
     // ANTS ticks
     var ANTS_KEY        = 'dashboard-ants-on';      // '0' = hidden; anything else (including never saved) = shown
     var ANTS_COLOR      = '#000000';                // Pine's colour (light mode)
-    var ANTS_COLOR_DARK = '#c9d1d9';                // dark mode: black would be invisible
+    var ANTS_COLOR_DARK = LINE_COLOR_DARK;          // dark mode: same colour as the pattern lines (black would be invisible)
     var ANTS_GAP = 5, ANTS_LEN = 8, ANTS_W = 1.5;   // px: gap above the candle's high, tick height, tick width
     var ANTS_HOLD_MS    = 400;                      // press-and-hold time on a pattern button (same as the trendline button)
 
